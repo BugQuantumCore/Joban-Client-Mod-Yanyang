@@ -117,14 +117,20 @@ constexpr int64_t BLINK_INTERVAL_MS = 1000;
 constexpr int64_t STOP_DEBOUNCE_MS = 3000;
 
 /* ---- vertical layout constants (config.js, LAYOUT_K-scaled) ---- */
-constexpr int HEADER_H      = static_cast<int>(std::lround(130 * LAYOUT_K));  /* 217 */
-constexpr int RING_TOP_Y    = static_cast<int>(std::lround(240 * LAYOUT_K));  /* 400 */
-constexpr int RING_BOTTOM_Y = static_cast<int>(std::lround(390 * LAYOUT_K));  /* 650 */
+/* kround: constexpr-friendly round-half-up. std::lround is NOT constexpr
+   in the standard — g++ accepts it as an extension, clang/MSVC reject it.
+   All operands here are positive, so half-up == lround's
+   round-half-away-from-zero. */
+constexpr int kround(double v) { return static_cast<int>(v + 0.5); }
+
+constexpr int HEADER_H      = kround(130 * LAYOUT_K);  /* 217 */
+constexpr int RING_TOP_Y    = kround(240 * LAYOUT_K);  /* 400 */
+constexpr int RING_BOTTOM_Y = kround(390 * LAYOUT_K);  /* 650 */
 constexpr int RING_LEFT_X   = 200;
 constexpr int RING_RIGHT_X  = TEX_W - 200;
 constexpr int RING_RADIUS   = (RING_BOTTOM_Y - RING_TOP_Y) / 2;               /* 125 */
-constexpr int RING_STROKE   = static_cast<int>(std::lround(24 * LAYOUT_K));   /* 40 */
-constexpr int RING_PADDING  = static_cast<int>(std::lround(60 * LAYOUT_K));   /* 100 */
+constexpr int RING_STROKE   = kround(24 * LAYOUT_K);   /* 40 */
+constexpr int RING_PADDING  = kround(60 * LAYOUT_K);   /* 100 */
 
 /* K(x) — port of `Math.round(v * LAYOUT_K)` used all over the JS. */
 inline int K(double v) { return static_cast<int>(std::lround(v * LAYOUT_K)); }
