@@ -1,8 +1,10 @@
 package com.lx862.mtrscripting.mod.resource;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.lx862.jcm.mod.config.JCMClientConfig;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.primitive.ScriptContent;
 import com.lx862.mtrscripting.mod.MTRScriptingMod;
@@ -26,6 +28,18 @@ public interface ScriptResourceProvider {
     void reset();
 
     static ParsedScript tryParseScript(String id, String scriptType, String contextName, JsonObject jsonObject, boolean isParsingMTR4, boolean useSnakeCase) {
+        /* Yanyang: C++ native script entries bypass Rhino entirely.
+           The running OS/arch is auto-detected, the per-platform
+           nativeLibrary declaration is resolved, and the module is
+           loaded (or the script skipped with a latest.log + debug-mode
+           hint when this platform isn't declared). Returns null either
+           way: rendering for these ids dispatches through
+           NativeScriptManager, not the JS instance pipeline. */
+        if (isNativeCppScript(jsonObject)) {
+            NativeScriptManager.loadFromDeclaration(id, jsonObject.get(nativeLibraryKey(useSnakeCase)));
+            return null;
+        }
+
         final List<ScriptContent> scripts = new ObjectArrayList<>();
         final String scriptFilesKey = isParsingMTR4 ? "scriptLocations" : useSnakeCase ? "script_files" : "scriptFiles";
         final String scriptTextsKey = isParsingMTR4 ? "prependExpressions" : useSnakeCase ? "script_texts" : "scriptTexts";
@@ -69,6 +83,18 @@ public interface ScriptResourceProvider {
             ScriptResourceProvider.logError("parsing " + scriptType + " script (" + id + ")", e);
             return null;
         }
+    }
+
+    /** True when the entry declares "language": "cpp" (native module). */
+    static boolean isNativeCppScript(JsonObject jsonObject) {
+        final JsonElement language = jsonObject.get("language");
+        return language != null && language.isJsonPrimitive() && "cpp".equalsIgnoreCase(language.getAsString());
+    }
+
+    /** nativeLibrary field name: "nativeLibrary" (MTR 4 / NTE) or
+        "native_library" (snake_case legacy entries). */
+    static String nativeLibraryKey(boolean useSnakeCase) {
+        return useSnakeCase ? "native_library" : "nativeLibrary";
     }
 
     static void logError(String action, Exception e) {

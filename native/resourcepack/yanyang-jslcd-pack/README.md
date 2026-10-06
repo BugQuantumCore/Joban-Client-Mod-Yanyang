@@ -66,6 +66,20 @@ yanyang:natives/jslcd_vehicle
 
 直接写带扩展名的完整路径同样合法（单平台包场景）。
 
+**按平台分别指定**（`NativeScriptManager.resolvePlatformLibrary`）：
+`nativeLibrary` 也接受对象形式，为各系统分别声明——
+
+```json
+"nativeLibrary": {
+  "windows": "yanyang:natives/windows-x64/jslcd_vehicle.dll",
+  "linux":   "yanyang:natives/linux-x64/libjslcd_vehicle.so",
+  "macos":   "yanyang:natives/macos-arm64/libjslcd_vehicle.dylib"
+}
+```
+
+未声明当前系统的条目**不会执行**：提示写入 `latest.log`，并在
+JCM 调试模式（scriptDebugMode）下显示到聊天与调试 HUD。
+
 ## 扩展
 
 包内 4 个平台目录各带全部 5 个示例库，写几行 JSON 即可接线其余脚本：

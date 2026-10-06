@@ -2,6 +2,7 @@ package com.lx862.mtrscripting.mod.gui.hud;
 
 import com.google.common.base.Splitter;
 import com.lx862.jcm.mod.config.JCMClientConfig;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.jcm.mod.data.Pair;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleDataCache;
 import com.lx862.mtrscripting.core.ScriptManager;
@@ -68,6 +69,11 @@ public class MTRScriptDebugOverlay {
             graphicsHolder.drawText(String.format("MTR data transferred: %.2f KB", VehicleDataCache.mtrDataByteCounter / 1024d), 0, 0, COLOR_YELLOW, true, MAX_LIGHT);
         }
 
+        /* Yanyang: C++ native script modules — loaded (blue) and
+           platform-skipped (red, with the reason). Shown whenever
+           native declarations were seen this reload. */
+        drawNativeScriptSection(graphicsHolder);
+
         if(selectedSource.scriptManager != null) {
             Map<String, List<Pair<UniqueKey, ScriptInstance>>> nameToInstances = getInstancesGroupedByName(selectedSource);
 
@@ -113,6 +119,34 @@ public class MTRScriptDebugOverlay {
                 graphicsHolder.translate(-10, 0, 0);
             }
         }
+    }
+
+    private static void drawNativeScriptSection(GraphicsHolder graphicsHolder) {
+        final Map<String, NativeScriptManager.NativeScriptModule> nativeModules = NativeScriptManager.getModules();
+        final Map<String, String> skippedNatives = NativeScriptManager.getSkippedScripts();
+        if(nativeModules.isEmpty() && skippedNatives.isEmpty()) return;
+
+        graphicsHolder.translate(0, 12, 0);
+        MutableText title = TextHelper.literal("C++ Native Scripts (" + NativeScriptManager.getPlatformKeyExact() + ")").formatted(TextFormatting.UNDERLINE);
+        graphicsHolder.drawText(title, 0, 0, COLOR_BLUE, true, MAX_LIGHT);
+        graphicsHolder.translate(0, 12, 0);
+        graphicsHolder.translate(10, 0, 0);
+
+        for(NativeScriptManager.NativeScriptModule module : nativeModules.values()) {
+            graphicsHolder.drawText(String.format("%s (%s, ABI %d, %d B state)", module.getScriptId(), module.getScriptType(), module.getAbiVersion(), module.getStateSize()), 0, 0, COLOR_BLUE, true, MAX_LIGHT);
+            graphicsHolder.translate(0, 10, 0);
+        }
+
+        for(Map.Entry<String, String> skipped : skippedNatives.entrySet()) {
+            graphicsHolder.drawText(String.format("%s SKIPPED", skipped.getKey()), 0, 0, COLOR_RED, true, MAX_LIGHT);
+            graphicsHolder.translate(0, 10, 0);
+            for(String line : Splitter.fixedLength(70).split(skipped.getValue())) {
+                graphicsHolder.drawText(String.format("  %s", line), 0, 0, COLOR_RED, true, MAX_LIGHT);
+                graphicsHolder.translate(0, 10, 0);
+            }
+        }
+
+        graphicsHolder.translate(-10, 0, 0);
     }
 
     private static int getScriptInstanceSortScore(ScriptInstance<?> scriptInstance) {

@@ -3,6 +3,7 @@ package com.lx862.mtrscripting.mod.resource;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.mod.util.JsonUtil;
@@ -65,6 +66,14 @@ public class LiftResourceProvider implements ScriptResourceProvider {
             String scriptId = scriptEntry.getValue();
 
             if(!liftScripts.containsKey(scriptId)) {
+                /* Yanyang: native (language=cpp) ids are driven by NativeScriptManager. */
+                if(NativeScriptManager.isLoaded(scriptId)) {
+                    continue;
+                }
+                if(NativeScriptManager.isSkipped(scriptId)) {
+                    MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Lift native script \"{}\" is skipped on this platform ({}) — see the earlier nativeLibrary hint.", scriptId, NativeScriptManager.getPlatformKeyExact());
+                    continue;
+                }
                 MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Lift script \"{}\" is either missing or failed to load! (Used by entry {})", scriptId, liftId);
             }
         }

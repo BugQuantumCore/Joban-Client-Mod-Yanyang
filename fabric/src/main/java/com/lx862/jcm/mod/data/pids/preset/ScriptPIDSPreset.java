@@ -38,6 +38,18 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
 
     public static ScriptPIDSPreset parse(JsonObject rootJsonObject) throws Exception {
         final String id = rootJsonObject.get("id").getAsString();
+
+        /* Yanyang: C++ native PIDS preset ("language": "cpp" +
+           "nativeLibrary"). The running OS/arch is auto-detected and
+           the per-platform declaration resolved; when this platform
+           isn't declared the script is skipped (not executed) with a
+           hint in latest.log + JCM debug mode. Returns null either
+           way — native presets render through NativeScriptManager. */
+        final com.google.gson.JsonElement language = rootJsonObject.get("language");
+        if (language != null && language.isJsonPrimitive() && "cpp".equalsIgnoreCase(language.getAsString())) {
+            com.lx862.jcm.nativeapi.NativeScriptManager.loadFromDeclaration(id, rootJsonObject.get("nativeLibrary"));
+            return null;
+        }
         final String name = rootJsonObject.has("name") ? rootJsonObject.get("name").getAsString() : null;
         final boolean builtin = rootJsonObject.has("builtin") && rootJsonObject.get("builtin").getAsBoolean();
         final Identifier thumbnail = rootJsonObject.has("thumbnail") ? new Identifier(rootJsonObject.get("thumbnail").getAsString()) : DEFAULT_THUMBNAIL;

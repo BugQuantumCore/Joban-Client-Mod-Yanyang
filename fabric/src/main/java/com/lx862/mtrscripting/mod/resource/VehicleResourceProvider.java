@@ -3,6 +3,7 @@ package com.lx862.mtrscripting.mod.resource;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleDataCache;
@@ -110,6 +111,15 @@ public class VehicleResourceProvider implements ScriptResourceProvider {
             String scriptEntryId = vehicleEntry.getValue();
 
             if(!vehicleScripts.containsKey(scriptEntryId)) {
+                /* Yanyang: native (language=cpp) ids never enter the JS
+                   registry — they are driven by NativeScriptManager. */
+                if(NativeScriptManager.isLoaded(scriptEntryId)) {
+                    continue;
+                }
+                if(NativeScriptManager.isSkipped(scriptEntryId)) {
+                    MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Vehicle native script \"{}\" is skipped on this platform ({}) — see the earlier nativeLibrary hint.", scriptEntryId, NativeScriptManager.getPlatformKeyExact());
+                    continue;
+                }
                 MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Vehicle script \"{}\" is either missing or failed to load! (Used by vehicle {})", scriptEntryId, entryId);
             }
         }

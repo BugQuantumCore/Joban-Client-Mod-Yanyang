@@ -80,7 +80,17 @@ MTR_REGISTER_VEHICLE_SCRIPT(LcdScript)
   "vehicles": [ { "id": "demo:kcx", "scriptId": "demo:kcx_lcd", "hideDisplayParts": true } ],
   "vehicleScripts": [
     { "id": "demo:kcx_lcd", "language": "cpp",
-      "nativeLibrary": "mtr:natives/libvehicle_lcd.so" }
+
+      // 形式 A：平台无关——四平台目录约定自动解析（见下）
+      // "nativeLibrary": "mtr:natives/vehicle_lcd"
+
+      // 形式 B：按平台分别指定（Windows/Linux/macOS 各一条，可省略）
+      "nativeLibrary": {
+        "windows": "mtr:natives/windows-x64/vehicle_lcd.dll",
+        "linux":   "mtr:natives/linux-x64/libvehicle_lcd.so",
+        "macos":   "mtr:natives/macos-arm64/libvehicle_lcd.dylib"
+      }
+    }
   ]
 }
 ```
@@ -138,6 +148,34 @@ demand-zero 页，dylib 回到 ~140KB，语义不变（一次性 attach、模块
 （如 `yanyang:natives/jslcd_vehicle`），按 os.name/os.arch 展开为
 `linux-x64/libjslcd_vehicle.so` / `windows-x64/jslcd_vehicle.dll` /
 `macos-{x64,arm64}/libjslcd_vehicle.dylib`，带扩展名的完整路径保持兼容。
+
+### 已新增：按平台分别指定 + 未指定平台自动跳过
+
+`language: "cpp"` 的 `nativeLibrary` 现支持**对象形式**，为
+Windows / Linux / macOS 分别声明各自的 dll / so / dylib：
+
+```json
+"nativeLibrary": {
+  "windows":     "demo:natives/windows-x64/kcx_lcd.dll",
+  "linux":       "demo:natives/linux-x64/libkcx_lcd.so",
+  "macos-arm64": "demo:natives/macos-arm64/libkcx_lcd.dylib"
+}
+```
+
+- 键：`windows` / `linux` / `macos`，另支持架构级键
+  （`windows-x64` / `linux-x64` / `macos-x64` / `macos-arm64`），
+  架构级键优先于通用键；`win` / `osx` / `darwin` 为别名。
+- 值：带扩展名的完整路径（原样使用），或不带扩展名的平台无关
+  茎（仍按目录约定展开）。
+- 字符串形式完全向后兼容：平台无关茎四平台全跑；带扩展名的
+  字符串自动绑定到对应系统（`.dll`→Windows、`.so`→Linux、
+  `.dylib`→macOS）。
+- **未声明当前系统时不执行该脚本**：一行提示写入 `latest.log`
+  （`[JCM] Native script xxx skipped on <platform>: ...`），
+  同时在 **JCM 调试模式**（scriptDebugMode）开启时输出到游戏内
+  聊天（黄色 `[C++]` 行）与调试 HUD 的
+  「C++ Native Scripts」区块（已加载=蓝色，跳过=红色+原因）。
+  vehicle / eye_candy / lift / pids 四类条目均走同一逻辑。
 
 
 验证（bench/ 下已提供）：

@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.util.DataReaderJS;
 import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
@@ -77,6 +78,14 @@ public class EyecandyResourceProvider implements ScriptResourceProvider {
             String scriptEntryId = scriptEntry.getValue();
 
             if(!eyecandyScripts.containsKey(scriptEntryId)) {
+                /* Yanyang: native (language=cpp) ids are driven by NativeScriptManager. */
+                if(NativeScriptManager.isLoaded(scriptEntryId)) {
+                    continue;
+                }
+                if(NativeScriptManager.isSkipped(scriptEntryId)) {
+                    MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Eyecandy native script \"{}\" is skipped on this platform ({}) — see the earlier nativeLibrary hint.", scriptEntryId, NativeScriptManager.getPlatformKeyExact());
+                    continue;
+                }
                 MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Eyecandy script \"{}\" is either missing or failed to load! (Used by entry {})", scriptEntryId, entryId);
             }
         }

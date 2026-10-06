@@ -3,11 +3,13 @@ package com.lx862.mtrscripting.mod.resource;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.lx862.jcm.mod.config.JCMClientConfig;
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.core.util.ConsoleJS;
 import org.mtr.mapping.holder.*;
 import org.mtr.mapping.mapper.ResourceManagerHelper;
+import org.mtr.mapping.mapper.TextHelper;
 import org.mtr.mod.Init;
 import org.mtr.mod.client.CustomResourceLoader;
 
@@ -21,6 +23,23 @@ public class MtrScriptingResourceManager {
 
     public static void reload() {
         MTRScriptingModClient.LOGGER.info("[MTR Scripting via JCM] Loading MTR scripts...");
+
+        /* Yanyang: route native-script hints (platform-skipped C++
+           declarations) into the JCM debug mode interface — yellow
+           chat line via scriptErrorNotifier, only when scripting
+           debug mode is on. latest.log always gets them through
+           JCMLogger inside NativeScriptManager. */
+        NativeScriptManager.setDebugNotifier(message -> {
+            if (!JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) return;
+            MTRContentScripting.getScriptManager().scriptErrorNotifier.queue(() -> {
+                final ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
+                if (player != null) {
+                    player.sendMessage(Text.cast(TextHelper.setStyle(
+                            TextHelper.literal("[C++] " + message),
+                            Style.getEmptyMapped().withColor(TextFormatting.YELLOW))), false);
+                }
+            });
+        });
 
         vehicle.reset();
         eyecandy.reset();

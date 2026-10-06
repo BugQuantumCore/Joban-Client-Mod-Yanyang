@@ -1,3 +1,33 @@
+# JCM v2.3.0-beta.1-yanyang.2 — Per-Platform Native Script Selection
+
+**New in yanyang.2:** `mtr_custom_resources.json` entries with `"language": "cpp"` can now
+declare their native library **per platform** — Windows (`.dll`), Linux (`.so`) and macOS
+(`.dylib`) each get their own key, so one resource pack can ship different builds per OS:
+
+```json
+"nativeLibrary": {
+  "windows": "demo:natives/windows-x64/kcx_lcd.dll",
+  "linux":   "demo:natives/linux-x64/libkcx_lcd.so",
+  "macos-arm64": "demo:natives/macos-arm64/libkcx_lcd.dylib"
+}
+```
+
+The mod auto-detects the running OS/arch (`os.name` / `os.arch`) and picks the matching
+library — including arch-specific keys (`macos-x64` / `macos-arm64`) and the `win` / `osx` /
+`darwin` aliases. When the current system has **no** entry, the script is **not executed**
+and a one-line hint goes to `latest.log` plus (with JCM scripting debug mode enabled) the
+in-game chat and the new **C++ Native Scripts** section of the debug HUD — loaded modules in
+blue, platform-skipped ones in red with the reason. The plain-string forms stay fully
+backward compatible (platform-agnostic stems resolve on every OS; an extension-form path
+binds to its OS). Vehicle / eye_candy / lift entries in `mtr_custom_resources.json` and JCM
+PIDS presets all share the same resolution logic.
+
+Also in this release: the ready-to-use LCD resource pack zip is no longer attached to
+GitHub releases (kept private; build it from CI artifacts or `native/resourcepack/` if
+needed).
+
+---
+
 # JCM v2.3.0-beta.1-yanyang.1 — C++ Native Scripting Edition
 
 This is the **Yanyang** fork of Joban Client Mod v2.3.0-beta.1. On top of upstream, it ships the

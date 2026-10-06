@@ -12,7 +12,9 @@
 # Pushing a tag (v*) additionally stitches the per-platform artifacts into
 # a GitHub Release — that is the official download channel for players who
 # don't build from source. The `resourcepack` job also assembles the
-# ready-to-use MTR resource pack (all 4 platforms + JSON wiring in one zip).
+# ready-to-use MTR resource pack (all 4 platforms + JSON wiring in one zip)
+# as a CI artifact; the zip itself is NOT attached to releases (kept
+# private on request).
 #
 # Install: copy this file to the repository root as
 #   .github/workflows/native-build.yml
@@ -152,12 +154,12 @@ jobs:
             name="$(basename "$d")"
             (cd "$d" && zip -r "../${name}.zip" .)
           done
-          cp dist/yanyang-native-lcd-pack/yanyang-native-lcd-pack.zip .
           ls -la ./*.zip
 
+      # Note: yanyang-native-lcd-pack.zip stays a CI artifact only —
+      # it is intentionally NOT attached to public releases.
       - uses: softprops/action-gh-release@v2
         with:
           files: |
             mtr-native-scripts-*.zip
-            yanyang-native-lcd-pack.zip
           generate_release_notes: true
