@@ -43,7 +43,11 @@ mtr_add_script(jslcd_train_num  examples/jslcd_train_num.cpp)
 # ----------------------------------------------------------------------------
 # Benchmarks (development only, not shipped in resource packs)
 # ----------------------------------------------------------------------------
-add_executable(lcd_bench bench/lcd_bench.cpp)
+# lcd_bench links the script directly (same as the README's g++ line:
+#   g++ ... bench/lcd_bench.cpp examples/vehicle_lcd.cpp -o lcd_bench)
+# — MODULE libraries can't be linked portably, so the example source is
+# compiled into the executable instead.
+add_executable(lcd_bench bench/lcd_bench.cpp examples/vehicle_lcd.cpp)
 target_link_libraries(lcd_bench PRIVATE mtr_script_sdk)
 
 # jslcd_smoke dlopen()s the freshly built script libraries — POSIX only.

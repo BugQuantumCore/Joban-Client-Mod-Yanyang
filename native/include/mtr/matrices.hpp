@@ -12,6 +12,11 @@
 #include <cmath>
 #include <array>
 
+/* M_PI is POSIX, not standard C++ — MSVC does not define it. */
+#ifndef M_PI
+#  define M_PI 3.14159265358979323846
+#endif
+
 namespace mtr {
 
 class Matrices {
