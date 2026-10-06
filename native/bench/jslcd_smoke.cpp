@@ -688,6 +688,40 @@ int main() {
                 check(close_to(hdr, 0x00A651, 40), "circular header band route color");
             }
             std::free(state2);
+
+            /* ---- circular PARTIAL page: advance past CYCLE_FULL_MS (10 s)
+               so the internal pageMode flips 0 -> 1. Expect: next station
+               centered, wrap-around 5-station capsule painted ENTIRELY in
+               route green (ring owns the whole loop), next-stop dot red,
+               all other dots green (no "passed" gray on a loop). */
+            {
+                auto snap4p = build_snapshot(8, kCars, cstops,
+                                             2000000 + 10500, 0.0, 15.0, 5,
+                                             "2号线|Line 2", 0xFF00A651, 2,
+                                             "10010/01-02-03-04-05-06-07-08", false, true);
+                JcmFrameInput in4p = in;
+                in4p.snapshot = snap4p.data();
+                void* stateP = std::calloc(1, m.state_size());
+                in4p.state = stateP;
+                in4p.state_size = m.state_size();
+                m.create(&in4p);
+                JcmFrameOutput outP{};
+                std::map<int32_t, ReconTex> texP;
+                int64_t moP = 0, upP = 0, ubP = 0;
+                for (int f = 0; f < 5; f++) {
+                    check(m.render(&in4p, &outP) == 0, "mtrRender circular partial frame");
+                    apply_frame(outP, texP, moP, upP, ubP);
+                }
+                if (!texP.empty()) {
+                    const ReconTex& tp = texP.begin()->second;
+                    write_ppm("/tmp/jslcd_circular_partial_car0.ppm", tp);
+                    const int cap = count_color(tp, 0x00A651, 40, 0, tp.h * 55 / 100, tp.w, tp.h * 75 / 100);
+                    check(cap > 3000, "circular partial: whole capsule painted route green");
+                    const int red = count_color(tp, 0xED1C24, 60, 0, tp.h * 50 / 100, tp.w, tp.h * 80 / 100);
+                    check(red > 80, "circular partial: centered next-stop red dot");
+                }
+                std::free(stateP);
+            }
         }
 
         /* ---- timing: steady (skip) vs forced-repaint (JS equivalent) ---- */
