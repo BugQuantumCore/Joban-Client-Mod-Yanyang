@@ -1,3 +1,55 @@
+# JCM v2.3.0-beta.1-yanyang.1 — C++ Native Scripting Edition
+
+This is the **Yanyang** fork of Joban Client Mod v2.3.0-beta.1. On top of upstream, it ships the
+**MTR Native Scripting** project: a C++ alternative to JCM's JavaScript (Rhino) script engine for
+`vehicle` / `eye_candy` / `pids` custom resources — the same lifecycle and drawing semantics
+(LCD displays, train numbers, PIDS arrival boards), but running as native code with a single
+JNI boundary crossing per frame.
+
+**Both Fabric and Forge builds are provided below, for Minecraft 1.17.1 / 1.18.2 / 1.19.2 /
+1.19.4 / 1.20.1 / 1.20.4.** The mod itself is fully usable without any native library — the
+native path is opt-in per resource pack.
+
+## What's in this fork
+
+### Native scripting bridge (in the mod jar)
+- New `com.lx862.jcm.nativeapi.NativeScriptManager` (built into **both** the Fabric and Forge
+  jars): loads C++ script modules declared in `mtr_custom_resources.json`
+  (`"language": "cpp"`, `"nativeLibrary": "natives/libxxx.so|.dll|.dylib"`), keeps per-instance
+  state blocks (same semantics as the JS `state` object), marshals POD snapshots and replays
+  draw-call records through the exact same render pipeline the JS route uses.
+- ABI v3 snapshots: route name / color, circular state, siding name, and per-stop station
+  **exits** (name + destinations) are available to native scripts.
+
+### C++ SDK (source + prebuilt libraries, in the release assets)
+- `mtr-native-scripting-v3-sdk.zip` — full SDK: C ABI (`mtr_native.h`), C++ SDK headers
+  (vehicle/pids/eyecandy wrappers, `gfx2d.hpp` Java2D-equivalent rasterizer, 5×7 + CJK fonts),
+  the JNI bridge (`jni_bridge.cpp`), the smoke-test driver, and **5 example scripts**.
+- `mtr-native-scripts-<platform>.zip` × 4 platforms — prebuilt script libraries
+  (linux-x64 `.so`, windows-x64 `.dll`, macos-x64 / macos-arm64 `.dylib`), ready to drop into
+  a resource pack's `assets/mtr/natives/`.
+
+### Full port of the community JS LCD resource pack
+- `jslcd_vehicle.cpp` (~1,400 lines): route header / circular route ring / linear map with
+  alternating bilingual station names + transfer badges / door-open station page / 10 s
+  full↔partial page cycling / exit panel — all ported from the original JavaScript.
+- `jslcd_train_num.cpp`: siding-name train-number plates (head/tail + per-car L/R), with
+  zero-redraw when the siding name is unchanged and bilingual error plates on car-count
+  mismatch.
+- Performance: steady-state **18.7 µs/frame with 0 uploads** (repaint-on-change with FNV
+  content signatures), vs the JS version redrawing the full texture every frame; measured
+  ~41× faster than JCM's default Rhino configuration, and a `Gfx2D` primitive fast path 23×
+  faster than the naive port. An upstream aspect-ratio inversion bug in the original JS
+  (`computeLcdAspectFromSlot`) was found and fixed during the port.
+
+### 中文摘要
+本 fork 在 JCM v2.3.0-beta.1 基础上加入 MTR 原生 C++ 脚本能力：mod 内置 JNI 桥（Fabric 与
+Forge 双版本同步内置），资源包可声明 `"language": "cpp"` 的原生脚本；社区 JS LCD 资源包
+（路线图 + 车号）已全量移植为 C++，稳态 0 重绘 0 上传（18.7 µs/帧），约为 Rhino 默认配置的
+41 倍。Release 附带 4 平台预编译脚本库与完整 SDK 源码。
+
+---
+
 # JCM v2.3.0-beta.1 for MTR 4.0.5 has been released!
 
 > **Beta Notice**

@@ -115,8 +115,100 @@ jobs:
           name: JCM for Minecraft ${{ matrix.minecraft }}
           path: build/
 
+  natives:
+    # Yanyang: build the C++ native script libraries for every desktop
+    # platform on release, so the mod release and the prebuilt script
+    # libraries it documents always stay in sync.
+    name: natives ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: windows-latest
+            platform: windows-x64
+          # macos-13 (Intel) runners are being retired by GitHub — build the
+          # x86_64 slice by cross-compiling on an arm runner.
+          - os: macos-latest
+            platform: macos-x64
+            cmake-arch: -DCMAKE_OSX_ARCHITECTURES=x86_64
+          - os: macos-latest
+            platform: macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake-arch }}
+
+      - name: Build script libraries
+        run: cmake --build native/build --config Release --parallel
+
+      - name: Run jslcd smoke test (41 assertions)
+        if: runner.os == 'Linux'
+        working-directory: native/build
+        run: ./jslcd_smoke
+
+      - name: Collect script libraries
+        shell: bash
+        run: |
+          set -euxo pipefail
+          OUT="dist-${{ matrix.platform }}/assets/mtr/natives"
+          mkdir -p "$OUT"
+          case "${{ matrix.platform }}" in
+            windows-*) find native/build -name '*.dll' -exec cp {} "$OUT" \; ;;
+            macos-*)   find native/build -name '*.dylib' -exec cp {} "$OUT" \; ;;
+            *)         find native/build -name '*.so' -exec cp {} "$OUT" \; ;;
+          esac
+          cp native/README.md "dist-${{ matrix.platform }}/"
+          ls -la "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mtr-native-scripts-${{ matrix.platform }}
+          path: dist-${{ matrix.platform }}/
+          if-no-files-found: error
+
+  natives-release:
+    # Attach the prebuilt native script libraries and the full C++ SDK
+    # source bundle to the same GitHub release the mod jars went to.
+    needs: [build, natives]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Package native assets
+        shell: bash
+        run: |
+          set -euxo pipefail
+          for d in dist/mtr-native-scripts-*; do
+            name="$(basename "$d")"
+            (cd "$d" && zip -r "../${name}.zip" .)
+          done
+          # Full SDK source bundle (headers, examples, JNI bridge, smoke driver)
+          zip -r dist/mtr-native-scripting-v3-sdk.zip native/ \
+            -x 'native/build/*' 'native/build-ci/*' 'native/bench/*.so' \
+               'native/bench/jslcd_smoke' 'native/bench/jslcd_perf' \
+               'native/bench/lcd_bench' 'native/bench/gfx2d_bench' \
+               'native/bench/smoke_test'
+          ls -la dist/*.zip
+
+      - uses: softprops/action-gh-release@v2.4.2
+        with:
+          files: |
+            dist/mtr-native-scripts-*.zip
+            dist/mtr-native-scripting-v3-sdk.zip
+          tag_name: v${{ inputs.publish-tag }}
+
   publish:
-    needs: build
+    needs: [build, natives-release]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -127,6 +219,10 @@ jobs:
           echo "$(cat CHANGELOG.md)" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
       - name: Publish announcement Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        # Skip instead of failing when the fork has no webhook configured.
+        if: ${{ env.DISCORD_WEBHOOK != '' }}
         uses: tsickert/discord-webhook@v6.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}

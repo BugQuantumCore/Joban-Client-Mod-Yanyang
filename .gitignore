@@ -34,6 +34,7 @@ fabric/run/
 
 # forge
 forge/src/main/java/**/mod
+forge/src/main/java/**/nativeapi
 forge/src/main/java/com/lx862/mtrscripting
 forge/src/main/java/com/lx862/amberui/gui
 forge/src/main/java/net/londonunderground/mod
