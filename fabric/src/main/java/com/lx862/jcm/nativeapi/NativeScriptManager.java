@@ -22,7 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *   "vehicleScripts": [{
  *       "id": "demo:kcx_lcd",
  *       "language": "cpp",
- *       "nativeLibrary": "natives/libvehicle_lcd.so"   // .dll on Windows
+ *       "nativeLibrary": "demo:natives/kcx_lcd"   // platform-agnostic;
+ *       // resolveNativeLibraryPath() expands to e.g.
+ *       // demo:natives/linux-x64/libkcx_lcd.so
+ *       // demo:natives/windows-x64/kcx_lcd.dll
+ *       // demo:natives/macos-arm64/libkcx_lcd.dylib
  *   }]
  *
  * ... and the SAME mixins that drive JS scripts (RenderVehiclesMixin,
@@ -110,8 +114,54 @@ public final class NativeScriptManager {
     }
 
     private static byte[] readResourceBytes(Identifier id) {
-        final String text = ResourceManagerHelper.readResource(id);
-        return text == null ? null : text.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        /* Binary-safe read: readResource() decodes as text (String),
+           which corrupts .so/.dll/.dylib bytes through a UTF-8
+           round-trip. readAllResources hands us the raw stream. */
+        final byte[][] sink = new byte[1][];
+        ResourceManagerHelper.readAllResources(id, inputStream -> {
+            try (java.io.InputStream in = inputStream) {
+                sink[0] = in.readAllBytes();
+            } catch (IOException e) {
+                JCMLogger.error("Failed to read native library {}: {}", id, e.getMessage());
+            }
+        });
+        return sink[0];
+    }
+
+    /**
+     * Resolve a platform-agnostic nativeLibrary declaration to the
+     * concrete resource path for the running OS/arch. Convention:
+     *
+     *   "yanyang:natives/jslcd_vehicle"
+     *     -> yanyang:natives/linux-x64/libjslcd_vehicle.so
+     *     -> yanyang:natives/windows-x64/jslcd_vehicle.dll
+     *     -> yanyang:natives/macos-arm64/libjslcd_vehicle.dylib
+     *
+     * A value that already carries a library extension is used as-is
+     * (single-platform packs stay valid).
+     */
+    public static String resolveNativeLibraryPath(String declared) {
+        final String lower = declared.toLowerCase();
+        if (lower.endsWith(".so") || lower.endsWith(".dll") || lower.endsWith(".dylib")) {
+            return declared;
+        }
+        final String os = System.getProperty("os.name", "").toLowerCase();
+        final String arch = System.getProperty("os.arch", "");
+        final String osDir;
+        final String ext;
+        final String prefix;
+        if (os.contains("win")) { osDir = "windows-x64"; ext = ".dll"; prefix = ""; }
+        else if (os.contains("mac") || os.contains("darwin")) {
+            osDir = "aarch64".equals(arch) ? "macos-arm64" : "macos-x64";
+            ext = ".dylib"; prefix = "lib";
+        }
+        else { osDir = "linux-x64"; ext = ".so"; prefix = "lib"; }
+        final int colon = declared.indexOf(':');
+        final String ns = colon >= 0 ? declared.substring(0, colon) : "minecraft";
+        final String base = colon >= 0 ? declared.substring(colon + 1) : declared;
+        final String file = base.substring(base.lastIndexOf('/') + 1);
+        final String dir = base.contains("/") ? base.substring(0, base.lastIndexOf('/') + 1) : "";
+        return ns + ':' + dir + osDir + '/' + prefix + file + ext;
     }
 
     private static String sanitize(String id) {

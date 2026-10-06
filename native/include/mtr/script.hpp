@@ -64,12 +64,17 @@ inline FrameRecorder& recorder() {
 }
 
 inline void install_frame() {
-    static HostBuffers buffers;
+    /* Heap-backed on purpose: a 16 MB static aggregate is emitted by
+       Apple ld64 as *initialized* __DATA (comdat zero aggregates become
+       file-backed data), which bloated every macOS dylib to ~17 MB.
+       `new` gives demand-zero pages on all three platforms and keeps
+       the one-time attach semantics. */
+    static HostBuffers* buffers = new HostBuffers();
     static bool attached = false;
     if (!attached) {
-        recorder().attach(buffers.records, buffers.matrix_arena,
-                          buffers.string_arena, buffers.pixel_arena,
-                          sizeof(buffers.pixel_arena), buffers.float_arena);
+        recorder().attach(buffers->records, buffers->matrix_arena,
+                          buffers->string_arena, buffers->pixel_arena,
+                          sizeof(buffers->pixel_arena), buffers->float_arena);
         attached = true;
     }
     recorder().begin_frame();

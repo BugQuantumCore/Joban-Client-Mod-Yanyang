@@ -112,12 +112,32 @@ g++ -O2 -std=c++17 -fPIC -shared -fvisibility=hidden \
 | macos-arm64 | macos-latest | `lib*.dylib` |
 
 - 每次 push（涉及 `native/**`）产出 per-platform artifact
-  `mtr-native-scripts-<platform>.zip`（内含 `assets/mtr/natives/` 资源包布局）。
+  `mtr-native-scripts-<platform>.zip`（内含 `assets/mtr/natives/` 资源包布局），
+  以及 `resourcepack` job 组装的 **开箱即用资源包**
+  `yanyang-native-lcd-pack.zip`（4 平台 natives + mtr_custom_resources.json
+  接线 + pack.mcmeta，放进 `resourcepacks/` 即得两台原生脚本驱动的
+  SP1900；详见 `resourcepack/yanyang-jslcd-pack/README.md`）。
 - 打 tag 发布正式版：`git tag v3 && git push origin v3` →
-  release job 把 4 个平台各自打成 zip 挂到 GitHub Release，
+  release job 把 4 个平台 zip + 资源包 zip 挂到 GitHub Release，
   即拿到 `.dll`/`.dylib` 的官方下载渠道（无需本地工具链）。
 - Windows/macOS 侧无 `dlopen`，CMakeLists 已将 `jslcd_smoke` 守卫为
   `if(UNIX)`——非 POSIX 平台只构建脚本库本体。
+
+### 已修复：macOS dylib 17MB 膨胀
+
+`HostBuffers`（含 16MB `pixel_arena`）曾以函数内 `static` 聚合形式声明。
+Apple ld64 会把 comdat 中的零初始化聚合发成**文件后备的 `__DATA`**
+（非 zerofill），导致每个 macOS dylib 高达 ~17MB（Linux/gcc 走 `.bss`
+不受影响，MSVC 亦然）。修复：`install_frame()` 改为
+`static HostBuffers* buffers = new HostBuffers();` —— 三平台均为
+demand-zero 页，dylib 回到 ~140KB，语义不变（一次性 attach、模块生命周期
+复用）。附带修复 `NativeScriptManager.readResourceBytes`：读二进制
+`.so/.dll/.dylib` 不能走文本 `readResource`（UTF-8 往返会损坏字节），
+改用 `readAllResources` 的原始流；并新增
+`resolveNativeLibraryPath()`：`nativeLibrary` 声明支持平台无关形式
+（如 `yanyang:natives/jslcd_vehicle`），按 os.name/os.arch 展开为
+`linux-x64/libjslcd_vehicle.so` / `windows-x64/jslcd_vehicle.dll` /
+`macos-{x64,arm64}/libjslcd_vehicle.dylib`，带扩展名的完整路径保持兼容。
 
 
 验证（bench/ 下已提供）：

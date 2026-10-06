@@ -4,14 +4,15 @@
 # jslcd_vehicle, jslcd_train_num) are built as shared libraries on every
 # desktop platform Minecraft players actually use:
 #
-#   linux-x64   ubuntu-latest    lib*.so        (+ 40-assertion smoke test)
+#   linux-x64   ubuntu-latest    lib*.so        (+ 41-assertion smoke test)
 #   windows-x64 windows-latest   *.dll          (MSVC)
 #   macos-x64   macos-latest     lib*.dylib (x86_64, cross-compiled)
 #   macos-arm64 macos-latest     lib*.dylib
 #
 # Pushing a tag (v*) additionally stitches the per-platform artifacts into
 # a GitHub Release — that is the official download channel for players who
-# don't build from source.
+# don't build from source. The `resourcepack` job also assembles the
+# ready-to-use MTR resource pack (all 4 platforms + JSON wiring in one zip).
 #
 # Install: copy this file to the repository root as
 #   .github/workflows/native-build.yml
@@ -59,7 +60,7 @@ jobs:
       - name: Build script libraries
         run: cmake --build native/build --config Release --parallel
 
-      - name: Run jslcd smoke test (40 assertions)
+      - name: Run jslcd smoke test (41 assertions)
         if: runner.os == 'Linux'
         working-directory: native/build
         run: ./jslcd_smoke
@@ -90,6 +91,44 @@ jobs:
           path: dist-${{ matrix.platform }}/
           if-no-files-found: error
 
+  resourcepack:
+    # Assemble the ready-to-use MTR resource pack: natives from all 4
+    # platform jobs + the JSON wiring shipped in native/resourcepack/.
+    # Result: one zip a player drops into resourcepacks/ and gets two
+    # SP1900 trains driven by the C++ scripts.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Assemble yanyang-jslcd-pack
+        shell: bash
+        run: |
+          set -euxo pipefail
+          STAGE="native/resourcepack/yanyang-jslcd-pack"
+          for platform in linux-x64 windows-x64 macos-x64 macos-arm64; do
+            mkdir -p "pack/assets/yanyang/natives/$platform"
+            cp "dist/mtr-native-scripts-$platform/assets/mtr/natives/"* \
+               "pack/assets/yanyang/natives/$platform/"
+          done
+          cp "$STAGE/pack.mcmeta" pack/
+          cp "$STAGE/README.md" pack/
+          mkdir -p pack/assets/mtr
+          cp "$STAGE/assets/mtr/mtr_custom_resources.json" pack/assets/mtr/
+          (cd pack && zip -r "../yanyang-native-lcd-pack.zip" .)
+          unzip -l yanyang-native-lcd-pack.zip | head -20
+          du -h yanyang-native-lcd-pack.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: yanyang-native-lcd-pack
+          path: yanyang-native-lcd-pack.zip
+          if-no-files-found: error
+
   release:
     # Tag a version (e.g. `git tag v3 && git push origin v3`) to publish
     # per-platform zips as a GitHub Release.
@@ -113,9 +152,12 @@ jobs:
             name="$(basename "$d")"
             (cd "$d" && zip -r "../${name}.zip" .)
           done
-          ls -la dist/*.zip
+          cp dist/yanyang-native-lcd-pack/yanyang-native-lcd-pack.zip .
+          ls -la ./*.zip
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/mtr-native-scripts-*.zip
+          files: |
+            mtr-native-scripts-*.zip
+            yanyang-native-lcd-pack.zip
           generate_release_notes: true
