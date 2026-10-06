@@ -108,7 +108,7 @@ g++ -O2 -std=c++17 -fPIC -shared -fvisibility=hidden \
 | --- | --- | --- |
 | linux-x64 | ubuntu-latest | `lib*.so` + 冒烟 + 基准 |
 | windows-x64 | windows-latest (MSVC) | `*.dll` |
-| macos-x64 | macos-13 | `lib*.dylib` |
+| macos-x64 | macos-latest（交叉编译 x86_64） | `lib*.dylib` |
 | macos-arm64 | macos-latest | `lib*.dylib` |
 
 - 每次 push（涉及 `native/**`）产出 per-platform artifact

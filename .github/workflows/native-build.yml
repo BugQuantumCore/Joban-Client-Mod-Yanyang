@@ -6,7 +6,7 @@
 #
 #   linux-x64   ubuntu-latest    lib*.so        (+ 40-assertion smoke test)
 #   windows-x64 windows-latest   *.dll          (MSVC)
-#   macos-x64   macos-13         lib*.dylib
+#   macos-x64   macos-latest     lib*.dylib (x86_64, cross-compiled)
 #   macos-arm64 macos-latest     lib*.dylib
 #
 # Pushing a tag (v*) additionally stitches the per-platform artifacts into
@@ -42,8 +42,11 @@ jobs:
             platform: linux-x64
           - os: windows-latest
             platform: windows-x64
-          - os: macos-13
+          # macos-13 (Intel) runners are being retired by GitHub — long/infinite
+          # queues. Build the x86_64 slice by cross-compiling on an arm runner.
+          - os: macos-latest
             platform: macos-x64
+            cmake-arch: -DCMAKE_OSX_ARCHITECTURES=x86_64
           - os: macos-latest
             platform: macos-arm64
 
@@ -51,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure CMake
-        run: cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cmake-arch }}
 
       - name: Build script libraries
         run: cmake --build native/build --config Release --parallel
