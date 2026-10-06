@@ -21,6 +21,10 @@ on:
 
 jobs:
   build:
+    # Forks default to a read-only workflow token — release creation needs
+    # explicit write permission (upstream relies on repo-wide settings).
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +51,7 @@ jobs:
         uses: softprops/action-gh-release@v2.4.2
         with:
           body_path: CHANGELOG.md
+          name: "JCM v${{ inputs.publish-tag }} — C++ Native Scripting Edition"
           draft: false
           tag_name: v${{ inputs.publish-tag }}
           prerelease: ${{ inputs.release-type == 'beta' }}
