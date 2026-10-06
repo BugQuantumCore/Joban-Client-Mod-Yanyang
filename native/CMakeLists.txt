@@ -46,8 +46,13 @@ mtr_add_script(jslcd_train_num  examples/jslcd_train_num.cpp)
 add_executable(lcd_bench bench/lcd_bench.cpp)
 target_link_libraries(lcd_bench PRIVATE mtr_script_sdk)
 
-add_executable(jslcd_smoke bench/jslcd_smoke.cpp)
-target_link_libraries(jslcd_smoke PRIVATE mtr_script_sdk ${CMAKE_DL_LIBS})
+# jslcd_smoke dlopen()s the freshly built script libraries — POSIX only.
+# (Windows/macOS CI builds the script libraries themselves, which need
+# nothing beyond the C++17 runtime.)
+if(UNIX)
+    add_executable(jslcd_smoke bench/jslcd_smoke.cpp)
+    target_link_libraries(jslcd_smoke PRIVATE mtr_script_sdk ${CMAKE_DL_LIBS})
+endif()
 
 # install rule: copy script libraries into a resource-pack layout
 install(TARGETS vehicle_lcd pids_arrivals eyecandy_signal jslcd_vehicle jslcd_train_num

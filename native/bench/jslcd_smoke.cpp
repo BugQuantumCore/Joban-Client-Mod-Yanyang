@@ -510,6 +510,22 @@ static std::vector<StopSpec> circular_stops() {
         st.dest = "";
         if (i == 4) st.transfers.push_back({"2号线|Line 2", 0xFF00A651});
         if (i == 7) st.transfers.push_back({"1号线|Line 1", 0xFFE60012});
+        /* v3 exits on the loop (partial page shows the NEXT stop's exits;
+           with next_stop_index = 5 the panel reads station 5) */
+        if (i == 4) {
+            st.exits.push_back({"A", {"食品街|Food Street", "钟楼街|Zhonglou Street"}});
+        }
+        if (i == 5) {
+            st.exits.push_back({"A", {"迎泽公园东门|East Gate of Yingze Park"}});
+            st.exits.push_back({"B", {"山西博物院|Shanxi Museum", "地质博物馆|Geology Museum"}});
+        }
+        if (i == 8) {
+            st.exits.push_back({"A", {"山西体育中心|Shanxi Sports Center"}});
+        }
+        if (i == 9) {
+            st.exits.push_back({"A", {"晋阳湖公园|Jinyang Lake Park"}});
+            st.exits.push_back({"B", {"太原古县城|Ancient Jinyang County Town"}});
+        }
         s.push_back(st);
     }
     /* 环线: 末站回到首站 (route platform loop) */
@@ -719,6 +735,15 @@ int main() {
                     check(cap > 3000, "circular partial: whole capsule painted route green");
                     const int red = count_color(tp, 0xED1C24, 60, 0, tp.h * 50 / 100, tp.w, tp.h * 80 / 100);
                     check(red > 80, "circular partial: centered next-stop red dot");
+                    /* v3 exit panel on the loop: NEXT stop (迎泽公园, idx 5)
+                       carries exits A/B — letters in route green, CJK black.
+                       Panel sits at x >= TEX_W-420 (right ~15%); the capsule
+                       band ends at TEX_W-500, so the right strip is panel-only. */
+                    const int exitX0 = tp.w * 84 / 100;
+                    const int exGreen = count_color(tp, 0x00A651, 45, exitX0, 0, tp.w, tp.h);
+                    const int exBlack = count_color(tp, 0x000000, 24, exitX0, 0, tp.w, tp.h);
+                    check(exGreen > 30, "circular partial: exit letters A/B in route green (v3 exits on loop)");
+                    check(exBlack > 60, "circular partial: exit title/destinations CJK glyphs (v3 exits on loop)");
                 }
                 std::free(stateP);
             }

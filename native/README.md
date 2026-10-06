@@ -98,6 +98,28 @@ g++ -O2 -std=c++17 -fPIC -shared -fvisibility=hidden \
     -Iinclude examples/vehicle_lcd.cpp -o libvehicle_lcd.so
 ```
 
+## 跨平台预编译（GitHub Actions CI）
+
+`ci/native-build.yml`（安装到仓库根 `.github/workflows/native-build.yml`）在
+4 个平台上矩阵构建全部 5 个脚本库，Linux 侧同时跑 41 项冒烟断言与
+`lcd_bench` 微基准：
+
+| 平台 | runner | 产物 |
+| --- | --- | --- |
+| linux-x64 | ubuntu-latest | `lib*.so` + 冒烟 + 基准 |
+| windows-x64 | windows-latest (MSVC) | `*.dll` |
+| macos-x64 | macos-13 | `lib*.dylib` |
+| macos-arm64 | macos-latest | `lib*.dylib` |
+
+- 每次 push（涉及 `native/**`）产出 per-platform artifact
+  `mtr-native-scripts-<platform>.zip`（内含 `assets/mtr/natives/` 资源包布局）。
+- 打 tag 发布正式版：`git tag v3 && git push origin v3` →
+  release job 把 4 个平台各自打成 zip 挂到 GitHub Release，
+  即拿到 `.dll`/`.dylib` 的官方下载渠道（无需本地工具链）。
+- Windows/macOS 侧无 `dlopen`，CMakeLists 已将 `jslcd_smoke` 守卫为
+  `if(UNIX)`——非 POSIX 平台只构建脚本库本体。
+
+
 验证（bench/ 下已提供）：
 
 ```bash
@@ -168,7 +190,7 @@ draw_num.js）的**全量 C++ 移植**——车侧路线图 LCD + 车号系统�
 吹到 11564px。移植版取长边/短边（3.5），与 config.js 全部布局常量
 （TEX 2800×800、LAYOUT_K 1.667、SCR 3304×944）一致。
 
-冒烟验证（`bench/jslcd_smoke.cpp`，40 项断言全过）：合成 8 车 / 10 站 /
+冒烟验证（`bench/jslcd_smoke.cpp`，41 项断言全过（36 个独立断言 + 循环帧））：合成 8 车 / 10 站 /
 换乘/出口/环线快照 → dlopen 真实 ABI 驱动 → 帧记录重建纹理 → PPM 落盘 →
 像素级断言（顶栏线路色、红绿站点圆点、玻璃卡字形、环线色环、开门大
 站名、车牌墨迹、**出口面板青色字母与黑色目的地 CJK**）+ 性能断言
