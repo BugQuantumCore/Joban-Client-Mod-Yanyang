@@ -1,0 +1,20 @@
+{
+  "meta": {
+    "algorithm": "128x32 dot-matrix LCD paint + 17 draw calls + 8 cars x 2 sides model draws",
+    "frames": 50000,
+    "machine": "sandbox g++ 14 -O2 / OpenJDK 21 / bun 1.3 (JavaScriptCore) / Rhino 1.7.14",
+    "note": "JS numbers EXCLUDE the real JCM per-getter reflection/boxing and per-draw-call Java allocation costs; native has none of those. Rhino is the engine JCM v2.3 actually embeds (repackaged fork). bun/JSC is shown only as a modern-JIT control group."
+  },
+  "results": [
+    { "engine": "C++ (g++ -O2)", "usPerFrame": 6.81, "relative": 1.0, "role": "native" },
+    { "engine": "bun / JavaScriptCore JIT", "usPerFrame": 3.90, "relative": 0.57, "role": "js-modern-jit" },
+    { "engine": "Rhino 1.7.14 (opt 9, JCM best case)", "usPerFrame": 230.48, "relative": 33.8, "role": "rhino-opt" },
+    { "engine": "Rhino 1.7.14 (opt 0, JCM v2.3 default)", "usPerFrame": 280.0, "relative": 41.1, "role": "rhino-jcm" }
+  ],
+  "fleet": {
+    "trains": 50,
+    "scriptHz": 20,
+    "jsMsPerGameFrame": 14.0,
+    "nativeMsPerGameFrame": 0.34
+  }
+}

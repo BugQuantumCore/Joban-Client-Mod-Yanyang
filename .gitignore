@@ -49,3 +49,12 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# native scripting build artifacts
+native/build/
+native/bench/*.so
+native/bench/lcd_bench
+native/bench/jslcd_smoke
+native/bench/jslcd_perf
+native/bench/gfx2d_bench
+native/bench/smoke_test
