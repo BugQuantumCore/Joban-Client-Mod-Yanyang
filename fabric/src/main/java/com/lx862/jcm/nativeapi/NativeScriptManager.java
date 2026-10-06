@@ -188,6 +188,21 @@ public final class NativeScriptManager {
         }
     }
 
+    private static byte[] readResourceBytes(Identifier id) {
+        /* Binary-safe read: readResource() decodes as text (String),
+           which corrupts .so/.dll/.dylib bytes through a UTF-8
+           round-trip. readAllResources hands us the raw stream. */
+        final byte[][] sink = new byte[1][];
+        ResourceManagerHelper.readAllResources(id, inputStream -> {
+            try (java.io.InputStream in = inputStream) {
+                sink[0] = in.readAllBytes();
+            } catch (IOException e) {
+                JCMLogger.error("Failed to read native library {}: {}", id, e.getMessage());
+            }
+        });
+        return sink[0];
+    }
+
     /**
      * Entry point used by the resource providers: take the raw
      * nativeLibrary JSON declaration, auto-detect the running
