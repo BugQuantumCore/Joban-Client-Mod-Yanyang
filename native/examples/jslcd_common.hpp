@@ -280,13 +280,20 @@ struct Transfer {
     uint32_t color = 0xFF646464u;
 };
 
+/* v3: station exit (JS: { name, destinations }). */
+struct ExitInfo {
+    std::string name;                 /* e.g. "A" */
+    std::vector<std::string> destinations;
+};
+
 struct StationInfo {
     std::string id;
     std::string nameCn, nameEn;
     std::vector<Transfer> transfers;
-    /* exits: the v2 ABI does not carry station exits; the JS draws the
-       exit panel only when the station exposes them, so the port keeps
-       an empty list (JS: `if (!exits || exits.length === 0) return;`). */
+    /* v3 (ABI 3): exits read from the snapshot (JS: station.getExits()).
+       The exit panel is drawn only when non-empty, matching the JS
+       guard `if (!exits || exits.length === 0) return;`. */
+    std::vector<ExitInfo> exits;
 };
 
 inline std::string get_station_id_str(const mtr::Stop& stop) {
@@ -320,6 +327,18 @@ inline std::vector<StationInfo> get_stations_from_stops(const mtr::StopList& sto
             t.name = irName;
             t.color = static_cast<uint32_t>(ir.color) | 0xFF000000u;
             st.transfers.push_back(t);
+        }
+
+        /* v3: station exits (data.js `st.getExits()` block). */
+        const int32_t ec = stop.exit_count();
+        for (int32_t j = 0; j < ec; j++) {
+            const mtr::Stop::Exit ex = stop.exit(j);
+            ExitInfo ei;
+            ei.name = std::string(ex.name.str());
+            for (int32_t k = 0; k < ex.destination_count; k++) {
+                ei.destinations.emplace_back(ex.destination(k).str());
+            }
+            if (!ei.destinations.empty()) st.exits.push_back(std::move(ei));
         }
         stations.push_back(std::move(st));
     }

@@ -103,6 +103,13 @@ struct StopSpec {
     int64_t station_id;
     const char* dest;         /* destination name (last stop) */
     std::vector<std::pair<const char*, uint32_t>> transfers;
+    /* v3: station exits (JS: station.getExits()) */
+    std::vector<std::pair<const char*, std::vector<const char*>>> exits;
+};
+
+struct ExitPoolEntry {
+    std::string name;
+    std::vector<std::string> destinations;
 };
 
 struct CarSpec { float length = 20.0F; };
@@ -155,8 +162,35 @@ static std::vector<uint8_t> build_snapshot(
         return off;
     }();
 
+    /* v3: exits pool — JcmExit[] placeholders first (name/destination
+       offsets patched after the string pool is laid out) */
+    int32_t exit_pool_off = 0;
+    std::vector<int32_t> per_stop_exit_pool(stops.size(), 0);
+    {
+        bool any = false;
+        for (const StopSpec& st : stops) if (!st.exits.empty()) { any = true; break; }
+        if (any) {
+            pad_to(alignof(JcmExit));
+            exit_pool_off = static_cast<int32_t>(buf.size());
+            for (size_t i = 0; i < stops.size(); i++) {
+                if (stops[i].exits.empty()) continue;
+                per_stop_exit_pool[i] = static_cast<int32_t>(buf.size());
+                for (size_t e = 0; e < stops[i].exits.size(); e++) {
+                    JcmExit ex{};
+                    ex.name_len = static_cast<int32_t>(std::strlen(stops[i].exits[e].first));
+                    ex.destination_count = static_cast<int32_t>(stops[i].exits[e].second.size());
+                    buf.insert(buf.end(), reinterpret_cast<const uint8_t*>(&ex),
+                               reinterpret_cast<const uint8_t*>(&ex) + sizeof(ex));
+                }
+            }
+        }
+    }
+
     /* string pool: all strings sequential, remember offsets */
     std::vector<std::pair<int32_t, int32_t>> ic_name_refs;
+    std::vector<std::pair<int32_t, int32_t>> exit_name_refs;   /* v3 */
+    std::vector<std::pair<int32_t, int32_t>> exit_dest_refs;   /* v3 */
+    size_t exit_name_cursor = 0;                               /* v3 patch cursor */
     int32_t str_pool_start = 0;
     {
         pad_to(1);
@@ -176,6 +210,19 @@ static std::vector<uint8_t> build_snapshot(
                 const int32_t off = static_cast<int32_t>(buf.size());
                 buf.insert(buf.end(), tr.first, tr.first + std::strlen(tr.first));
                 ic_name_refs.emplace_back(off, static_cast<int32_t>(std::strlen(tr.first)));
+            }
+        }
+        /* v3: exit names + destination strings */
+        for (const StopSpec& st : stops) {
+            for (const auto& ex : st.exits) {
+                const int32_t off = static_cast<int32_t>(buf.size());
+                buf.insert(buf.end(), ex.first, ex.first + std::strlen(ex.first));
+                exit_name_refs.emplace_back(off, static_cast<int32_t>(std::strlen(ex.first)));
+                for (const char* d : ex.second) {
+                    const int32_t doff = static_cast<int32_t>(buf.size());
+                    buf.insert(buf.end(), d, d + std::strlen(d));
+                    exit_dest_refs.emplace_back(doff, static_cast<int32_t>(std::strlen(d)));
+                }
             }
         }
         const int32_t rn_off = static_cast<int32_t>(buf.size());
@@ -218,12 +265,42 @@ static std::vector<uint8_t> build_snapshot(
             s.custom_destination_len = 0;
             s.interchange_count = static_cast<int32_t>(stops[i].transfers.size());
             s.interchange_offset = stops[i].transfers.empty() ? 0 : ic_cursor;
+            s.exit_count = static_cast<int32_t>(stops[i].exits.size());
+            s.exit_offset = stops[i].exits.empty() ? 0 : per_stop_exit_pool[i];
             s.is_route_switchover = 0;
             if (!stops[i].transfers.empty()) {
                 ic_cursor += static_cast<int32_t>(stops[i].transfers.size() * sizeof(JcmInterchange));
             }
             buf.insert(buf.end(), reinterpret_cast<const uint8_t*>(&s),
                        reinterpret_cast<const uint8_t*>(&s) + sizeof(s));
+        }
+    }
+
+    /* v3: destination str-ref pool (after stops; offsets are blob-relative)
+       + patch JcmExit name/destination offsets in place */
+    if (exit_pool_off != 0 && !exit_dest_refs.empty()) {
+        pad_to(alignof(JcmStrRef));
+        const int32_t dest_refs_off = static_cast<int32_t>(buf.size());
+        size_t dr = 0;
+        for (size_t i = 0; i < stops.size(); i++) {
+            if (stops[i].exits.empty()) continue;
+            JcmExit* base = reinterpret_cast<JcmExit*>(buf.data() + per_stop_exit_pool[i]);
+            size_t nr = 0;
+            for (const auto& ex : stops[i].exits) {
+                base[nr].name_offset = exit_name_refs[exit_name_cursor + nr].first;
+                base[nr].destination_offset = dest_refs_off
+                    + static_cast<int32_t>(dr * sizeof(JcmStrRef));
+                dr += ex.second.size();
+                nr++;
+            }
+            exit_name_cursor += stops[i].exits.size();
+        }
+        for (const auto& ref : exit_dest_refs) {
+            JcmStrRef r{};
+            r.offset = ref.first;
+            r.len = ref.second;
+            buf.insert(buf.end(), reinterpret_cast<const uint8_t*>(&r),
+                       reinterpret_cast<const uint8_t*>(&r) + sizeof(r));
         }
     }
 
@@ -398,11 +475,17 @@ static std::vector<StopSpec> linear_stops() {
     const uint32_t c3 = 0xFF005BAC;   /* 3号线 */
     const uint32_t cs = 0xFFF15A22;   /* S1 */
     return {
-        {"太原站|Taiyuan Railway Station", 0,    101, "",     {{"2号线|Line 2", c2}}},
+        {"太原站|Taiyuan Railway Station", 0,    101, "",     {{"2号线|Line 2", c2}},
+         {{"A", {"火车南站|South Railway Station"}},
+          {"B", {"长途汽车站|Coach Terminal", "迎泽公园|Yingze Park"}}}},
         {"迎泽大街|Yingze Avenue",          900,  102, "",     {}},
         {"青年路口|Qingnian Lukou",         1800, 103, "",     {}},
-        {"大南门|Dananmen",                 2700, 104, "",     {{"1号线|Line 1", c1}}},
-        {"体育馆|Tiyuguan",                 3600, 105, "",     {}},
+        {"大南门|Dananmen",                 2700, 104, "",     {{"1号线|Line 1", c1}},
+         {{"A", {"柳巷商业区|Liuxiang District"}}}},
+        {"体育馆|Tiyuguan",                 3600, 105, "",     {},
+         {{"A", {"体育中心|Sports Center", "滨河体育場|Binhe Stadium"}},
+          {"B", {"游泳馆|Natatorium"}},
+          {"C", {"公交枢纽|Transit Hub"}}}},
         {"长风街|Changfeng Street",         4500, 106, "",     {{"3号线|Line 3", c3}, {"S1线|Line S1", cs}}},
         {"学府街|Xuefu Street",             5400, 107, "",     {}},
         {"南中环|Nanzhonghuan",             6300, 108, "",     {}},
@@ -506,6 +589,22 @@ int main() {
                lives in the middle; the right 20% is card-only). */
             const int glyphs = count_color(t, 0xFFFFFF, 30, t.w * 80 / 100, 4, t.w, t.h * 28 / 100);
             check(glyphs > 100, "车号 glass card glyphs present (white digits)");
+
+            /* v3: exit panel — next stop 太原站 (index 0+1? no: door closed,
+               full map shows current = 太原站 which carries exits A/B).
+               Panel lives at x = TEX_W-420 .. TEX_W (right 15%), below
+               the transfer badges (y >= 178/480 of body height). Exit
+               letters are painted route-cyan (0x009BC0); destinations
+               black + gray. Assert cyan glyphs in that window. */
+            const int exitLetters = count_color(t, 0x009BC0, 60,
+                                                t.w * 84 / 100, t.h * 45 / 100,
+                                                t.w, t.h * 100 / 100);
+            check(exitLetters > 40, "v3 exit panel: cyan exit letters present (出站口 A/B)");
+            /* destination text is black on white in the same window */
+            const int exitBlack = count_color(t, 0x000000, 40,
+                                              t.w * 84 / 100, t.h * 45 / 100,
+                                              t.w, t.h);
+            check(exitBlack > 60, "v3 exit panel: destination text present (black CJK)");
         }
 
         /* steady state: 200 frames, nothing changes → zero uploads */

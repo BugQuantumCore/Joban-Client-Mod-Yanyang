@@ -49,6 +49,8 @@
 #include "jslcd_common.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -693,11 +695,80 @@ void draw_partial_transfer_info(Gfx2D& g, int curIdx,
     }
 }
 
-/* drawExitInfo — ported; inactive until the ABI carries station exits. */
-void draw_exit_info(Gfx2D&, int, const std::vector<StationInfo>&, uint32_t) {
-    /* v2 snapshot has no station exits (JS reads station.getExits()).
-       The JS bails out identically when the list is empty — the panel
-       is a documented extension point (add exits to JcmStation). */
+/* drawExitInfo — full port of draw_common.js drawExitInfo().
+ * Activated by the v3 ABI: JcmStop now carries station exits
+ * (JS: stop.station.getExits() -> Exit.getName()/getDestinations()).
+ *
+ * Layout (all * LAYOUT_K):
+ *   x  = TEX_W - 420     right-hand info panel
+ *   y  = 178             below the transfer badges
+ *   title "出站口 Exits"  34px black
+ *   per exit k: ey = y + 52 + k*64
+ *     - exit letter, route color, Arial 26 (unique-prefix collapse)
+ *     - destination CN, black, Han Sans 20 at (x+70, ey)
+ *     - destination EN, gray,  Arial 17    at (x+70, ey+20)
+ */
+void draw_exit_info(Gfx2D& g, int curIdx,
+                    const std::vector<StationInfo>& stations,
+                    uint32_t routeColor) {
+    if (curIdx < 0 || curIdx >= (int)stations.size()) return;
+    const std::vector<ExitInfo>& exits = stations[curIdx].exits;
+    if (exits.empty()) return;               /* JS guard */
+
+    /* only exits with at least one destination are valid (JS filter) */
+    std::vector<const ExitInfo*> valid;
+    for (const ExitInfo& e : exits)
+        if (!e.destinations.empty()) valid.push_back(&e);
+    if (valid.empty()) return;
+
+    const uint32_t rc = routeColor ? routeColor : LINE_COLOR;
+    const double x = TEX_W - 420;
+    const double y = 178 * LAYOUT_K;
+
+    /* title: 出站口 Exits (mixed CJK + latin) */
+    g.set_color(BLACK_COLOR);
+    g.draw_text(x, y, K(34), "出站口");
+    g.draw_text(x + Gfx2D::text_width(K(34), "出站口") + K(10), y, K(34), "Exits");
+
+    /* unique-prefix collapse: if only one exit starts with a given
+       letter run, display just the letters (JS prefixCount logic). */
+    std::map<std::string, int> prefixCount;
+    auto letter_run = [](const std::string& s) -> std::string {
+        size_t i = 0;
+        while (i < s.size() && std::isalpha(static_cast<unsigned char>(s[i]))) i++;
+        return s.substr(0, i);
+    };
+    for (const ExitInfo* e : valid) {
+        const std::string run = letter_run(e->name);
+        if (!run.empty()) prefixCount[run]++;
+    }
+
+    for (size_t k = 0; k < valid.size(); k++) {
+        const ExitInfo& exit = *valid[k];
+        const double ey = y + K(52) + k * K(64);
+
+        std::string displayName = exit.name;
+        const std::string run = letter_run(exit.name);
+        if (!run.empty() && prefixCount[run] == 1) displayName = run;
+
+        /* destination[0] split into CJK / latin parts */
+        std::string destCn, destEn;
+        split_cjk_non_cjk(exit.destinations[0], destCn, destEn);
+        if (destCn.empty() && !exit.destinations[0].empty())
+            destCn = exit.destinations[0];
+
+        /* exit letter — route color, big */
+        g.set_color(rc);
+        g.draw_text(x, ey, K(26), displayName.c_str());
+
+        /* destination CN — black */
+        g.set_color(BLACK_COLOR);
+        g.draw_text(x + K(70), ey, K(20), destCn.c_str());
+
+        /* destination EN — gray, smaller, below */
+        g.set_color(0xFF8A8A8Au);
+        g.draw_text(x + K(70), ey + K(20), K(17), destEn.c_str());
+    }
 }
 
 /* ==================== draw_circular.js ==================== */

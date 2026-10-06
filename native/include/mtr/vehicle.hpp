@@ -53,6 +53,32 @@ public:
         return out;
     }
 
+    /* ---- v3: station exits (JS: station.getExits() -> Exit). ---- */
+    int32_t exit_count() const { return stop_->exit_count; }
+    struct Exit {
+        StrView name;                 /* e.g. "A" */
+        int32_t destination_count;
+        /* j-th destination landmark string (JS: getDestinations().get(j)). */
+        StrView destination(int32_t j) const {
+            const uint8_t* base = reinterpret_cast<const uint8_t*>(snap_);
+            const JcmStrRef* refs = reinterpret_cast<const JcmStrRef*>(base + destination_offset);
+            return make_view(reinterpret_cast<const char*>(base + refs[j].offset), refs[j].len);
+        }
+        /* internal: snapshot-relative wiring, set by Stop::exit() */
+        const JcmVehicleSnapshot* snap_ = nullptr;
+        int32_t destination_offset = 0;
+    };
+    Exit exit(int32_t i) const {
+        const uint8_t* base = reinterpret_cast<const uint8_t*>(snap_);
+        const JcmExit* ex = reinterpret_cast<const JcmExit*>(base + stop_->exit_offset) + i;
+        Exit out;
+        out.name = pool(ex->name_offset, ex->name_len);
+        out.destination_count = ex->destination_count;
+        out.snap_ = snap_;
+        out.destination_offset = ex->destination_offset;
+        return out;
+    }
+
 private:
     StrView pool(int32_t offset, int32_t len) const {
         const uint8_t* base = reinterpret_cast<const uint8_t*>(snap_);

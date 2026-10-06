@@ -11,7 +11,7 @@ JavaScript (Rhino) 脚本 1:1 语义对齐（同样的 `create/render/dispose`
 ```
 native/
 ├── include/mtr/            # 脚本 SDK（header-only）
-│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v2）
+│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v3）
 │   ├── script.hpp          #   注册宏 + 生命周期适配（ScriptBox）
 │   ├── frame.hpp           #   bump-arena 帧录制器（像素 arena 按需增长）
 │   ├── vehicle.hpp         #   Train/Car/Stop 包装（对应 VehicleWrapper）
@@ -168,10 +168,27 @@ draw_num.js）的**全量 C++ 移植**——车侧路线图 LCD + 车号系统�
 吹到 11564px。移植版取长边/短边（3.5），与 config.js 全部布局常量
 （TEX 2800×800、LAYOUT_K 1.667、SCR 3304×944）一致。
 
-冒烟验证（`bench/jslcd_smoke.cpp`，33 项断言全过）：合成 8 车 / 10 站 /
-换乘/环线快照 → dlopen 真实 ABI 驱动 → 帧记录重建纹理 → PPM 落盘 →
+冒烟验证（`bench/jslcd_smoke.cpp`，35 项断言全过）：合成 8 车 / 10 站 /
+换乘/出口/环线快照 → dlopen 真实 ABI 驱动 → 帧记录重建纹理 → PPM 落盘 →
 像素级断言（顶栏线路色、红绿站点圆点、玻璃卡字形、环线色环、开门大
-站名、车牌墨迹）+ 性能断言（稳态 <100µs、重绘预算帧 <20ms）。
+站名、车牌墨迹、**出口面板青色字母与黑色目的地 CJK**）+ 性能断言
+（稳态 <100µs、重绘预算帧 <20ms）。
+
+## ABI v3 变更
+
+`JcmStop` 新增车站出口字段（JS: `stop.station.getExits()`）：
+
+| 字段 | JS 来源 |
+|---|---|
+| `exit_count / exit_offset` | `station.getExits().size()` + `JcmExit[]` 池 |
+| `JcmExit.name_offset/len` | `exit.getName()`（如 "A"） |
+| `JcmExit.destination_count/offset` | `exit.getDestinations()` → `JcmStrRef[]` 数组 |
+
+`examples/jslcd_vehicle.cpp` 的 `draw_exit_info()`（draw_common.js 的
+`drawExitInfo` 全量移植）随之激活：「出站口 Exits」面板 = 路线色大字
+母（唯一前缀折叠）+ 目的地中/英双行；门开显示当前站、行驶中显示下
+一站——与 JS 语义完全一致。宿主无出口数据时写 `0/0`，面板自动跳过
+（同 JS `if (!exits.length) return` 守卫）。
 
 ## ABI v2 变更
 

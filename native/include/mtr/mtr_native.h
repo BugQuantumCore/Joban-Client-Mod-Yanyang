@@ -42,7 +42,7 @@ extern "C" {
 /* Version / module identity                                           */
 /* ------------------------------------------------------------------ */
 
-#define MTR_NATIVE_ABI_VERSION 2
+#define MTR_NATIVE_ABI_VERSION 3
 
 /* Resource kinds, identical to JCM script contexts. */
 enum MtrResourceKind {
@@ -218,6 +218,10 @@ typedef struct JcmStop {
     int32_t  custom_destination_len;
     int32_t  interchange_count;
     int32_t  interchange_offset; /* into snapshot JcmInterchange pool */
+    /* v3 (ABI 3): station exits (JS: station.getExits()). exit_offset
+       points at a JcmExit[] pool inside the snapshot blob; 0 = none. */
+    int32_t  exit_count;
+    int32_t  exit_offset;
     uint8_t  is_route_switchover;
     uint8_t  _pad0[3];
 } JcmStop;
@@ -227,6 +231,22 @@ typedef struct JcmInterchange {
     int32_t route_name_offset;
     int32_t route_name_len;
 } JcmInterchange;
+
+/* v3 (ABI 3): station exit, mirrors StationExit (JS: station.getExits()
+ * -> Exit.getName() / getDestinations()). name is e.g. "A";
+ * destinations are the landmark strings shown under the exit letter. */
+typedef struct JcmExit {
+    int32_t name_offset;         /* UTF-8, into snapshot string pool */
+    int32_t name_len;
+    int32_t destination_count;   /* JcmStrRef[] at destination_offset */
+    int32_t destination_offset;  /* into snapshot blob (str-ref pool) */
+} JcmExit;
+
+/* v3: string reference pair used for exit destination lists. */
+typedef struct JcmStrRef {
+    int32_t offset;
+    int32_t len;
+} JcmStrRef;
 
 /* Mirrors ArrivalWrapper. */
 typedef struct JcmArrival {

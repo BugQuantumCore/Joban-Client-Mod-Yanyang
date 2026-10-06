@@ -44,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * the JDK (native/jni_bridge.cpp implements the C side).
  */
 public final class NativeScriptManager {
-    private static final int ABI_VERSION = 2; /* must match mtr_native.h */
+    private static final int ABI_VERSION = 3; /* must match mtr_native.h */
 
     /* Route.CircularState mapping (v2 snapshots). */
     public static final int CIRCULAR_NONE = 0;
@@ -183,6 +183,17 @@ public final class NativeScriptManager {
      *                             LCD branch selection (see
      *                             examples/jslcd_vehicle.cpp, the port
      *                             of the community JS LCD script).
+     *
+     * v3 (ABI 3) per-stop fields (JcmStop, in this order):
+     *   exit_count / exit_offset — station.getExits() flattened as a
+     *                             JcmExit[] pool; each JcmExit carries
+     *                             name + a JcmStrRef[] destination list
+     *                             (station.getExits().get(k)
+     *                             .getName() / .getDestinations()).
+     *                             Write 0/0 when the station exposes no
+     *                             exits — the native draw_exit_info port
+     *                             bails out identically to the JS guard
+     *                             `if (!exits || exits.length === 0)`.
      */
     public interface VehicleSnapshotBuilder {
         ByteBuffer build(ByteBuffer out);
