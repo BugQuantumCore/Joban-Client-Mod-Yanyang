@@ -327,6 +327,19 @@ public final class NativeScriptManager {
             skipScript(scriptId, declared);
             return 0;
         }
+        /* Idempotent on purpose. MtrScriptingResourceManager parses
+           mtr_custom_resources.json TWICE per reload — once for the normal file
+           and once for the pending-migration variant — so every native
+           declaration reaches this method twice. Without the guard each library
+           is dlopen'd twice, registered twice, and mtrCreate'd twice against the
+           SAME per-instance state block: the debug overlay grew by two entries
+           per reload, and the duplicate modules each replayed their draw calls. */
+        final List<NativeScriptModule> already = getModules(scriptId);
+        if (!already.isEmpty()) {
+            JCMLogger.debug("Native script {}: declaration seen again, keeping {} module(s)",
+                    scriptId, already.size());
+            return already.size();
+        }
         final List<JsonElement> entries = new ArrayList<>();
         if (declared.isJsonArray()) {
             for (JsonElement e : declared.getAsJsonArray()) entries.add(e);
