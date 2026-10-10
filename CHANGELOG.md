@@ -1,3 +1,89 @@
+# JCM v2.3.0-beta.1-yanyang.3 — Native Vehicle Scripts Actually Render
+
+**New in yanyang.3:** the C++ (native) path is now **fully wired end to end** — native
+vehicle scripts are no longer just loaded, they draw. This closes the two gaps left in
+yanyang.1/.2 (no per-frame driver, no host resource callbacks) and makes the native route a
+drop-in replacement for the Rhino/JS route.
+
+## What now works
+
+- **Per-frame driver** — `RenderVehiclesMixin` drives every vehicle's `language: "cpp"`
+  script id through `NativeVehicleDriver.render(...)` at the same injection point the JS
+  path uses: build a `VehicleWrapper`, marshal it ONCE into the flat `JcmVehicleSnapshot`
+  POD (`NativeSnapshot`), run every module registered for that id, then translate the
+  returned draw-call records into `ScriptRenderManager` calls.
+- **Draw replay** — `VehicleResourceMixin` replays those calls per car through
+  `NativeDrawRegistry` + `NativeModelDrawCall`, so a native LCD quad receives the exact same
+  `StoredMatrixTransformations` and light as a JS one and follows the car body.
+- **Host resource callbacks** — the JNI bridge records the textures/quads a script asks for
+  during `mtrCreate` and hands the batch to `NativeHost.createResources(...)` on the render
+  thread, which builds real `GraphicsTexture` objects and `RawMeshBuilderJS(4)`/`ModelJS`
+  quads (the C++ equivalent of the community `DisplayHelper`), returning handle arrays that
+  the bridge rewrites into every frame record.
+- **Pixel uploads** — `NativeHost.uploadPixels(...)` blits a dirty rect straight into the
+  `GraphicsTexture`'s `DataBufferInt`, so per-pixel work never crosses the JVM boundary.
+- Native and JS scripts **coexist**: a native id simply never creates a
+  `VehicleScriptInstance`, so the JS branches no-op for it.
+
+## `nativeLibraries` — one script id, several libraries
+
+MTR's vehicle schema carries a single `scriptId`, but a pack often needs more than one
+native library for one train (e.g. a route-map LCD *and* a car-number system, which the JS
+route expressed as two `scriptLocations` entries). `vehicleScripts` entries now accept an
+array alongside the existing single field:
+
+```json
+"vehicleScripts": [{
+    "id": "wr2a03",
+    "language": "cpp",
+    "nativeLibraries": [
+        "mtr:wr2a03/natives/wr2a03_lcd",
+        "mtr:wr2a03/natives/wr2a03_train_num"
+    ]
+}]
+```
+
+Every declared library runs for that id, in declaration order; per-platform resolution
+(`windows` / `linux` / `macos-arm64` …, extension or stem form) applies to each entry. The
+single `nativeLibrary` field keeps working unchanged.
+
+## ABI 4 / 5
+
+- **v4** — `JcmHostServices.acquire_quad_model`: the host builds the textured quad from the
+  script's vertices + UVs and owns mesh/texture lifetime.
+- **v5** — `JcmStop.route_circular_state`: every stop now carries its route's
+  `CircularState`, the equivalent of `stop.route.getCircularState()`. The LCD port's loop-line
+  detection walks the stop list exactly like `circular.js`; the previous shape-based
+  heuristic mis-classified *any* multi-stop route as a loop.
+
+## Fixed
+
+- **Native dirty-rect underflow (crash).** `GraphicsTexture::mark_dirty` accepted
+  out-of-range coordinates. A centred string wider than the texture starts at a negative x,
+  producing e.g. `dirty_x=-76, dirty_w=1196`; `upload()` then read 1196 px per row starting
+  *before* the pixel buffer — an access violation. Out-of-range samples no longer take part
+  in dirty-rect merging (matching `Graphics2D`'s clipping).
+- **JNI export names on MSVC.** Nested `##` expansion did not fire, so the bridge exported
+  `Java_JNI_CLASS_PATH_nOpen` instead of the real mangled names.
+- **MSVC build.** `/utf-8` added to the native CMakeLists — sources contain CJK string
+  literals and cl.exe otherwise decodes them with the ANSI code page (GBK on zh-CN), failing
+  every literal.
+- **Missing bridge no longer throws.** `System.loadLibrary("jcm_native_bridge")` moved into a
+  guarded initialiser: a missing optional native library now logs one actionable line and
+  marks `cpp` scripts skipped, instead of raising `UnsatisfiedLinkError` from a static block
+  (which broke `isLoaded()` for the resource providers).
+
+## Performance note
+
+The ported WR2-A03 LCD had been rasterising at **3304×11564** because the pack's own
+`computeLcdAspectFromSlot()` returns the *reciprocal* of the aspect ratio (0.2857) and
+overwrites the configured 3.5, stretching every pixel ~14× vertically and costing ~150 MB of
+texture per car side. The native port uses the configured 3.5 (**3304×944**, uniform 1.18
+scale); `WR2_LCD_USE_JS_ASPECT=1` restores the literal JS behaviour if pixel-parity is ever
+needed.
+
+---
+
 # JCM v2.3.0-beta.1-yanyang.2 — Per-Platform Native Script Selection
 
 **New in yanyang.2:** `mtr_custom_resources.json` entries with `"language": "cpp"` can now
