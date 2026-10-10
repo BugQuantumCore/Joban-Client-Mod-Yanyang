@@ -77,31 +77,35 @@ jobs:
       # problem, because a zero-filled state block is only "valid" on MSVC —
       # libstdc++/libc++ dereference a null inline string buffer and crash.
       # A green Windows-only run proves nothing here.
+      # NB: absolute paths on purpose — a multi-line `run:` block does NOT honour
+      # `working-directory` (only single-line ones do), so `./x` resolves against
+      # the workspace root and the step dies with "cannot load ./lib...".
       - name: Run WR2-A03 smoke test (real ABI, 41 assertions)
         shell: bash
-        working-directory: native/build
         run: |
           set -euo pipefail
-          BIN=./wr2a03_smoke
-          [ -f "$BIN.exe" ] && BIN=./wr2a03_smoke.exe
-          "$BIN" .
+          B="$GITHUB_WORKSPACE/native/build"
+          ls -l "$B" | head -30
+          BIN="$B/wr2a03_smoke"
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" "$B"
 
       - name: Run WR2-A03 performance harness
         shell: bash
-        working-directory: native/build
         run: |
           set -euo pipefail
-          BIN=./wr2a03_bench
-          [ -f "$BIN.exe" ] && BIN=./wr2a03_bench.exe
-          "$BIN" . 200
+          B="$GITHUB_WORKSPACE/native/build"
+          BIN="$B/wr2a03_bench"
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" "$B" 200
 
       - name: Verify exported ABI (mtrInit must be present)
         shell: bash
-        working-directory: native/build
         run: |
           set -euo pipefail
+          B="$GITHUB_WORKSPACE/native/build"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            ls -l wr2a03_lcd.dll wr2a03_train_num.dll
+            ls -l "$B"/wr2a03_lcd.dll "$B"/wr2a03_train_num.dll
             exit 0
           fi
           if [ "${{ runner.os }}" = "macOS" ]; then MODS=(libwr2a03_lcd.dylib libwr2a03_train_num.dylib); NM="nm -gU"
@@ -109,20 +113,20 @@ jobs:
           for m in "${MODS[@]}"; do
             echo "--- $m"
             # shellcheck disable=SC2086
-            $NM "$m" | grep -o 'mtr[A-Za-z]*' | sort -u
+            $NM "$B/$m" | grep -o 'mtr[A-Za-z]*' | sort -u
             # shellcheck disable=SC2086
-            $NM "$m" | grep -q mtrInit || { echo "::error::$m does not export mtrInit (ABI 6)"; exit 1; }
+            $NM "$B/$m" | grep -q mtrInit || { echo "::error::$m does not export mtrInit (ABI 6)"; exit 1; }
           done
 
       - name: Report Linux symbol-version floors
         if: runner.os == 'Linux'
-        working-directory: native/build
         run: |
           set -euo pipefail
+          B="$GITHUB_WORKSPACE/native/build"
           for m in libwr2a03_lcd.so libwr2a03_train_num.so; do
             echo -n "$m needs up to: "
-            objdump -T "$m" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | tr '\n' ' '
-            objdump -T "$m" | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1
+            objdump -T "$B/$m" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | tr '\n' ' '
+            objdump -T "$B/$m" | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1
           done
 
       - name: Collect script libraries
