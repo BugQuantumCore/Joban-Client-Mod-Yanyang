@@ -76,9 +76,14 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class NativeScriptManager {
     /* Must match MTR_NATIVE_ABI_VERSION in native/include/mtr/mtr_native.h.
+       v6 = mtrInit(): the host must construct the per-instance state object
+       instead of treating a zeroed block as a valid one. A zeroed block is NOT
+       a valid State when State holds std::string / std::vector — libstdc++
+       keeps the SSO buffer pointer inline, so a zeroed std::string dereferences
+       null (immediate SIGSEGV on Linux/macOS); only MSVC's layout tolerated it.
        v5 = JcmStop.route_circular_state (per-stop route CircularState, so the
        LCD port's 环线检测 can walk the stop list like circular.js does). */
-    private static final int ABI_VERSION = 5;
+    private static final int ABI_VERSION = 6;
 
     /* Route.CircularState mapping (v2 snapshots). */
     public static final int CIRCULAR_NONE = 0;

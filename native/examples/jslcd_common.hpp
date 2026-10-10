@@ -399,7 +399,15 @@ inline ParsedTransferRoute parse_transfer_route(const std::string& name) {
     while (j < out.cn.size() && std::isdigit(static_cast<unsigned char>(out.cn[j]))) j++;
     if (j > i) {
         const std::string digits = out.cn.substr(i, j - i);
-        out.num = std::atol(digits.c_str());
+        /* hand-rolled instead of atol: glibc 2.38 turned atol into
+           __isoc23_strtol, which would stamp GLIBC_2.38 on the .so and break
+           Debian 12 / Ubuntu 22.04 (glibc 2.36). */
+        int64_t parsed = 0;
+        for (char ch : digits) {
+            if (ch < '0' || ch > '9') break;
+            parsed = parsed * 10 + (ch - '0');
+        }
+        out.num = parsed;
         out.id = letter + digits;
         out.letter = letter;
         out.type = letter.empty() ? TRANSFER_NUMBER : TRANSFER_LETTER_NUMBER;

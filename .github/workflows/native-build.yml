@@ -72,6 +72,59 @@ jobs:
         working-directory: native/build
         run: ./lcd_bench
 
+      # WR2-A03 (the LCD + car-number pair this pack ships) on EVERY platform,
+      # not just Linux: this is the test that catches the ABI-6 state-lifetime
+      # problem, because a zero-filled state block is only "valid" on MSVC —
+      # libstdc++/libc++ dereference a null inline string buffer and crash.
+      # A green Windows-only run proves nothing here.
+      - name: Run WR2-A03 smoke test (real ABI, 41 assertions)
+        shell: bash
+        working-directory: native/build
+        run: |
+          set -euo pipefail
+          BIN=./wr2a03_smoke
+          [ -f "$BIN.exe" ] && BIN=./wr2a03_smoke.exe
+          "$BIN" .
+
+      - name: Run WR2-A03 performance harness
+        shell: bash
+        working-directory: native/build
+        run: |
+          set -euo pipefail
+          BIN=./wr2a03_bench
+          [ -f "$BIN.exe" ] && BIN=./wr2a03_bench.exe
+          "$BIN" . 200
+
+      - name: Verify exported ABI (mtrInit must be present)
+        shell: bash
+        working-directory: native/build
+        run: |
+          set -euo pipefail
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ls -l wr2a03_lcd.dll wr2a03_train_num.dll
+            exit 0
+          fi
+          if [ "${{ runner.os }}" = "macOS" ]; then MODS=(libwr2a03_lcd.dylib libwr2a03_train_num.dylib); NM="nm -gU"
+          else MODS=(libwr2a03_lcd.so libwr2a03_train_num.so); NM="nm -D --defined-only"; fi
+          for m in "${MODS[@]}"; do
+            echo "--- $m"
+            # shellcheck disable=SC2086
+            $NM "$m" | grep -o 'mtr[A-Za-z]*' | sort -u
+            # shellcheck disable=SC2086
+            $NM "$m" | grep -q mtrInit || { echo "::error::$m does not export mtrInit (ABI 6)"; exit 1; }
+          done
+
+      - name: Report Linux symbol-version floors
+        if: runner.os == 'Linux'
+        working-directory: native/build
+        run: |
+          set -euo pipefail
+          for m in libwr2a03_lcd.so libwr2a03_train_num.so; do
+            echo -n "$m needs up to: "
+            objdump -T "$m" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1 | tr '\n' ' '
+            objdump -T "$m" | grep -o 'GLIBCXX_[0-9.]*' | sort -uV | tail -1
+          done
+
       - name: Collect script libraries
         shell: bash
         run: |

@@ -323,6 +323,7 @@ struct Module {
     const char* (*type)(void) = nullptr;
     const char* (*id)(void) = nullptr;
     size_t (*state_size)(void) = nullptr;
+    void (*init)(const JcmFrameInput*) = nullptr;
     int32_t (*create)(const JcmFrameInput*) = nullptr;
     int32_t (*render)(const JcmFrameInput*, JcmFrameOutput*) = nullptr;
     int32_t (*dispose)(const JcmFrameInput*) = nullptr;
@@ -340,6 +341,7 @@ struct Module {
         type = reinterpret_cast<const char* (*)(void)>(lib_sym(handle, "mtrScriptType"));
         id = reinterpret_cast<const char* (*)(void)>(lib_sym(handle, "mtrScriptId"));
         state_size = reinterpret_cast<size_t (*)(void)>(lib_sym(handle, "mtrStateSize"));
+        init = reinterpret_cast<void (*)(const JcmFrameInput*)>(lib_sym(handle, "mtrInit"));
         create = reinterpret_cast<int32_t (*)(const JcmFrameInput*)>(lib_sym(handle, "mtrCreate"));
         render = reinterpret_cast<int32_t (*)(const JcmFrameInput*, JcmFrameOutput*)>(
             lib_sym(handle, "mtrRender"));
@@ -597,6 +599,8 @@ int run(int argc, char** argv) {
         in.state = st;
         in.state_size = m.state_size();
         in.host = &host;
+        /* ABI 6 protocol: construct the state, then create, then render. */
+        if (m.init) m.init(&in);
         r.created = (m.create(&in) == 0);
         JcmFrameOutput out{};
         for (int f = 0; f < frames; f++) {
@@ -614,7 +618,8 @@ int run(int argc, char** argv) {
         if (!m.open(lcdPath)) return 1;
         std::printf("wr2a03_lcd: id=%s type=%s abi=%u state=%zu bytes\n\n",
                     m.id(), m.type(), m.abi(), m.state_size());
-        check(m.abi() == MTR_NATIVE_ABI_VERSION, "ABI version matches host (v4)");
+        check(m.abi() == MTR_NATIVE_ABI_VERSION, "ABI version matches host (v6)");
+        check(m.init != nullptr, "module exports mtrInit (ABI 6 state construction)");
         check(std::strcmp(m.type(), "vehicle") == 0, "script type is vehicle");
         check(std::strcmp(m.id(), "wr2a03:lcd") == 0, "script id is wr2a03:lcd");
 
@@ -632,6 +637,9 @@ int run(int argc, char** argv) {
         in.state_size = m.state_size();
         in.host = &host;
 
+        /* ABI 6: the host constructs the state BEFORE create(). This is the
+           step whose absence segfaults on libstdc++ (zeroed std::string). */
+        if (m.init) m.init(&in);
         check(m.create(&in) == 0, "mtrCreate");
         check(g_textures == 0, "mtrCreate creates no texture yet (lazy on first render)");
 
@@ -737,7 +745,8 @@ int run(int argc, char** argv) {
         if (!m.open(numPath)) return 1;
         std::printf("\nwr2a03_train_num: id=%s type=%s abi=%u state=%zu bytes\n\n",
                     m.id(), m.type(), m.abi(), m.state_size());
-        check(m.abi() == MTR_NATIVE_ABI_VERSION, "ABI version matches host (v4)");
+        check(m.abi() == MTR_NATIVE_ABI_VERSION, "ABI version matches host (v6)");
+        check(m.init != nullptr, "module exports mtrInit (ABI 6 state construction)");
         check(std::strcmp(m.id(), "wr2a03:train_num") == 0, "script id is wr2a03:train_num");
 
         const int32_t texBefore = g_next_texture;
@@ -756,6 +765,7 @@ int run(int argc, char** argv) {
         in.state_size = m.state_size();
         in.host = &host;
 
+        if (m.init) m.init(&in);
         check(m.create(&in) == 0, "mtrCreate");
         /* 6 车厢 × 2 侧牌 + 头牌 + 尾牌 = 14 张纹理 */
         check(g_next_texture - texBefore == 14, "14 GraphicsTextures (6x2 plates + head + tail)");

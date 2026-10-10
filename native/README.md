@@ -11,7 +11,7 @@ JavaScript (Rhino) 脚本 1:1 语义对齐（同样的 `create/render/dispose`
 ```
 native/
 ├── include/mtr/            # 脚本 SDK（header-only）
-│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v5）
+│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v6）
 │   ├── script.hpp          #   注册宏 + 生命周期适配（ScriptBox）
 │   ├── frame.hpp           #   bump-arena 帧录制器（像素 arena 按需增长）
 │   ├── vehicle.hpp         #   Train/Car/Stop 包装（对应 VehicleWrapper）
@@ -259,6 +259,25 @@ draw_num.js）的**全量 C++ 移植**——车侧路线图 LCD + 车号系统�
 像素级断言（顶栏线路色、红绿站点圆点、玻璃卡字形、环线色环、开门大
 站名、车牌墨迹、**出口面板青色字母与黑色目的地 CJK**）+ 性能断言
 （稳态 <100µs、重绘预算帧 <20ms）。
+
+## ABI v6 变更
+
+新增 `mtrInit(const JcmFrameInput*)`：宿主在分配完 per-instance state 块之后、
+**第一次 `mtrCreate` 之前**调用它，模块在块内 placement-new 出自己的 State 对象。
+
+为什么必须这样：旧契约是"宿主给一块 `mtrStateSize()` 大小的**全零**内存"，
+但那**不是**一个合法的 C++ 对象。带 `std::string` / `std::vector` 成员的 State
+在 libstdc++ / libc++ 上会立刻崩溃（SSO 把缓冲区指针内联在对象里，全零 = 空
+指针，第一次 `clear()` / 赋值就写空指针）；MSVC 的布局恰好把全零当成合法空串，
+所以这个问题在 Windows 上一直看不出来 —— 于是"只在 Windows 编过"就等于没测。
+
+- 该导出是**可选**的：宿主用 `dlsym`/`GetProcAddress` 拿不到就跳过，ABI ≤5 的旧
+  模块照旧工作（它们本来就只在 MSVC 上调过）。
+- 模块侧不依赖宿主也正确：`lifecycle()` 在每次进入时通过 `init_state()` 兜底构造，
+  因此漏调 `mtrInit` 或首帧乱序都不会读到未构造对象。
+- `init_state()` 以**块指针**判断是否需要构造：同一块重复调用是 no-op（否则每帧
+  重建会把脚本累积的状态清掉），换了块就重新构造，`mtrDispose` 之后清标志，
+  所以"init 构造 / dispose 析构"始终配平。
 
 ## ABI v5 变更
 

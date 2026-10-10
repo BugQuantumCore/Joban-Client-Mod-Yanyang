@@ -103,8 +103,20 @@ static void build_snapshot(JcmVehicleSnapshot& snap, JcmCar cars[8],
     (void)pool_cap;
 }
 
+/* Hand-rolled instead of atoi: glibc 2.38 rewrote the strto* family to
+   __isoc23_*, which stamps GLIBC_2.38 on the binary and makes it unloadable on
+   glibc < 2.38 (Debian 12, Ubuntu 22.04). */
+static int parse_arg_int(const char* s, int fallback) {
+    if (!s) return fallback;
+    long v = 0;
+    bool any = false;
+    for (; *s == ' '; s++) {}
+    for (; *s >= '0' && *s <= '9'; s++) { v = v * 10 + (*s - '0'); any = true; }
+    return any ? static_cast<int>(v) : fallback;
+}
+
 int main(int argc, char** argv) {
-    const int frames = argc > 1 ? std::atoi(argv[1]) : 20000;
+    const int frames = argc > 1 ? parse_arg_int(argv[1], 20000) : 20000;
 
     /* Snapshot blob: snapshot header + cars + stops + string pool. */
     static JcmVehicleSnapshot snap;

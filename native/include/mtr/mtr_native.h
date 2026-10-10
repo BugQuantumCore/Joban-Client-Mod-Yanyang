@@ -42,13 +42,15 @@ extern "C" {
 /* Version / module identity                                           */
 /* ------------------------------------------------------------------ */
 
-/* ABI 5 — JcmStop gains route_circular_state (per-stop route
+/* ABI 6 — mtrInit(): the host must construct the per-instance state
+   object instead of assuming a zeroed block is usable (see mtrStateSize).
+   ABI 5 added JcmStop.route_circular_state (per-stop route
    CircularState).  ABI 4 added JcmHostServices.acquire_quad_model
    (host-built textured quad) — bumped because scripts compiled against
    the newer header call a host function slot that does not exist in an
    older host (the struct grew), so an old host must refuse the module
    instead of reading past it. */
-#define MTR_NATIVE_ABI_VERSION 5
+#define MTR_NATIVE_ABI_VERSION 6
 
 /* Resource kinds, identical to JCM script contexts. */
 enum MtrResourceKind {
@@ -494,10 +496,26 @@ MTR_NATIVE_EXPORT int32_t mtrCreate(const JcmFrameInput* in);
 MTR_NATIVE_EXPORT int32_t mtrRender(const JcmFrameInput* in, JcmFrameOutput* out);
 MTR_NATIVE_EXPORT int32_t mtrDispose(const JcmFrameInput* in);
 
-/* Per-instance state block size: the host allocates one zeroed block
-   of this size per script instance (mirrors the per-instance `state`
-   JS object JCM creates for each ScriptInstance). */
+/* Per-instance state block size: the host allocates one block of this
+   size per script instance (mirrors the per-instance `state` JS object
+   JCM creates for each ScriptInstance).
+
+   ★ The block's contents must be treated as UNINITIALISED. A zero-filled
+   block is NOT a valid object for a State type with a non-trivial default
+   constructor (std::string, std::vector, ...): libstdc++'s std::string
+   stores its buffer pointer inline (SSO), so a zeroed one dereferences
+   null and segfaults — MSVC's layout happens to tolerate it, which is why
+   this went unnoticed on Windows. The host MUST therefore call mtrInit()
+   before the first mtrCreate()/mtrRender(). */
 MTR_NATIVE_EXPORT size_t mtrStateSize(void);
+
+/* Construct the State object inside the host's block (placement new).
+   Call ONCE per instance, right after allocating the block and before
+   any other entry point. Optional: hosts that cannot call it (older
+   builds, third-party drivers) may omit it — the module then constructs
+   lazily on the first create/render, which is equally correct, just
+   slightly later. Added in ABI 6. */
+MTR_NATIVE_EXPORT void mtrInit(const JcmFrameInput* in);
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -224,6 +224,21 @@ inline void append_utf8(std::string& out, uint32_t cp) {
     out.append(buf, static_cast<size_t>(n));
 }
 
+/* parse_decimal — 解析 [begin, end) 的十进制数字。
+ *
+ * 不能用 atol/strtol：glibc 2.38 起它们被改写为 __isoc23_strtol，于是二进制
+ * 会带上 GLIBC_2.38 符号版本，在 Debian 12 / Ubuntu 22.04（glibc 2.36）上直接
+ * 加载失败。这里手写十行，彻底不碰 libc 的数字转换。 */
+inline int64_t parse_decimal(const std::string& s, size_t begin, size_t end) {
+    int64_t v = 0;
+    for (size_t k = begin; k < end && k < s.size(); k++) {
+        const unsigned char ch = static_cast<unsigned char>(s[k]);
+        if (ch < '0' || ch > '9') break;
+        v = v * 10 + static_cast<int64_t>(ch - '0');
+    }
+    return v;
+}
+
 /* splitCjkNonCjk — TextUtil.getCjkParts/getNonCjkParts 等价物 */
 inline void split_cjk_non_cjk(const std::string& full, std::string& cn, std::string& en) {
     cn.clear();
@@ -499,7 +514,7 @@ inline ParsedTransferRoute parse_transfer_route(const std::string& name) {
     size_t j = i;
     while (j < out.cn.size() && std::isdigit(static_cast<unsigned char>(out.cn[j]))) j++;
     if (j > i) {
-        out.num = std::atol(out.cn.substr(i, j - i).c_str());
+        out.num = parse_decimal(out.cn, i, j);
         out.id = letter + out.cn.substr(i, j - i);
         out.letter = letter;
         out.type = letter.empty() ? TRANSFER_NUMBER : TRANSFER_LETTER_NUMBER;

@@ -99,6 +99,12 @@ struct BridgeModule {
     const char* (*type)(void) = nullptr;
     const char* (*id)(void) = nullptr;
     size_t (*state_size)(void) = nullptr;
+    /* ABI 6, optional: constructs the per-instance State in the host's block.
+       A zero-filled block is NOT a valid object for a State with a non-trivial
+       default constructor (std::string / std::vector dereference a null inline
+       buffer on libstdc++), so a module that exports this must be asked to
+       construct its state before the first create/render. */
+    void (*init)(const JcmFrameInput*) = nullptr;
     int32_t (*create)(const JcmFrameInput*) = nullptr;
     int32_t (*render)(const JcmFrameInput*, JcmFrameOutput*) = nullptr;
     int32_t (*dispose)(const JcmFrameInput*) = nullptr;
@@ -437,6 +443,9 @@ JNI_M(nOpen)(JNIEnv* env, jobject, jstring path) {
     mod->type       = reinterpret_cast<const char* (*)(void)>(load_symbol(lib, "mtrScriptType"));
     mod->id         = reinterpret_cast<const char* (*)(void)>(load_symbol(lib, "mtrScriptId"));
     mod->state_size = reinterpret_cast<size_t (*)(void)>(load_symbol(lib, "mtrStateSize"));
+    /* Optional (ABI 6). Absent on ABI<=5 modules, which relied on a zeroed
+       block being usable — fine for their MSVC-tuned layouts. */
+    mod->init       = reinterpret_cast<void (*)(const JcmFrameInput*)>(load_symbol(lib, "mtrInit"));
     mod->create     = reinterpret_cast<int32_t (*)(const JcmFrameInput*)>(load_symbol(lib, "mtrCreate"));
     mod->render     = reinterpret_cast<int32_t (*)(const JcmFrameInput*, JcmFrameOutput*)>(load_symbol(lib, "mtrRender"));
     mod->dispose    = reinterpret_cast<int32_t (*)(const JcmFrameInput*)>(load_symbol(lib, "mtrDispose"));
@@ -518,6 +527,15 @@ JNI_M(nRender)(JNIEnv* env, jobject, jlong handle, jstring instanceKey,
     in.host = &host;
 
     if (!inst.created) {
+        /* ABI 6: let the module construct its State object inside the block
+           BEFORE create() runs. The block is raw zeroed memory, which is not a
+           valid State when State holds std::string / std::vector — on
+           libstdc++ that is an immediate null dereference, so this is not
+           optional for modules that export mtrInit. */
+        if (mod->init) {
+            mod->init(&in);
+        }
+
         /* Reset the capture slots: the script builds its quads / textures
            inside create(), and the previous instance left its list behind. */
         g_capture_tex_w.clear();

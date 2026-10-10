@@ -35,6 +35,7 @@
 #  include <psapi.h>
 #else
 #  include <dlfcn.h>
+#  include <unistd.h>
 #endif
 
 using clock_type = std::chrono::steady_clock;
@@ -235,6 +236,9 @@ struct Module {
     void* handle = nullptr;
     const char* (*id)(void) = nullptr;
     size_t (*state_size)(void) = nullptr;
+    /* ABI 6, optional. The host must call this before the first create() —
+       see the note on mtrStateSize in mtr_native.h. */
+    void (*init)(const JcmFrameInput*) = nullptr;
     int32_t (*create)(const JcmFrameInput*) = nullptr;
     int32_t (*render)(const JcmFrameInput*, JcmFrameOutput*) = nullptr;
     int32_t (*dispose)(const JcmFrameInput*) = nullptr;
@@ -244,6 +248,7 @@ struct Module {
         if (!handle) return false;
         id = reinterpret_cast<const char* (*)(void)>(lib_sym(handle, "mtrScriptId"));
         state_size = reinterpret_cast<size_t (*)(void)>(lib_sym(handle, "mtrStateSize"));
+        init = reinterpret_cast<void (*)(const JcmFrameInput*)>(lib_sym(handle, "mtrInit"));
         create = reinterpret_cast<int32_t (*)(const JcmFrameInput*)>(lib_sym(handle, "mtrCreate"));
         render = reinterpret_cast<int32_t (*)(const JcmFrameInput*, JcmFrameOutput*)>(
             lib_sym(handle, "mtrRender"));
@@ -286,6 +291,18 @@ long peak_rss_kb() {
         return static_cast<long>(pmc.PeakWorkingSetSize / 1024);
     }
     return -1;
+#elif defined(__linux__)
+    /* VmHWM in /proc/self/status is in kB already */
+    std::FILE* f = std::fopen("/proc/self/status", "r");
+    if (!f) return -1;
+    char line[256];
+    long peak = -1;
+    while (std::fgets(line, sizeof(line), f)) {
+        long kb = 0;
+        if (std::sscanf(line, "VmHWM: %ld kB", &kb) == 1) { peak = kb; break; }
+    }
+    std::fclose(f);
+    return peak;
 #else
     return -1;
 #endif
@@ -298,6 +315,15 @@ long current_rss_kb() {
         return static_cast<long>(pmc.WorkingSetSize / 1024);
     }
     return -1;
+#elif defined(__linux__)
+    /* /proc/self/statm field 2 is resident pages */
+    std::FILE* f = std::fopen("/proc/self/statm", "r");
+    if (!f) return -1;
+    long total = 0, resident = 0;
+    const int n = std::fscanf(f, "%ld %ld", &total, &resident);
+    std::fclose(f);
+    if (n != 2) return -1;
+    return resident * (sysconf(_SC_PAGESIZE) / 1024);
 #else
     return -1;
 #endif
@@ -361,6 +387,19 @@ Result bench(Module& m, const Snapshot& snap, const JcmHostServices& host,
     in.state_size = m.state_size();
     in.host = &host;
 
+    /* Same protocol the JNI bridge follows: construct the state, then create,
+       then render. Skipping create() would leave the State unconstructed for a
+       non-trivial type (see mtr_native.h) — the module constructs it lazily in
+       that case, but the host is supposed to drive the real order. */
+    if (m.init) m.init(&in);
+    in.snapshot = snap.buf.data();
+    if (m.create(&in) != 0) {
+        std::printf("  create failed\n");
+        m.dispose(&in);
+        std::free(state);
+        return r;
+    }
+
     JcmFrameOutput out{};
     double repaintSum = 0, skipSum = 0;
     long repaintCount = 0, skipCount = 0;
@@ -422,9 +461,21 @@ Result bench(Module& m, const Snapshot& snap, const JcmHostServices& host,
     return r;
 }
 
+/* Hand-rolled instead of atoi: glibc 2.38 rewrote the strto* family to
+   __isoc23_*, which stamps GLIBC_2.38 on the binary and makes it unloadable on
+   glibc < 2.38 (Debian 12, Ubuntu 22.04). */
+int parse_arg_int(const char* s, int fallback) {
+    if (!s) return fallback;
+    long v = 0;
+    bool any = false;
+    for (; *s == ' '; s++) {}
+    for (; *s >= '0' && *s <= '9'; s++) { v = v * 10 + (*s - '0'); any = true; }
+    return any ? static_cast<int>(v) : fallback;
+}
+
 int run(int argc, char** argv) {
     const std::string dir = argc > 1 ? argv[1] : ".";
-    const int frames = argc > 2 ? std::atoi(argv[2]) : 400;
+    const int frames = argc > 2 ? parse_arg_int(argv[2], 400) : 400;
 #if defined(_WIN32)
     const std::string lcd = dir + "\\wr2a03_lcd.dll";
     const std::string num = dir + "\\wr2a03_train_num.dll";

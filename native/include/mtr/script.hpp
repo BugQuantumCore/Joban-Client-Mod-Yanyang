@@ -193,6 +193,9 @@ class EyecandyScript : public ScriptBase<State, detail::EyecandyAdapter> {};
         return sizeof(typename ScriptType::StateType);                          \
     }                                                                           \
     static ::mtr::detail::ScriptBox<ScriptType> mtr_g_script;                   \
+    MTR_NATIVE_EXPORT void mtrInit(const JcmFrameInput* in) {                   \
+        mtr_g_script.init_state(in);                                            \
+    }                                                                           \
     MTR_NATIVE_EXPORT int32_t mtrCreate(const JcmFrameInput* in) {              \
         return mtr_g_script.lifecycle<0>(in, nullptr);                          \
     }                                                                           \
@@ -217,21 +220,64 @@ namespace mtr { namespace detail {
 /**
  * ScriptBox — adapts a typed ScriptType onto the C exports.
  *
- * Per-instance state: the host owns the state block (JcmFrameInput.
- * state / state_size, zero-initialized, one per instance). Non-trivial
- * State types are placement-new'ed on mtrCreate and destroyed on
- * mtrDispose. If the host passes no state (e.g. the benchmark driver),
- * a module-local block is used.
+ * Per-instance state: the host owns the state block (JcmFrameInput.state /
+ * state_size, one per instance) but its CONTENTS ARE UNINITIALISED — a
+ * zero-filled block is not a valid State unless State is trivially copyable.
+ * The host therefore calls mtrInit() once after allocating; that is where the
+ * placement-new happens, and it is also the ABI-6 answer to the older
+ * "assume zeroed memory is fine" contract, which only ever worked by accident
+ * on MSVC (libstdc++'s std::string keeps its buffer pointer inline, so a
+ * zeroed one dereferences null).
+ *
+ * Defensive fallbacks, in case a caller skips mtrInit():
+ *   - init_state() is idempotent, so a host that calls it twice is harmless;
+ *   - lifecycle() also constructs on first use, so an mtrRender() without a
+ *     preceding mtrCreate() cannot read an unconstructed object;
+ *   - when the host passes no state at all, a module-local block is used.
  */
 template <typename ScriptType>
 struct ScriptBox {
     ScriptType script;
     typename ScriptType::StateType* fallback_state = nullptr;
-    typename ScriptType::StateType* active_state = nullptr;
-    bool constructed_fallback = false;
+    /* ABI 6 state tracking. The host may own SEVERAL blocks over the module's
+       lifetime (one per instance, and one at a time per module because the host
+       serialises per instance), and it may hand them over in any order. Identity
+       of the block is therefore what decides re-construction — not a plain
+       "already initialised" flag, which would silently skip construction for a
+       second instance and let the script run on unconstructed memory. */
+    void* state_block = nullptr;
+    bool state_live = false;
 
     using State = typename ScriptType::StateType;
     using Adapter = typename ScriptType::Kind;
+
+    /* ABI 6: mtrInit — construct the State inside the host's block.
+       Called once per instance, right after the host allocates the block.
+       Idempotent for the SAME block (lifecycle() funnels through here on every
+       frame, and re-constructing each frame would wipe the script's accumulated
+       state); re-constructs as soon as a different block shows up, so a second
+       instance never inherits an unconstructed block. mtrDispose clears the
+       liveness flag, so "init constructs / dispose destroys" stays balanced even
+       if the allocator hands the same address back. */
+    void init_state(const JcmFrameInput* in) {
+        if (!in) return;
+        State* state = resolve_state(*in);
+        if (!state) return;
+        void* block = static_cast<void*>(state);
+
+        if (state_live && block == state_block) return;
+        if (state_live) {
+            /* a different, still-live block: tear the old object down */
+            if constexpr (!std::is_trivially_default_constructible_v<State>) {
+                static_cast<State*>(state_block)->~State();
+            }
+        }
+        if constexpr (!std::is_trivially_default_constructible_v<State>) {
+            new (static_cast<void*>(state)) State();
+        }
+        state_block = block;
+        state_live = true;
+    }
 
     template <int Phase> /* 0=create 1=render 2=dispose */
     int32_t lifecycle(const JcmFrameInput* in, JcmFrameOutput* out) {
@@ -241,16 +287,12 @@ struct ScriptBox {
 
         install_frame();
 
-        /* Resolve the state block for this instance. */
+        /* Resolve the state block for this instance. mtrInit() should already
+           have constructed it; do it here too so a create/render that arrives
+           first (a driver that skips mtrInit, or an out-of-order first frame)
+           still operates on a valid object. */
         State* state = resolve_state(*in);
-
-        if constexpr (Phase == 0) {
-            if (!std::is_trivially_default_constructible_v<State> && state) {
-                /* host-provided block was zeroed; construct in place once.
-                   Fallback block gets constructed on first use. */
-                new (static_cast<void*>(state)) State();
-            }
-        }
+        init_state(in);
 
         auto ctx = Adapter::make_context(recorder(), *in);
         auto wrapper = Adapter::make_wrapper(in->snapshot);
@@ -265,6 +307,9 @@ struct ScriptBox {
             if (!std::is_trivially_default_constructible_v<State> && state) {
                 state->~State();
             }
+            /* mtrDispose destroyed it; only mtrInit may construct it again */
+            state_live = false;
+            state_block = nullptr;
         }
         return 0;
     }
