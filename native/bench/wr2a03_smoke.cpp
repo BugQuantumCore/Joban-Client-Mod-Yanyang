@@ -33,6 +33,8 @@
 #  include <windows.h>
 #else
 #  include <dlfcn.h>
+#  include <sys/stat.h>
+#  include <sys/types.h>
 #endif
 
 using namespace std::chrono;
@@ -536,11 +538,22 @@ int run(int argc, char** argv) {
 #if defined(_WIN32)
     const std::string lcdPath = dir + "\\wr2a03_lcd.dll";
     const std::string numPath = dir + "\\wr2a03_train_num.dll";
-    const std::string outPrefix = dir + "\\";
+    /* Previews go into a SUBDIRECTORY, never next to the libraries: the usual
+       way to run this is against a resource pack's natives/<platform> folder,
+       and dumping five 9 MB PPMs in there silently bloats the pack by ~30 MB.
+       Pass a second argument to put them somewhere else entirely. */
+    const std::string outDir = argc > 2 ? std::string(argv[2]) : dir + "\\wr2a03_preview";
+    const std::string outPrefix = outDir + "\\";
 #else
     const std::string lcdPath = dir + "/libwr2a03_lcd.so";
     const std::string numPath = dir + "/libwr2a03_train_num.so";
-    const std::string outPrefix = dir + "/";
+    const std::string outDir = argc > 2 ? std::string(argv[2]) : dir + "/wr2a03_preview";
+    const std::string outPrefix = outDir + "/";
+#endif
+#if defined(_WIN32)
+    CreateDirectoryA(outDir.c_str(), nullptr);
+#else
+    mkdir(outDir.c_str(), 0755);
 #endif
 
     std::printf("== wr2a03 native smoke ==\n\n");

@@ -48,8 +48,10 @@ namespace {
 struct CarScreens {
     GraphicsTexture left;
     GraphicsTexture right;
-    uint64_t leftSig = 0;      /* repaint-on-change 签名 */
+    uint64_t leftSig = 0;      /* repaint-on-change 签名（含 blink） */
     uint64_t rightSig = 0;
+    uint64_t leftLaySig = 0;   /* 只看布局的签名（不含 blink） */
+    uint64_t rightLaySig = 0;
     bool everPainted = false;  /* 首帧也要清屏（见 render 里的无线路分支） */
 };
 
@@ -1152,16 +1154,34 @@ void paint_screen(Gfx2D& g, const Wr2LcdState& state, const ScreenInfo& info, in
     }
 }
 
-/* 内容签名：内容不变则跳过光栅化（见文件头说明 2） */
+/* 内容签名：内容不变则跳过光栅化（见文件头说明 2）。
+ *
+ * 签名分两次计算：含 blinkState 的完整签名决定"是否要重画"，不含它的
+ * 布局签名用来识别"这一帧只有闪烁位变了"。
+ *
+ * 为什么需要后者：进度线段的闪烁每秒翻转一次，而它写在**每一块屏**的内容
+ * 里 —— 只按完整签名判断，一次闪烁会把 6 节车厢 × 2 侧的 12 块屏全部重新
+ * 光栅化（实测约 50 ms／帧，环线图约 97 ms），造成每秒一次的可见卡顿。
+ * 闪烁只是个颜色翻转，不值得重画整块屏：布局未变时直接沿用已有纹理
+ * （代价是进度段的闪烁不再动画，换来的是稳态每帧 0.006 ms）。
+ * 需要逐步闪烁动画时把 WR2_LCD_ANIMATE_BLINK 定义出来即可。 */
+#ifndef WR2_LCD_ANIMATE_BLINK
+#  define WR2_LCD_ANIMATE_BLINK 0
+#endif
+
 uint64_t screen_signature(const Wr2LcdState& state, const ScreenInfo& info,
-                          int pageMode, const std::string& vehicleNum) {
+                          int pageMode, const std::string& vehicleNum,
+                          bool includeBlink) {
     uint64_t h = 1469598103934665603ull;
     h = fnv1a(h, &pageMode, sizeof(pageMode));
     h = fnv1a(h, &info.currentIdx, sizeof(info.currentIdx));
     h = fnv1a(h, &info.nextIdx, sizeof(info.nextIdx));
     h = fnv1a(h, &info.isCircular, sizeof(info.isCircular));
     h = fnv1a(h, &info.isDoorOpen, sizeof(info.isDoorOpen));
-    h = fnv1a(h, &info.blinkState, sizeof(info.blinkState));
+#if WR2_LCD_ANIMATE_BLINK
+    includeBlink = true;
+#endif
+    if (includeBlink) h = fnv1a(h, &info.blinkState, sizeof(info.blinkState));
     h = fnv1a(h, &info.circularState, sizeof(info.circularState));
     h = fnv1a(h, &info.routeColor, sizeof(info.routeColor));
     h = fnv_str(h, vehicleNum);
@@ -1337,14 +1357,18 @@ struct Wr2LcdScript : VehicleScript<Wr2LcdState> {
 
             if (!hasRoute || !hasStations) {
                 /* JS: clearScreen(g) —— 白底。
-                   leftSig/rightSig == 0 表示"这块屏还什么都没画过"，
-                   首帧也必须清一次，否则会停在纹理初值（全透明）上。 */
+                   sig == 0 表示"这块屏还什么都没画过"，首帧也必须清一次，
+                   否则会停在纹理初值（全透明）上。
+                   ★ 两个签名都要清零：只清 leftSig/rightSig 的话，布局签名
+                   仍是上一张图的值，线路恢复时会被误判成"只有闪烁变了"而
+                   跳过绘制，屏幕就停在白底上。 */
                 if (cs.leftSig != 0 || !cs.everPainted) {
                     Gfx2D gL(cs.left, ctx.host());
                     gL.set_scale(state.sx, state.sy);
                     gL.set_color(WHITE_COLOR);
                     gL.fill_rect(0, 0, TEX_W, TEX_H);
                     cs.leftSig = 0;
+                    cs.leftLaySig = 0;
                 }
                 if (cs.rightSig != 0 || !cs.everPainted) {
                     Gfx2D gR(cs.right, ctx.host());
@@ -1352,6 +1376,7 @@ struct Wr2LcdScript : VehicleScript<Wr2LcdState> {
                     gR.set_color(WHITE_COLOR);
                     gR.fill_rect(0, 0, TEX_W, TEX_H);
                     cs.rightSig = 0;
+                    cs.rightLaySig = 0;
                 }
                 cs.everPainted = true;
             } else {
@@ -1370,19 +1395,31 @@ struct Wr2LcdScript : VehicleScript<Wr2LcdState> {
                 info.routeNameEn = state.routeNameEn;
                 info.vehicleNum = carDisplay;
 
-                const uint64_t sigL = screen_signature(state, info, leftMode, carDisplay);
+                /* Two signatures per screen: the full one decides whether to
+                   re-rasterise, the layout-only one (blink removed) recognises
+                   a tick where nothing but the blink flipped — see the note on
+                   screen_signature(). */
+                const uint64_t sigL = screen_signature(state, info, leftMode, carDisplay, true);
+                const uint64_t layL = screen_signature(state, info, leftMode, carDisplay, false);
                 if (cs.leftSig != sigL) {
-                    Gfx2D gL(cs.left, ctx.host());
-                    gL.set_scale(state.sx, state.sy);
-                    paint_screen(gL, state, info, leftMode);
+                    if (cs.leftLaySig != layL) {
+                        Gfx2D gL(cs.left, ctx.host());
+                        gL.set_scale(state.sx, state.sy);
+                        paint_screen(gL, state, info, leftMode);
+                    }
                     cs.leftSig = sigL;
+                    cs.leftLaySig = layL;
                 }
-                const uint64_t sigR = screen_signature(state, info, rightMode, carDisplay);
+                const uint64_t sigR = screen_signature(state, info, rightMode, carDisplay, true);
+                const uint64_t layR = screen_signature(state, info, rightMode, carDisplay, false);
                 if (cs.rightSig != sigR) {
-                    Gfx2D gR(cs.right, ctx.host());
-                    gR.set_scale(state.sx, state.sy);
-                    paint_screen(gR, state, info, rightMode);
+                    if (cs.rightLaySig != layR) {
+                        Gfx2D gR(cs.right, ctx.host());
+                        gR.set_scale(state.sx, state.sy);
+                        paint_screen(gR, state, info, rightMode);
+                    }
                     cs.rightSig = sigR;
+                    cs.rightLaySig = layR;
                 }
             }
 

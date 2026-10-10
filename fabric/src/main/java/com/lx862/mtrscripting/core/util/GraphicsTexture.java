@@ -122,6 +122,67 @@ public class GraphicsTexture implements Closeable {
         }
     }
 
+    /**
+     * Upload a rectangle from raw <b>ABGR bytes</b> (little-endian ARGB —
+     * exactly how a native script stores its {@code uint32} pixels) into
+     * {@link #bufferedImage} at (dstOffsetX, dstOffsetY), then push that
+     * rectangle to the GL texture.
+     *
+     * <p>Why this exists: {@link #upload()} copies and uploads the WHOLE
+     * image. A native script usually repaints only a small band (a blinking
+     * progress segment, one changed glyph), so a vehicle LCD with 12 textures
+     * would move ~150 MB per repaint frame instead of a few hundred KB.
+     *
+     * <p>The conversion is done row-at-a-time with {@link System#arraycopy}
+     * plus a 4-byte lookup table rather than per pixel: a 4 Mpx rect costs a
+     * few ms instead of tens of ms.
+     *
+     * @param source   {@code width*height*4} bytes, row-major, ABGR order
+     * @param ppm      lookup table of size {@code 4 * (maxByteValue + 1)}
+     */
+    public void uploadRawABGR(byte[] source, int dstOffsetX, int dstOffsetY,
+                              int width, int height, int[] ppm) {
+        if (source == null || width <= 0 || height <= 0) return;
+        if (dstOffsetX < 0 || dstOffsetY < 0
+                || dstOffsetX + width > this.width
+                || dstOffsetY + height > this.height) {
+            throw new IllegalArgumentException("uploadRawABGR rect is outside the texture");
+        }
+        if (source.length < width * height * 4) {
+            throw new IllegalArgumentException("uploadRawABGR source is too short");
+        }
+        if (!(bufferedImage.getRaster().getDataBuffer() instanceof DataBufferInt)) return;
+
+        final int[] dst =
+                ((DataBufferInt) bufferedImage.getRaster().getDataBuffer()).getData();
+        final int stride = this.width;
+        final int lutB = 0, lutG = 256, lutR = 512, lutA = 768;
+
+        int src = 0;
+        for (int row = 0; row < height; row++) {
+            final int base = (dstOffsetY + row) * stride + dstOffsetX;
+            for (int col = 0; col < width; col++) {
+                dst[base + col] = ppm[lutA + (source[src + 3] & 0xFF)]
+                                | ppm[lutR + (source[src + 0] & 0xFF)]
+                                | ppm[lutG + (source[src + 1] & 0xFF)]
+                                | ppm[lutB + (source[src + 2] & 0xFF)];
+                src += 4;
+            }
+        }
+
+        copyBuffer(bufferedImage, this.dynamicTexture,
+                dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY, width, height,
+                this.width, this.height, this.width, this.height);
+        RenderSystem.recordRenderCall(() -> {
+            NativeImage nativeImage = this.dynamicTexture.getImage();
+            if (nativeImage != null) {
+                this.dynamicTexture.bindTexture();
+                nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY,
+                        width, height, false, false, false, false);
+            }
+        });
+    }
+
     @Override
     public void close() {
         MinecraftClient.getInstance().execute(() -> {

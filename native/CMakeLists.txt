@@ -124,3 +124,16 @@ add_dependencies(wr2a03_smoke wr2a03_lcd wr2a03_train_num)
 install(TARGETS vehicle_lcd pids_arrivals eyecandy_signal jslcd_vehicle jslcd_train_num
                 wr2a03_lcd wr2a03_train_num
         DESTINATION assets/mtr/natives)
+
+# wr2a03_bench — performance harness (real ABI, reports frame time + memory).
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bench/wr2a03_bench.cpp")
+    add_executable(wr2a03_bench bench/wr2a03_bench.cpp)
+    target_link_libraries(wr2a03_bench PRIVATE mtr_script_sdk)
+    if(UNIX)
+        target_link_libraries(wr2a03_bench PRIVATE ${CMAKE_DL_LIBS})
+    endif()
+    add_dependencies(wr2a03_bench wr2a03_lcd wr2a03_train_num)
+    if(WIN32)
+        target_link_libraries(wr2a03_bench PRIVATE psapi)
+    endif()
+endif()

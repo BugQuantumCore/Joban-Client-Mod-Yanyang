@@ -50,6 +50,8 @@ public final class NativeHost {
     private static final class Instance {
         GraphicsTexture[] textures = new GraphicsTexture[0];
         ModelJS[] models = new ModelJS[0];
+        /** Global handle per quad slot, so close() can unpublish them. */
+        int[] modelHandles = new int[0];
 
         void close() {
             for (ModelJS model : models) {
@@ -68,6 +70,7 @@ public final class NativeHost {
             }
             models = new ModelJS[0];
             textures = new GraphicsTexture[0];
+            modelHandles = new int[0];
         }
     }
 
@@ -84,6 +87,23 @@ public final class NativeHost {
 
     /** Instance whose frame is currently being applied (see {@link #setActiveInstance}). */
     private volatile String activeInstanceKey;
+
+    /**
+     * Global quad-handle -> model, so the draw replay is an O(1) map get.
+     *
+     * <p>Handles are per-instance SLOTS (several vehicles each have a model at
+     * slot 0), so this maps the GLOBAL handle returned by
+     * {@link #createResources} instead. The per-instance arrays stay as the
+     * ownership record that decides what {@link #releaseInstance} frees.
+     * Without this, replaying N vehicles x M quads per frame walked every
+     * instance's model array for every single draw call — O(V^2) per frame.
+     */
+    private final java.util.Map<Integer, ModelJS> modelsByHandle =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Monotonic source of global handles. */
+    private final java.util.concurrent.atomic.AtomicInteger nextHandle =
+            new java.util.concurrent.atomic.AtomicInteger(1);
 
     private NativeHost() {
     }
@@ -130,6 +150,7 @@ public final class NativeHost {
         final Instance instance = new Instance();
         instance.textures = new GraphicsTexture[texCount];
         instance.models = new ModelJS[quadCount];
+        instance.modelHandles = new int[quadCount];
 
         /* 1) textures */
         for (int i = 0; i < texCount; i++) {
@@ -151,10 +172,19 @@ public final class NativeHost {
             final GraphicsTexture tex = instance.textures[slot];
             if (tex == null) continue;
             try {
-                instance.models[q] = buildQuad(quadVertices, q, quadUv, q,
+                final ModelJS model = buildQuad(quadVertices, q, quadUv, q,
                         quadStages == null || q >= quadStages.length ? STAGE_INTERIOR : quadStages[q],
                         tex.identifier);
-                if (instance.models[q] != null) out[texCount + q] = q;
+                if (model != null) {
+                    instance.models[q] = model;
+                    /* publish under a GLOBAL handle: the bridge rewrites every
+                       model record through this value, so the replay can be a
+                       plain map get even though the script only knows slots */
+                    final int handle = nextHandle.getAndIncrement();
+                    modelsByHandle.put(handle, model);
+                    instance.modelHandles[q] = handle;
+                    out[texCount + q] = handle;
+                }
             } catch (Throwable t) {
                 JCMLogger.error("NativeHost: failed to build a quad model: {}", t.toString());
             }
@@ -253,10 +283,28 @@ public final class NativeHost {
             }
         }
 
-        /* GraphicsTexture.upload() copies the whole image and records a GL
-           upload on the render-call queue — the same thing the JS scripts do
-           every frame (they call upload() with no arguments too). */
-        tex.upload();
+        /* Push ONLY this rectangle. The previous version called upload(),
+           which copies and re-uploads the whole image — for a 3304x944 LCD
+           that is 12.5 MB per screen per repaint, i.e. ~150 MB for a 6-car
+           train every blink tick, and it measured as a 50-107 ms frame. */
+        tex.uploadRawABGR(rgba, sx, sy, w, h, PIXEL_PPM);
+    }
+
+    /**
+     * Lookup table backing {@link #uploadPixels}: maps one byte value to its
+     * position inside the packed ARGB int, so the per-pixel work is four
+     * table reads and three ORs instead of shifts and masks.
+     * Layout: [0..255] blue, [256..511] green, [512..767] red, [768..1023] alpha.
+     */
+    private static final int[] PIXEL_PPM = new int[1024];
+
+    static {
+        for (int v = 0; v < 256; v++) {
+            PIXEL_PPM[v] = v;             /* B -> bits 0..7   */
+            PIXEL_PPM[256 + v] = v << 8;  /* G -> bits 8..15  */
+            PIXEL_PPM[512 + v] = v << 16; /* R -> bits 16..23 */
+            PIXEL_PPM[768 + v] = v << 24; /* A -> bits 24..31 */
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -264,23 +312,18 @@ public final class NativeHost {
     /* ------------------------------------------------------------------ */
 
     /**
-     * The model behind a handle. Handles are per-instance slots, and MTR can
-     * have several script instances alive at once (every vehicle), so the
-     * driver always passes its instance key when it has one; the null fallback
-     * scans all instances and is only used by the bridge's upload path, where
-     * the handle already encodes the right instance.
+     * The model behind a GLOBAL handle (see {@link #modelsByHandle}).
+     *
+     * <p>Called once per model draw record, i.e. up to a few dozen times per
+     * frame per vehicle — hence the map rather than a scan over instances
+     * (which would make replay O(vehicles x quads) per frame).
      */
     public ModelJS model(int handle) {
         if (handle < 0) return null;
-        for (Instance instance : instances.values()) {
-            if (handle < instance.models.length && instance.models[handle] != null) {
-                return instance.models[handle];
-            }
-        }
-        return null;
+        return modelsByHandle.get(handle);
     }
 
-    /** Texture behind a handle within one instance ({@code null} key = scan). */
+    /** Texture behind a per-instance SLOT within one instance ({@code null} key = scan). */
     public GraphicsTexture texture(int handle, String instanceKey) {
         if (handle < 0) return null;
         if (instanceKey != null) {
@@ -303,14 +346,18 @@ public final class NativeHost {
     /** Drop one instance's resources (script instance dropped / state rebuilt). */
     public void releaseInstance(String instanceKey) {
         final Instance instance = instances.remove(instanceKey);
-        if (instance != null) instance.close();
+        if (instance == null) return;
+        for (int handle : instance.modelHandles) modelsByHandle.remove(handle);
+        instance.close();
     }
 
     /** Drop every resource (script reload / world unload). */
     public void reset() {
         final List<Instance> all = new ArrayList<>(instances.values());
         instances.clear();
+        modelsByHandle.clear();
         pendingInstanceKey = null;
+        activeInstanceKey = null;
         for (Instance instance : all) instance.close();
     }
 }
