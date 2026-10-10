@@ -64,6 +64,9 @@ public class MtrScriptingResourceManager {
                 consoleJS.timeEnd("MTR Script Load Time");
             }
             CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.finishReload();
+            /* Yanyang: one-line census of the C++ modules after discovery, so a
+               "nothing renders" report can be triaged from the log. */
+            com.lx862.jcm.nativeapi.NativeScriptManager.logCensus();
         }
 
         if(MinecraftClient.getInstance().getPlayerMapped() != null) {

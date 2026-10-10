@@ -165,6 +165,10 @@ public final class NativeScriptManager {
     /* ------------------------------------------------------------------ */
 
     public static void reload() {
+        final int before = getModules().size();
+        if (before > 0) {
+            JCMLogger.info("Native scripts: reloading, dropping {} loaded module(s)", before);
+        }
         MODULES.values().forEach(list -> list.forEach(NativeScriptModule::dispose));
         MODULES.clear();
         SKIPPED.clear();
@@ -177,6 +181,24 @@ public final class NativeScriptManager {
         /* Actual discovery walks the same mtr_custom_resources.json
            entries as MTRContentResourceManager, filtering
            language == "cpp", and calls load(...) below. */
+    }
+
+    /** Diagnostics: log the post-discovery module census once per reload. */
+    public static void logCensus() {
+        final int total = getModules().size();
+        if (total == 0 && SKIPPED.isEmpty()) {
+            JCMLogger.warn("Native scripts: no module loaded and no declaration skipped — "
+                    + "no mtr_custom_resources.json entry with \"language\": \"cpp\" was seen");
+            return;
+        }
+        JCMLogger.info("Native scripts: {} module(s) loaded, {} declaration(s) skipped",
+                total, SKIPPED.size());
+        for (Map.Entry<String, List<NativeScriptModule>> e : MODULES.entrySet()) {
+            for (NativeScriptModule m : e.getValue()) {
+                JCMLogger.info("  id '{}' <- {} ({})", e.getKey(), m.getScriptId(), m.getSourcePath());
+            }
+        }
+        SKIPPED.forEach((id, why) -> JCMLogger.info("  skipped '{}': {}", id, why));
     }
 
     /**

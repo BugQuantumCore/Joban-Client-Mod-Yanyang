@@ -71,6 +71,29 @@ public final class NativeVehicleDriver {
     private NativeVehicleDriver() {
     }
 
+    /**
+     * One-shot trace, so a "nothing is drawn" report can be answered from the
+     * log instead of guessed at. Every early return in the render path routes
+     * through here; each distinct reason is reported once per reload.
+     */
+    private static final java.util.Set<String> TRACED =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static void traceOnce(String reason, Object... detail) {
+        if (TRACED.add(reason)) {
+            JCMLogger.info("[native vehicle] {} — {}", reason, format(detail));
+        }
+    }
+
+    private static String format(Object... detail) {
+        final StringBuilder sb = new StringBuilder();
+        for (Object o : detail) {
+            if (sb.length() > 0) sb.append(' ');
+            sb.append(o);
+        }
+        return sb.toString();
+    }
+
     private static String key(String vehicleHexId, String scriptId) {
         return vehicleHexId + "\u0000" + scriptId;
     }
@@ -85,12 +108,24 @@ public final class NativeVehicleDriver {
     public static int render(VehicleExtension vehicle) {
         if (vehicle == null) return 0;
         final int carCount = vehicle.vehicleExtraData.immutableVehicleCars.size();
-        if (carCount <= 0) return 0;
+        if (carCount <= 0) {
+            traceOnce("vehicle has no cars", vehicle.getHexId());
+            return 0;
+        }
+
+        final List<String> ids = scriptIdsOf(vehicle);
+        traceOnce("vehicle " + vehicle.getHexId(), "cars=" + carCount, "scriptIds=" + ids,
+                "nativeModules=" + NativeScriptManager.getModules().size());
 
         int rendered = 0;
-        for (String scriptId : scriptIdsOf(vehicle)) {
+        for (String scriptId : ids) {
             /* was this id registered as a native (language=cpp) script? */
-            if (NativeScriptManager.getModules(scriptId).isEmpty()) continue;
+            if (NativeScriptManager.getModules(scriptId).isEmpty()) {
+                traceOnce("no native module registered for id '" + scriptId + "'",
+                        "loaded=" + NativeScriptManager.getModules().size(),
+                        "skipped=" + NativeScriptManager.getSkippedScripts());
+                continue;
+            }
             rendered += renderOne(vehicle, scriptId, carCount);
         }
         return rendered;
@@ -111,7 +146,12 @@ public final class NativeVehicleDriver {
     private static int renderOne(VehicleExtension vehicle, String scriptId, int carCount) {
         final VehicleResourceProvider.VehicleScriptConfiguration config =
                 MtrScriptingResourceManager.vehicle.getVehicleScript(scriptId);
-        if (config == null) return 0;
+        if (config == null) {
+            traceOnce("no VehicleScriptConfiguration for '" + scriptId + "'",
+                    "(the native entry never reached vehicleScripts)");
+            return 0;
+        }
+        traceOnce("rendering '" + scriptId + "'", "dataFetchMode=" + config.dataFetchMode());
 
         final VehicleScriptContext.DataFetchMode fetchMode = config.dataFetchMode();
         final State state = STATES.computeIfAbsent(
@@ -131,6 +171,7 @@ public final class NativeVehicleDriver {
            the full stop list arrived (its header would show an empty route). */
         if (fetchMode == VehicleScriptContext.DataFetchMode.MANDATORY
                 && !wrapper.isStopsDataFullyFetched()) {
+            traceOnce("'" + scriptId + "' waiting for the full stop list", "(MANDATORY)");
             return 0;
         }
 
@@ -167,7 +208,11 @@ public final class NativeVehicleDriver {
             JCMLogger.error("  stack:", t);
             return 0;
         }
-        if (frames.isEmpty()) return 0;
+        if (frames.isEmpty()) {
+            traceOnce("'" + scriptId + "' produced no frame",
+                    "(both modules returned null — see the bridge log above)");
+            return 0;
+        }
 
         final Map<Integer, ScriptRenderManager> managers =
                 NativeDrawRegistry.begin(vehicle.getHexId(), scriptId, carCount);
@@ -176,6 +221,8 @@ public final class NativeVehicleDriver {
         for (NativeScriptManager.NativeFrame frame : frames) {
             if (applyFrame(frame, managers)) produced++;
         }
+        traceOnce("'" + scriptId + "' frame applied", "modules=" + frames.size(),
+                "withDrawCalls=" + produced, "carCount=" + carCount);
         return produced;
     }
 
@@ -281,5 +328,7 @@ public final class NativeVehicleDriver {
     public static void reset() {
         STATES.clear();
         NativeDrawRegistry.clear();
+        /* let the next session report its early-exit reasons again */
+        TRACED.clear();
     }
 }
