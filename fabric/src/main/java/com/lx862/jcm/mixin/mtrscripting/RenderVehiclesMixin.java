@@ -1,5 +1,6 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
+import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.jcm.nativeapi.NativeVehicleDriver;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
@@ -52,6 +53,12 @@ public class RenderVehiclesMixin {
 
             for(Map.Entry<String, VehicleResourceProvider.VehicleScriptConfiguration> scriptEntry : scriptsInVehicle.entrySet()) {
                 String scriptEntryId = scriptEntry.getKey();
+                /* Yanyang: a native (language=cpp) entry is also registered here
+                   so NativeVehicleDriver can read its dataFetchMode, but it
+                   carries no ParsedScript — driving it through the JS instance
+                   pipeline would NPE on .parsedScript(). It is rendered above by
+                   NativeVehicleDriver.render(). */
+                if(NativeScriptManager.isLoaded(scriptEntryId)) continue;
                 List<Integer> carsForScripts = new ArrayList<>();
                 for(int i = 0; i < cars.size(); i++) {
                     if(MtrScriptingResourceManager.vehicle.getVehicleScriptEntryId(cars.get(i).getVehicleId()).equals(scriptEntryId)) carsForScripts.add(i);

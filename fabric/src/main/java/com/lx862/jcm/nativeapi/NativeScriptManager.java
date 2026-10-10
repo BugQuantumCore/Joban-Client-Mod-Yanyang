@@ -775,8 +775,15 @@ public final class NativeScriptManager {
             this.loadedPlatform = getPlatformKeyExact();
             this.sourcePath = path;
             if (!scriptId.equals(this.scriptId)) {
-                JCMLogger.warn("Native library declares id {} but was loaded as {}",
-                        this.scriptId, scriptId);
+                /* Expected, not a problem: MTR's vehicle schema carries ONE
+                   scriptId, so a pack that needs several libraries declares them
+                   together under one entry ("wr2a03") while each library keeps
+                   its own self-describing id ("wr2a03:lcd"). The MODULES
+                   registry is keyed by the ENTRY id, which is also what the
+                   driver looks up, so the mismatch is by design. Logged at
+                   debug level to stop it reading like an error. */
+                JCMLogger.debug("Native library {} declares id {} (entry id is {})",
+                        sourcePath, this.scriptId, scriptId);
             }
         }
 

@@ -91,7 +91,18 @@ public class VehicleResourceProvider implements ScriptResourceProvider {
                         if(entryReferenced || forceLoad) {
                             ParsedScript parsedScript = ScriptResourceProvider.tryParseScript(scriptEntryId, "vehicle", "Vehicle", scriptObject, true, false);
                             VehicleScriptContext.DataFetchMode dataFetchMode = scriptObject.has("dataFetchMode") ? VehicleScriptContext.DataFetchMode.valueOf(scriptObject.get("dataFetchMode").getAsString()) : VehicleScriptContext.DataFetchMode.SKIP;
-                            if (parsedScript != null) {
+                            /* Yanyang: tryParseScript returns null for BOTH a JS
+                               parse failure and a native (language=cpp) entry, so
+                               the old `parsedScript != null` guard silently dropped
+                               native scripts from this registry. That made
+                               NativeVehicleDriver.renderOne() bail at its
+                               getVehicleScript() lookup and nothing was ever drawn
+                               — the pack's dataFetchMode/declaration live in this
+                               same entry, so it has to be recorded either way.
+                               A null parsedScript is the marker for "native, drive
+                               it through NativeScriptManager"; the JS replay path
+                               in RenderVehiclesMixin skips those explicitly. */
+                            if (parsedScript != null || NativeScriptManager.isLoaded(scriptEntryId)) {
                                 vehicleScripts.put(scriptEntryId, new VehicleResourceProvider.VehicleScriptConfiguration(parsedScript, dataFetchMode));
                             }
                         } else {
