@@ -1,5 +1,6 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
+import com.lx862.jcm.nativeapi.NativeVehicleDriver;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.NTETrainWrapper;
@@ -33,6 +34,12 @@ public class RenderVehiclesMixin {
     @Inject(method = "render(JLorg/mtr/mapping/holder/Vector3d;)V", at = @At(value = "INVOKE", target = "Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectArraySet;forEach(Ljava/util/function/Consumer;)V"))
     private static void jsblock$executeScript(long millisElapsed, Vector3d cameraShakeOffset, CallbackInfo ci) {
         for(VehicleExtension vehicle : MinecraftClientData.getInstance().vehicles) {
+            /* Yanyang: C++ (language=cpp) scripts take the native route and
+               never build a VehicleScriptInstance — drive them first so their
+               per-car draw calls are captured before MTR starts queueing cars.
+               Idle for every vehicle whose script id has no native modules. */
+            NativeVehicleDriver.render(vehicle);
+
             ObjectImmutableList<VehicleCar> cars = vehicle.vehicleExtraData.immutableVehicleCars;
             Object2ObjectOpenHashMap<String, VehicleResourceProvider.VehicleScriptConfiguration> scriptsInVehicle = new Object2ObjectOpenHashMap<>();
 

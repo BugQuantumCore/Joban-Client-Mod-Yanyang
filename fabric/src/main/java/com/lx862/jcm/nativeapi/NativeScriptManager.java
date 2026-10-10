@@ -163,6 +163,11 @@ public final class NativeScriptManager {
         MODULES.clear();
         SKIPPED.clear();
         INSTANCE_STATES.clear();
+        /* Every per-instance native state and every JVM-side resource the old
+           modules created is invalid now: the modules they came from are gone,
+           so the handles would dangle. */
+        NativeVehicleDriver.reset();
+        NativeHost.get().reset();
         /* Actual discovery walks the same mtr_custom_resources.json
            entries as MTRContentResourceManager, filtering
            language == "cpp", and calls load(...) below. */
@@ -529,6 +534,12 @@ public final class NativeScriptManager {
 
         final ByteBuffer snapshotBuf = snapshot.build(
                 ByteBuffer.allocateDirect(SNAPSHOT_CAPACITY).order(ByteOrder.nativeOrder()));
+
+        /* Tell the host which instance owns the handles it is about to see:
+           texture/model handles are per-instance SLOTS, so both the resource
+           creation (first frame) and every later upload need the key. */
+        NativeHost.get().setPendingInstance(instanceKey);
+        NativeHost.get().setActiveInstance(instanceKey);
 
         final List<NativeFrame> frames = new ArrayList<>(modules.size());
         for (NativeScriptModule module : modules) {

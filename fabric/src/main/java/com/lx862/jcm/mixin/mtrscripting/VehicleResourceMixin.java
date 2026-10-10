@@ -1,5 +1,6 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
+import com.lx862.jcm.nativeapi.NativeVehicleDriver;
 import com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
@@ -28,6 +29,14 @@ public abstract class VehicleResourceMixin {
         VehicleCar vehicleCar = vehicle.vehicleExtraData.immutableVehicleCars.get(carNumber);
         String scriptGroupId = MtrScriptingResourceManager.vehicle.getVehicleScriptEntryId(vehicleCar.getVehicleId());
         if(scriptGroupId == null) return;
+
+        /* Yanyang: native (language=cpp) scripts never create a
+           VehicleScriptInstance, so their captured draw calls live in
+           NativeDrawRegistry instead. Replaying them HERE puts the LCD quads
+           through the exact same StoredMatrixTransformations / light as the JS
+           path, which is what makes the panel follow the car body. */
+        NativeVehicleDriver.invokeCar(vehicle, scriptGroupId, carNumber,
+                storedMatrixTransformations, light);
 
         ScriptInstance<?> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("vehicle", vehicle.getHexId(), scriptGroupId));
         if(!(scriptInstance instanceof VehicleScriptInstance)) return;

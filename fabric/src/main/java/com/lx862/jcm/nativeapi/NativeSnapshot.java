@@ -1,0 +1,395 @@
+package com.lx862.jcm.nativeapi;
+
+import com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleWrapper;
+import org.mtr.core.data.Route;
+import org.mtr.core.data.Siding;
+import org.mtr.core.data.SimplifiedRoute;
+import org.mtr.core.data.StationExit;
+import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * NativeSnapshot — marshals a {@link VehicleWrapper} into the flat
+ * {@code JcmVehicleSnapshot} POD that native vehicle scripts read.
+ *
+ * <p>Java twin of the ABI's "VehicleSnapshotBuilder": the hundreds of
+ * reflective getter calls the JS path makes per frame collapse into ONE
+ * sequential write here, and the script then reads plain memory.
+ *
+ * <p><b>The byte layout must match {@code native/include/mtr/mtr_native.h}
+ * (ABI 5).</b> Offsets are written through named constants rather than a
+ * chain of relative {@code put} calls, so an accidental reorder becomes a
+ * name error instead of silent corruption. {@link #selfCheck()} validates
+ * the struct sizes at load time.
+ *
+ * <p>Strings live in ONE shared UTF-8 pool at the end of the blob; every
+ * {@code *_offset} is a byte offset from the START of the blob
+ * (ABI-critical, see the header's OFFSET CONVENTION note).
+ */
+public final class NativeSnapshot {
+
+    /** Generous worst case: 8 cars, ~40 stops, exits and interchanges. */
+    public static final int CAPACITY = 256 * 1024;
+
+    /* ---- JcmVehicleSnapshot ---- */
+    private static final int SZ_VEHICLE = 176;
+    private static final int OFF_VEHICLE_ID = 0;
+    private static final int OFF_SIDING_ID = 8;
+    private static final int OFF_THIS_ROUTE_ID = 16;
+    private static final int OFF_DEPARTURE_INDEX = 24;
+    private static final int OFF_CAR_COUNT = 32;
+    private static final int OFF_TRANSPORT_MODE = 36;
+    private static final int OFF_SPEED_KMH = 40;
+    private static final int OFF_SPEED_MS = 48;
+    private static final int OFF_RAIL_PROGRESS = 56;
+    private static final int OFF_DOOR_VALUE = 64;
+    private static final int OFF_NOTCH_LEVEL = 72;
+    private static final int OFF_FLAGS = 76;
+    private static final int OFF_TOTAL_DWELL = 80;
+    private static final int OFF_ELAPSED_DWELL = 88;
+    private static final int OFF_GAME_TIME = 96;
+    private static final int OFF_IN_GAME_TIME = 104;
+    private static final int OFF_CAR_OFFSET = 112;
+    private static final int OFF_STOP_COUNT = 116;
+    private static final int OFF_STOP_OFFSET = 120;
+    private static final int OFF_THIS_ROUTE_STOP_COUNT = 124;
+    private static final int OFF_THIS_ROUTE_STOP_OFFSET = 128;
+    private static final int OFF_NEXT_ROUTE_STOP_COUNT = 132;
+    private static final int OFF_NEXT_ROUTE_STOP_OFFSET = 136;
+    private static final int OFF_NEXT_STOP_INDEX = 140;
+    private static final int OFF_ROUTE_NAME_OFFSET = 144;
+    private static final int OFF_ROUTE_NAME_LEN = 148;
+    private static final int OFF_ROUTE_COLOR = 152;
+    private static final int OFF_CIRCULAR_STATE = 156;
+    private static final int OFF_SIDING_NAME_OFFSET = 160;
+    private static final int OFF_SIDING_NAME_LEN = 164;
+    private static final int OFF_STRING_POOL_OFFSET = 168;
+    private static final int OFF_STRING_POOL_LEN = 172;
+
+    /* ---- JcmCar ---- */
+    private static final int SZ_CAR = 24;
+    private static final int CAR_LENGTH = 0;
+    private static final int CAR_WIDTH = 4;
+    private static final int CAR_LEFT_DOOR = 8;
+    private static final int CAR_RIGHT_DOOR = 9;
+    private static final int CAR_RENDERED = 10;
+    private static final int CAR_TYPE_OFFSET = 12;
+    private static final int CAR_TYPE_LEN = 16;
+
+    /* ---- JcmStop ---- */
+    private static final int SZ_STOP = 104;
+    private static final int STOP_ROUTE_ID = 0;
+    private static final int STOP_STATION_ID = 8;
+    private static final int STOP_PLATFORM_ID = 16;
+    private static final int STOP_DISTANCE = 24;
+    private static final int STOP_DWELL = 32;
+    private static final int STOP_NAME_OFFSET = 40;
+    private static final int STOP_NAME_LEN = 44;
+    private static final int STOP_DEST_OFFSET = 48;
+    private static final int STOP_DEST_LEN = 52;
+    private static final int STOP_CUSTOM_OFFSET = 56;
+    private static final int STOP_CUSTOM_LEN = 60;
+    private static final int STOP_IC_COUNT = 64;
+    private static final int STOP_IC_OFFSET = 68;
+    private static final int STOP_EXIT_COUNT = 72;
+    private static final int STOP_EXIT_OFFSET = 76;
+    private static final int STOP_ROUTE_CIRCULAR = 80;
+    private static final int STOP_SWITCHOVER = 81;
+
+    /* ---- JcmInterchange / JcmExit / JcmStrRef ---- */
+    private static final int SZ_INTERCHANGE = 12;
+    private static final int SZ_EXIT = 16;
+    private static final int SZ_STR_REF = 8;
+
+    private NativeSnapshot() {
+    }
+
+    /** Cheap ABI sanity probe; a mismatch means the jar and the .dll disagree. */
+    public static boolean selfCheck() {
+        return SZ_VEHICLE == 176 && SZ_CAR == 24 && SZ_STOP == 104
+                && SZ_INTERCHANGE == 12 && SZ_EXIT == 16 && SZ_STR_REF == 8;
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Flattens {@code v} into {@code out}. The buffer is cleared and left
+     * FLIPPED (position 0, limit = end of blob) — hand it straight to JNI.
+     */
+    public static ByteBuffer build(ByteBuffer out, VehicleWrapper v) {
+        final List<VehicleWrapper.Stop> allStops = new ArrayList<>(v.getStops());
+        final List<VehicleWrapper.Stop> thisRouteStops = new ArrayList<>(v.getThisRouteStops());
+        final List<VehicleWrapper.Stop> nextRouteStops = new ArrayList<>(v.getNextRouteStops());
+        final int carCount = v.getCarCount();
+
+        out.clear();
+        out.order(ByteOrder.nativeOrder());
+        out.position(0);
+
+        /* ---- reserve the header ---- */
+        out.position(SZ_VEHICLE);
+
+        /* ---- cars ---- */
+        final int carOffset = out.position();
+        for (int i = 0; i < carCount; i++) {
+            final int p = carOffset + i * SZ_CAR;
+            out.putFloat(p + CAR_LENGTH, (float) v.getLength(i));
+            out.putFloat(p + CAR_WIDTH, (float) v.getWidth(i));
+            out.put(p + CAR_LEFT_DOOR, (byte) (v.doorLeftOpen[i] ? 1 : 0));
+            out.put(p + CAR_RIGHT_DOOR, (byte) (v.doorRightOpen[i] ? 1 : 0));
+            out.put(p + CAR_RENDERED, (byte) (v.isCarRendered(i) ? 1 : 0));
+            out.putInt(p + CAR_TYPE_OFFSET, 0);
+            out.putInt(p + CAR_TYPE_LEN, 0);
+        }
+        out.position(carOffset + carCount * SZ_CAR);
+
+        /* ---- interchanges (JcmInterchange[] pool, one block per stop) ---- */
+        final int[] stopIcOffset = new int[allStops.size()];
+        for (int s = 0; s < allStops.size(); s++) {
+            final List<VehicleWrapper.Stop.RouteInterchange> ics = allStops.get(s).routeInterchanges;
+            if (ics == null || ics.isEmpty()) continue;
+            stopIcOffset[s] = out.position();
+            for (int j = 0; j < ics.size(); j++) {
+                final int p = stopIcOffset[s] + j * SZ_INTERCHANGE;
+                out.putInt(p, ics.get(j).color);
+                out.putInt(p + 4, 0);      /* name offset, patched in the pool pass */
+                out.putInt(p + 8, 0);
+            }
+            out.position(stopIcOffset[s] + ics.size() * SZ_INTERCHANGE);
+        }
+
+        /* ---- exits (JcmExit[] pool; destinations are JcmStrRef[]) ---- */
+        final List<List<ExitData>> stopExits = new ArrayList<>(allStops.size());
+        final int[] stopExitOffset = new int[allStops.size()];
+        for (int s = 0; s < allStops.size(); s++) {
+            final List<ExitData> exits = collectExits(allStops.get(s));
+            stopExits.add(exits);
+            if (exits.isEmpty()) continue;
+            stopExitOffset[s] = out.position();
+            for (int j = 0; j < exits.size(); j++) {
+                final int p = stopExitOffset[s] + j * SZ_EXIT;
+                out.putInt(p, 0);                              /* name offset */
+                out.putInt(p + 4, 0);                          /* name length */
+                out.putInt(p + 8, exits.get(j).destinations.size());
+                out.putInt(p + 12, 0);                         /* str-ref offset */
+            }
+            out.position(stopExitOffset[s] + exits.size() * SZ_EXIT);
+        }
+
+        /* ---- stops (reserve; filled after the pool is known) ---- */
+        final int stopOffset = out.position();
+        out.position(stopOffset + allStops.size() * SZ_STOP);
+
+        /* ---- string pool ---- */
+        final int poolStart = out.position();
+        final Pool pool = new Pool(out);
+
+        final int[][] stopName = new int[allStops.size()][];
+        final int[][] stopDest = new int[allStops.size()][];
+        final int[][] stopCustom = new int[allStops.size()][];
+        for (int s = 0; s < allStops.size(); s++) {
+            final VehicleWrapper.Stop stop = allStops.get(s);
+            stopName[s] = pool.add(stop.name);
+            stopDest[s] = pool.add(stop.destinationName);
+            stopCustom[s] = pool.add(stop.customDestination);
+        }
+        /* interchange names — patch the reserved blocks */
+        for (int s = 0; s < allStops.size(); s++) {
+            final List<VehicleWrapper.Stop.RouteInterchange> ics = allStops.get(s).routeInterchanges;
+            if (ics == null || ics.isEmpty()) continue;
+            for (int j = 0; j < ics.size(); j++) {
+                final int[] ref = pool.add(ics.get(j).name);
+                final int p = stopIcOffset[s] + j * SZ_INTERCHANGE;
+                out.putInt(p + 4, ref[0]);
+                out.putInt(p + 8, ref[1]);
+            }
+        }
+        /* exit names + destination str-ref arrays */
+        for (int s = 0; s < allStops.size(); s++) {
+            final List<ExitData> exits = stopExits.get(s);
+            if (exits.isEmpty()) continue;
+            for (int j = 0; j < exits.size(); j++) {
+                final ExitData ex = exits.get(j);
+                final int p = stopExitOffset[s] + j * SZ_EXIT;
+                final int[] nameRef = pool.add(ex.name);
+                out.putInt(p, nameRef[0]);
+                out.putInt(p + 4, nameRef[1]);
+
+                final int refOffset = out.position();
+                for (String d : ex.destinations) {
+                    final int[] dref = pool.add(d);
+                    final int q = out.position();
+                    out.putInt(q, dref[0]);
+                    out.putInt(q + 4, dref[1]);
+                    out.position(q + SZ_STR_REF);
+                }
+                out.putInt(p + 12, refOffset);
+            }
+        }
+        /* car vehicle-type ids (the car array sits before the pool) */
+        for (int i = 0; i < carCount; i++) {
+            final int[] ref = pool.add(v.getVehicleId(i));
+            final int p = carOffset + i * SZ_CAR;
+            out.putInt(p + CAR_TYPE_OFFSET, ref[0]);
+            out.putInt(p + CAR_TYPE_LEN, ref[1]);
+        }
+        /* route + siding names */
+        final SimplifiedRoute route = thisRouteStops.isEmpty() ? null : thisRouteStops.get(0).route;
+        final int[] routeNameRef = pool.add(route == null ? "" : route.getName());
+        final Siding siding = v.getSiding();
+        final int[] sidingRef = pool.add(siding == null ? "" : siding.getName());
+        final int poolEnd = out.position();
+
+        /* ---- header ---- */
+        out.putLong(OFF_VEHICLE_ID, v.getId());
+        out.putLong(OFF_SIDING_ID, siding == null ? 0 : siding.getId());
+        out.putLong(OFF_THIS_ROUTE_ID, route == null ? 0 : route.getId());
+        out.putLong(OFF_DEPARTURE_INDEX, v.getDepartureIndex());
+        out.putInt(OFF_CAR_COUNT, carCount);
+        out.putInt(OFF_TRANSPORT_MODE, transportModeOrdinal(v));
+        out.putDouble(OFF_SPEED_KMH, v.getSpeedKmh());
+        out.putDouble(OFF_SPEED_MS, v.getSpeedMs());
+        out.putDouble(OFF_RAIL_PROGRESS, v.getRailProgress());
+        out.putDouble(OFF_DOOR_VALUE, v.getDoorValue());
+        out.putInt(OFF_NOTCH_LEVEL, v.getNotchLevel());
+        out.put(OFF_FLAGS, (byte) (v.isReversed() ? 1 : 0));
+        out.put(OFF_FLAGS + 1, (byte) (v.isOnRoute() ? 1 : 0));
+        out.put(OFF_FLAGS + 2, (byte) (v.isDoorOpening() ? 1 : 0));
+        out.put(OFF_FLAGS + 3, (byte) (v.isCurrentlyManual() ? 1 : 0));
+        out.put(OFF_FLAGS + 4, (byte) (v.isManualAllowed() ? 1 : 0));
+        out.put(OFF_FLAGS + 5, (byte) (v.isClientPlayerRiding() ? 1 : 0));
+        out.put(OFF_FLAGS + 6, (byte) (v.isRendered() ? 1 : 0));
+        out.put(OFF_FLAGS + 7, (byte) 0);
+        out.putDouble(OFF_TOTAL_DWELL, v.getTotalDwellTime());
+        out.putDouble(OFF_ELAPSED_DWELL, v.getElapsedDwellTime());
+        out.putLong(OFF_GAME_TIME, System.currentTimeMillis());
+        out.putLong(OFF_IN_GAME_TIME, 0);
+        out.putInt(OFF_CAR_OFFSET, carOffset);
+        out.putInt(OFF_STOP_COUNT, allStops.size());
+        out.putInt(OFF_STOP_OFFSET, stopOffset);
+        out.putInt(OFF_THIS_ROUTE_STOP_COUNT, thisRouteStops.size());
+        /* this-route stops are a prefix of allStops in the JCM data model */
+        out.putInt(OFF_THIS_ROUTE_STOP_OFFSET, stopOffset);
+        out.putInt(OFF_NEXT_ROUTE_STOP_COUNT, nextRouteStops.size());
+        out.putInt(OFF_NEXT_ROUTE_STOP_OFFSET,
+                stopOffset + Math.min(thisRouteStops.size(), allStops.size()) * SZ_STOP);
+        out.putInt(OFF_NEXT_STOP_INDEX, v.getNextStopIndex(thisRouteStops));
+        out.putInt(OFF_ROUTE_NAME_OFFSET, routeNameRef[0]);
+        out.putInt(OFF_ROUTE_NAME_LEN, routeNameRef[1]);
+        out.putInt(OFF_ROUTE_COLOR, route == null ? 0 : (route.getColor() | 0xFF000000));
+        out.put(OFF_CIRCULAR_STATE, (byte) circularOrdinal(route));
+        out.putInt(OFF_SIDING_NAME_OFFSET, sidingRef[0]);
+        out.putInt(OFF_SIDING_NAME_LEN, sidingRef[1]);
+        out.putInt(OFF_STRING_POOL_OFFSET, poolStart);
+        out.putInt(OFF_STRING_POOL_LEN, poolEnd - poolStart);
+
+        /* ---- stops ---- */
+        for (int s = 0; s < allStops.size(); s++) {
+            final VehicleWrapper.Stop stop = allStops.get(s);
+            final int p = stopOffset + s * SZ_STOP;
+            out.putLong(p + STOP_ROUTE_ID, stop.route == null ? 0 : stop.route.getId());
+            out.putLong(p + STOP_STATION_ID, stop.station == null ? 0 : stop.station.getId());
+            out.putLong(p + STOP_PLATFORM_ID, stop.platform == null ? 0 : stop.platform.getId());
+            out.putDouble(p + STOP_DISTANCE, stop.distance);
+            out.putDouble(p + STOP_DWELL, stop.dwellTimeMillis);
+            out.putInt(p + STOP_NAME_OFFSET, stopName[s][0]);
+            out.putInt(p + STOP_NAME_LEN, stopName[s][1]);
+            out.putInt(p + STOP_DEST_OFFSET, stopDest[s][0]);
+            out.putInt(p + STOP_DEST_LEN, stopDest[s][1]);
+            final boolean hasCustom = stop.customDestination != null && !stop.customDestination.isEmpty();
+            out.putInt(p + STOP_CUSTOM_OFFSET, hasCustom ? stopCustom[s][0] : -1);
+            out.putInt(p + STOP_CUSTOM_LEN, hasCustom ? stopCustom[s][1] : 0);
+            final int icCount = stop.routeInterchanges == null ? 0 : stop.routeInterchanges.size();
+            out.putInt(p + STOP_IC_COUNT, icCount);
+            out.putInt(p + STOP_IC_OFFSET, icCount == 0 ? 0 : stopIcOffset[s]);
+            final List<ExitData> exits = stopExits.get(s);
+            out.putInt(p + STOP_EXIT_COUNT, exits.size());
+            out.putInt(p + STOP_EXIT_OFFSET, exits.isEmpty() ? 0 : stopExitOffset[s]);
+            /* v5: the stop's OWN route CircularState — this is what lets the
+               LCD port walk the stop list exactly like circular.js does */
+            out.put(p + STOP_ROUTE_CIRCULAR, (byte) circularOrdinal(stop.route));
+            out.put(p + STOP_SWITCHOVER, (byte) (stop.isRouteSwitchoverStop ? 1 : 0));
+            out.put(p + STOP_SWITCHOVER + 1, (byte) 0);
+            out.put(p + STOP_SWITCHOVER + 2, (byte) 0);
+        }
+
+        out.position(poolEnd);
+        out.flip();
+        return out;
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    /** Dense UTF-8 string pool with a duplicate cache (names repeat a lot). */
+    private static final class Pool {
+        private final ByteBuffer buf;
+        private final Map<String, int[]> cache = new HashMap<>();
+
+        Pool(ByteBuffer buf) {
+            this.buf = buf;
+        }
+
+        /** @return {offset, length}; {0,0} for null/empty (reads back as "") */
+        int[] add(String s) {
+            if (s == null || s.isEmpty()) return new int[]{0, 0};
+            final int[] hit = cache.get(s);
+            if (hit != null) return hit;
+            final byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
+            final int off = buf.position();
+            buf.put(bytes);
+            final int[] ref = new int[]{off, bytes.length};
+            cache.put(s, ref);
+            return ref;
+        }
+    }
+
+    private static int circularOrdinal(SimplifiedRoute route) {
+        if (route == null) return 0;
+        try {
+            final Route.CircularState state = route.getCircularState();
+            return state == null ? 0 : state.ordinal();
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
+    private static int transportModeOrdinal(VehicleWrapper v) {
+        try {
+            return v.getTransportMode() == null ? 0 : v.getTransportMode().ordinal();
+        } catch (Throwable t) {
+            return 0;
+        }
+    }
+
+    /** Station exits (JS: station.getExits()), flattened. */
+    private static final class ExitData {
+        final String name;
+        final List<String> destinations = new ArrayList<>();
+
+        ExitData(String name) {
+            this.name = name;
+        }
+    }
+
+    private static List<ExitData> collectExits(VehicleWrapper.Stop stop) {
+        final List<ExitData> out = new ArrayList<>();
+        if (stop == null || stop.station == null) return out;
+        final ObjectArrayList<StationExit> exits = stop.station.getExits();
+        if (exits == null || exits.isEmpty()) return out;
+        for (StationExit ex : exits) {
+            final ObjectArrayList<String> dests = ex.getDestinations();
+            if (dests == null || dests.isEmpty()) continue;   /* same guard as the JS */
+            final ExitData data = new ExitData(ex.getName());
+            data.destinations.addAll(dests);
+            out.add(data);
+        }
+        return out;
+    }
+}
