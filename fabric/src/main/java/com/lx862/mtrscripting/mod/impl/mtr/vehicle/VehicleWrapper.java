@@ -86,7 +86,11 @@ public class VehicleWrapper {
         long nextRouteId = stopsData.routeToRun.getLong(nextRouteIndex);
         int nextRouteStartStopIdx = -1;
         for(int i = nextStopIdx; i < stopsData.allStops.size(); i++) {
-            if(stopsData.allStops.get(i).route.getId() == nextRouteId) {
+            /* Stop.route is @ValueNullable — a train that has no route yet (or a
+               stop MTR has not resolved) yields null here. Dereferencing it
+               threw an NPE that aborted the whole render frame. */
+            final SimplifiedRoute stopRoute = stopsData.allStops.get(i).route;
+            if(stopRoute != null && stopRoute.getId() == nextRouteId) {
                 nextRouteStartStopIdx = i;
             }
         }

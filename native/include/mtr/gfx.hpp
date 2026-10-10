@@ -108,7 +108,21 @@ public:
        this texture through its host handle. Records with handle == -1
        (no host texture, e.g. headless tests) are ignored by the host. */
     void upload(FrameRecorder& frame) {
-        if (dirty_w_ <= 0) return;
+        if (dirty_w_ <= 0 || dirty_h_ <= 0) return;
+        /* Final clamp before the pointer arithmetic. mark_dirty() already
+           refuses out-of-range samples, but the rect is also the source of a
+           memcpy length (dirty_w*dirty_h*4), so re-establish the invariant
+           here as well — a rect that escapes the texture must never turn into
+           a wild copy inside the CRT. */
+        if (dirty_x_ < 0) { dirty_w_ += dirty_x_; dirty_x_ = 0; }
+        if (dirty_y_ < 0) { dirty_h_ += dirty_y_; dirty_y_ = 0; }
+        if (dirty_x_ + dirty_w_ > width_)  dirty_w_ = width_  - dirty_x_;
+        if (dirty_y_ + dirty_h_ > height_) dirty_h_ = height_ - dirty_y_;
+        if (dirty_w_ <= 0 || dirty_h_ <= 0) {
+            dirty_w_ = dirty_h_ = 0;
+            return;
+        }
+
         JcmDrawTextureUpload& r = frame.push_texture_upload();
         r.texture_handle = handle_;
         r.width = width_;

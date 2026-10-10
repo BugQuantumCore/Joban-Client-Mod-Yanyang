@@ -523,8 +523,14 @@ public final class NativeScriptManager {
     /* ------------------------------------------------------------------ */
 
     /**
-     * One frame of a vehicle script. Mirrors RenderVehiclesMixin: build the
-     * snapshot once, then run EVERY module registered for this id.
+     * One frame of a vehicle script. Mirrors RenderVehiclesMixin: the caller
+     * marshals the snapshot ONCE (and skips this call entirely if that fails),
+     * then every module registered for the id runs against it.
+     *
+     * @param snapshotBuf a buffer already filled by
+     *        {@link NativeSnapshot#build}; must have been written successfully —
+     *        the bridge hands the module the WHOLE capacity, so a partial
+     *        snapshot would be read as a valid one.
      *
      * The returned frames are in declaration order — the host replays them
      * in that order, which reproduces the JS pipeline's record order for a
@@ -534,12 +540,10 @@ public final class NativeScriptManager {
      *         empty), never null.
      */
     public static List<NativeFrame> renderVehicle(String instanceKey, String scriptId,
-                                                   VehicleSnapshotBuilder snapshot) {
+                                                   ByteBuffer snapshotBuf) {
         final List<NativeScriptModule> modules = getModules(scriptId);
         if (modules.isEmpty()) return Collections.emptyList();
-
-        final ByteBuffer snapshotBuf = snapshot.build(
-                ByteBuffer.allocateDirect(SNAPSHOT_CAPACITY).order(ByteOrder.nativeOrder()));
+        if (snapshotBuf == null) return Collections.emptyList();
 
         /* Tell the host which instance owns the handles it is about to see:
            texture/model handles are per-instance SLOTS, so both the resource
@@ -586,32 +590,17 @@ public final class NativeScriptManager {
     }
 
     /**
-     * VehicleSnapshotBuilder — flattens VehicleWrapper's getters into
-     * the JcmVehicleSnapshot POD. This replaces the hundreds of
-     * reflective NativeJavaObject getter calls the JS path makes per
-     * frame with a single sequential write.
+     * VehicleSnapshotBuilder — historical hook.
      *
-     * v2 (ABI 2) fields the builder must write before string_pool:
-     *   route_name_offset/len  — thisRouteStops.get(0).route.name
-     *   route_color            — thisRouteStops.get(0).route.color (ARGB)
-     *   circular_state          — same route's CircularState
-     *                             (CIRCULAR_* constants above), which
-     *                             native scripts use for the 环线/直线
-     *                             LCD branch selection (see
-     *                             examples/jslcd_vehicle.cpp, the port
-     *                             of the community JS LCD script).
-     *
-     * v3 (ABI 3) per-stop fields (JcmStop, in this order):
-     *   exit_count / exit_offset — station.getExits() flattened as a
-     *                             JcmExit[] pool; each JcmExit carries
-     *                             name + a JcmStrRef[] destination list
-     *                             (station.getExits().get(k)
-     *                             .getName() / .getDestinations()).
-     *                             Write 0/0 when the station exposes no
-     *                             exits — the native draw_exit_info port
-     *                             bails out identically to the JS guard
-     *                             `if (!exits || exits.length === 0)`.
+     * <p>The snapshot is now marshalled by the caller (NativeVehicleDriver)
+     * BEFORE {@link #renderVehicle} is reached, so a marshal failure can skip
+     * the native call instead of handing mtrRender a half-written buffer. The
+     * JNI bridge passes {@code GetDirectBufferCapacity} to the module, i.e. the
+     * whole 256 KB block regardless of how much was actually written, so a
+     * partial snapshot means the script reads a garbage car_count/stop_count and
+     * walks off the end of the blob.
      */
+    @Deprecated
     public interface VehicleSnapshotBuilder {
         ByteBuffer build(ByteBuffer out);
     }

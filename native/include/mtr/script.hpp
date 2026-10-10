@@ -26,6 +26,7 @@
 
 #include "mtr_native.h"
 #include "frame.hpp"
+#include "crash_guard.hpp"
 #include "vehicle.hpp"
 #include "pids.hpp"
 #include "eyecandy.hpp"
@@ -197,11 +198,13 @@ class EyecandyScript : public ScriptBase<State, detail::EyecandyAdapter> {};
         mtr_g_script.init_state(in);                                            \
     }                                                                           \
     MTR_NATIVE_EXPORT int32_t mtrCreate(const JcmFrameInput* in) {              \
-        return mtr_g_script.lifecycle<0>(in, nullptr);                          \
+        MTR_GUARDED_BODY(return mtr_g_script.lifecycle<0>(in, nullptr))         \
     }                                                                           \
     MTR_NATIVE_EXPORT int32_t mtrRender(const JcmFrameInput* in,                \
                                         JcmFrameOutput* out) {                  \
-        return mtr_g_script.lifecycle<1>(in, out);                              \
+        /* A fault inside a script must disable THAT module, not kill the game. \
+           See crash_guard.hpp. */                                             \
+        MTR_GUARDED_BODY(return mtr_g_script.lifecycle<1>(in, out))             \
     }                                                                           \
     MTR_NATIVE_EXPORT int32_t mtrDispose(const JcmFrameInput* in) {             \
         return mtr_g_script.lifecycle<2>(in, nullptr);                          \

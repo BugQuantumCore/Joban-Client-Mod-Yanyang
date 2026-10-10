@@ -101,10 +101,20 @@ public:
         return r;
     }
 
+    /* Upper bound for a single pixel push. A vehicle script repaints one
+       screen rect at a time (3304x944x4 ≈ 12.5 MB for the WR2 LCD), so
+       256 MB is far above anything legitimate while still rejecting the
+       corrupted/negative lengths that reach memcpy as an enormous size_t.
+       (Observed in the field as an ACCESS_VIOLATION inside VCRUNTIME140
+       with the calling frame already unwound, which makes it very hard to
+       attribute — hence the explicit clamp.) */
+    static constexpr int64_t MAX_PIXEL_BYTES = 256LL * 1024 * 1024;
+
     /* ---- string arena (UTF-8) ---- */
 
     int32_t intern(const char* s, int32_t len) {
         if (len < 0) len = static_cast<int32_t>(std::strlen(s));
+        if (len <= 0 || !s) return string_bytes_;
         int32_t off = string_bytes_;
         std::memcpy(string_arena_ + string_bytes_, s, static_cast<size_t>(len));
         string_bytes_ += len;
@@ -123,6 +133,7 @@ public:
     /* ---- float arena (voxel boxes etc.) ---- */
 
     int32_t push_floats(const float* v, int32_t count) {
+        if (count <= 0 || !v) return float_bytes_;
         int32_t off = float_bytes_;
         std::memcpy(reinterpret_cast<uint8_t*>(float_arena_) + float_bytes_, v,
                     sizeof(float) * static_cast<size_t>(count));
@@ -137,9 +148,17 @@ public:
        burst) transparently switch to a heap buffer that persists for
        the module lifetime. The steady-state hot path never allocates. */
     int64_t push_pixels(const uint8_t* px, int64_t len) {
+        /* Hard invariant. A negative/absurd len here reaches memcpy as a
+           size_t and faults inside the CRT far away from the real mistake
+           (observed in the field as an ACCESS_VIOLATION in VCRUNTIME140
+           with the caller frame gone). Clamp + log instead of copying, so
+           one bad frame cannot take the game down. */
+        if (len <= 0) return pixel_bytes_;
+        if (len > MAX_PIXEL_BYTES || !px) return pixel_bytes_;
         if (pixel_bytes_ + len > pixel_cap_) {
             grow_pixels(pixel_bytes_ + len);
         }
+        if (pixel_bytes_ + len > pixel_cap_) return pixel_bytes_;  /* grow failed */
         int64_t off = pixel_bytes_;
         std::memcpy(pixel_arena_ + pixel_bytes_, px, static_cast<size_t>(len));
         pixel_bytes_ += len;

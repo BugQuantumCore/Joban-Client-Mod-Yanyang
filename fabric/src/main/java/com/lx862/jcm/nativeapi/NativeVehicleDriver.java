@@ -53,6 +53,8 @@ public final class NativeVehicleDriver {
                 .allocateDirect(NativeSnapshot.CAPACITY)
                 .order(ByteOrder.nativeOrder());
         final String instanceKey;
+        /** First snapshot-build failure, so it is logged once and not per frame. */
+        String reportedSnapshotFailure;
 
         State(String vehicleHexId, String scriptId) {
             this.instanceKey = vehicleHexId + "/" + scriptId;
@@ -119,7 +121,10 @@ public final class NativeVehicleDriver {
         try {
             wrapper = new VehicleWrapper(fetchMode, vehicle);
         } catch (Throwable t) {
+            /* Full trace on purpose: t.toString() alone pointed at an inlined
+               getter and made the failing line impossible to find. */
             JCMLogger.error("Native vehicle script failed to build its route data: {}", t.toString());
+            JCMLogger.error("  stack:", t);
             return 0;
         }
         /* Same contract as the JS path: a MANDATORY script does not draw until
@@ -129,12 +134,37 @@ public final class NativeVehicleDriver {
             return 0;
         }
 
+        /* Build the snapshot FIRST, and if it fails, do NOT call into native
+           code at all.
+
+           This is not defensive padding: the JNI bridge hands the module
+           GetDirectBufferAddress with GetDirectBufferCapacity, i.e. the WHOLE
+           256 KB block, regardless of how much the marshaller actually wrote.
+           `ByteBuffer.putX(index, ...)` also does not advance position, so a
+           half-written buffer has position 0 while its header is garbage.
+           Passing that to mtrRender gives the script a bogus car_count and
+           stop_count, and it walks off the end of the blob — which is how a
+           route-data NullPointerException turned into a native access
+           violation inside memcpy. Skipping the call keeps the previous frame's
+           textures on screen instead. */
+        try {
+            NativeSnapshot.build(state.snapshot, wrapper);
+        } catch (Throwable t) {
+            if (state.reportedSnapshotFailure == null) {
+                state.reportedSnapshotFailure = t.toString();
+                JCMLogger.error("Native vehicle script {} could not build a snapshot from the "
+                        + "route data (native render skipped): {}", scriptId, t.toString());
+                JCMLogger.error("  stack:", t);
+            }
+            return 0;
+        }
+
         final List<NativeScriptManager.NativeFrame> frames;
         try {
-            frames = NativeScriptManager.renderVehicle(state.instanceKey, scriptId,
-                    buffer -> NativeSnapshot.build(buffer, wrapper));
+            frames = NativeScriptManager.renderVehicle(state.instanceKey, scriptId, state.snapshot);
         } catch (Throwable t) {
             JCMLogger.error("Native vehicle script {} threw while rendering: {}", scriptId, t.toString());
+            JCMLogger.error("  stack:", t);
             return 0;
         }
         if (frames.isEmpty()) return 0;
