@@ -19,6 +19,16 @@
 #pragma once
 
 #if defined(_MSC_VER)
+   /* NOMINMAX is mandatory: this header is pulled in by script.hpp, which is
+      included by the drawing code, and windows.h's min/max macros turn every
+      std::min/std::max in gfx2d.hpp into "illegal token on right side of '::'".
+      WIN32_LEAN_AND_MEAN keeps the compiler time down. */
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
 #  include <windows.h>
 #  include <cstdio>
 #endif
