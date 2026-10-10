@@ -6,6 +6,7 @@ import com.lx862.jcm.mod.util.JCMLogger;
 import org.mtr.mapping.holder.Identifier;
 import org.mtr.mapping.mapper.ResourceManagerHelper;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -636,16 +637,89 @@ public final class NativeScriptManager {
          */
         private static final boolean BRIDGE_AVAILABLE = loadBridge();
 
+        /**
+         * Load the JNI bridge.
+         *
+         * <p><b>Why this is not just {@code System.loadLibrary}:</b> on a modern
+         * launcher {@code java.library.path} points at the loader's own natives
+         * directory (e.g. {@code .minecraft/versions/fabric-loader-…-natives}),
+         * NOT at {@code mods/}. {@code System.loadLibrary} searches only
+         * {@code java.library.path}, so a bridge sitting right next to the JCM
+         * jar — which is the documented, obvious thing to do — is never found:
+         *
+         * <pre>UnsatisfiedLinkError: no jcm_native_bridge in java.library.path: …</pre>
+         *
+         * <p>So try the name first (honours an explicit
+         * {@code -Djava.library.path}), then {@code System.load()} the absolute
+         * path inside the known real locations. {@code user.dir} is the game
+         * instance directory and the JCM jar's own directory is on the code
+         * source, which covers both flat {@code mods/} installs and
+         * {@code mods/.fabric/} nested ones.
+         */
         private static boolean loadBridge() {
             try {
                 System.loadLibrary("jcm_native_bridge");
                 return true;
             } catch (UnsatisfiedLinkError e) {
-                JCMLogger.warn("Native scripting bridge (jcm_native_bridge) is not available on "
-                        + "java.library.path — C++ (\'language\': \'cpp\') scripts cannot run. "
-                        + "Put {} next to the JCM jar or on -Djava.library.path.",
-                        bridgeFileName());
-                return false;
+                /* fall through to the explicit search */
+            }
+
+            final String fileName = bridgeFileName();
+            final List<File> candidates = bridgeCandidates(fileName);
+            for (File candidate : candidates) {
+                if (!candidate.isFile()) continue;
+                try {
+                    System.load(candidate.getAbsolutePath());
+                    JCMLogger.info("Native scripting bridge loaded from {}", candidate);
+                    return true;
+                } catch (UnsatisfiedLinkError e) {
+                    JCMLogger.warn("Native scripting bridge {} exists but failed to load: {}",
+                            candidate, e.getMessage());
+                }
+            }
+
+            JCMLogger.warn("Native scripting bridge ({}) not found — C++ ('language': 'cpp') "
+                    + "scripts cannot run. Drop it into {}{}mods{} (next to the JCM jar) "
+                    + "or set -Djava.library.path. Looked in: {}",
+                    fileName, System.getProperty("user.dir"), File.separator, File.separator,
+                    candidates);
+            return false;
+        }
+
+        /** Where the bridge may live, in priority order. */
+        private static List<File> bridgeCandidates(String fileName) {
+            final List<File> out = new ArrayList<>();
+            final String sep = File.separator;
+
+            /* 1) the game instance's mods/ — the documented location */
+            final String userDir = System.getProperty("user.dir");
+            if (userDir != null && !userDir.isEmpty()) {
+                out.add(new File(userDir + sep + "mods" + sep + fileName));
+                /* some launchers keep ISOLATED mods under .minecraft/mods */
+                out.add(new File(userDir + sep + ".minecraft" + sep + "mods" + sep + fileName));
+            }
+
+            /* 2) next to the JCM jar itself (flat mods/ install) */
+            File jarDir = codeSourceDir();
+            if (jarDir != null) {
+                out.add(new File(jarDir, fileName));
+                /* 3) mods/.fabric/ nested layout: the jar sits one level deeper */
+                File parent = jarDir.getParentFile();
+                if (parent != null) out.add(new File(parent, fileName));
+            }
+            return out;
+        }
+
+        /** Directory containing the JCM classes/jar, or null when unknown. */
+        private static File codeSourceDir() {
+            try {
+                final java.security.CodeSource cs =
+                        NativeScriptManager.class.getProtectionDomain().getCodeSource();
+                if (cs == null || cs.getLocation() == null) return null;
+                final File loc = new File(cs.getLocation().toURI());
+                return loc.isDirectory() ? loc : loc.getParentFile();
+            } catch (Throwable t) {
+                return null;
             }
         }
 
