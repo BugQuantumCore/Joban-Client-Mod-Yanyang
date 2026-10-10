@@ -479,6 +479,9 @@ int run(int argc, char** argv) {
 #if defined(_WIN32)
     const std::string lcd = dir + "\\wr2a03_lcd.dll";
     const std::string num = dir + "\\wr2a03_train_num.dll";
+#elif defined(__APPLE__)
+    const std::string lcd = dir + "/libwr2a03_lcd.dylib";
+    const std::string num = dir + "/libwr2a03_train_num.dylib";
 #else
     const std::string lcd = dir + "/libwr2a03_lcd.so";
     const std::string num = dir + "/libwr2a03_train_num.so";

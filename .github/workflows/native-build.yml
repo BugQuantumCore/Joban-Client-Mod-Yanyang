@@ -80,24 +80,29 @@ jobs:
       # NB: absolute paths on purpose — a multi-line `run:` block does NOT honour
       # `working-directory` (only single-line ones do), so `./x` resolves against
       # the workspace root and the step dies with "cannot load ./lib...".
+      # The binary's directory also differs per platform: the Linux/macOS jobs use
+      # the single-config Makefile generator (binaries in native/build), while
+      # Windows defaults to the multi-config Visual Studio generator, which puts
+      # them in native/build/Release.
       - name: Run WR2-A03 smoke test (real ABI, 41 assertions)
         shell: bash
         run: |
           set -euo pipefail
           B="$GITHUB_WORKSPACE/native/build"
-          ls -l "$B" | head -30
-          BIN="$B/wr2a03_smoke"
-          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
-          "$BIN" "$B"
+          ls -l "$B" | head -40
+          BIN="$(find "$B" -maxdepth 2 -name 'wr2a03_smoke*' -type f | head -1)"
+          [ -n "$BIN" ] || { echo "::error::wr2a03_smoke was not built"; exit 1; }
+          echo "running $BIN from $(dirname "$BIN")"
+          "$BIN" "$(dirname "$BIN")"
 
       - name: Run WR2-A03 performance harness
         shell: bash
         run: |
           set -euo pipefail
           B="$GITHUB_WORKSPACE/native/build"
-          BIN="$B/wr2a03_bench"
-          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
-          "$BIN" "$B" 200
+          BIN="$(find "$B" -maxdepth 2 -name 'wr2a03_bench*' -type f | head -1)"
+          [ -n "$BIN" ] || { echo "::error::wr2a03_bench was not built"; exit 1; }
+          "$BIN" "$(dirname "$BIN")" 200
 
       - name: Verify exported ABI (mtrInit must be present)
         shell: bash
@@ -105,17 +110,24 @@ jobs:
           set -euo pipefail
           B="$GITHUB_WORKSPACE/native/build"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            ls -l "$B"/wr2a03_lcd.dll "$B"/wr2a03_train_num.dll
+            find "$B" -maxdepth 2 -name 'wr2a03_*.dll' -type f -exec ls -l {} +
+            find "$B" -maxdepth 2 -name 'wr2a03_*.dll' -type f | grep -q . \
+              || { echo "::error::no wr2a03 DLLs were built"; exit 1; }
             exit 0
           fi
-          if [ "${{ runner.os }}" = "macOS" ]; then MODS=(libwr2a03_lcd.dylib libwr2a03_train_num.dylib); NM="nm -gU"
-          else MODS=(libwr2a03_lcd.so libwr2a03_train_num.so); NM="nm -D --defined-only"; fi
+          if [ "${{ runner.os }}" = "macos" ] || [ "${{ runner.os }}" = "macOS" ]; then
+            MODS=(libwr2a03_lcd.dylib libwr2a03_train_num.dylib); NM="nm -gU"
+          else
+            MODS=(libwr2a03_lcd.so libwr2a03_train_num.so); NM="nm -D --defined-only"
+          fi
           for m in "${MODS[@]}"; do
+            LIB="$(find "$B" -maxdepth 2 -name "$m" -type f | head -1)"
+            [ -n "$LIB" ] || { echo "::error::$m was not built"; exit 1; }
             echo "--- $m"
             # shellcheck disable=SC2086
-            $NM "$B/$m" | grep -o 'mtr[A-Za-z]*' | sort -u
+            $NM "$LIB" | grep -o 'mtr[A-Za-z]*' | sort -u
             # shellcheck disable=SC2086
-            $NM "$B/$m" | grep -q mtrInit || { echo "::error::$m does not export mtrInit (ABI 6)"; exit 1; }
+            $NM "$LIB" | grep -q mtrInit || { echo "::error::$m does not export mtrInit (ABI 6)"; exit 1; }
           done
 
       - name: Report Linux symbol-version floors

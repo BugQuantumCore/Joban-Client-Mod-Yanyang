@@ -546,6 +546,14 @@ int run(int argc, char** argv) {
        Pass a second argument to put them somewhere else entirely. */
     const std::string outDir = argc > 2 ? std::string(argv[2]) : dir + "\\wr2a03_preview";
     const std::string outPrefix = outDir + "\\";
+#elif defined(__APPLE__)
+    /* CMake names shared modules lib<name>.dylib on macOS, not .so — keying the
+       filename off "_WIN32 or everything else" made this tool unusable on the
+       one platform where the ABI-6 state bug shows up. */
+    const std::string lcdPath = dir + "/libwr2a03_lcd.dylib";
+    const std::string numPath = dir + "/libwr2a03_train_num.dylib";
+    const std::string outDir = argc > 2 ? std::string(argv[2]) : dir + "/wr2a03_preview";
+    const std::string outPrefix = outDir + "/";
 #else
     const std::string lcdPath = dir + "/libwr2a03_lcd.so";
     const std::string numPath = dir + "/libwr2a03_train_num.so";
