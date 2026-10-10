@@ -42,7 +42,13 @@ extern "C" {
 /* Version / module identity                                           */
 /* ------------------------------------------------------------------ */
 
-#define MTR_NATIVE_ABI_VERSION 3
+/* ABI 5 — JcmStop gains route_circular_state (per-stop route
+   CircularState).  ABI 4 added JcmHostServices.acquire_quad_model
+   (host-built textured quad) — bumped because scripts compiled against
+   the newer header call a host function slot that does not exist in an
+   older host (the struct grew), so an old host must refuse the module
+   instead of reading past it. */
+#define MTR_NATIVE_ABI_VERSION 5
 
 /* Resource kinds, identical to JCM script contexts. */
 enum MtrResourceKind {
@@ -222,8 +228,15 @@ typedef struct JcmStop {
        points at a JcmExit[] pool inside the snapshot blob; 0 = none. */
     int32_t  exit_count;
     int32_t  exit_offset;
+    /* v5 (ABI 5): this stop's ROUTE CircularState
+       (JS: stop.route.getCircularState(), 0 NONE / 1 CLOCKWISE /
+       2 ANTICLOCKWISE).  The LCD port's 环线检测 walks the stop list
+       exactly like circular.js does; without a per-stop value the host
+       can only be probed through the current route, which mis-detects
+       any multi-stop route as a loop. */
+    uint8_t  route_circular_state;
     uint8_t  is_route_switchover;
-    uint8_t  _pad0[3];
+    uint8_t  _pad0[2];
 } JcmStop;
 
 typedef struct JcmInterchange {
@@ -429,6 +442,33 @@ struct JcmHostServices {
                               uint8_t* pixel_out, int32_t out_w, int32_t out_h);
     /* Logging mirrors console.log / console.error. */
     void    (*log)(void* user, int32_t level, const char* utf8, int32_t len);
+
+    /* ---- v4 (ABI 4): host-built textured quad --------------------------
+       Ports the JS `new DisplayHelper(slotCfg)` model construction.
+
+       The JS pack declares a slot as a 4-vertex polygon plus a texArea;
+       DisplayHelper turns that into a RawMeshBuilder(4) quad whose UVs
+       map the texArea onto the polygon, and the host uploads it through
+       ModelManagerJS/ModelJS.  Native scripts do the same by handing the
+       4 model-space vertices to the host, which owns mesh + texture
+       lifetime and returns an opaque model handle usable with
+       VehicleContext::draw_car_model().
+
+       Vertices are MODEL SPACE (same numbers as the JS `pos` array, in
+       order v0→v1→v2→v3 and counter-clockwise seen from the viewer).
+       UVs follow the JS convention: (0,0) top-left of the TEXTURE (not
+       of texArea — the script maps texArea itself), y growing DOWN.
+
+       `texture_handle` is a handle from create_texture(); the host
+       re-reads that GraphicsTexture every frame, so the script only has
+       to paint + upload it.
+
+       Returns a model handle, or -1 when the host cannot build one
+       (headless drivers) — scripts must then skip the draw instead of
+       passing -1 to draw_car_model(). */
+    int32_t (*acquire_quad_model)(void* user, const float* vertices_xyz,
+                                  const float* uv, int32_t vertex_count,
+                                  int32_t render_stage, int32_t texture_handle);
 };
 
 /* ------------------------------------------------------------------ */

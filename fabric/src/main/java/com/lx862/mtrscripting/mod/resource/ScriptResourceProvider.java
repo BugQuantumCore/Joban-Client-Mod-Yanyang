@@ -34,9 +34,20 @@ public interface ScriptResourceProvider {
            loaded (or the script skipped with a latest.log + debug-mode
            hint when this platform isn't declared). Returns null either
            way: rendering for these ids dispatches through
-           NativeScriptManager, not the JS instance pipeline. */
+           NativeScriptManager, not the JS instance pipeline.
+
+           MULTI-MODULE: one script id may declare several libraries —
+           either "nativeLibraries": [..] (Yanyang extension) or the
+           single "nativeLibrary" field, which is treated as a
+           one-element list. All of them run for the same id; this is how
+           our WR2-A03 pack keeps main.js and train_num.js together the way
+           the JS route did with two scriptLocations entries. */
         if (isNativeCppScript(jsonObject)) {
-            NativeScriptManager.loadFromDeclaration(id, jsonObject.get(nativeLibraryKey(useSnakeCase)));
+            final JsonElement many = jsonObject.get(nativeLibrariesKey(useSnakeCase));
+            final JsonElement declared = (many != null && !many.isJsonNull())
+                    ? many
+                    : jsonObject.get(nativeLibraryKey(useSnakeCase));
+            NativeScriptManager.loadManyFromDeclaration(id, declared);
             return null;
         }
 
@@ -95,6 +106,15 @@ public interface ScriptResourceProvider {
         "native_library" (snake_case legacy entries). */
     static String nativeLibraryKey(boolean useSnakeCase) {
         return useSnakeCase ? "native_library" : "nativeLibrary";
+    }
+
+    /** Multi-library field name: "nativeLibraries" (MTR 4) or
+        "native_libraries" (snake_case legacy entries).
+        Yanyang extension: MTR's vehicle schema carries ONE scriptId, so a
+        pack that needs several C++ libraries for one train lists them here
+        and they all run under that id, in declaration order. */
+    static String nativeLibrariesKey(boolean useSnakeCase) {
+        return useSnakeCase ? "native_libraries" : "nativeLibraries";
     }
 
     static void logError(String action, Exception e) {

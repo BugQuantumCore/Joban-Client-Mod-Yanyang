@@ -36,6 +36,9 @@ public:
     int64_t station_id() const { return stop_->station_id; }
     int64_t platform_id() const { return stop_->platform_id; }
     bool is_route_switchover() const { return stop_->is_route_switchover != 0; }
+    /* v5: this stop's route CircularState (JS: stop.route.getCircularState()).
+       0 NONE, 1 CLOCKWISE, 2 ANTICLOCKWISE. */
+    uint8_t route_circular_state() const { return stop_->route_circular_state; }
 
     int32_t interchange_count() const { return stop_->interchange_count; }
     /* i-th interchange: { color, name } (mirrors Stop.RouteInterchange). */

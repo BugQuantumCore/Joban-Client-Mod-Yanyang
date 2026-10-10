@@ -78,7 +78,15 @@ public:
         dirty_all();
     }
 
+    /* Dirty-rect bookkeeping. Pixels outside the texture must never
+       widen the rect: JS paints with Graphics2D which simply clips,
+       and a negative dirty_x / oversized dirty_w would make upload()
+       read before the pixel buffer (and the host copy dirty_w*4 bytes
+       per row). Callers may pass out-of-range coordinates — e.g. a
+       centered string wider than the texture starts at x < 0 — so the
+       sample is dropped here instead of being trusted. */
     void mark_dirty(int32_t x, int32_t y) {
+        if (x < 0 || y < 0 || x >= width_ || y >= height_) return;
         if (dirty_w_ == 0) { dirty_x_ = x; dirty_y_ = y; dirty_w_ = dirty_h_ = 1; return; }
         const int32_t x0 = dirty_x_ < x ? dirty_x_ : x;
         const int32_t y0 = dirty_y_ < y ? dirty_y_ : y;

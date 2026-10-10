@@ -11,7 +11,7 @@ JavaScript (Rhino) 脚本 1:1 语义对齐（同样的 `create/render/dispose`
 ```
 native/
 ├── include/mtr/            # 脚本 SDK（header-only）
-│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v3）
+│   ├── mtr_native.h        #   C ABI：导出、POD 快照、draw call 记录（v5）
 │   ├── script.hpp          #   注册宏 + 生命周期适配（ScriptBox）
 │   ├── frame.hpp           #   bump-arena 帧录制器（像素 arena 按需增长）
 │   ├── vehicle.hpp         #   Train/Car/Stop 包装（对应 VehicleWrapper）
@@ -29,15 +29,21 @@ native/
 │   ├── eyecandy_signal.cpp #   红石信号灯 + 数码时钟
 │   ├── jslcd_common.hpp    #   社区 JS LCD 包共享移植层 ★
 │   ├── jslcd_vehicle.cpp   #   完整车侧路线图 LCD（13 个 JS 文件的全量移植）★
-│   └── jslcd_train_num.cpp #   车号系统（侧线名解析/侧牌/头尾牌）★
+│   ├── jslcd_train_num.cpp #   车号系统（侧线名解析/侧牌/头尾牌）
+│   ├── wr2a03_common.hpp   #   若益宛 WR2-A03 共享层（同一套 JS 源的另一次移植）★
+│   ├── wr2a03_lcd.cpp      #   WR2-A03 车侧 LCD（mtrScriptId "wr2a03:lcd"）★
+│   └── wr2a03_train_num.cpp#   WR2-A03 侧牌/头尾牌（"wr2a03:train_num"）★
 ├── java/                   # Java 侧 JNI 桥接参考实现
 │   └── com/lx862/jcm/nativeapi/NativeScriptManager.java
+├── jni/                    # JNI 桥实现（jcm_native_bridge.{dll,so,dylib}）
+│   └── jni_bridge.cpp      #   nOpen/nRender/... + 宿主资源回调（v4/v5）
 ├── bench/                  # 真实微基准（C++ vs bun-JSC vs Rhino）
 │   ├── lcd_bench.cpp       #   原生驱动：mtrCreate/mtrRender x N
 │   ├── lcd_bench.js        #   JS 孪生（同算法同字体, bun 运行）
 │   ├── lcd_bench_rhino.js  #   Rhino 兼容孪生（同算法, ES5 风格）
 │   ├── RhinoBench.java     #   以 JCM 同款引擎/调用模型驱动上者
-│   ├── jslcd_smoke.cpp     #   jslcd 端到端冒烟（快照构造→渲染→PPM 重建→断言）★
+│   ├── jslcd_smoke.cpp     #   jslcd 端到端冒烟（POSIX）
+│   ├── wr2a03_smoke.cpp    #   WR2-A03 端到端冒烟（跨平台，41 项断言）★
 │   └── gfx2d_bench.cpp     #   Gfx2D 基元微基准 ★
 └── CMakeLists.txt
 ```
@@ -253,6 +259,31 @@ draw_num.js）的**全量 C++ 移植**——车侧路线图 LCD + 车号系统�
 像素级断言（顶栏线路色、红绿站点圆点、玻璃卡字形、环线色环、开门大
 站名、车牌墨迹、**出口面板青色字母与黑色目的地 CJK**）+ 性能断言
 （稳态 <100µs、重绘预算帧 <20ms）。
+
+## ABI v5 变更
+
+`JcmStop` 新增 `route_circular_state`（每个停站所属线路的 CircularState，
+0 NONE / 1 CLOCKWISE / 2 ANTICLOCKWISE），等价于 JS 的
+`stop.route.getCircularState()`。
+
+LCD 移植的环线判定要遍历整条停站表（circular.js 的方式 (ii)）；只靠
+"当前 route 的 circular_state + 停站表里同线路出现两次即绕回"这种形态
+判据，会把**任何多站线路**都误判成环线。有了 per-stop 状态就能像
+`circular.js` 一样逐步遍历，判定结果与 JS 一致。
+
+## ABI v4 变更
+
+`JcmHostServices` 新增 `acquire_quad_model(vertices_xyz, uv, vertex_count,
+render_stage, texture_handle)` —— 宿主构建的贴图四边形，对应 JS 的
+`new DisplayHelper(slotCfg)`：
+
+* 资源包里的 LCD/车号四边形原本由 `DisplayHelper` 在脚本里生成网格，
+  再把网格交给 `ModelManagerJS` 上传；原生脚本直接把同一组顶点（JS 的
+  `pos` 数组）和 texArea 对应的 UV 交给宿主，由宿主拥有网格与纹理生命周期；
+* `render_stage` 与 JS 的 slot `"interior"` / `"exterior"` 对应；
+* 返回模型句柄（负数 = 宿主无法构建，脚本必须跳过该次绘制）。
+
+ABI 4/5 都改变了结构体尺寸，因此旧宿主会拒绝加载新模块（而不是越界读取）。
 
 ## ABI v3 变更
 

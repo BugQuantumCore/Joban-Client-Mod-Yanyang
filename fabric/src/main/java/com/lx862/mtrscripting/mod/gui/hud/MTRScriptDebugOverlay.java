@@ -122,7 +122,7 @@ public class MTRScriptDebugOverlay {
     }
 
     private static void drawNativeScriptSection(GraphicsHolder graphicsHolder) {
-        final Map<String, NativeScriptManager.NativeScriptModule> nativeModules = NativeScriptManager.getModules();
+        final java.util.List<NativeScriptManager.NativeScriptModule> nativeModules = NativeScriptManager.getModules();
         final Map<String, String> skippedNatives = NativeScriptManager.getSkippedScripts();
         if(nativeModules.isEmpty() && skippedNatives.isEmpty()) return;
 
@@ -132,7 +132,7 @@ public class MTRScriptDebugOverlay {
         graphicsHolder.translate(0, 12, 0);
         graphicsHolder.translate(10, 0, 0);
 
-        for(NativeScriptManager.NativeScriptModule module : nativeModules.values()) {
+        for(NativeScriptManager.NativeScriptModule module : nativeModules) {
             graphicsHolder.drawText(String.format("%s (%s, ABI %d, %d B state)", module.getScriptId(), module.getScriptType(), module.getAbiVersion(), module.getStateSize()), 0, 0, COLOR_BLUE, true, MAX_LIGHT);
             graphicsHolder.translate(0, 10, 0);
         }

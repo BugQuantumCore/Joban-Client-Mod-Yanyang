@@ -83,6 +83,13 @@ struct Instance {
     std::vector<uint8_t> state;         /* mtrStateSize() zeroed block  */
     std::vector<uint8_t> last_snapshot; /* for safe dispose() rebuild   */
     bool created = false;               /* mtrCreate called?            */
+
+    /* v4/v5: what create() asked the host for, and what Java actually
+       handed back. Frame records carry the SLOT index the script saw; the
+       bridge rewrites them to the real Java handle before returning. */
+    std::vector<int32_t> tex_slot_handles;    /* slot -> GraphicsTexture id */
+    std::vector<int32_t> model_slot_handles;  /* quad slot -> ModelJS id    */
+    bool resources_ready = false;
 };
 
 struct BridgeModule {
@@ -99,10 +106,6 @@ struct BridgeModule {
     std::mutex mutex;
     std::unordered_map<std::string, Instance> instances;
 
-    /* host-side opaque handle registries (reference implementation) */
-    int32_t next_texture = 1;
-    int32_t next_model = 100;
-
     ~BridgeModule() { close_library(); }
 
     void close_library() {
@@ -117,21 +120,111 @@ struct BridgeModule {
     }
 };
 
+/* ------------------------------------------------------------------ */
+/* Java host hooks (v4/v5)                                             */
+/*                                                                     */
+/* Model / texture lifetime belongs to the JVM: a GraphicsTexture is a  */
+/* NativeImageBackedTexture, a model is an uploaded OptimizedModel.     */
+/* The bridge therefore only RECORDS what the script asked for during   */
+/* create() and hands the batch to Java, which owns the registries and  */
+/* must build them on the render thread.                                */
+/*                                                                     */
+/* Java side — implemented by com.lx862.jcm.nativeapi.NativeHostServices */
+/* and installed from NativeScriptManager's static initialiser via       */
+/* nativeSetHost(host). The two methods the bridge binds to:            */
+/*                                                                     */
+/*   int[] createResources(int[] widths, int[] heights,                 */
+/*                         float[] quadVertices, float[] quadUv,        */
+/*                         int[] quadTextureSlot, int[] quadStages)     */
+/*                                                                     */
+/*       Create N GraphicsTextures (slot i = widths[i] x heights[i])    */
+/*       plus the quad models the script described, then return one int */
+/*       per texture slot followed by one per quad:                     */
+/*         [0 .. texCount)                    = GraphicsTexture handles */
+/*         [texCount .. texCount + quadCount) = model handles (-1 none) */
+/*       Called once per script instance, on the render thread.         */
+/*                                                                     */
+/*   void uploadPixels(int textureHandle, int x, int y,                 */
+/*                     int w, int h, byte[] rgba)                       */
+/*                                                                     */
+/*       Blit one dirty rect of an RGBA8 (little-endian ARGB) upload.   */
+/*                                                                     */
+/* Both are optional: with no host installed the bridge stays silent    */
+/* and frame records keep their placeholder handles, which the replay   */
+/* step drops — a headless driver still exercises the whole script.     */
+/* ------------------------------------------------------------------ */
+
+namespace {
+
+JavaVM* g_vm = nullptr;
+jobject g_host = nullptr;                 /* global ref, or null      */
+jmethodID g_mid_create_resources = nullptr;
+jmethodID g_mid_upload_pixels = nullptr;
+
+/* Recorded during create() for the instance being created. */
+std::vector<int32_t> g_capture_tex_w;
+std::vector<int32_t> g_capture_tex_h;
+std::vector<float>   g_capture_quad_verts;   /* 12 floats per quad */
+std::vector<float>   g_capture_quad_uv;      /*  8 floats per quad */
+std::vector<int32_t> g_capture_quad_slot;    /* texture slot per quad */
+std::vector<int32_t> g_capture_quad_stage;
+
+/* (still inside the anonymous namespace opened with the bookkeeping structs) */
+
+/** Installed by NativeScriptManager's static initialiser (may be null). */
+extern "C" JNIEXPORT void JNICALL
+Java_com_lx862_jcm_nativeapi_NativeScriptManager_nativeSetHost(JNIEnv* env, jclass, jobject host) {
+    if (g_host) {
+        env->DeleteGlobalRef(g_host);
+        g_host = nullptr;
+    }
+    g_mid_create_resources = nullptr;
+    g_mid_upload_pixels = nullptr;
+    if (!host) return;
+
+    g_host = env->NewGlobalRef(host);
+    jclass cls = env->GetObjectClass(host);
+    if (!cls) return;
+    g_mid_create_resources = env->GetMethodID(cls, "createResources", "([I[I[F[F[I[I)[I");
+    g_mid_upload_pixels = env->GetMethodID(cls, "uploadPixels", "(IIII[B)V");
+    if (!g_mid_create_resources || !g_mid_upload_pixels) {
+        std::fprintf(stderr, "[jcm_native_bridge] host object is missing "
+                             "createResources/uploadPixels — native host disabled\n");
+        env->DeleteGlobalRef(g_host);
+        g_host = nullptr;
+        g_mid_create_resources = nullptr;
+        g_mid_upload_pixels = nullptr;
+    }
+    env->DeleteLocalRef(cls);
+}
+
 /* ---- host services handed to the script module (see mtr_native.h) ---- */
 
 int32_t host_acquire_model(void* user, const char* path) {
+    /* v5: models come from acquire_quad_model (host-built geometry), so
+       this path form only records intent for diagnostics. */
+    (void)user;
     (void)path;
-    return static_cast<BridgeModule*>(user)->next_model++;
+    return -1;
 }
+
 void host_release_model(void*, int32_t) {}
+
 int32_t host_create_texture(void* user, int32_t w, int32_t h) {
-    (void)w; (void)h;
-    return static_cast<BridgeModule*>(user)->next_texture++;
+    /* Returns a SLOT index; the real GraphicsTexture handle is patched in
+       after Java has built the resources (see TextureSlot below). */
+    (void)user;
+    g_capture_tex_w.push_back(w);
+    g_capture_tex_h.push_back(h);
+    return static_cast<int32_t>(g_capture_tex_w.size()) - 1;
 }
+
 void host_release_texture(void*, int32_t) {}
 
-/* No host TTF rasterization in the reference bridge: scripts fall back
-   to their built-in 5x7 bitmap font (returns -1 = "not covered"). */
+/* No host TTF rasterization in this bridge: scripts fall back to their
+   built-in bitmap font (returns -1 = "not covered"). The LCD port's
+   Gfx2D draws CJK as tofu boxes in that case, which is the documented
+   headless behaviour. */
 int32_t host_rasterize_text(void*, const char*, int32_t, int32_t, int32_t,
                             int32_t, uint8_t, uint8_t, uint8_t, uint8_t*,
                             int32_t, int32_t) {
@@ -140,6 +233,18 @@ int32_t host_rasterize_text(void*, const char*, int32_t, int32_t, int32_t,
 
 void host_log(void*, int32_t level, const char* utf8, int32_t len) {
     std::fprintf(stderr, "[native-script/%d] %.*s\n", level, len, utf8);
+}
+
+/* v4: host-built textured quad — record the geometry for Java. */
+int32_t host_acquire_quad_model(void*, const float* verts, const float* uv,
+                                int32_t vertex_count, int32_t render_stage,
+                                int32_t texture_slot) {
+    if (!verts || !uv || vertex_count != 4) return -1;
+    g_capture_quad_verts.assign(verts, verts + 12);
+    g_capture_quad_uv.assign(uv, uv + 8);
+    g_capture_quad_slot.push_back(texture_slot);
+    g_capture_quad_stage.push_back(render_stage);
+    return static_cast<int32_t>(g_capture_quad_slot.size()) - 1;   /* model slot */
 }
 
 void fill_host(JcmHostServices& host, BridgeModule* mod) {
@@ -151,6 +256,7 @@ void fill_host(JcmHostServices& host, BridgeModule* mod) {
     host.release_texture = host_release_texture;
     host.rasterize_text = host_rasterize_text;
     host.log = host_log;
+    host.acquire_quad_model = host_acquire_quad_model;
 }
 
 #if !defined(_WIN32)
@@ -167,8 +273,142 @@ void* load_symbol(void* lib, const char* name) {
 const char* last_error() { return "LoadLibrary/GetProcAddress failed"; }
 #endif
 
-#define JNI_CLASS_PATH com_lx862_jcm_nativeapi_NativeScriptManager_00024NativeScriptModule
-#define JNI_NAME(name) Java_##JNI_CLASS_PATH##_##name
+/* JNI native method names for the nested class
+   com.lx862.jcm.nativeapi.NativeScriptManager$NativeScriptModule.
+   "$" becomes "_00024" in the mangled form.
+   NOTE: written as ONE fully-expanded token so no nested ## expansion is
+   needed (MSVC 19.5x emitted the unexpanded "Java_JNI_CLASS_PATH_nOpen"
+   when JNI_CLASS_PATH was pasted in through another macro). */
+#define JNI_M(name) \
+    Java_com_lx862_jcm_nativeapi_NativeScriptManager_00024NativeScriptModule_##name
+
+/* ------------------------------------------------------------------ */
+/* v4/v5: turn the resources create() asked for into real JVM objects  */
+/*                                                                     */
+/* Runs right after mtrCreate, on the render thread (the caller is the  */
+/* same mixin that drives JS scripts, which already requires that).     */
+/* ------------------------------------------------------------------ */
+
+bool resolve_captured_resources(JNIEnv* env, BridgeModule* mod, Instance& inst) {
+    if (g_capture_tex_w.empty() && g_capture_quad_verts.empty()) {
+        inst.resources_ready = true;
+        return true;   /* nothing to build (pure-record script) */
+    }
+    if (!g_host || !g_mid_create_resources) {
+        /* No host installed: keep the placeholder handles. Frame records
+           then reference slots that Java does not know, and the replay
+           step drops them — the script still runs end-to-end. */
+        inst.resources_ready = false;
+        return true;
+    }
+
+    const jsize texCount = static_cast<jsize>(g_capture_tex_w.size());
+    const jsize quadCount = static_cast<jsize>(g_capture_quad_slot.size());
+
+    jintArray widths = env->NewIntArray(texCount);
+    jintArray heights = env->NewIntArray(texCount);
+    if (texCount > 0) {
+        env->SetIntArrayRegion(widths, 0, texCount, g_capture_tex_w.data());
+        env->SetIntArrayRegion(heights, 0, texCount, g_capture_tex_h.data());
+    }
+
+    jfloatArray verts = env->NewFloatArray(static_cast<jsize>(g_capture_quad_verts.size()));
+    jfloatArray uv = env->NewFloatArray(static_cast<jsize>(g_capture_quad_uv.size()));
+    if (!g_capture_quad_verts.empty()) {
+        env->SetFloatArrayRegion(verts, 0, static_cast<jsize>(g_capture_quad_verts.size()),
+                                 g_capture_quad_verts.data());
+        env->SetFloatArrayRegion(uv, 0, static_cast<jsize>(g_capture_quad_uv.size()),
+                                 g_capture_quad_uv.data());
+    }
+    jintArray slots = env->NewIntArray(quadCount);
+    jintArray stages = env->NewIntArray(quadCount);
+    if (quadCount > 0) {
+        env->SetIntArrayRegion(slots, 0, quadCount, g_capture_quad_slot.data());
+        env->SetIntArrayRegion(stages, 0, quadCount, g_capture_quad_stage.data());
+    }
+
+    jintArray result = static_cast<jintArray>(env->CallObjectMethod(
+        g_host, g_mid_create_resources, widths, heights, verts, uv, slots, stages));
+
+    bool ok = false;
+    if (result != nullptr && !env->ExceptionCheck()) {
+        const jsize n = env->GetArrayLength(result);
+        std::vector<jint> out(static_cast<size_t>(n));
+        env->GetIntArrayRegion(result, 0, n, out.data());
+        inst.tex_slot_handles.assign(out.begin(), out.begin() + texCount);
+        inst.model_slot_handles.assign(out.begin() + texCount, out.end());
+        inst.resources_ready = true;
+        ok = true;
+    } else {
+        std::fprintf(stderr, "[jcm_native_bridge] host createResources failed "
+                             "(%d textures / %d quads)\n", texCount, quadCount);
+        if (env->ExceptionCheck()) env->ExceptionDescribe();
+    }
+
+    env->DeleteLocalRef(widths);
+    env->DeleteLocalRef(heights);
+    env->DeleteLocalRef(verts);
+    env->DeleteLocalRef(uv);
+    env->DeleteLocalRef(slots);
+    env->DeleteLocalRef(stages);
+    if (result) env->DeleteLocalRef(result);
+
+    g_capture_tex_w.clear();
+    g_capture_tex_h.clear();
+    g_capture_quad_verts.clear();
+    g_capture_quad_uv.clear();
+    g_capture_quad_slot.clear();
+    g_capture_quad_stage.clear();
+    return ok;
+}
+
+/** Rewrite upload placeholders (slot index) -> real GraphicsTexture id,
+    and drop model draws whose quad has no host model. Mutates the frame
+    records in place; the module owns the arena until the next nRender. */
+void patch_frame_handles(const Instance& inst, const JcmFrameOutput& out,
+                         int32_t* kept_records, int32_t* new_records_len) {
+    uint8_t* p = const_cast<uint8_t*>(static_cast<const uint8_t*>(out.records));
+    uint8_t* write = p;
+    int32_t kept = 0;
+    for (int32_t i = 0; i < out.record_count; i++) {
+        const JcmRecordHeader* h = reinterpret_cast<const JcmRecordHeader*>(p);
+        const int32_t size = h->record_size;
+        bool keep = true;
+
+        if (h->kind == JCM_DRAW_TEXTURE_UPLOAD) {
+            JcmDrawTextureUpload* u = reinterpret_cast<JcmDrawTextureUpload*>(p);
+            const int32_t slot = u->texture_handle;
+            if (slot >= 0 && slot < static_cast<int32_t>(inst.tex_slot_handles.size())) {
+                u->texture_handle = inst.tex_slot_handles[static_cast<size_t>(slot)];
+            } else {
+                keep = false;   /* unknown slot: nothing to upload into */
+            }
+        } else if (h->kind == JCM_DRAW_MODEL) {
+            JcmDrawModel* m = reinterpret_cast<JcmDrawModel*>(p);
+            const int32_t slot = m->model_handle;
+            if (slot >= 0 && slot < static_cast<int32_t>(inst.model_slot_handles.size())) {
+                m->model_handle = inst.model_slot_handles[static_cast<size_t>(slot)];
+                if (m->model_handle < 0) keep = false;   /* host refused the quad */
+            } else if (slot >= 0) {
+                keep = false;
+            }
+            /* slot < 0 (script had no host) => keep, so a headless run
+               still produces the record for inspection */
+        }
+
+        if (keep) {
+            if (write != p) std::memmove(write, p, static_cast<size_t>(size));
+            write += size;
+            kept++;
+        }
+        p += size;
+    }
+    *kept_records = kept;
+    *new_records_len = static_cast<int32_t>(write - const_cast<uint8_t*>(
+        static_cast<const uint8_t*>(out.records)));
+}
+
+} /* anonymous namespace */
 
 } /* anonymous namespace */
 
@@ -177,7 +417,7 @@ const char* last_error() { return "LoadLibrary/GetProcAddress failed"; }
 /* ------------------------------------------------------------------ */
 
 extern "C" JNIEXPORT jlong JNICALL
-JNI_NAME(nOpen)(JNIEnv* env, jobject, jstring path) {
+JNI_M(nOpen)(JNIEnv* env, jobject, jstring path) {
     const char* utf = env->GetStringUTFChars(path, nullptr);
     if (!utf) return 0;
     void* lib = load_library(utf);
@@ -212,25 +452,25 @@ JNI_NAME(nOpen)(JNIEnv* env, jobject, jstring path) {
 }
 
 extern "C" JNIEXPORT jint JNICALL
-JNI_NAME(nAbiVersion)(JNIEnv*, jobject, jlong handle) {
+JNI_M(nAbiVersion)(JNIEnv*, jobject, jlong handle) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     return mod ? static_cast<jint>(mod->abi()) : 0;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-JNI_NAME(nScriptType)(JNIEnv* env, jobject, jlong handle) {
+JNI_M(nScriptType)(JNIEnv* env, jobject, jlong handle) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     return (mod && mod->type) ? env->NewStringUTF(mod->type()) : nullptr;
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-JNI_NAME(nScriptId)(JNIEnv* env, jobject, jlong handle) {
+JNI_M(nScriptId)(JNIEnv* env, jobject, jlong handle) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     return (mod && mod->id) ? env->NewStringUTF(mod->id()) : nullptr;
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-JNI_NAME(nStateSize)(JNIEnv*, jobject, jlong handle) {
+JNI_M(nStateSize)(JNIEnv*, jobject, jlong handle) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     return mod ? static_cast<jlong>(mod->state_size()) : 0;
 }
@@ -240,7 +480,7 @@ JNI_NAME(nStateSize)(JNIEnv*, jobject, jlong handle) {
 /* ------------------------------------------------------------------ */
 
 extern "C" JNIEXPORT jobject JNICALL
-JNI_NAME(nRender)(JNIEnv* env, jobject, jlong handle, jstring instanceKey,
+JNI_M(nRender)(JNIEnv* env, jobject, jlong handle, jstring instanceKey,
                   jobject snapshotBuf, jint resourceKind) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     if (!mod || !instanceKey || !snapshotBuf) return nullptr;
@@ -278,16 +518,37 @@ JNI_NAME(nRender)(JNIEnv* env, jobject, jlong handle, jstring instanceKey,
     in.host = &host;
 
     if (!inst.created) {
+        /* Reset the capture slots: the script builds its quads / textures
+           inside create(), and the previous instance left its list behind. */
+        g_capture_tex_w.clear();
+        g_capture_tex_h.clear();
+        g_capture_quad_verts.clear();
+        g_capture_quad_uv.clear();
+        g_capture_quad_slot.clear();
+        g_capture_quad_stage.clear();
+
         if (mod->create(&in) != 0) {
             /* same failure semantics as a JS script that throws in
                create(): drop the instance, let the host cool it down */
             return nullptr;
         }
         inst.created = true;
+
+        /* Ask Java for the real resources the script just described. */
+        if (!resolve_captured_resources(env, mod, inst)) {
+            return nullptr;
+        }
     }
 
     JcmFrameOutput out{};
     if (mod->render(&in, &out) != 0) return nullptr;
+
+    /* v4/v5: swap the script's slot handles for the real JVM handles and
+       drop records that have nothing to draw/upload into. */
+    int32_t keptRecords = out.record_count;
+    int32_t keptLen = 0;
+    patch_frame_handles(inst, out, &keptRecords, &keptLen);
+    out.record_count = keptRecords;
 
     /* wrap the module-owned arenas as NIO ByteBuffers (zero copy).
        Valid until the next nRender on this module — the replay step
@@ -322,7 +583,7 @@ JNI_NAME(nRender)(JNIEnv* env, jobject, jlong handle, jstring instanceKey,
 /* ------------------------------------------------------------------ */
 
 extern "C" JNIEXPORT void JNICALL
-JNI_NAME(nDisposeInstance)(JNIEnv* env, jobject, jlong handle, jstring instanceKey) {
+JNI_M(nDisposeInstance)(JNIEnv* env, jobject, jlong handle, jstring instanceKey) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     if (!mod || !instanceKey) return;
     const char* key = env->GetStringUTFChars(instanceKey, nullptr);
@@ -348,7 +609,7 @@ JNI_NAME(nDisposeInstance)(JNIEnv* env, jobject, jlong handle, jstring instanceK
 }
 
 extern "C" JNIEXPORT void JNICALL
-JNI_NAME(nClose)(JNIEnv*, jobject, jlong handle) {
+JNI_M(nClose)(JNIEnv*, jobject, jlong handle) {
     auto* mod = reinterpret_cast<BridgeModule*>(handle);
     if (!mod) return;
     {
