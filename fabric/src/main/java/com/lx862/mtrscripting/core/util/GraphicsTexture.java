@@ -123,7 +123,7 @@ public class GraphicsTexture implements Closeable {
     }
 
     /**
-     * Upload a rectangle from raw <b>ABGR bytes</b> (little-endian ARGB —
+     * Upload a rectangle from raw <b>BGRA bytes</b> (little-endian ARGB —
      * exactly how a native script stores its {@code uint32} pixels) into
      * {@link #bufferedImage} at (dstOffsetX, dstOffsetY), then push that
      * rectangle to the GL texture.
@@ -137,7 +137,7 @@ public class GraphicsTexture implements Closeable {
      * plus a 4-byte lookup table rather than per pixel: a 4 Mpx rect costs a
      * few ms instead of tens of ms.
      *
-     * @param source   {@code width*height*4} bytes, row-major, ABGR order
+     * @param source   {@code width*height*4} bytes, row-major, BGRA order
      * @param ppm      lookup table of size {@code 4 * (maxByteValue + 1)}
      */
     public void uploadRawABGR(byte[] source, int dstOffsetX, int dstOffsetY,
@@ -163,9 +163,9 @@ public class GraphicsTexture implements Closeable {
             final int base = (dstOffsetY + row) * stride + dstOffsetX;
             for (int col = 0; col < width; col++) {
                 dst[base + col] = ppm[lutA + (source[src + 3] & 0xFF)]
-                                | ppm[lutR + (source[src + 0] & 0xFF)]
+                                | ppm[lutR + (source[src + 2] & 0xFF)]
                                 | ppm[lutG + (source[src + 1] & 0xFF)]
-                                | ppm[lutB + (source[src + 2] & 0xFF)];
+                                | ppm[lutB + (source[src + 0] & 0xFF)];
                 src += 4;
             }
         }

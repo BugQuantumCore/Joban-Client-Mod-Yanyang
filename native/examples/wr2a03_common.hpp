@@ -763,17 +763,18 @@ inline ScreenSize compute_screen_size() {
  */
 inline int32_t acquire_quad(const JcmHostServices* host, int32_t texture_handle,
                             const double pos[4][3], float u1, float v1,
-                            float u2, float v2, int32_t render_stage = 1) {
+                            float u2, float v2, int32_t render_stage = 1,
+                            double offset_z = 0) {
     if (!host || !host->acquire_quad_model || texture_handle < 0) return -1;
 
     float verts[12];
     for (int i = 0; i < 4; i++) {
         verts[i * 3 + 0] = static_cast<float>(pos[i][0]);
         verts[i * 3 + 1] = static_cast<float>(pos[i][1]);
-        verts[i * 3 + 2] = static_cast<float>(pos[i][2]);
+        verts[i * 3 + 2] = static_cast<float>(pos[i][2] + offset_z);
     }
-    /* UV 顺序与顶点一致：v0→(u1,v1), v1→(u2,v1), v2→(u2,v2), v3→(u1,v2) */
-    const float uv[8] = {u1, v1, u2, v1, u2, v2, u1, v2};
+    /* DisplayHelper: top-left, bottom-left, bottom-right, top-right. */
+    const float uv[8] = {u1, v1, u1, v2, u2, v2, u2, v1};
     return host->acquire_quad_model(host->user, verts, uv, 4, render_stage,
                                     texture_handle);
 }

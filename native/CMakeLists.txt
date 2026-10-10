@@ -3,6 +3,11 @@ project(mtr-native-scripting CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if(MSVC)
+    # Resource packs and the embedded JNI bridge must not require a separate
+    # Visual C++ redistributable installation.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -119,6 +124,20 @@ if(UNIX)
     target_link_libraries(wr2a03_smoke PRIVATE ${CMAKE_DL_LIBS})
 endif()
 add_dependencies(wr2a03_smoke wr2a03_lcd wr2a03_train_num)
+
+include(CTest)
+add_executable(native_regression bench/native_regression.cpp)
+target_link_libraries(native_regression PRIVATE mtr_script_sdk)
+add_executable(native_abi_layout bench/native_abi_layout.cpp)
+target_link_libraries(native_abi_layout PRIVATE mtr_script_sdk)
+add_test(NAME native_regression COMMAND native_regression)
+add_test(NAME wr2a03_smoke COMMAND wr2a03_smoke $<TARGET_FILE_DIR:wr2a03_lcd>)
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(JNI_FOUND AND Python3_FOUND)
+    add_test(NAME native_jvm_integration
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/bench/jvm_test.py
+                --build ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 
 # install rule: copy script libraries into a resource-pack layout
 install(TARGETS vehicle_lcd pids_arrivals eyecandy_signal jslcd_vehicle jslcd_train_num

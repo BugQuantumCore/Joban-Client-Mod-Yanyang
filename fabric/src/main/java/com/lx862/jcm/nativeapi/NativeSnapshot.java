@@ -24,7 +24,7 @@ import java.util.Map;
  * sequential write here, and the script then reads plain memory.
  *
  * <p><b>The byte layout must match {@code native/include/mtr/mtr_native.h}
- * (ABI 5).</b> Offsets are written through named constants rather than a
+ * (ABI 6).</b> Offsets are written through named constants rather than a
  * chain of relative {@code put} calls, so an accidental reorder becomes a
  * name error instead of silent corruption. {@link #selfCheck()} validates
  * the struct sizes at load time.
@@ -39,7 +39,7 @@ public final class NativeSnapshot {
     public static final int CAPACITY = 256 * 1024;
 
     /* ---- JcmVehicleSnapshot ---- */
-    private static final int SZ_VEHICLE = 176;
+    private static final int SZ_VEHICLE = 184;
     private static final int OFF_VEHICLE_ID = 0;
     private static final int OFF_SIDING_ID = 8;
     private static final int OFF_THIS_ROUTE_ID = 16;
@@ -52,29 +52,29 @@ public final class NativeSnapshot {
     private static final int OFF_DOOR_VALUE = 64;
     private static final int OFF_NOTCH_LEVEL = 72;
     private static final int OFF_FLAGS = 76;
-    private static final int OFF_TOTAL_DWELL = 80;
-    private static final int OFF_ELAPSED_DWELL = 88;
-    private static final int OFF_GAME_TIME = 96;
-    private static final int OFF_IN_GAME_TIME = 104;
-    private static final int OFF_CAR_OFFSET = 112;
-    private static final int OFF_STOP_COUNT = 116;
-    private static final int OFF_STOP_OFFSET = 120;
-    private static final int OFF_THIS_ROUTE_STOP_COUNT = 124;
-    private static final int OFF_THIS_ROUTE_STOP_OFFSET = 128;
-    private static final int OFF_NEXT_ROUTE_STOP_COUNT = 132;
-    private static final int OFF_NEXT_ROUTE_STOP_OFFSET = 136;
-    private static final int OFF_NEXT_STOP_INDEX = 140;
-    private static final int OFF_ROUTE_NAME_OFFSET = 144;
-    private static final int OFF_ROUTE_NAME_LEN = 148;
-    private static final int OFF_ROUTE_COLOR = 152;
-    private static final int OFF_CIRCULAR_STATE = 156;
-    private static final int OFF_SIDING_NAME_OFFSET = 160;
-    private static final int OFF_SIDING_NAME_LEN = 164;
-    private static final int OFF_STRING_POOL_OFFSET = 168;
-    private static final int OFF_STRING_POOL_LEN = 172;
+    private static final int OFF_TOTAL_DWELL = 88;
+    private static final int OFF_ELAPSED_DWELL = 96;
+    private static final int OFF_GAME_TIME = 104;
+    private static final int OFF_IN_GAME_TIME = 112;
+    private static final int OFF_CAR_OFFSET = 120;
+    private static final int OFF_STOP_COUNT = 124;
+    private static final int OFF_STOP_OFFSET = 128;
+    private static final int OFF_THIS_ROUTE_STOP_COUNT = 132;
+    private static final int OFF_THIS_ROUTE_STOP_OFFSET = 136;
+    private static final int OFF_NEXT_ROUTE_STOP_COUNT = 140;
+    private static final int OFF_NEXT_ROUTE_STOP_OFFSET = 144;
+    private static final int OFF_NEXT_STOP_INDEX = 148;
+    private static final int OFF_ROUTE_NAME_OFFSET = 152;
+    private static final int OFF_ROUTE_NAME_LEN = 156;
+    private static final int OFF_ROUTE_COLOR = 160;
+    private static final int OFF_CIRCULAR_STATE = 164;
+    private static final int OFF_SIDING_NAME_OFFSET = 168;
+    private static final int OFF_SIDING_NAME_LEN = 172;
+    private static final int OFF_STRING_POOL_OFFSET = 176;
+    private static final int OFF_STRING_POOL_LEN = 180;
 
     /* ---- JcmCar ---- */
-    private static final int SZ_CAR = 24;
+    private static final int SZ_CAR = 20;
     private static final int CAR_LENGTH = 0;
     private static final int CAR_WIDTH = 4;
     private static final int CAR_LEFT_DOOR = 8;
@@ -84,7 +84,7 @@ public final class NativeSnapshot {
     private static final int CAR_TYPE_LEN = 16;
 
     /* ---- JcmStop ---- */
-    private static final int SZ_STOP = 104;
+    private static final int SZ_STOP = 88;
     private static final int STOP_ROUTE_ID = 0;
     private static final int STOP_STATION_ID = 8;
     private static final int STOP_PLATFORM_ID = 16;
@@ -113,7 +113,7 @@ public final class NativeSnapshot {
 
     /** Cheap ABI sanity probe; a mismatch means the jar and the .dll disagree. */
     public static boolean selfCheck() {
-        return SZ_VEHICLE == 176 && SZ_CAR == 24 && SZ_STOP == 104
+        return SZ_VEHICLE == 184 && SZ_CAR == 20 && SZ_STOP == 88
                 && SZ_INTERCHANGE == 12 && SZ_EXIT == 16 && SZ_STR_REF == 8;
     }
 
@@ -127,6 +127,11 @@ public final class NativeSnapshot {
         final List<VehicleWrapper.Stop> allStops = new ArrayList<>(v.getStops());
         final List<VehicleWrapper.Stop> thisRouteStops = new ArrayList<>(v.getThisRouteStops());
         final List<VehicleWrapper.Stop> nextRouteStops = new ArrayList<>(v.getNextRouteStops());
+        final int allStopCount = allStops.size();
+        // Current and next routes need their own contiguous ranges. The
+        // current route is not necessarily the prefix of a multi-route trip.
+        allStops.addAll(thisRouteStops);
+        allStops.addAll(nextRouteStops);
         final int carCount = v.getCarCount();
 
         out.clear();
@@ -184,6 +189,7 @@ public final class NativeSnapshot {
         }
 
         /* ---- stops (reserve; filled after the pool is known) ---- */
+        out.position((out.position() + 7) & ~7); // JcmStop contains int64/double
         final int stopOffset = out.position();
         out.position(stopOffset + allStops.size() * SZ_STOP);
 
@@ -222,13 +228,14 @@ public final class NativeSnapshot {
                 out.putInt(p, nameRef[0]);
                 out.putInt(p + 4, nameRef[1]);
 
+                out.position((out.position() + 3) & ~3);
                 final int refOffset = out.position();
-                for (String d : ex.destinations) {
-                    final int[] dref = pool.add(d);
-                    final int q = out.position();
+                out.position(refOffset + ex.destinations.size() * SZ_STR_REF);
+                for (int k = 0; k < ex.destinations.size(); k++) {
+                    final int[] dref = pool.add(ex.destinations.get(k));
+                    final int q = refOffset + k * SZ_STR_REF;
                     out.putInt(q, dref[0]);
                     out.putInt(q + 4, dref[1]);
-                    out.position(q + SZ_STR_REF);
                 }
                 out.putInt(p + 12, refOffset);
             }
@@ -272,14 +279,13 @@ public final class NativeSnapshot {
         out.putLong(OFF_GAME_TIME, System.currentTimeMillis());
         out.putLong(OFF_IN_GAME_TIME, 0);
         out.putInt(OFF_CAR_OFFSET, carOffset);
-        out.putInt(OFF_STOP_COUNT, allStops.size());
+        out.putInt(OFF_STOP_COUNT, allStopCount);
         out.putInt(OFF_STOP_OFFSET, stopOffset);
         out.putInt(OFF_THIS_ROUTE_STOP_COUNT, thisRouteStops.size());
-        /* this-route stops are a prefix of allStops in the JCM data model */
-        out.putInt(OFF_THIS_ROUTE_STOP_OFFSET, stopOffset);
+        out.putInt(OFF_THIS_ROUTE_STOP_OFFSET, stopOffset + allStopCount * SZ_STOP);
         out.putInt(OFF_NEXT_ROUTE_STOP_COUNT, nextRouteStops.size());
         out.putInt(OFF_NEXT_ROUTE_STOP_OFFSET,
-                stopOffset + Math.min(thisRouteStops.size(), allStops.size()) * SZ_STOP);
+                stopOffset + (allStopCount + thisRouteStops.size()) * SZ_STOP);
         out.putInt(OFF_NEXT_STOP_INDEX, v.getNextStopIndex(thisRouteStops));
         out.putInt(OFF_ROUTE_NAME_OFFSET, routeNameRef[0]);
         out.putInt(OFF_ROUTE_NAME_LEN, routeNameRef[1]);

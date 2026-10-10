@@ -6,12 +6,15 @@ import com.lx862.jcm.mod.util.JCMLogger;
 import org.mtr.mapping.holder.Identifier;
 import org.mtr.mapping.mapper.ResourceManagerHelper;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,15 +76,32 @@ import java.util.concurrent.ConcurrentHashMap;
  * the JDK (native/jni_bridge.cpp implements the C side).
  */
 public final class NativeScriptManager {
-    private static final int ABI_VERSION = 3; /* must match mtr_native.h */
+    /* Must match MTR_NATIVE_ABI_VERSION in native/include/mtr/mtr_native.h.
+       v6 = mtrInit(): the host must construct the per-instance state object
+       instead of treating a zeroed block as a valid one. A zeroed block is NOT
+       a valid State when State holds std::string / std::vector — libstdc++
+       keeps the SSO buffer pointer inline, so a zeroed std::string dereferences
+       null (immediate SIGSEGV on Linux/macOS); only MSVC's layout tolerated it.
+       v5 = JcmStop.route_circular_state (per-stop route CircularState, so the
+       LCD port's 环线检测 can walk the stop list like circular.js does). */
+    private static final int ABI_VERSION = 6;
 
     /* Route.CircularState mapping (v2 snapshots). */
     public static final int CIRCULAR_NONE = 0;
     public static final int CIRCULAR_CLOCKWISE = 1;
     public static final int CIRCULAR_ANTICLOCKWISE = 2;
 
-    /* Loaded modules keyed by script id. */
-    private static final Map<String, NativeScriptModule> MODULES = new ConcurrentHashMap<>();
+    /* Loaded modules keyed by script id.
+     *
+     * MULTI-MODULE (Yanyang): an id maps to a LIST because MTR's vehicle
+     * schema has exactly one `scriptId` per vehicle entry, while a resource
+     * pack often needs several C++ libraries to drive one train (our pack
+     * ports main.js AND train_num.js, which the JS route used to load as two
+     * entries of the same `scriptLocations` array). Declare them with
+     * "nativeLibraries": [ ... ] and every module runs for the same script
+     * id; their draw-call frames are concatenated in declaration order, which
+     * is the same capture/replay order the JS pipeline produced. */
+    private static final Map<String, List<NativeScriptModule>> MODULES = new ConcurrentHashMap<>();
 
     /* Platform-skipped declarations keyed by script id (reason string).
        Filled by loadFromDeclaration when the running OS/arch has no
@@ -109,6 +129,13 @@ public final class NativeScriptManager {
     private static volatile DebugNotifier debugNotifier;
 
     private NativeScriptManager() {}
+
+    private static native void nativeSetHost(NativeHost host);
+
+    private static boolean installBridgeHost() {
+        nativeSetHost(NativeHost.get());
+        return true;
+    }
 
     /* ------------------------------------------------------------------ */
     /* Platform detection                                                  */
@@ -145,13 +172,40 @@ public final class NativeScriptManager {
     /* ------------------------------------------------------------------ */
 
     public static void reload() {
-        MODULES.values().forEach(NativeScriptModule::dispose);
+        final int before = getModules().size();
+        if (before > 0) {
+            JCMLogger.info("Native scripts: reloading, dropping {} loaded module(s)", before);
+        }
+        MODULES.values().forEach(list -> list.forEach(NativeScriptModule::dispose));
         MODULES.clear();
         SKIPPED.clear();
         INSTANCE_STATES.clear();
+        /* Every per-instance native state and every JVM-side resource the old
+           modules created is invalid now: the modules they came from are gone,
+           so the handles would dangle. */
+        NativeVehicleDriver.reset();
+        NativeHost.get().reset();
         /* Actual discovery walks the same mtr_custom_resources.json
            entries as MTRContentResourceManager, filtering
            language == "cpp", and calls load(...) below. */
+    }
+
+    /** Diagnostics: log the post-discovery module census once per reload. */
+    public static void logCensus() {
+        final int total = getModules().size();
+        if (total == 0 && SKIPPED.isEmpty()) {
+            JCMLogger.warn("Native scripts: no module loaded and no declaration skipped — "
+                    + "no mtr_custom_resources.json entry with \"language\": \"cpp\" was seen");
+            return;
+        }
+        JCMLogger.info("Native scripts: {} module(s) loaded, {} declaration(s) skipped",
+                total, SKIPPED.size());
+        for (Map.Entry<String, List<NativeScriptModule>> e : MODULES.entrySet()) {
+            for (NativeScriptModule m : e.getValue()) {
+                JCMLogger.info("  id '{}' <- {} ({})", e.getKey(), m.getScriptId(), m.getSourcePath());
+            }
+        }
+        SKIPPED.forEach((id, why) -> JCMLogger.info("  skipped '{}': {}", id, why));
     }
 
     /**
@@ -159,6 +213,13 @@ public final class NativeScriptManager {
      * packs can't be dlopen'd from inside a jar/zip) and load it.
      */
     public static NativeScriptModule load(String scriptId, String libraryPath) {
+        if (!NativeScriptModule.isBridgeAvailable()) {
+            /* No bridge → no C++ scripts at all. Keep the id in SKIPPED so
+               validate() and the debug overlay report it instead of
+               claiming the script is "missing". */
+            SKIPPED.put(scriptId, "native bridge unavailable (jcm_native_bridge not loaded)");
+            return null;
+        }
         try {
             final Identifier libId = new Identifier(libraryPath);
             final byte[] lib = readResourceBytes(libId);
@@ -174,18 +235,29 @@ public final class NativeScriptManager {
             extracted.toFile().deleteOnExit();
 
             final NativeScriptModule module = new NativeScriptModule(scriptId, extracted.toAbsolutePath().toString());
+            if (module.getNativeHandle() == 0) {
+                JCMLogger.error("Native script {}: could not open {} (see the bridge log above).",
+                        scriptId, libraryPath);
+                return null;
+            }
             if (module.abiVersion != ABI_VERSION) {
                 JCMLogger.error("Native script {} has ABI version {} (host {}), refusing to load.",
                         scriptId, module.abiVersion, ABI_VERSION);
                 module.dispose();
                 return null;
             }
-            MODULES.put(scriptId, module);
+            addModule(scriptId, module);
             return module;
         } catch (IOException e) {
             JCMLogger.error("Failed to load native script {}: {}", scriptId, e.getMessage());
             return null;
         }
+    }
+
+    /** Append one module to a script id's module list (declaration order). */
+    private static void addModule(String scriptId, NativeScriptModule module) {
+        MODULES.computeIfAbsent(scriptId, k -> Collections.synchronizedList(new ArrayList<>()))
+               .add(module);
     }
 
     private static byte[] readResourceBytes(Identifier id) {
@@ -231,6 +303,87 @@ public final class NativeScriptManager {
             SKIPPED.put(scriptId, "failed to load " + resolved + " (see latest.log)");
         }
         return module;
+    }
+
+    /**
+     * MULTI-MODULE entry point — one script id, N native libraries.
+     *
+     * MTR's vehicle schema carries a single `scriptId`, but a pack often
+     * needs several C++ libraries for one train (our WR2-A03 pack ports
+     * main.js AND train_num.js, which the JS route loaded as two entries
+     * of one `scriptLocations` array). Declaring
+     *
+     *     "vehicleScripts": [{
+     *         "id": "wr2a03", "language": "cpp",
+     *         "nativeLibraries": [
+     *             "mtr:wr2a03/natives/wr2a03_lcd",
+     *             "mtr:wr2a03/natives/wr2a03_train_num"
+     *         ]
+     *     }]
+     *
+     * loads every library under the same id; each entry may be a
+     * platform-agnostic stem, a full path, or a per-platform object —
+     * exactly like the singular `nativeLibrary` field. The single
+     * `nativeLibrary` field keeps working (it is treated as a one-element
+     * list), so existing packs need no change.
+     *
+     * @return number of modules that loaded successfully.
+     */
+    public static int loadManyFromDeclaration(String scriptId, JsonElement declared) {
+        if (declared == null || declared.isJsonNull()) {
+            skipScript(scriptId, declared);
+            return 0;
+        }
+        /* Idempotent on purpose. MtrScriptingResourceManager parses
+           mtr_custom_resources.json TWICE per reload — once for the normal file
+           and once for the pending-migration variant — so every native
+           declaration reaches this method twice. Without the guard each library
+           is dlopen'd twice, registered twice, and mtrCreate'd twice against the
+           SAME per-instance state block: the debug overlay grew by two entries
+           per reload, and the duplicate modules each replayed their draw calls. */
+        final List<NativeScriptModule> already = getModules(scriptId);
+        if (!already.isEmpty()) {
+            JCMLogger.debug("Native script {}: declaration seen again, keeping {} module(s)",
+                    scriptId, already.size());
+            return already.size();
+        }
+        final List<JsonElement> entries = new ArrayList<>();
+        if (declared.isJsonArray()) {
+            for (JsonElement e : declared.getAsJsonArray()) entries.add(e);
+        } else {
+            entries.add(declared);
+        }
+
+        int loaded = 0;
+        final List<String> failed = new ArrayList<>();
+        for (JsonElement entry : entries) {
+            final String resolved = resolvePlatformLibrary(entry);
+            if (resolved == null) {
+                failed.add(String.valueOf(entry));
+                continue;
+            }
+            if (load(scriptId, resolved) != null) {
+                loaded++;
+            } else {
+                failed.add(resolved);
+            }
+        }
+
+        if (loaded == 0) {
+            SKIPPED.put(scriptId, "no nativeLibrary entry of "
+                    + entries.size() + " could be loaded on " + getPlatformKeyExact()
+                    + " (see latest.log)");
+            notifyDebug("Native script " + scriptId + ": none of the "
+                    + entries.size() + " declared libraries loaded — see latest.log");
+        } else {
+            if (!failed.isEmpty()) {
+                /* partial success: the id IS running, but say what is missing */
+                JCMLogger.warn("Native script {}: {} of {} libraries loaded; failed/skipped: {}",
+                        scriptId, loaded, entries.size(), String.join(", ", failed));
+            }
+            SKIPPED.remove(scriptId);
+        }
+        return loaded;
     }
 
     private static void skipScript(String scriptId, JsonElement declared) {
@@ -386,9 +539,20 @@ public final class NativeScriptManager {
         return SKIPPED.containsKey(scriptId);
     }
 
-    /** Unmodifiable view of loaded modules, for the debug overlay. */
-    public static Map<String, NativeScriptModule> getModules() {
-        return Collections.unmodifiableMap(MODULES);
+    /** Unmodifiable, flattened view of loaded modules (debug overlay). */
+    public static List<NativeScriptModule> getModules() {
+        final List<NativeScriptModule> out = new ArrayList<>();
+        for (List<NativeScriptModule> list : MODULES.values()) {
+            synchronized (list) { out.addAll(list); }
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    /** Loaded modules for one script id, in declaration order (never null). */
+    public static List<NativeScriptModule> getModules(String scriptId) {
+        final List<NativeScriptModule> list = MODULES.get(scriptId);
+        if (list == null) return Collections.emptyList();
+        synchronized (list) { return Collections.unmodifiableList(new ArrayList<>(list)); }
     }
 
     /** Unmodifiable view of skipped declarations (id -> reason). */
@@ -401,20 +565,45 @@ public final class NativeScriptManager {
     /* ------------------------------------------------------------------ */
 
     /**
-     * One frame of a vehicle script. Mirrors RenderVehiclesMixin:
-     * build the snapshot, run mtrRender, translate records.
+     * One frame of a vehicle script. Mirrors RenderVehiclesMixin: the caller
+     * marshals the snapshot ONCE (and skips this call entirely if that fails),
+     * then every module registered for the id runs against it.
      *
-     * @return frame records for replay, or null on cooldown/error.
+     * @param snapshotBuf a buffer already filled by
+     *        {@link NativeSnapshot#build}; must have been written successfully —
+     *        the bridge hands the module the WHOLE capacity, so a partial
+     *        snapshot would be read as a valid one.
+     *
+     * The returned frames are in declaration order — the host replays them
+     * in that order, which reproduces the JS pipeline's record order for a
+     * multi-file `scriptLocations` entry.
+     *
+     * @return one NativeFrame per module that rendered this frame (possibly
+     *         empty), never null.
      */
-    public static NativeFrame renderVehicle(String instanceKey, String scriptId,
-                                             VehicleSnapshotBuilder snapshot) {
-        final NativeScriptModule module = MODULES.get(scriptId);
-        if (module == null || !"vehicle".equals(module.scriptType)) return null;
+    public static List<NativeFrame> renderVehicle(String instanceKey, String scriptId,
+                                                   ByteBuffer snapshotBuf) {
+        final List<NativeScriptModule> modules = getModules(scriptId);
+        if (modules.isEmpty()) return Collections.emptyList();
+        if (snapshotBuf == null) return Collections.emptyList();
 
-        final ByteBuffer snapshotBuf = snapshot.build(
-                ByteBuffer.allocateDirect(SNAPSHOT_CAPACITY).order(ByteOrder.nativeOrder()));
-
-        return module.render(instanceKey, snapshotBuf, MTR_RESOURCE_VEHICLE);
+        /* Tell the host which instance owns the handles it is about to see:
+           texture/model handles are per-instance SLOTS, so both the resource
+           creation (first frame) and every later upload need the key. */
+        final List<NativeFrame> frames = new ArrayList<>(modules.size());
+        for (NativeScriptModule module : modules) {
+            if (!"vehicle".equals(module.scriptType)) continue;
+            // A script entry can contain several libraries. Their texture slots
+            // start at zero independently, so ownership must include the module.
+            final String moduleInstanceKey = instanceKey + "/module/" + module.nativeHandle;
+            NativeHost.get().setPendingInstance(moduleInstanceKey);
+            final NativeFrame frame = module.render(moduleInstanceKey, snapshotBuf, MTR_RESOURCE_VEHICLE);
+            if (frame != null) {
+                frame.instanceKey = moduleInstanceKey;
+                frames.add(frame);
+            }
+        }
+        return frames;
     }
 
     /* Resource kind ids, must match MtrResourceKind in mtr_native.h. */
@@ -430,6 +619,8 @@ public final class NativeScriptManager {
      * layouts (they are plain C structs over this ByteBuffer).
      */
     public static final class NativeFrame {
+        /** Host resource owner; set before the frame reaches the replay driver. */
+        public String instanceKey;
         public final ByteBuffer records;   /* JcmDraw* array */
         public final int recordCount;
         public final ByteBuffer stringArena;
@@ -447,32 +638,17 @@ public final class NativeScriptManager {
     }
 
     /**
-     * VehicleSnapshotBuilder — flattens VehicleWrapper's getters into
-     * the JcmVehicleSnapshot POD. This replaces the hundreds of
-     * reflective NativeJavaObject getter calls the JS path makes per
-     * frame with a single sequential write.
+     * VehicleSnapshotBuilder — historical hook.
      *
-     * v2 (ABI 2) fields the builder must write before string_pool:
-     *   route_name_offset/len  — thisRouteStops.get(0).route.name
-     *   route_color            — thisRouteStops.get(0).route.color (ARGB)
-     *   circular_state          — same route's CircularState
-     *                             (CIRCULAR_* constants above), which
-     *                             native scripts use for the 环线/直线
-     *                             LCD branch selection (see
-     *                             examples/jslcd_vehicle.cpp, the port
-     *                             of the community JS LCD script).
-     *
-     * v3 (ABI 3) per-stop fields (JcmStop, in this order):
-     *   exit_count / exit_offset — station.getExits() flattened as a
-     *                             JcmExit[] pool; each JcmExit carries
-     *                             name + a JcmStrRef[] destination list
-     *                             (station.getExits().get(k)
-     *                             .getName() / .getDestinations()).
-     *                             Write 0/0 when the station exposes no
-     *                             exits — the native draw_exit_info port
-     *                             bails out identically to the JS guard
-     *                             `if (!exits || exits.length === 0)`.
+     * <p>The snapshot is now marshalled by the caller (NativeVehicleDriver)
+     * BEFORE {@link #renderVehicle} is reached, so a marshal failure can skip
+     * the native call instead of handing mtrRender a half-written buffer. The
+     * JNI bridge passes {@code GetDirectBufferCapacity} to the module, i.e. the
+     * whole 256 KB block regardless of how much was actually written, so a
+     * partial snapshot means the script reads a garbage car_count/stop_count and
+     * walks off the end of the blob.
      */
+    @Deprecated
     public interface VehicleSnapshotBuilder {
         ByteBuffer build(ByteBuffer out);
     }
@@ -482,11 +658,131 @@ public final class NativeScriptManager {
     /* ------------------------------------------------------------------ */
 
     public static final class NativeScriptModule {
-        static {
-            /* The C-side dispatcher lives in the host bridge library,
-               not in each script module (keeps exports per module to
-               the 5 mtr* functions declared in mtr_native.h). */
-            System.loadLibrary("jcm_native_bridge");
+        /**
+         * The C-side dispatcher lives in ONE shared library
+         * (jcm_native_bridge.{dll,so,dylib}), not in each script module.
+         *
+         * The bridge is a JNI library, so it must live on
+         * java.library.path (or be extracted next to the loader) — resource
+         * packs cannot System.load() from inside a zip. When it is missing
+         * we DO NOT throw: an UnsatisfiedLinkError inside a static
+         * initialiser would turn a missing optional file into a
+         * NoClassDefFoundError for every caller (including the resource
+         * providers that only want to ask isLoaded()). Instead the class
+         * loads, the bridge is reported unavailable, and load() returns
+         * null with a single actionable log line.
+         */
+        private static final boolean BRIDGE_AVAILABLE = loadBridge();
+
+        /**
+         * Load the JNI bridge.
+         *
+         * <p><b>Why this is not just {@code System.loadLibrary}:</b> on a modern
+         * launcher {@code java.library.path} points at the loader's own natives
+         * directory (e.g. {@code .minecraft/versions/fabric-loader-…-natives}),
+         * NOT at {@code mods/}. {@code System.loadLibrary} searches only
+         * {@code java.library.path}, so a bridge sitting right next to the JCM
+         * jar — which is the documented, obvious thing to do — is never found:
+         *
+         * <pre>UnsatisfiedLinkError: no jcm_native_bridge in java.library.path: …</pre>
+         *
+         * <p>So try the name first (honours an explicit
+         * {@code -Djava.library.path}), then {@code System.load()} the absolute
+         * path inside the known real locations. {@code user.dir} is the game
+         * instance directory and the JCM jar's own directory is on the code
+         * source, which covers both flat {@code mods/} installs and
+         * {@code mods/.fabric/} nested ones.
+         */
+        private static boolean loadBridge() {
+            final String bundled = "/assets/jcm/natives/" + getPlatformKeyExact() + "/" + bridgeFileName();
+            try (java.io.InputStream stream = NativeScriptManager.class.getResourceAsStream(bundled)) {
+                if (stream != null) {
+                    final String suffix = bridgeFileName().substring(bridgeFileName().lastIndexOf('.'));
+                    final Path extracted = Files.createTempFile("jcm_native_bridge_", suffix);
+                    extracted.toFile().deleteOnExit();
+                    Files.copy(stream, extracted, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    System.load(extracted.toAbsolutePath().toString());
+                    JCMLogger.info("Native scripting bridge loaded from bundled {}", bundled);
+                    return installBridgeHost();
+                }
+            } catch (IOException | UnsatisfiedLinkError e) {
+                JCMLogger.warn("Bundled native scripting bridge {} failed to load: {}", bundled, e.toString());
+            }
+            try {
+                System.loadLibrary("jcm_native_bridge");
+                return installBridgeHost();
+            } catch (UnsatisfiedLinkError e) {
+                /* fall through to the explicit search */
+            }
+
+            final String fileName = bridgeFileName();
+            final List<File> candidates = bridgeCandidates(fileName);
+            for (File candidate : candidates) {
+                if (!candidate.isFile()) continue;
+                try {
+                    System.load(candidate.getAbsolutePath());
+                    JCMLogger.info("Native scripting bridge loaded from {}", candidate);
+                    return installBridgeHost();
+                } catch (UnsatisfiedLinkError e) {
+                    JCMLogger.warn("Native scripting bridge {} exists but failed to load: {}",
+                            candidate, e.getMessage());
+                }
+            }
+
+            JCMLogger.warn("Native scripting bridge ({}) not found — C++ ('language': 'cpp') "
+                    + "scripts cannot run. Drop it into {}{}mods{} (next to the JCM jar) "
+                    + "or set -Djava.library.path. Looked in: {}",
+                    fileName, System.getProperty("user.dir"), File.separator, File.separator,
+                    candidates);
+            return false;
+        }
+
+        /** Where the bridge may live, in priority order. */
+        private static List<File> bridgeCandidates(String fileName) {
+            final List<File> out = new ArrayList<>();
+            final String sep = File.separator;
+
+            /* 1) the game instance's mods/ — the documented location */
+            final String userDir = System.getProperty("user.dir");
+            if (userDir != null && !userDir.isEmpty()) {
+                out.add(new File(userDir + sep + "mods" + sep + fileName));
+                /* some launchers keep ISOLATED mods under .minecraft/mods */
+                out.add(new File(userDir + sep + ".minecraft" + sep + "mods" + sep + fileName));
+            }
+
+            /* 2) next to the JCM jar itself (flat mods/ install) */
+            File jarDir = codeSourceDir();
+            if (jarDir != null) {
+                out.add(new File(jarDir, fileName));
+                /* 3) mods/.fabric/ nested layout: the jar sits one level deeper */
+                File parent = jarDir.getParentFile();
+                if (parent != null) out.add(new File(parent, fileName));
+            }
+            return out;
+        }
+
+        /** Directory containing the JCM classes/jar, or null when unknown. */
+        private static File codeSourceDir() {
+            try {
+                final java.security.CodeSource cs =
+                        NativeScriptManager.class.getProtectionDomain().getCodeSource();
+                if (cs == null || cs.getLocation() == null) return null;
+                final File loc = new File(cs.getLocation().toURI());
+                return loc.isDirectory() ? loc : loc.getParentFile();
+            } catch (Throwable t) {
+                return null;
+            }
+        }
+
+        private static String bridgeFileName() {
+            if (getPlatformKey().equals("windows")) return "jcm_native_bridge.dll";
+            if (getPlatformKey().equals("macos")) return "libjcm_native_bridge.dylib";
+            return "libjcm_native_bridge.so";
+        }
+
+        /** True when the JNI bridge library loaded (C++ scripts can run). */
+        public static boolean isBridgeAvailable() {
+            return BRIDGE_AVAILABLE;
         }
 
         private long nativeHandle;       /* dlopen handle */
@@ -511,6 +807,18 @@ public final class NativeScriptManager {
 
         NativeScriptModule(String scriptId, String path) {
             this.nativeHandle = nOpen(path);
+            if (this.nativeHandle == 0) {
+                /* nOpen already logged the concrete dlopen/LoadLibrary
+                   failure; surface the script fields as unknown so the
+                   caller can skip the module instead of NPE-ing. */
+                this.abiVersion = 0;
+                this.scriptType = "";
+                this.scriptId = scriptId;
+                this.stateSize = 0;
+                this.loadedPlatform = getPlatformKeyExact();
+                this.sourcePath = path;
+                return;
+            }
             this.abiVersion = nAbiVersion(nativeHandle);
             this.scriptType = nScriptType(nativeHandle);
             this.scriptId = nScriptId(nativeHandle);
@@ -518,9 +826,26 @@ public final class NativeScriptManager {
             this.loadedPlatform = getPlatformKeyExact();
             this.sourcePath = path;
             if (!scriptId.equals(this.scriptId)) {
-                JCMLogger.warn("Native library declares id {} but was loaded as {}",
-                        this.scriptId, scriptId);
+                /* Expected, not a problem: MTR's vehicle schema carries ONE
+                   scriptId, so a pack that needs several libraries declares them
+                   together under one entry ("wr2a03") while each library keeps
+                   its own self-describing id ("wr2a03:lcd"). The MODULES
+                   registry is keyed by the ENTRY id, which is also what the
+                   driver looks up, so the mismatch is by design. Logged at
+                   debug level to stop it reading like an error. */
+                JCMLogger.debug("Native library {} declares id {} (entry id is {})",
+                        sourcePath, this.scriptId, scriptId);
             }
+        }
+
+        /** False when the module failed to open or failed the ABI check. */
+        public boolean isValid() {
+            return nativeHandle != 0 && abiVersion == ABI_VERSION;
+        }
+
+        /** Raw dlopen/LoadLibrary handle (0 = the module failed to open). */
+        public long getNativeHandle() {
+            return nativeHandle;
         }
 
         public String getScriptId() {

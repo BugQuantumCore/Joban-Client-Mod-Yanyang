@@ -649,7 +649,7 @@ int run(int argc, char** argv) {
            step whose absence segfaults on libstdc++ (zeroed std::string). */
         if (m.init) m.init(&in);
         check(m.create(&in) == 0, "mtrCreate");
-        check(g_textures == 0, "mtrCreate creates no texture yet (lazy on first render)");
+        check(g_textures == 12, "mtrCreate creates all LCD textures before first render");
 
         std::map<int32_t, ReconTex> texes;
         FrameStats stats;
@@ -657,8 +657,8 @@ int run(int argc, char** argv) {
         check(m.render(&in, &out) == 0, "mtrRender frame 1 (linear, full map)");
         apply_frame(out, texes, stats);
         check(g_textures == 12, "12 GraphicsTextures created (6 cars x 2 sides)");
-        check(g_quad_models == 2, "2 host quad models (LCD left + right)");
-        check(stats.models == 12, "12 model draw records (6 cars x 2 screens)");
+        check(g_quad_models == 60, "60 host quads (6 cars x 2 sides x 5 positions)");
+        check(stats.models == 60, "60 LCD draws with a separate texture for each car and side");
         for (int f = 0; f < 5; f++) {
             m.render(&in, &out);
             apply_frame(out, texes, stats);
@@ -735,7 +735,7 @@ int run(int argc, char** argv) {
             Snapshot none = build_snapshot(6, cars, {}, 3000000, 0.0, 0.0, 0,
                                            "", 0, 0, siding, false, false);
             SceneResult r = run_scene(m, none, 3);
-            check(r.stats.models == 36, "no-route: still 12 model draws per frame");
+            check(r.stats.models == 180, "no-route: still 60 model draws per frame");
             if (!r.texes.empty()) {
                 const ReconTex& t = r.texes.begin()->second;
                 check(close_to(sample_px(t, t.w / 2, t.h / 2), 0xFFFFFF, 25),
@@ -777,7 +777,7 @@ int run(int argc, char** argv) {
         check(m.create(&in) == 0, "mtrCreate");
         /* 6 车厢 × 2 侧牌 + 头牌 + 尾牌 = 14 张纹理 */
         check(g_next_texture - texBefore == 14, "14 GraphicsTextures (6x2 plates + head + tail)");
-        check(g_quad_models - quadBefore == 4, "4 host quad models (left/right/fwd/bwd)");
+        check(g_quad_models - quadBefore == 26, "26 host quads (6 cars x 4 side plates + head/tail)");
 
         std::map<int32_t, ReconTex> texes;
         FrameStats stats;
@@ -788,7 +788,7 @@ int run(int argc, char** argv) {
         apply_frame(out, texes, stats);
 
         /* 6 cars x 2 side plates + head + tail = 14 model draws */
-        check(stats.models == 28, "14 model draw records per frame");
+        check(stats.models == 52, "26 model draw records per frame");
         check(texes.size() == 14, "all 14 textures uploaded");
 
         {

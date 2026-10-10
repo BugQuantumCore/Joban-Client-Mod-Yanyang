@@ -181,14 +181,14 @@ typedef struct JcmDrawSound {
     int32_t  sound_len;
 } JcmDrawSound;
 
-/* GraphicsTexture upload: RGBA8 pixels, row-major. */
+/* GraphicsTexture upload: BGRA8 pixels, row-major. */
 typedef struct JcmDrawTextureUpload {
     JcmRecordHeader header;     /* JCM_DRAW_TEXTURE_UPLOAD */
     int32_t  texture_handle;  /* host GraphicsTexture handle (-1: no host texture) */
     int32_t  width;
     int32_t  height;
     int32_t  dirty_x, dirty_y, dirty_w, dirty_h;  /* dirty rect */
-    int64_t  pixel_data_offset; /* into frame pixel arena (RGBA8) */
+    int64_t  pixel_data_offset; /* into frame pixel arena (BGRA8) */
     int64_t  pixel_data_len;   /* dirty_w * dirty_h * 4 */
 } JcmDrawTextureUpload;
 
@@ -412,7 +412,7 @@ typedef struct JcmFrameOutput {
     int64_t  records_len;     /* total bytes of the sequential record stream */
     int64_t  matrix_arena_len;  /* float stream length, in bytes */
     int64_t  string_arena_len;  /* UTF-8 stream, in bytes */
-    int64_t  pixel_arena_len;   /* RGBA8 stream, in bytes */
+    int64_t  pixel_arena_len;   /* BGRA8 stream, in bytes */
     int64_t  float_arena_len;   /* float stream (voxel boxes), in bytes */
     /* Actual arena buffers (host reads, then recycles the frame) */
     const void* records;      /* JcmRecordHeader stream, walk by record_size */
@@ -434,7 +434,7 @@ struct JcmHostServices {
     /* GraphicsTexture lifecycle mirrors GraphicsTexture.java. */
     int32_t (*create_texture)(void* user, int32_t w, int32_t h);
     void    (*release_texture)(void* user, int32_t handle);
-    /* Host TTF rasterization fallback (CJK etc.), writes RGBA8 into
+    /* Host TTF rasterization fallback (CJK etc.), writes BGRA8 into
        the provided buffer. Returns rows written, or -1 if the host
        font does not cover the codepoints (script should fall back
        to the built-in bitmap font). */

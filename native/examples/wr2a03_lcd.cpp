@@ -48,6 +48,8 @@ namespace {
 struct CarScreens {
     GraphicsTexture left;
     GraphicsTexture right;
+    std::array<int32_t, 5> modelsLeft{{-1, -1, -1, -1, -1}};
+    std::array<int32_t, 5> modelsRight{{-1, -1, -1, -1, -1}};
     uint64_t leftSig = 0;      /* repaint-on-change 签名（含 blink） */
     uint64_t rightSig = 0;
     uint64_t leftLaySig = 0;   /* 只看布局的签名（不含 blink） */
@@ -93,8 +95,6 @@ struct Wr2LcdState {
 
     /* --- 原生侧资源 --- */
     std::vector<CarScreens> cars;
-    int32_t modelLeft = -1;
-    int32_t modelRight = -1;
     int screenW = 0, screenH = 0;
     double sx = 1.0, sy = 1.0;
 };
@@ -1217,13 +1217,7 @@ struct Wr2LcdScript : VehicleScript<Wr2LcdState> {
         state.sx = screen.sx;
         state.sy = screen.sy;
 
-        /* 两块屏的四边形模型（纹理先建，UV 指向整张纹理） */
-        if (!state.cars.empty()) {
-            const int32_t texL = state.cars[0].left.handle();
-            const int32_t texR = state.cars[0].right.handle();
-            state.modelLeft = acquire_quad(ctx.host(), texL, LCD_POS_L, 0.f, 0.f, 1.f, 1.f);
-            state.modelRight = acquire_quad(ctx.host(), texR, LCD_POS_R, 0.f, 0.f, 1.f, 1.f);
-        }
+        ensure_cars(ctx.input(), state, train);
 
         /* 初始化状态机（main.js create()） */
         const int64_t now = train.game_time_millis();
@@ -1427,16 +1421,15 @@ struct Wr2LcdScript : VehicleScript<Wr2LcdState> {
             cs.right.upload(ctx.frame());
 
             /* JS: ctx.drawCarModel(dhL.model, ci, null) */
-            ctx.draw_car_model(state.modelLeft, ci, nullptr);
-            ctx.draw_car_model(state.modelRight, ci, nullptr);
+            for (int32_t model : cs.modelsLeft) ctx.draw_car_model(model, ci, nullptr);
+            for (int32_t model : cs.modelsRight) ctx.draw_car_model(model, ci, nullptr);
         }
     }
 
     void dispose(VehicleContext& ctx, Wr2LcdState& state, const Train&) override {
-        release_quad(ctx.host(), state.modelLeft);
-        release_quad(ctx.host(), state.modelRight);
-        state.modelLeft = state.modelRight = -1;
         for (CarScreens& cs : state.cars) {
+            for (int32_t model : cs.modelsLeft) release_quad(ctx.host(), model);
+            for (int32_t model : cs.modelsRight) release_quad(ctx.host(), model);
             cs.left.close(&ctx.input());
             cs.right.close(&ctx.input());
         }
@@ -1450,6 +1443,8 @@ private:
         if (static_cast<int>(state.cars.size()) == carCount && carCount > 0) return;
 
         for (CarScreens& cs : state.cars) {
+            for (int32_t model : cs.modelsLeft) release_quad(in.host, model);
+            for (int32_t model : cs.modelsRight) release_quad(in.host, model);
             cs.left.close(&in);
             cs.right.close(&in);
         }
@@ -1466,18 +1461,13 @@ private:
             CarScreens cs;
             cs.left.create(in, state.screenW, state.screenH);
             cs.right.create(in, state.screenW, state.screenH);
+            for (int j = 0; j < 5; j++) {
+                cs.modelsLeft[j] = acquire_quad(in.host, cs.left.handle(), LCD_POS_L,
+                                                0.f, 0.f, 1.f, 1.f, 1, j * 5.0);
+                cs.modelsRight[j] = acquire_quad(in.host, cs.right.handle(), LCD_POS_R,
+                                                 0.f, 0.f, 1.f, 1.f, 1, j * 5.0);
+            }
             state.cars.push_back(std::move(cs));
-        }
-
-        /* 纹理重新分配后四边形要重新绑定 */
-        release_quad(in.host, state.modelLeft);
-        release_quad(in.host, state.modelRight);
-        state.modelLeft = state.modelRight = -1;
-        if (!state.cars.empty()) {
-            state.modelLeft = acquire_quad(in.host, state.cars[0].left.handle(),
-                                           LCD_POS_L, 0.f, 0.f, 1.f, 1.f);
-            state.modelRight = acquire_quad(in.host, state.cars[0].right.handle(),
-                                            LCD_POS_R, 0.f, 0.f, 1.f, 1.f);
         }
     }
 };

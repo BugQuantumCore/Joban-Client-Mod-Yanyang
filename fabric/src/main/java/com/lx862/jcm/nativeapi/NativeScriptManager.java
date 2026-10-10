@@ -130,6 +130,13 @@ public final class NativeScriptManager {
 
     private NativeScriptManager() {}
 
+    private static native void nativeSetHost(NativeHost host);
+
+    private static boolean installBridgeHost() {
+        nativeSetHost(NativeHost.get());
+        return true;
+    }
+
     /* ------------------------------------------------------------------ */
     /* Platform detection                                                  */
     /* ------------------------------------------------------------------ */
@@ -583,14 +590,18 @@ public final class NativeScriptManager {
         /* Tell the host which instance owns the handles it is about to see:
            texture/model handles are per-instance SLOTS, so both the resource
            creation (first frame) and every later upload need the key. */
-        NativeHost.get().setPendingInstance(instanceKey);
-        NativeHost.get().setActiveInstance(instanceKey);
-
         final List<NativeFrame> frames = new ArrayList<>(modules.size());
         for (NativeScriptModule module : modules) {
             if (!"vehicle".equals(module.scriptType)) continue;
-            final NativeFrame frame = module.render(instanceKey, snapshotBuf, MTR_RESOURCE_VEHICLE);
-            if (frame != null) frames.add(frame);
+            // A script entry can contain several libraries. Their texture slots
+            // start at zero independently, so ownership must include the module.
+            final String moduleInstanceKey = instanceKey + "/module/" + module.nativeHandle;
+            NativeHost.get().setPendingInstance(moduleInstanceKey);
+            final NativeFrame frame = module.render(moduleInstanceKey, snapshotBuf, MTR_RESOURCE_VEHICLE);
+            if (frame != null) {
+                frame.instanceKey = moduleInstanceKey;
+                frames.add(frame);
+            }
         }
         return frames;
     }
@@ -608,6 +619,8 @@ public final class NativeScriptManager {
      * layouts (they are plain C structs over this ByteBuffer).
      */
     public static final class NativeFrame {
+        /** Host resource owner; set before the frame reaches the replay driver. */
+        public String instanceKey;
         public final ByteBuffer records;   /* JcmDraw* array */
         public final int recordCount;
         public final ByteBuffer stringArena;
@@ -681,9 +694,23 @@ public final class NativeScriptManager {
          * {@code mods/.fabric/} nested ones.
          */
         private static boolean loadBridge() {
+            final String bundled = "/assets/jcm/natives/" + getPlatformKeyExact() + "/" + bridgeFileName();
+            try (java.io.InputStream stream = NativeScriptManager.class.getResourceAsStream(bundled)) {
+                if (stream != null) {
+                    final String suffix = bridgeFileName().substring(bridgeFileName().lastIndexOf('.'));
+                    final Path extracted = Files.createTempFile("jcm_native_bridge_", suffix);
+                    extracted.toFile().deleteOnExit();
+                    Files.copy(stream, extracted, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    System.load(extracted.toAbsolutePath().toString());
+                    JCMLogger.info("Native scripting bridge loaded from bundled {}", bundled);
+                    return installBridgeHost();
+                }
+            } catch (IOException | UnsatisfiedLinkError e) {
+                JCMLogger.warn("Bundled native scripting bridge {} failed to load: {}", bundled, e.toString());
+            }
             try {
                 System.loadLibrary("jcm_native_bridge");
-                return true;
+                return installBridgeHost();
             } catch (UnsatisfiedLinkError e) {
                 /* fall through to the explicit search */
             }
@@ -695,7 +722,7 @@ public final class NativeScriptManager {
                 try {
                     System.load(candidate.getAbsolutePath());
                     JCMLogger.info("Native scripting bridge loaded from {}", candidate);
-                    return true;
+                    return installBridgeHost();
                 } catch (UnsatisfiedLinkError e) {
                     JCMLogger.warn("Native scripting bridge {} exists but failed to load: {}",
                             candidate, e.getMessage());

@@ -1,3 +1,23 @@
+# JCM v2.3.0-beta.1-yanyang.4
+
+修复 C++ 车辆脚本已经加载、调试界面可见，但 LCD 和车号牌无法正常渲染的问题。
+
+- 注册 JVM 宿主回调并修正 JNI 方法签名，接通纹理和模型的创建。
+- 按模块及车辆分别持有资源，支持 `create()` 和 `render()` 中的资源申请、车厢数变化和重载释放。
+- 修正车辆快照的结构大小、字段偏移、数组对齐、当前/下一条路线范围及出站口字符串引用。
+- 保留每辆列车各自的 C++ 状态；列车交替渲染时不再析构另一辆列车的状态。
+- 原生车辆回放使用与 JavaScript 相同的车体高度偏移。
+- 修复多个四边形的顶点收集、纹理 BGRA 字节顺序和局部上传的行跨度。
+- WR2-A03 每节车厢使用独立的 LCD、车号纹理，恢复每侧五块 LCD、两处侧车号牌，以及头尾牌的矩形顶点和倾角。
+- 接通宿主 Noto 中文字体回调并缓存字形，避免原生站名退化为空心方框。
+- 每个 jar 内置 Windows-x64、Linux-x64、macOS-x64、macOS-arm64 的 JNI 桥，无需另行安装桥文件。
+
+验证包括编译器实际 ABI 布局与 Java 快照的逐项比较、资源包脚本冒烟测试，以及通过真实 JNI 桥运行生产 Java 宿主的联调测试，覆盖多模块、多列车、独立车号、车厢数变化、像素上传及重载。
+
+本 release 提供 Minecraft 1.17.1、1.18.2、1.19.2、1.19.4、1.20.1、1.20.4 各自的 Fabric 和 Forge jar，共 12 个。C++ 资源包需要使用与本次修复对应的四平台脚本库。
+
+---
+
 # JCM v2.3.0-beta.1-yanyang.3 — Native Vehicle Scripts Actually Render
 
 **New in yanyang.3:** the C++ (native) path is now **fully wired end to end** — native

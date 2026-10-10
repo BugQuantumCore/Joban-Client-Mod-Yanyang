@@ -33,18 +33,21 @@ constexpr double NUM_FONT_SIZE_CAR = 60;    /* drawNum(g, num, 60) */
 constexpr double NUM_FONT_SIZE_HEAD = 30;   /* drawNum(g, num, 30) */
 const char* const NUM_ERROR_TEXT = "请检查侧线名。|Please check the siding name.";
 
-/* 车头 / 车尾牌四边形 (train_num.js 的 getCubeVertices(...) 结果, 旋转 0°) */
+/* Ordered rectangle corners, tilted by -10/+10 degrees around the centre. */
+constexpr double PLATE_Y_TOP = 0.3125 + 0.3125 * 0.984807753012208;
+constexpr double PLATE_Y_BOTTOM = 0.3125 - 0.3125 * 0.984807753012208;
+constexpr double PLATE_Z_TILT = 0.3125 * 0.173648177666930;
 constexpr double FWD_POS[4][3] = {
-    {-1.4375, 0.625,  -10.4875},
-    { 1.4375, 0.0,    -10.4875},
-    { 1.4375, 0.625,  -10.4875},
-    {-1.4375, 0.0,    -10.4875}
+    {-1.4375, PLATE_Y_TOP,    -10.4875 - PLATE_Z_TILT},
+    {-1.4375, PLATE_Y_BOTTOM, -10.4875 + PLATE_Z_TILT},
+    { 1.4375, PLATE_Y_BOTTOM, -10.4875 + PLATE_Z_TILT},
+    { 1.4375, PLATE_Y_TOP,    -10.4875 - PLATE_Z_TILT}
 };
 constexpr double BWD_POS[4][3] = {
-    { 1.4375, 0.625,   10.4875},
-    {-1.4375, 0.0,     10.4875},
-    {-1.4375, 0.625,   10.4875},
-    { 1.4375, 0.0,     10.4875}
+    { 1.4375, PLATE_Y_TOP,    10.4875 + PLATE_Z_TILT},
+    { 1.4375, PLATE_Y_BOTTOM, 10.4875 - PLATE_Z_TILT},
+    {-1.4375, PLATE_Y_BOTTOM, 10.4875 - PLATE_Z_TILT},
+    {-1.4375, PLATE_Y_TOP,    10.4875 + PLATE_Z_TILT}
 };
 
 /* ==================================================================== */
@@ -83,14 +86,14 @@ void draw_error(Gfx2D& g) {
 struct CarNumScreens {
     GraphicsTexture left;
     GraphicsTexture right;
+    std::array<int32_t, 2> modelsLeft{{-1, -1}};
+    std::array<int32_t, 2> modelsRight{{-1, -1}};
 };
 
 struct Wr2TrainNumState {
     std::vector<CarNumScreens> cars;
     GraphicsTexture fwd;
     GraphicsTexture bwd;
-    int32_t modelNumLeft = -1;
-    int32_t modelNumRight = -1;
     int32_t modelFwd = -1;
     int32_t modelBwd = -1;
     std::string sidingNumBefore;    /* JS: state.sidingNumBefore */
@@ -182,8 +185,8 @@ struct Wr2TrainNumScript : VehicleScript<Wr2TrainNumState> {
             CarNumScreens& cs = state.cars[static_cast<size_t>(i)];
             cs.left.upload(ctx.frame());
             cs.right.upload(ctx.frame());
-            ctx.draw_car_model(state.modelNumLeft, i, nullptr);
-            ctx.draw_car_model(state.modelNumRight, i, nullptr);
+            for (int32_t model : cs.modelsLeft) ctx.draw_car_model(model, i, nullptr);
+            for (int32_t model : cs.modelsRight) ctx.draw_car_model(model, i, nullptr);
         }
 
         state.fwd.upload(ctx.frame());
@@ -195,14 +198,13 @@ struct Wr2TrainNumScript : VehicleScript<Wr2TrainNumState> {
     }
 
     void dispose(VehicleContext& ctx, Wr2TrainNumState& state, const Train&) override {
-        release_quad(ctx.host(), state.modelNumLeft);
-        release_quad(ctx.host(), state.modelNumRight);
         release_quad(ctx.host(), state.modelFwd);
         release_quad(ctx.host(), state.modelBwd);
-        state.modelNumLeft = state.modelNumRight = -1;
         state.modelFwd = state.modelBwd = -1;
 
         for (CarNumScreens& cs : state.cars) {
+            for (int32_t model : cs.modelsLeft) release_quad(ctx.host(), model);
+            for (int32_t model : cs.modelsRight) release_quad(ctx.host(), model);
             cs.left.close(&ctx.input());
             cs.right.close(&ctx.input());
         }
@@ -214,6 +216,8 @@ struct Wr2TrainNumScript : VehicleScript<Wr2TrainNumState> {
 private:
     void build_cars(const JcmFrameInput& in, Wr2TrainNumState& state, const Train& train) {
         for (CarNumScreens& cs : state.cars) {
+            for (int32_t model : cs.modelsLeft) release_quad(in.host, model);
+            for (int32_t model : cs.modelsRight) release_quad(in.host, model);
             cs.left.close(&in);
             cs.right.close(&in);
         }
@@ -223,24 +227,22 @@ private:
             CarNumScreens cs;
             cs.left.create(in, NUM_W, NUM_H);
             cs.right.create(in, NUM_W, NUM_H);
+            for (int j = 0; j < 2; j++) {
+                const double offset = j == 0 ? -7.5 : 7.5;
+                cs.modelsLeft[j] = acquire_quad(in.host, cs.left.handle(), NUM_LEFT_POS,
+                                                0.f, 0.f, 1.f, 1.f, 1, offset);
+                cs.modelsRight[j] = acquire_quad(in.host, cs.right.handle(), NUM_RIGHT_POS,
+                                                 0.f, 0.f, 1.f, 1.f, 1, offset);
+            }
             state.cars.push_back(std::move(cs));
         }
     }
 
     void build_models(const JcmFrameInput& in, Wr2TrainNumState& state) {
-        release_quad(in.host, state.modelNumLeft);
-        release_quad(in.host, state.modelNumRight);
         release_quad(in.host, state.modelFwd);
         release_quad(in.host, state.modelBwd);
-        state.modelNumLeft = state.modelNumRight = -1;
         state.modelFwd = state.modelBwd = -1;
 
-        if (!state.cars.empty()) {
-            state.modelNumLeft = acquire_quad(in.host, state.cars[0].left.handle(),
-                                              NUM_LEFT_POS, 0.f, 0.f, 1.f, 1.f);
-            state.modelNumRight = acquire_quad(in.host, state.cars[0].right.handle(),
-                                               NUM_RIGHT_POS, 0.f, 0.f, 1.f, 1.f);
-        }
         if (state.fwd.width() > 0) {
             state.modelFwd = acquire_quad(in.host, state.fwd.handle(),
                                           FWD_POS, 0.f, 0.f, 1.f, 1.f);

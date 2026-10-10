@@ -33,6 +33,7 @@
 #include <cstring>
 #include <new>
 #include <type_traits>
+#include <unordered_set>
 
 namespace mtr {
 
@@ -248,38 +249,27 @@ struct ScriptBox {
        of the block is therefore what decides re-construction — not a plain
        "already initialised" flag, which would silently skip construction for a
        second instance and let the script run on unconstructed memory. */
-    void* state_block = nullptr;
-    bool state_live = false;
+    std::unordered_set<void*> live_states;
 
     using State = typename ScriptType::StateType;
     using Adapter = typename ScriptType::Kind;
 
     /* ABI 6: mtrInit — construct the State inside the host's block.
        Called once per instance, right after the host allocates the block.
-       Idempotent for the SAME block (lifecycle() funnels through here on every
-       frame, and re-constructing each frame would wipe the script's accumulated
-       state); re-constructs as soon as a different block shows up, so a second
-       instance never inherits an unconstructed block. mtrDispose clears the
-       liveness flag, so "init constructs / dispose destroys" stays balanced even
-       if the allocator hands the same address back. */
+       Each live block is constructed once, even when vehicles alternate every
+       frame. Switching to another live instance must not destroy or reset the
+       previous one. Only mtrDispose removes and destroys that instance. */
     void init_state(const JcmFrameInput* in) {
         if (!in) return;
         State* state = resolve_state(*in);
         if (!state) return;
         void* block = static_cast<void*>(state);
 
-        if (state_live && block == state_block) return;
-        if (state_live) {
-            /* a different, still-live block: tear the old object down */
-            if constexpr (!std::is_trivially_default_constructible_v<State>) {
-                static_cast<State*>(state_block)->~State();
-            }
-        }
+        if (live_states.find(block) != live_states.end()) return;
         if constexpr (!std::is_trivially_default_constructible_v<State>) {
             new (static_cast<void*>(state)) State();
         }
-        state_block = block;
-        state_live = true;
+        live_states.insert(block);
     }
 
     template <int Phase> /* 0=create 1=render 2=dispose */
@@ -311,8 +301,7 @@ struct ScriptBox {
                 state->~State();
             }
             /* mtrDispose destroyed it; only mtrInit may construct it again */
-            state_live = false;
-            state_block = nullptr;
+            live_states.erase(static_cast<void*>(state));
         }
         return 0;
     }

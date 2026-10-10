@@ -62,7 +62,7 @@ public:
     int32_t width()  const { return width_; }
     int32_t height() const { return height_; }
 
-    /* Row-major RGBA8 pixel storage, direct access from C++. */
+    /* Row-major BGRA8 pixel storage, direct access from C++. */
     uint8_t* pixels() { return reinterpret_cast<uint8_t*>(pixels_.data()); }
     const uint8_t* pixels() const { return reinterpret_cast<const uint8_t*>(pixels_.data()); }
     uint32_t* pixels32() { return pixels_.data(); }
@@ -134,7 +134,17 @@ public:
         r.pixel_data_len = static_cast<int64_t>(dirty_w_) * dirty_h_ * 4;
 
         const uint8_t* base = pixels() + (static_cast<size_t>(dirty_y_) * width_ + dirty_x_) * 4;
-        r.pixel_data_offset = frame.push_pixels(base, r.pixel_data_len);
+        if (dirty_w_ == width_) {
+            r.pixel_data_offset = frame.push_pixels(base, r.pixel_data_len);
+        } else {
+            // A cropped rectangle has the full texture's row stride, whereas
+            // the frame upload is tightly packed. Copy each row separately.
+            r.pixel_data_offset = frame.push_pixels(base, static_cast<int64_t>(dirty_w_) * 4);
+            for (int32_t row = 1; row < dirty_h_; row++) {
+                frame.push_pixels(base + static_cast<size_t>(row) * width_ * 4,
+                                  static_cast<int64_t>(dirty_w_) * 4);
+            }
+        }
         dirty_w_ = 0; /* clear */
     }
 

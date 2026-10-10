@@ -238,6 +238,7 @@ public final class NativeVehicleDriver {
                                       Map<Integer, ScriptRenderManager> managers) {
         final ByteBuffer records = frame.records;
         if (records == null) return false;
+        NativeHost.get().setActiveInstance(frame.instanceKey);
         records.order(ByteOrder.nativeOrder());
 
         boolean any = false;
@@ -311,7 +312,9 @@ public final class NativeVehicleDriver {
         if (manager == null) return;
         final World world = World.cast(MinecraftClient.getInstance().getWorldMapped());
         if (world == null) return;
-        manager.invoke(world, storedMatrixTransformations.copy(), Direction.NORTH, light);
+        final StoredMatrixTransformations transform = storedMatrixTransformations.copy();
+        transform.add(gh -> gh.translate(0, -1, 0));
+        manager.invoke(world, transform, Direction.NORTH, light);
     }
 
     /* ------------------------------------------------------------------ */

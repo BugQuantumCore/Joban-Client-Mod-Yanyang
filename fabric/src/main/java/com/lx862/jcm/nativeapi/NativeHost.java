@@ -2,13 +2,13 @@ package com.lx862.jcm.nativeapi;
 
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.util.GraphicsTexture;
+import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
 import com.lx862.mtrscripting.core.util.model.ModelJS;
 import com.lx862.mtrscripting.core.util.model.ModelManagerJS;
 import com.lx862.mtrscripting.core.util.model.RawMeshBuilderJS;
 import com.lx862.mtrscripting.core.util.model.RawModelJS;
 import org.mtr.mapping.holder.Identifier;
 
-import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -61,6 +61,9 @@ public final class NativeHost {
                 } catch (Throwable ignored) {
                 }
             }
+            for (int handle : modelHandles) {
+                if (handle > 0) INSTANCE.modelsByHandle.remove(handle);
+            }
             for (GraphicsTexture tex : textures) {
                 if (tex == null) continue;
                 try {
@@ -104,6 +107,58 @@ public final class NativeHost {
     /** Monotonic source of global handles. */
     private final java.util.concurrent.atomic.AtomicInteger nextHandle =
             new java.util.concurrent.atomic.AtomicInteger(1);
+    private java.awt.Font nativeFont;
+    private final java.util.Map<String, java.awt.image.BufferedImage> glyphMasks = new java.util.HashMap<>();
+
+    /** JNI font callback. Pixels are packed ARGB ints, stored as BGRA bytes. */
+    public int rasterizeText(byte[] utf8, int x, int y, int maxWidth,
+                             int red, int green, int blue, java.nio.ByteBuffer pixels,
+                             int width, int height) {
+        if (utf8 == null || pixels == null || maxWidth <= 1) return -1;
+        final String text = new String(utf8, java.nio.charset.StandardCharsets.UTF_8);
+        if (nativeFont == null) nativeFont = ScriptResourceUtil.getSystemFont("Noto Sans");
+        if (nativeFont == null || nativeFont.canDisplayUpTo(text) >= 0) return -1;
+        final int size = maxWidth - 1;
+        final String key = size + "/" + text;
+        java.awt.image.BufferedImage mask = glyphMasks.get(key);
+        if (mask == null) {
+            mask = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            final java.awt.Graphics2D graphics = mask.createGraphics();
+            graphics.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            final java.awt.Shape outline = nativeFont.deriveFont((float) size)
+                    .createGlyphVector(graphics.getFontRenderContext(), text).getOutline();
+            final java.awt.geom.Rectangle2D bounds = outline.getBounds2D();
+            if (bounds.getWidth() > 0 && bounds.getHeight() > 0) {
+                final double scale = Math.min((size - 2.0) / bounds.getWidth(), (size - 2.0) / bounds.getHeight());
+                graphics.translate(1, 1);
+                graphics.scale(scale, scale);
+                graphics.translate(-bounds.getX(), -bounds.getY());
+                graphics.setColor(java.awt.Color.WHITE);
+                graphics.fill(outline);
+            }
+            graphics.dispose();
+            if (glyphMasks.size() >= 4096) glyphMasks.clear();
+            glyphMasks.put(key, mask);
+        }
+        pixels.order(java.nio.ByteOrder.nativeOrder());
+        for (int gy = 0; gy < size; gy++) {
+            if (y + gy < 0 || y + gy >= height) continue;
+            for (int gx = 0; gx < size; gx++) {
+                if (x + gx < 0 || x + gx >= width) continue;
+                final int alpha = mask.getRGB(gx, gy) >>> 24;
+                if (alpha == 0) continue;
+                final int offset = ((y + gy) * width + x + gx) * 4;
+                final int dst = pixels.getInt(offset);
+                final int remaining = (dst >>> 24) * (255 - alpha) / 255;
+                final int outAlpha = alpha + remaining;
+                final int r = (red * alpha + ((dst >>> 16) & 255) * remaining) / outAlpha;
+                final int g = (green * alpha + ((dst >>> 8) & 255) * remaining) / outAlpha;
+                final int b = (blue * alpha + (dst & 255) * remaining) / outAlpha;
+                pixels.putInt(offset, (outAlpha << 24) | (r << 16) | (g << 8) | b);
+            }
+        }
+        return size;
+    }
 
     private NativeHost() {
     }
@@ -146,6 +201,9 @@ public final class NativeHost {
         final int texCount = widths == null ? 0 : widths.length;
         final int quadCount = quadTextureSlot == null ? 0 : quadTextureSlot.length;
         final int[] out = new int[texCount + quadCount];
+        java.util.Arrays.fill(out, -1);
+        final String key = pendingInstanceKey;
+        final Instance previous = key == null ? null : instances.get(key);
 
         final Instance instance = new Instance();
         instance.textures = new GraphicsTexture[texCount];
@@ -154,14 +212,25 @@ public final class NativeHost {
 
         /* 1) textures */
         for (int i = 0; i < texCount; i++) {
-            final int w = Math.max(1, widths[i]);
-            final int h = Math.max(1, heights[i]);
+            final int w = widths[i];
+            final int h = heights[i];
+            if (w <= 0 || h <= 0) continue; // released native slot
             try {
-                instance.textures[i] = new GraphicsTexture(w, h);
+                if (previous != null && i < previous.textures.length
+                        && previous.textures[i] != null
+                        && previous.textures[i].bufferedImage.getWidth() == w
+                        && previous.textures[i].bufferedImage.getHeight() == h) {
+                    // Slots are append-only in the bridge. Preserve live pixels
+                    // when a different texture or quad is created/released.
+                    instance.textures[i] = previous.textures[i];
+                    previous.textures[i] = null;
+                } else {
+                    instance.textures[i] = new GraphicsTexture(w, h);
+                }
             } catch (Throwable t) {
                 JCMLogger.error("NativeHost: failed to create a {}x{} GraphicsTexture: {}", w, h, t.toString());
             }
-            out[i] = i;   /* SLOT index: the bridge rewrites records through this */
+            if (instance.textures[i] != null) out[i] = i;
         }
 
         /* 2) quad models; several quads may share one texture */
@@ -172,6 +241,15 @@ public final class NativeHost {
             final GraphicsTexture tex = instance.textures[slot];
             if (tex == null) continue;
             try {
+                if (previous != null && q < previous.models.length
+                        && previous.models[q] != null) {
+                    instance.models[q] = previous.models[q];
+                    instance.modelHandles[q] = previous.modelHandles[q];
+                    out[texCount + q] = previous.modelHandles[q];
+                    previous.models[q] = null;
+                    previous.modelHandles[q] = 0;
+                    continue;
+                }
                 final ModelJS model = buildQuad(quadVertices, q, quadUv, q,
                         quadStages == null || q >= quadStages.length ? STAGE_INTERIOR : quadStages[q],
                         tex.identifier);
@@ -193,9 +271,8 @@ public final class NativeHost {
         /* File it under the instance the driver announced, and make sure a
            stale instance from an earlier build (car count changed, script
            reloaded) is torn down instead of leaking its textures. */
-        final String key = pendingInstanceKey;
         if (key != null) {
-            final Instance previous = instances.put(key, instance);
+            instances.put(key, instance);
             if (previous != null) previous.close();
         }
         return out;
@@ -221,7 +298,7 @@ public final class NativeHost {
             builder.vertex(verts[vi + v * 3], verts[vi + v * 3 + 1], verts[vi + v * 3 + 2]);
             /* Display panels are thin two-sided quads; a fixed normal keeps the
                shader happy and matches what the JS DisplayHelper produced. */
-            builder.normal(0, 0, 1);
+            builder.normal(0, 1, 0);
             builder.uv(uv[ui + v * 2], uv[ui + v * 2 + 1]);
             builder.endVertex();
         }
@@ -234,52 +311,33 @@ public final class NativeHost {
     }
 
     /* ------------------------------------------------------------------ */
-    /* Bridge entry point 2: blit one dirty rect of RGBA8 pixels            */
+    /* Bridge entry point 2: blit one dirty rect of BGRA8 pixels            */
     /* ------------------------------------------------------------------ */
 
     /**
-     * The C++ side hands raw row-major RGBA8 — its little-endian ARGB
+     * The C++ side hands raw row-major BGRA8 — its little-endian ARGB
      * {@code uint32} storage, byte for byte. {@link GraphicsTexture} backs
      * itself with a {@code TYPE_INT_ARGB} BufferedImage whose DataBufferInt is
      * the very memory {@code upload()} reads, so writing straight into that
      * int[] is both correct and far cheaper than per-pixel calls.
      */
     public void uploadPixels(int textureHandle, int x, int y, int width, int height, byte[] rgba) {
-        if (rgba == null) return;
+        if (rgba == null || width <= 0 || height <= 0
+                || (long) width * height * 4 > rgba.length) return;
         final GraphicsTexture tex = texture(textureHandle, activeInstanceKey);
         if (tex == null) return;
-
-        if (!(tex.bufferedImage.getRaster().getDataBuffer() instanceof DataBufferInt)) {
-            return;
-        }
-        final int[] dst = ((DataBufferInt) tex.bufferedImage.getRaster().getDataBuffer()).getData();
         final int imgW = tex.bufferedImage.getWidth();
         final int imgH = tex.bufferedImage.getHeight();
-
-        int sx = x, sy = y, w = width, h = height;
-        /* Defensive clamp: gfx.hpp already clamps mark_dirty, but a bad module
-           must not be able to corrupt the heap through this entry point. */
-        if (sx < 0) { w += sx; sx = 0; }
-        if (sy < 0) { h += sy; sy = 0; }
-        if (sx + w > imgW) w = imgW - sx;
-        if (sy + h > imgH) h = imgH - sy;
+        final int sx = Math.max(0, x), sy = Math.max(0, y);
+        final int w = (int) Math.min(imgW, (long) x + width) - sx;
+        final int h = (int) Math.min(imgH, (long) y + height) - sy;
         if (w <= 0 || h <= 0) return;
-        if (rgba.length < w * h * 4) {
-            JCMLogger.error("NativeHost: uploadPixels got {} bytes for a {}x{} rect",
-                    rgba.length, w, h);
-            return;
-        }
-
-        int src = 0;
-        for (int row = 0; row < h; row++) {
-            int di = (sy + row) * imgW + sx;
-            for (int col = 0; col < w; col++) {
-                final int r = rgba[src] & 0xFF;
-                final int g = rgba[src + 1] & 0xFF;
-                final int b = rgba[src + 2] & 0xFF;
-                final int a = rgba[src + 3] & 0xFF;
-                dst[di++] = (a << 24) | (r << 16) | (g << 8) | b;
-                src += 4;
+        byte[] pixels = rgba;
+        if (sx != x || sy != y || w != width || h != height) {
+            pixels = new byte[w * h * 4];
+            for (int row = 0; row < h; row++) {
+                final int src = (int) (((long) sy - y + row) * width + (long) sx - x) * 4;
+                System.arraycopy(rgba, src, pixels, row * w * 4, w * 4);
             }
         }
 
@@ -287,7 +345,7 @@ public final class NativeHost {
            which copies and re-uploads the whole image — for a 3304x944 LCD
            that is 12.5 MB per screen per repaint, i.e. ~150 MB for a 6-car
            train every blink tick, and it measured as a 50-107 ms frame. */
-        tex.uploadRawABGR(rgba, sx, sy, w, h, PIXEL_PPM);
+        tex.uploadRawABGR(pixels, sx, sy, w, h, PIXEL_PPM);
     }
 
     /**
@@ -358,6 +416,8 @@ public final class NativeHost {
         modelsByHandle.clear();
         pendingInstanceKey = null;
         activeInstanceKey = null;
+        glyphMasks.clear();
+        nativeFont = null;
         for (Instance instance : all) instance.close();
     }
 }

@@ -141,7 +141,7 @@ public:
         return off;
     }
 
-    /* ---- pixel arena (RGBA8) — grows on demand ----
+    /* ---- pixel arena (BGRA8) — grows on demand ----
 
        The host installs an initial static buffer (zero-cost BSS);
        frames that need more (e.g. an 8-car × 2-side LCD repaint

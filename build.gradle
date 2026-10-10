@@ -90,6 +90,15 @@ configure(subprojects.findAll {it.name != 'rhino'}) {
                 inputs.property "mc_door_blockstate", project.door_blockstate
                 inputs.property "condition", merged_mc_version >= 12000 ? "any_of" : "alternative"
 
+                // Release builds supply the four JNI bridges produced by CMake.
+                // Each loader jar then works without a manually installed DLL.
+                if (rootProject.hasProperty("native_bridge_dir")) {
+                        def bridges = rootProject.file(rootProject.property("native_bridge_dir"))
+                        from(bridges) {
+                                into "assets/jcm/natives"
+                        }
+                }
+
                 filesMatching('META-INF/mods.toml') {
                         expand (
                                 "minecraft_version": minecraft_version,
