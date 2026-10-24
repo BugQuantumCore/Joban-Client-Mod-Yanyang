@@ -29,7 +29,7 @@
     <a href="java-api.html">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
-    <a href="performance.html">性能與除錯</a>
+    <a href="performance.html">疾徐與除錯</a>
   </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
@@ -58,7 +58,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / API 備覽 / 數據快照</div>
       <h1>數據快照</h1>
-      <p class="page-lead">每幀一遭、宿主所封送之唯讀數據。諸訪問器皆尋常記憶體之讀——零 JNI、零反射、零裝箱。</p>
+      <p class="page-lead">每幀一遭，宿主封送之唯讀數據也。諸訪問器所為，皆尋常記憶體之讀——零 JNI，零反射，零裝箱。</p>
     </header>
 
     <div class="page-toc">
@@ -76,30 +76,30 @@
     </div>
 
     <h2 id="how">快照之機</h2>
-    <p>每幀方始，宿主以此實例之數據<strong>一舉</strong>封送為一 POD 快照（定長之首＋變長陣列池＋UTF-8 字串池），連狀態塊之指針，併傳於 <code>mtrRender</code>。SDK 之具型包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）於此記憶體之上，供與 JS Wrapper <strong>同名</strong>之訪問器：</p>
+    <p>每幀方始，宿主以此實例之數據<strong>一舉</strong>封送，為一 POD 快照：定長之首，變長之陣列池，UTF-8 字串之池，三者具焉；連狀態塊之指針，併傳於 <code>mtrRender</code>。SDK 之具型包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）居此記憶體之上，供與 JS Wrapper <strong>同名</strong>之訪問器：</p>
     <ul>
-      <li>字串以 <code>mtr::StrView</code>（<code>data</code>＋<code>len</code>）而返，以 <code>.str()</code> 轉 <code>std::string</code>、<code>.empty()</code> 判其空；視圖惟本次 <code>render</code> 呼叫之內有效。</li>
-      <li>越界之索引，擲 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 義同）。</li>
-      <li>快照之指針與包裝器，<strong>勿</strong>跨幀而存。</li>
+      <li>字串以 <code>mtr::StrView</code>（<code>data</code>＋<code>len</code>）而返；<code>.str()</code> 則轉為 <code>std::string</code>，<code>.empty()</code> 則判其虛實。視圖惟本次 <code>render</code> 一呼之內為效。</li>
+      <li>索引越界，則擲 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 同其義也）。</li>
+      <li>快照之指針與包裝器，<strong>慎勿</strong>跨幀而存之。</li>
     </ul>
     <div class="admonition note">
       <span class="admonition-title">所覆之範</span>
-      <p>快照所覆，高頻讀取之欄也。不在快照之數據（網路、檔案、渲染管理器之深介面等），經 <a href="java-api.html"><code>mtr::Api</code></a> 而訪——彼低頻之通道也，勿用於熱路徑。</p>
+      <p>快照所覆者，高頻讀取之欄而已。數據之不在快照者（網路也，檔案也，渲染管理器之深介面也），則經 <a href="java-api.html"><code>mtr::Api</code></a> 而訪之——彼固低頻之通道，勿用於熱路徑也。</p>
     </div>
 
     <h2 id="vehicle">Vehicle（車輛）</h2>
     <div class="admonition note">
       <span class="admonition-title">術語：MTR 三代之 train → MTR 四代之 vehicle</span>
-      <p>MTR 四代統以 <strong>vehicle</strong> 稱載具（資源包宣告之鍵 <code>vehicleScripts</code>、Java 側 <code>VehicleWrapper</code>），故本 SDK 之數據包裝類名曰 <code>mtr::Vehicle</code>。前代 SDK 曾循 MTR 三代之習名之曰 <code>mtr::Train</code>，今其名留為<strong>源碼相容之別名</strong>——二名皆可編譯，所行全同。</p>
-    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 原始碼，將隨次版之 zip 而布；若君所用乃 yanyang.7 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名皆可編譯）。</p></div>
-    <p><code>mtr::Vehicle</code> 所供，映 JS 之 <code>VehicleWrapper</code> ＋ <code>NTETrainWrapper</code>：</p>
+      <p>MTR 四代之制，載具統名曰 <strong>vehicle</strong>（資源包宣告之鍵 <code>vehicleScripts</code>，Java 側則 <code>VehicleWrapper</code> 是也），故本 SDK 數據包裝之類，名之曰 <code>mtr::Vehicle</code>。前代 SDK 嘗循 MTR 三代之舊，名之曰 <code>mtr::Train</code>；今舊名猶存，為<strong>源碼相容之別名</strong>——二名並可編譯，所行全同。</p>
+    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 yanyang.7 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
+    <p><code>mtr::Vehicle</code> 所供者，映 JS 之 <code>VehicleWrapper</code> 加 <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>訪問器</th><th>類型</th><th>釋義</th></tr></thead>
       <tbody>
-        <tr><td><code>id()</code> / <code>siding_id()</code> / <code>this_route_id()</code> / <code>departure_index()</code></td><td><code>int64_t</code></td><td>車輛 / 側線 / 當前線路之 id、發車之序（64 位 id 全程不失其精）</td></tr>
+        <tr><td><code>id()</code> / <code>siding_id()</code> / <code>this_route_id()</code> / <code>departure_index()</code></td><td><code>int64_t</code></td><td>車輛、側線、當前線路之 id，暨發車之序（64 位 id，全程不失其精）</td></tr>
         <tr><td><code>car_count()</code> / <code>car(i)</code></td><td><code>int32_t</code> / <code>Car</code></td><td>車廂之數與逐廂之據（見下）</td></tr>
         <tr><td><code>speed_kmh()</code> / <code>speed_ms()</code></td><td><code>double</code></td><td>車行之速</td></tr>
-        <tr><td><code>rail_progress()</code> / <code>rail_progress(car)</code></td><td><code>double</code></td><td>軌道之進；帶參之式按車廂之長推第 i 節之位</td></tr>
+        <tr><td><code>rail_progress()</code> / <code>rail_progress(car)</code></td><td><code>double</code></td><td>軌道之進；帶參者按車廂之長，推第 i 節之位</td></tr>
         <tr><td><code>door_value()</code></td><td><code>double</code></td><td>車門之開度 0..1</td></tr>
         <tr><td><code>notch_level()</code> / <code>notch_position()</code></td><td><code>int32_t</code> / <code>double</code></td><td>檔位 0..5 與歸一之位</td></tr>
         <tr><td><code>reversed()</code> / <code>on_route()</code> / <code>door_opening()</code></td><td><code>bool</code></td><td>反向 / 在線路上 / 車門方開</td></tr>
@@ -108,11 +108,11 @@
         <tr><td><code>total_dwell_time_millis()</code> / <code>elapsed_dwell_time_millis()</code></td><td><code>double</code></td><td>停站之總時 / 既停之時</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td><code>int64_t</code></td><td>宿主之牆鐘（已正伺服器之偏）/ 遊戲內 tick 0..24000</td></tr>
         <tr><td><code>stops()</code> / <code>this_route_stops()</code> / <code>next_route_stops()</code></td><td><code>StopList</code></td><td>全部 / 當前線路 / 下一線路之站表（見下）</td></tr>
-        <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>當前線路下一站之索引（宿主既預算，勿自重算）</td></tr>
+        <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>當前線路下一站之索引（宿主既預算之，勿自重算也）</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>當前線路之名 / 色 ARGB / 環線之狀（0 無、1 順時針、2 逆時針）</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>見<a href="#transport">交通之模式與類型</a></td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>側線顯示之名（用戶自定之名 / 述）</td></tr>
-        <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始快照（ABI 之細見 <a href="abi.html">C ABI</a>）</td></tr>
+        <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始之快照（ABI 細務，見 <a href="abi.html">C ABI</a>）</td></tr>
       </tbody>
     </table>
 
@@ -122,7 +122,7 @@
       <tbody>
         <tr><td><code>length()</code> / <code>width()</code></td><td>車廂之長 / 廣</td></tr>
         <tr><td><code>left_door_open()</code> / <code>right_door_open()</code></td><td>左右門是否全開</td></tr>
-        <tr><td><code>rendered()</code></td><td>該廂本幀經剔除後猶可見否</td></tr>
+        <tr><td><code>rendered()</code></td><td>該廂本幀既剔之後，猶可見否</td></tr>
         <tr><td><code>vehicle_type()</code></td><td>車廂類型之 id（如 <code>mtr_custom_train_demo_cab_1</code>）</td></tr>
       </tbody>
     </table>
@@ -132,7 +132,7 @@
       <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
       <tbody>
         <tr><td><code>size()</code> / <code>empty()</code> / <code>at(i)</code> / <code>operator[](i)</code></td><td>容量與隨機之訪（越界則擲異常）</td></tr>
-        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>按軌道之進推下一站；當前線路之列，請徑用 <code>Vehicle::next_stop_index()</code>（宿主既預算）</td></tr>
+        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>按軌道之進而推下一站；當前線路之列，請徑用 <code>Vehicle::next_stop_index()</code>（宿主既預算之）</td></tr>
       </tbody>
     </table>
 
@@ -143,22 +143,22 @@
       <tbody>
         <tr><td><code>name()</code></td><td>站名</td></tr>
         <tr><td><code>destination_name()</code></td><td>該站台終點站顯示之名</td></tr>
-        <tr><td><code>has_custom_destination()</code> / <code>custom_destination()</code></td><td>自定義之終點站（未設時 JS 返 null，C++ 以 <code>has_custom_destination()</code> 判空）</td></tr>
+        <tr><td><code>has_custom_destination()</code> / <code>custom_destination()</code></td><td>自定之終點站（未設者，JS 返 null；C++ 則以 <code>has_custom_destination()</code> 判之）</td></tr>
         <tr><td><code>distance()</code></td><td>軌道之進（不可用時為 -1）</td></tr>
         <tr><td><code>dwell_time_millis()</code></td><td>該站停站之時</td></tr>
         <tr><td><code>route_id()</code> / <code>station_id()</code> / <code>platform_id()</code></td><td>線路 / 車站 / 站台之 id（64 位）</td></tr>
-        <tr><td><code>is_route_switchover()</code></td><td>是否線路切換之站</td></tr>
-        <tr><td><code>route_circular_state()</code></td><td>該站所屬線路之環線狀（辨跨線後方向之變）</td></tr>
+        <tr><td><code>is_route_switchover()</code></td><td>線路切換之站否</td></tr>
+        <tr><td><code>route_circular_state()</code></td><td>該站所屬線路之環線狀（所以辨跨線後方向之變也）</td></tr>
         <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>轉乘之訊：每條含 <code>color</code>（ARGB）、<code>name</code>（線路名）、<code>getTransportMode()</code>、<code>getTransportType()</code></td></tr>
         <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>車站之出口：每個含 <code>name</code>（出口之字母，如 <code>"A"</code>）與 <code>destination(j)</code>（地標字串之列）</td></tr>
       </tbody>
     </table>
 
     <h2 id="transport">交通之模式與類型</h2>
-    <p>二互補之口徑，與 JS 側 <code>getTransportMode()</code> / <code>getTransportType()</code> 所返<strong>全同之值</strong>，跨語言之腳本得共享布局之邏輯：</p>
+    <p>二者相補之口徑也；與 JS 側 <code>getTransportMode()</code> / <code>getTransportType()</code> 所返之值<strong>全同</strong>，故跨語言之腳本，得共享布局之邏輯：</p>
     <ul>
-      <li><strong>模式</strong>（<code>mtr::TransportMode</code> 枚舉）：<code>UNKNOWN / TRAIN / BOAT / CABLE_CAR / AIRPLANE</code>，覆四種基礎載具。</li>
-      <li><strong>類型</strong>（字串 id，<code>mtr::transport_type</code> 常數）：基礎模式小寫之名（<code>"train"</code>、<code>"boat"</code>、<code>"cable_car"</code>、<code>"airplane"</code>），益以 <strong>MAGIC MTR Addon</strong> 所擴之線路類型 <code>train_normal / train_light_rail / train_high_speed / train_metro / train_bus / train_tram / train_sbahn</code>；不可解時為 <code>"unknown"</code> 或空視圖（舊伺服器之數據）。</li>
+      <li><strong>模式</strong>（<code>mtr::TransportMode</code> 枚舉）：<code>UNKNOWN / TRAIN / BOAT / CABLE_CAR / AIRPLANE</code>，覆基礎載具凡四。</li>
+      <li><strong>類型</strong>（字串 id，<code>mtr::transport_type</code> 常數）：基礎模式小寫之名（<code>"train"</code>、<code>"boat"</code>、<code>"cable_car"</code>、<code>"airplane"</code>），益以 <strong>MAGIC MTR Addon</strong> 所擴線路之類 <code>train_normal / train_light_rail / train_high_speed / train_metro / train_bus / train_tram / train_sbahn</code>；其不可解者，則為 <code>"unknown"</code>，或空視圖（舊伺服器之數據也）。</li>
     </ul>
     <pre><code class="lang-cpp">if (vehicle.getTransportType() == mtr::transport_type::TRAIN_METRO) { /* ... */ }
 
@@ -168,7 +168,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 }</code></pre>
     <div class="admonition note">
       <span class="admonition-title">數據所自</span>
-      <p>MAGIC 之類：客戶端裝該 addon，則自本地配置而解；伺服器裝而客戶端未裝，則經同步數據集而下；舊伺服器不下線路元數據時，返空 / UNKNOWN——裝本模組之伺服器，可供遠端車站完備之元數據。</p>
+      <p>MAGIC 諸類之所自：客戶端裝其 addon 者，自本地之配置而解；伺服器裝而客戶端未裝者，經同步數據集而下；舊伺服器不下線路元數據者，返空 / UNKNOWN——裝本模組之伺服器，則供遠端車站以完備之元數據。</p>
     </div>
 
     <h2 id="pids">Pids（到站之屏）</h2>
@@ -179,8 +179,8 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>width()</code> / <code>height()</code></td><td>顯示屏之寬高（1.0 單位 = 16 px，螢幕坐標系）</td></tr>
         <tr><td><code>rows()</code> / <code>is_row_hidden(i)</code></td><td>文字之行數 / 第 i 行隱否（至多 32 行）</td></tr>
         <tr><td><code>station_id()</code></td><td>所在車站之 id</td></tr>
-        <tr><td><code>is_key_block()</code> / <code>is_platform_number_hidden()</code></td><td>是否按鍵方塊（司隱他屏）/ 是否隱站台之號</td></tr>
-        <tr><td><code>get_custom_message(i)</code></td><td>第 i 行自定義之訊；未設則返空（JS 返 null）</td></tr>
+        <tr><td><code>is_key_block()</code> / <code>is_platform_number_hidden()</code></td><td>按鍵方塊否（司隱他屏）/ 隱站台之號否</td></tr>
+        <tr><td><code>get_custom_message(i)</code></td><td>第 i 行自定之訊；未設則返空（JS 則返 null）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>Arrivals</code>：到站之列（見下）</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>時鐘（已正伺服器之偏）</td></tr>
       </tbody>
@@ -190,8 +190,8 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
     <table>
       <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
       <tbody>
-        <tr><td><code>arrivals().size()</code> / <code>.at(i)</code></td><td>到站條目之數與其訪</td></tr>
-        <tr><td><code>arrivals().next_for_platform(platform_id, out, cursor)</code></td><td>按站台之序而歷（映 JS 之 <code>forEach(platformId, cb)</code>），游標復用、零分配</td></tr>
+        <tr><td><code>arrivals().size()</code> / <code>.at(i)</code></td><td>到站條目之數，與逐條之訪</td></tr>
+        <tr><td><code>arrivals().next_for_platform(platform_id, out, cursor)</code></td><td>按站台之序而歷（映 JS 之 <code>forEach(platformId, cb)</code>）；游標復用，分配則無</td></tr>
         <tr><td><code>arrivals().mixed_car_length()</code></td><td>各條目車廂之數一否（映 <code>mixedCarLength()</code>）</td></tr>
         <tr><td><code>destination()</code> / <code>route_name()</code> / <code>route_number()</code> / <code>platform_name()</code></td><td>終點站 / 線路名 / 線路號 / 站台名</td></tr>
         <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>到站 / 離站之刻與其偏（epoch 毫秒，已正）</td></tr>
@@ -202,7 +202,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
     </table>
 
     <h2 id="lift">Lift（電梯）</h2>
-    <p><code>mtr::Lift</code>（快照＋Java 包裝器相合；此其快照之部）：</p>
+    <p><code>mtr::Lift</code> 者，快照與 Java 包裝器相合之制；此其快照之部也：</p>
     <table>
       <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
       <tbody>
@@ -212,11 +212,11 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>door_value()</code></td><td>門之開度 0..1</td></tr>
         <tr><td><code>angle_degrees()</code> / <code>angle_radians()</code></td><td>朝向之角</td></tr>
         <tr><td><code>direction()</code></td><td>行進之向</td></tr>
-        <tr><td><code>floor_count()</code> / <code>floor(i)</code></td><td>樓層之表：每層含 <code>index</code>、<code>current_floor</code> / <code>target_floor</code> 之標、<code>position[3]</code>、樓層之號與描述字串（經 <code>string(offset,len)</code> 而取）</td></tr>
+        <tr><td><code>floor_count()</code> / <code>floor(i)</code></td><td>樓層之表：每層含 <code>index</code>，<code>current_floor</code> / <code>target_floor</code> 之標，<code>position[3]</code>，暨樓層之號與描述之字串（經 <code>string(offset,len)</code> 而取）</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>時鐘</td></tr>
       </tbody>
     </table>
-    <p>渲染管理器、聲音管理器、可見性等更深之介面，經 <code>Api</code> 之 <code>wrapper()</code> 而訪（電梯無獨立之 JS 文檔頁，以 Java 包裝器為準）。</p>
+    <p>渲染管理器、聲音管理器、可見性諸深介面，經 <code>Api</code> 之 <code>wrapper()</code> 而訪之（電梯無獨立之 JS 文檔頁，故以 Java 包裝器為準）。</p>
 
     <h2 id="eyecandy">EyeCandy（裝飾）</h2>
     <p><code>mtr::EyeCandy</code> 映 <code>EyecandyBlockEntityWrapper</code>：</p>
@@ -230,11 +230,11 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>redstone_level()</code></td><td>紅石之訊 0..15</td></tr>
         <tr><td><code>is_crosshair_target()</code></td><td>準星所指否</td></tr>
         <tr><td><code>block_pos(i)</code></td><td>方塊坐標之分量（i = 0..2）</td></tr>
-        <tr><td><code>consume_block_use()</code></td><td>銷本幀所積 onBlockUse 事件之一（每幀至多一遭；同幀連擊則併為一——與 JS 事件佇列之行同）</td></tr>
+        <tr><td><code>consume_block_use()</code></td><td>銷本幀所積 onBlockUse 事件之一（每幀至多一遭；同幀連擊，則併而為一——與 JS 事件佇列之行同也）</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>時鐘</td></tr>
       </tbody>
     </table>
-    <p>事件之詳（玩家、手持之物等）經 <code>Api</code> 而讀：</p>
+    <p>事件之詳（玩家、手持之物等），經 <code>Api</code> 而讀之：</p>
     <pre><code class="lang-cpp">mtr::Api api(ctx.input());
 auto event = api.context().call("events").get("onBlockUse");
 if (event.call("occurred").as&lt;bool&gt;()) {
@@ -242,10 +242,10 @@ if (event.call("occurred").as&lt;bool&gt;()) {
     auto player = detail.call("player");
     auto item   = detail.call("item");
 }</code></pre>
-    <p>裝飾繪製之上下文 <code>EyeCandyContext</code> 供 <code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code>（每匣 6 float；碰撞匣沿 Java 端 1.5 格高之上限，踰者宿主校之而誌於日誌）。電梯復用同一上下文之型（<code>LiftContext = EyeCandyContext</code>）。</p>
+    <p>裝飾繪製之上下文 <code>EyeCandyContext</code>，所供者四：<code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code> 是也（每匣 6 float；碰撞匣之高，沿 Java 端 1.5 格之限，踰之者宿主校而誌於日誌）。電梯復用同一上下文之型（<code>LiftContext = EyeCandyContext</code>）。</p>
 
     <h2 id="helpers">器用之型</h2>
-    <p><code>&lt;mtr/util.hpp&gt;</code> 供熱路徑友善之輪播器具（零分配）：</p>
+    <p><code>&lt;mtr/util.hpp&gt;</code> 供輪播之器具，於熱路徑甚友善（零分配）：</p>
     <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 更迭一段，切視圖惟算偏移
 mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
 StrView current = dest.value(vehicle.in_game_time());</code></pre>
@@ -267,9 +267,9 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
     <div class="footer-links">
       <a href="index.html">文檔之首</a>
       <a href="getting-started.html">入門</a>
-      <a href="performance.html">性能與除錯</a>
+      <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

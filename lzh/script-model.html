@@ -29,7 +29,7 @@
     <a href="java-api.html">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
-    <a href="performance.html">性能與除錯</a>
+    <a href="performance.html">疾徐與除錯</a>
   </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
@@ -58,7 +58,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / 腳本體例與生命週期</div>
       <h1>腳本體例與生命週期</h1>
-      <p class="page-lead">四類腳本之基類、逐實例之狀態、生命週期之時序，暨線程與崩潰隔離之義。</p>
+      <p class="page-lead">四類腳本之基類，逐實例之狀態，生命週期之時序，暨線程與崩潰隔離之義，備於此篇。</p>
     </header>
 
     <div class="page-toc">
@@ -74,7 +74,7 @@
     </div>
 
     <h2 id="kinds">四類腳本</h2>
-    <p>納 <code>&lt;mtr/script.hpp&gt;</code>，承所應之基類，以註冊宏導出。基類模板之參數，即<strong>逐實例狀態之型</strong>：</p>
+    <p>納 <code>&lt;mtr/script.hpp&gt;</code>，承其所應之基類，以註冊宏而導出之。基類模板之參，即<strong>逐實例狀態之型</strong>：</p>
     <table>
       <thead><tr><th>資源</th><th>基類</th><th>註冊宏</th><th>數據包裝器</th></tr></thead>
       <tbody>
@@ -85,7 +85,7 @@
       </tbody>
     </table>
 
-    <p>一車輛腳本之骨架（餘三類惟易基類與參數之型）：</p>
+    <p>車輛腳本之骨架一首（餘三類，惟易其基類與參數之型而已）：</p>
     <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
 
 struct MyVehicleState {
@@ -116,61 +116,61 @@ struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
 MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
 
     <ul>
-      <li><strong><code>ID</code></strong> 者，腳本命名空間之 id（如 <code>demo:vehicle</code>），必與資源包 <code>minecraft_custom_resources.json</code> 中宣告條目之 <code>id</code> 相合。</li>
-      <li>三生命週期函數皆可省 override（基類有空虛實現），參數之簽名則固。</li>
-      <li>一翻譯單元註一腳本；腳本多者，分為多模塊庫。</li>
+      <li><strong><code>ID</code></strong> 者，腳本命名空間之 id 也（如 <code>demo:vehicle</code>），必與資源包 <code>minecraft_custom_resources.json</code> 中宣告條目之 <code>id</code> 相合。</li>
+      <li>三生命週期函數，override 皆可省（基類固有虛而空之實現），惟參數之簽名不可易。</li>
+      <li>一翻譯單元，惟註一腳本；腳本之眾者，分為數模塊之庫。</li>
     </ul>
 
     <h2 id="state">State：逐實例之狀態</h2>
-    <p>每腳本實例（每車、每 PIDS 方塊實體……）各有獨立之 <code>State</code> 一塊，由<strong>宿主分配而構造</strong>：</p>
+    <p>每腳本實例（每車也，每 PIDS 方塊實體也……）各有獨立之 <code>State</code> 一塊，由<strong>宿主分而構之</strong>：</p>
     <ul>
-      <li>宿主按 <code>mtrStateSize()</code>（註冊宏自 <code>sizeof(State)</code> 所生）配狀態塊，首用之前經 <code>mtrInit()</code> 以 placement-new 構之——<strong>勿</strong>以為零填充之記憶體可用（<code>std::string</code> 等非平凡之型施於零記憶體，乃未定義之行）。</li>
-      <li>狀態塊之內容<strong>跨幀恆存</strong>：紋理、模型之柄、回呼、緩存，皆置諸此。</li>
-      <li><strong>腳本類之成員</strong>（君於 <code>MyVehicleScript</code> 所書之欄）則為該模塊<strong>諸實例所共</strong>——惟置唯讀常數與全域配置。</li>
-      <li><code>dispose</code> 既返，狀態隨即析構；實例自客戶端而沒，約五秒而退休，資源包重載（F3+T）之時則盡毀之。</li>
+      <li>宿主按 <code>mtrStateSize()</code> 之數（註冊宏自 <code>sizeof(State)</code> 生之）而配其塊；首用之前，經 <code>mtrInit()</code> 以 placement-new 構之——<strong>慎勿</strong>視零填充之記憶體為可用（<code>std::string</code> 諸非平凡之型，施於零記憶體，未定義之行也）。</li>
+      <li>塊中之物，<strong>跨幀恆存</strong>：紋理之柄、模型之柄、回呼、緩存，悉置諸此。</li>
+      <li>至若<strong>腳本類之成員</strong>（君於 <code>MyVehicleScript</code> 所書之欄），則該模塊<strong>諸實例所共</strong>——宜惟置唯讀之常數與全域之配置。</li>
+      <li><code>dispose</code> 既返，狀態隨即而析；實例自客戶端之列而沒者，約五秒乃退休；資源包重載（F3+T）之時，則盡毀之。</li>
     </ul>
     <div class="admonition tip">
       <span class="admonition-title">要訣</span>
-      <p>後臺回呼之物（<code>mtr::Api::Callback</code>）必存於 <code>State</code> 以至於銷毀——Java 側或於任意之時呼之。</p>
+      <p>後臺回呼之物（<code>mtr::Api::Callback</code>），必存於 <code>State</code>，以終其身——蓋 Java 側者，任意之時皆得呼之也。</p>
     </div>
 
     <h2 id="lifecycle">生命週期之時序</h2>
     <div class="steps">
       <div class="step">
         <h3>分配＋構造</h3>
-        <p>宿主為實例配狀態塊而呼 <code>mtrInit()</code> → <code>State()</code> 構焉。</p>
+        <p>宿主為實例配狀態之塊，呼 <code>mtrInit()</code>，則 <code>State()</code> 構焉。</p>
       </div>
       <div class="step">
         <h3>create</h3>
-        <p>實例首度渲染之前一呼。<strong>create 期間所呈之繪製記錄，必留至首幀 render 而復用</strong>——一次性靜態之內容（形狀、常駐貼圖）置諸此，render 惟繪動態之部。資源之取、<code>Api</code> 之呼、回呼之註，亦宜在焉。</p>
+        <p>實例未繪，先此一呼。<strong>create 之際所呈之繪製記錄，必留至首幀 render 而復用</strong>——一次之靜態內容（形狀也，常駐之貼圖也）置諸此；render 惟畫其動者。資源之取、<code>Api</code> 之呼、回呼之註，亦皆宜在焉。</p>
       </div>
       <div class="step">
         <h3>render（每幀）</h3>
-        <p>讀快照 → 運算 → 以繪製記錄書於幀競技場。快照與包裝器惟本次呼叫之內有效；宿主於 <code>render</code> 既返，即讀其輸出而收其幀。實例不可見之時，<code>render</code> 不為所呼，而狀態保其熱。</p>
+        <p>讀快照而運算，錄繪製記錄於幀之競技場。快照與包裝器，惟本次一呼之內為效；宿主於 <code>render</code> 既返，即讀其輸出而收其幀。實例不可見，則 <code>render</code> 不呼，而狀態恆暖焉。</p>
       </div>
       <div class="step">
         <h3>dispose</h3>
-        <p>實例退休或重載之時呼之。於此閉所持之紋理 / 模型等資源；<code>State</code> 之析構隨之。縱 <code>dispose</code> 擲異常，狀態亦必安然析構。</p>
+        <p>實例退休或重載之時，乃呼之。於此閉其所持紋理、模型諸資源；<code>State</code> 之析構隨之。縱 <code>dispose</code> 擲異常，狀態亦必安然就析。</p>
       </div>
     </div>
     <div class="admonition note">
       <span class="admonition-title">與 JS 相應</span>
-      <p>此 <code>create / render / dispose ＋ 逐實例 state</code> 之制，即 JCM 為 JS 腳本所設之模型（每 <code>ScriptInstance</code> 一 <code>state</code> 物件）原生之映；遷 JS 腳本之時，邏輯得逐段對譯。</p>
+      <p>此 <code>create / render / dispose ＋ 逐實例 state</code> 之制，即 JCM 為 JS 腳本所設之模型（每 <code>ScriptInstance</code> 一 <code>state</code> 物件）原生之映也；遷 JS 腳本之時，邏輯可逐段對譯焉。</p>
     </div>
 
     <h2 id="threading">線程模型</h2>
     <ul>
-      <li>宿主為<strong>每模塊</strong>於單一後臺線程之上<strong>串行</strong>呼其全部生命週期函數（映 JCM 於 JS 腳本逐腳本單線程執行之器）——同一實例之 <code>create / render / dispose</code> 永不並發。</li>
-      <li>然 <strong>render 與非同步回呼得並發</strong>（如 <code>BackgroundWorker</code> 所呈之任務，此刻方行於他線程）：同步共享可變之狀態，腳本自任其責。</li>
-      <li>資源包重載，必先止回呼、俟方行呼叫之返，而後毀狀態、卸程式碼。</li>
+      <li>宿主之於<strong>每模塊</strong>，立單一後臺之線程，<strong>串行</strong>呼其生命週期諸函（映 JCM 於 JS 腳本逐腳本單線程執行之器）——同一實例之 <code>create / render / dispose</code>，永不並發。</li>
+      <li>然 <strong>render 與非同步之回呼，或得並發</strong>（<code>BackgroundWorker</code> 所呈之任務，方行於他線程者也）——共享可變之狀態而欲其安，腳本自任其責。</li>
+      <li>資源包重載，必先止回呼，俟方行呼者既返，而後毀其狀態、卸其碼。</li>
     </ul>
 
     <h2 id="crash">崩潰隔離</h2>
-    <p>註冊宏裹每一導出函數於崩潰圍欄（<code>crash_guard.hpp</code>）：</p>
+    <p>註冊宏者，裹每一導出函數於崩潰之圍欄（<code>crash_guard.hpp</code>）：</p>
     <ul>
-      <li>段錯誤（segmentation fault）等硬體之疾 → <strong>惟禁該模塊</strong>，遊戲行程行如故；<code>latest.log</code> 留 <code>native script faulted … module disabled</code> 一行。</li>
-      <li>未獲之 C++ 異常亦為圍欄所截——然請自 try/catch，以保語義之明。</li>
-      <li>POSIX 訊號<strong>不</strong>為 longjmp 式之「復」：越訊號處理器之跳，危於崩潰本身，故模塊逕下線者，蓋刻意之設也。</li>
+      <li>段錯誤（segmentation fault）諸硬體之疾，<strong>惟禁該模塊</strong>而已，遊戲行程行如故；<code>latest.log</code> 留 <code>native script faulted … module disabled</code> 一行。</li>
+      <li>未獲之 C++ 異常，亦為圍欄所截——然請自為 try/catch，以保其語義之明。</li>
+      <li>POSIX 之訊號，<strong>不</strong>以 longjmp 之式「復」之：越訊號處理器而跳，其危甚於崩潰本身；故模塊逕下線者，蓋刻意之設也。</li>
     </ul>
 
     <h2 id="errors">返回之碼</h2>
@@ -180,22 +180,22 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
         <tr><td><code>0</code></td><td>成功</td></tr>
         <tr><td><code>-1</code></td><td>入參為空</td></tr>
         <tr><td><code>-2</code></td><td>ABI 版本不合（宿主與模塊商議不成）</td></tr>
-        <tr><td><code>-3</code></td><td>資源類型不合（如車輛模塊被當 PIDS 而呼）</td></tr>
+        <tr><td><code>-3</code></td><td>資源類型不合（如車輛之模塊，誤以 PIDS 呼之）</td></tr>
       </tbody>
     </table>
-    <p>此諸返回之碼，SDK 所生也，尋常腳本之碼無須掛懷；若君方撰自定義宿主 / 測試驅動，按上表解之可也（詳見 <a href="abi.html">C ABI 與宿主服務</a>）。</p>
+    <p>此諸返回之碼，SDK 所生也；尋常腳本，無足掛懷。惟君自撰宿主或測試之驅，則按表而解之可也（詳見 <a href="abi.html">C ABI 與宿主服務</a>）。</p>
 
     <hr>
-    <p>繼之：<a href="data.html">數據快照</a> —— render 之時所可讀者何；<a href="drawing.html">繪事與畫布</a> —— 何以繪而出之。</p>
+    <p>繼之：<a href="data.html">數據快照</a> —— render 之時，所可讀者何物；<a href="drawing.html">繪事與畫布</a> —— 何以繪而出之。</p>
   </article>
 
   <footer class="footer">
     <div class="footer-links">
       <a href="index.html">文檔之首</a>
       <a href="getting-started.html">入門</a>
-      <a href="performance.html">性能與除錯</a>
+      <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>性能與除錯 — JCM Yanyang C++ 腳本開發文檔</title>
-<meta name="description" content="GC 衛生守則、髒矩形上傳之策、latest.log 觀測、JVM 參數與常見問題排查。">
+<title>疾徐與除錯 — JCM Yanyang C++ 腳本開發文檔</title>
+<meta name="description" content="GC 衛生之守則，髒矩形上傳之策，latest.log 之觀測，暨 JVM 參數、常見之問之診。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -29,7 +29,7 @@
     <a href="java-api.html">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
-    <a href="performance.html" class="active">性能與除錯</a>
+    <a href="performance.html" class="active">疾徐與除錯</a>
   </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
@@ -51,20 +51,20 @@
 <main class="main">
   <div class="topbar">
     <button class="menu-btn" type="button" aria-label="展開目錄">☰ 目錄</button>
-    <span class="title">性能與除錯</span>
+    <span class="title">疾徐與除錯</span>
   </div>
 
   <article class="content">
     <header class="page-header">
-      <div class="breadcrumb"><a href="index.html">文檔</a> / 精進 / 性能與除錯</div>
-      <h1>性能與除錯</h1>
-      <p class="page-lead">使腳本行且疾且穩：熱路徑之守則、記憶體之衛生，暨事出之時所當觀者。</p>
+      <div class="breadcrumb"><a href="index.html">文檔</a> / 精進 / 疾徐與除錯</div>
+      <h1>疾徐與除錯</h1>
+      <p class="page-lead">欲腳本之行，疾而且穩：熱路徑之守則、記憶體之衛生，暨事出之際所當觀者，皆在焉。</p>
     </header>
 
     <div class="page-toc">
       <b>本頁之目</b>
       <ol>
-        <li><a href="#model">性能之模型</a></li>
+        <li><a href="#model">疾徐之模型</a></li>
         <li><a href="#rules">熱路徑守則</a></li>
         <li><a href="#memory">記憶體與延遲回收</a></li>
         <li><a href="#observe">觀測與日誌</a></li>
@@ -73,12 +73,12 @@
       </ol>
     </div>
 
-    <h2 id="model">性能之模型</h2>
+    <h2 id="model">疾徐之模型</h2>
     <p>每幀每實例之費，其構如次：</p>
     <table>
       <thead><tr><th>環節</th><th>所費</th></tr></thead>
       <tbody>
-        <tr><td>快照封送（宿主 → 模塊）</td><td><strong>唯一所迫之 Java 穿越</strong>：宿主以復用建構器書 POD 快照於共享頁 / 直接緩衝</td></tr>
+        <tr><td>快照封送（宿主 → 模塊）</td><td><strong>唯一所迫之 Java 穿越</strong>：宿主以復用之建構器，書 POD 快照於共享頁 / 直接緩衝</td></tr>
         <tr><td>數據之讀（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>尋常記憶體之讀，零費</td></tr>
         <tr><td>繪製記錄之書</td><td>競技場內 bump 分配，零分配零裝箱</td></tr>
         <tr><td>像素光柵（<code>Gfx2D</code>）</td><td>純 C++ 之環；src-over 不透明有快捷之途</td></tr>
@@ -89,64 +89,64 @@
 
     <h2 id="rules">熱路徑守則</h2>
     <ol>
-      <li><strong>render 之內勿近 <code>Api</code></strong>。高頻數據盡在快照；高頻繪製盡行記錄之流。JS 之世週期性 GC 之頓挫，正「每幀每車一反射之呼」所致也。</li>
-      <li><strong>資源惟建於 <code>create</code></strong>：模型、紋理、Java 物件之柄、回呼——既建則存 <code>State</code>，<code>render</code> 惟用之。</li>
-      <li><strong>勿逐幀讀資源 / 行 HTTP</strong>：網路入 <code>BackgroundWorker</code>，所得入君自家同步之緩存，render 讀緩存。</li>
-      <li><strong>紋理惟內容既變乃上傳</strong>：靜態之景繪一次；動態之內容以 <code>push_clip</code> 限重繪之域，使髒矩形惟覆真變之條。</li>
-      <li><strong>逐物件錯其相</strong>：多實例輪播 / 閃爍勿同幀齊動——以相錯之調度散髒區於諸幀（以 <code>in_game_time()</code> 或 <code>game_time_millis()</code> 為鐘）。</li>
-      <li><strong>字串暫物宜節</strong>：<code>StrView</code> 相較免抄；確須拼接，則慎 <code>std::string</code> 之分配（短串 SSO 免分配）。</li>
+      <li><strong>render 之內，勿近 <code>Api</code></strong>。高頻之數據，盡在快照；高頻之繪製，盡行乎記錄之流。JS 之世，週期性 GC 之頓挫，正「每幀每車一反射之呼」所致也。</li>
+      <li><strong>資源惟建於 <code>create</code></strong>：模型也，紋理也，Java 物件之柄也，回呼也——既建，則存諸 <code>State</code>；<code>render</code> 惟用之而已。</li>
+      <li><strong>勿逐幀讀資源、行 HTTP</strong>：網路之事，入諸 <code>BackgroundWorker</code>；所得者，納諸君自家同步之緩存；render 則讀其緩存。</li>
+      <li><strong>紋理惟內容既變乃上傳</strong>：靜態之景，一繪足矣；動態之內容，以 <code>push_clip</code> 限其重繪之域，使髒矩形惟覆真變之條。</li>
+      <li><strong>逐物件而錯其相</strong>：多實例輪播、閃爍之動，勿同幀而齊發——以參差之調度，散髒區於諸幀（以 <code>in_game_time()</code> 或 <code>game_time_millis()</code> 為鐘）。</li>
+      <li><strong>字串暫物，用之宜節</strong>：<code>StrView</code> 相較，免其抄寫；確須拼接，則慎 <code>std::string</code> 之分配（短串有 SSO，免乎分配）。</li>
     </ol>
 
     <h2 id="memory">記憶體與延遲回收</h2>
-    <p>宿主側記憶體之紀（腳本作者知之可也，SDK 自蒙其利）：</p>
+    <p>宿主側記憶體之紀（腳本作者知之可也；其利則 SDK 自蒙之）：</p>
     <ul>
-      <li>五輸出競技場<strong>每模塊一份、幀間復用</strong>；像素競技場初 1 MB、按需而增（上限 16 MB）、尖峰既過則確定收縮復歸下限——不復有每模塊 16 MB 之固定駐留。</li>
-      <li>實例去視錐而不毀（保其熱態、重入於鏡則零重建）；誠去客戶端車輛之列，約五秒乃退休。</li>
-      <li><strong>大塊之釋行 <code>defer_free</code></strong>（ABI 10）：<code>render</code> / <code>dispose</code> 之內既死之兆級緩衝，付宿主後臺回收之線程，免記 <code>free</code> 全費於當前之幀、且免大 GC 安全點之待。其約曰：塊必既死、無析構、此後無線程（含宿主回放）復觸之。SDK 像素競技場之收縮已自遵之；君自有之大緩衝循同規而呼 <code>host-&gt;defer_free</code>，宿主過舊（槽為 null）時同步 free 可也。</li>
+      <li>五輸出競技場者，<strong>每模塊一份，幀間復用</strong>；像素競技場初 1 MB，按需而增（其上 16 MB），尖峰既過，則確定收縮而復歸下限——每模塊 16 MB 固定駐留之弊，不復有焉。</li>
+      <li>實例去視錐而不毀（保其暖態；重入於鏡，則零重建）；誠去乎客戶端車輛之列者，約五秒乃退休。</li>
+      <li><strong>大塊之釋，行乎 <code>defer_free</code></strong>（ABI 10）：<code>render</code> / <code>dispose</code> 之內既死之兆級緩衝，付諸宿主後臺回收之線程——免 <code>free</code> 之全費累乎當前之幀，且免大 GC 安全點之待。其約曰：塊必既死，必無析構，此後必無線程（宿主回放亦在數焉）復觸之。SDK 像素競技場之收縮，已自遵之；君自有之大緩衝，循同規而呼 <code>host-&gt;defer_free</code> 可也；宿主過舊（其槽為 null）者，同步 free 亦可。</li>
     </ul>
 
     <h2 id="observe">觀測與日誌</h2>
     <table>
       <thead><tr><th>所觀</th><th>所在</th><th>內容</th></tr></thead>
       <tbody>
-        <tr><td>模塊 census</td><td><code>logs/latest.log</code> 啟動之段</td><td>已載模塊之數與類；傳輸通道摘要之行（含 <code>transport:</code> 之樣：shared-memory / panama-ffm 等）——以證 shm / FFM 誠已生效、有無靜默降級</td></tr>
-        <tr><td>載失之由</td><td>census 行＋除錯之模</td><td>一側（JS 或 C++）缺 / 載敗，惟略彼側而留其示，餘側行如常</td></tr>
+        <tr><td>模塊 census</td><td><code>logs/latest.log</code> 啟動之段</td><td>已載模塊之數與其類；傳輸通道摘要之行（含 <code>transport:</code> 之樣：shared-memory / panama-ffm 之屬）——所以證 shm / FFM 誠已生效、有無靜默降級也</td></tr>
+        <tr><td>載失之由</td><td>census 行＋除錯之模</td><td>一側（JS 或 C++）缺焉 / 載敗焉，則惟略彼側而留其示；餘側行如常</td></tr>
         <tr><td>崩潰圍欄</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模塊見禁之確由</td></tr>
-        <tr><td>清掃之流</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏之彙錄，得徑觀實例壽命之行</td></tr>
-        <tr><td>上傳位元組之數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>於君之碼中誌之：髒矩形之策效否，一覽而知</td></tr>
+        <tr><td>清掃之流</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏之彙錄，實例壽命之行，得以徑觀焉</td></tr>
+        <tr><td>上傳位元組之數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>於君之碼中誌之——髒矩形之策效否，一覽而知</td></tr>
       </tbody>
     </table>
-    <p>既改庫，按 <strong>F3+T</strong>（或模組「重載全部 MTR 腳本」之快捷鍵）即可重載 C++ 腳本——卸載與復尋皆行全程，無須重啟遊戲。</p>
+    <p>庫既改矣，按 <strong>F3+T</strong>（或模組「重載全部 MTR 腳本」之快捷鍵），即可重載 C++ 腳本——卸載與復尋，皆行乎全程，無須重啟遊戲也。</p>
 
     <h2 id="flags">JVM 參數</h2>
     <table>
       <thead><tr><th>參數</th><th>預設</th><th>所司</th></tr></thead>
       <tbody>
-        <tr><td><code>-Djcm.nativeIdleMillis</code></td><td>90000</td><td>實例猶存而久未渲染，逾此毫秒之數乃釋；<code>0</code> = 不依時限而釋</td></tr>
-        <tr><td><code>-Djcm.nativeIdleMax</code></td><td>32</td><td>熱實例之上限，踰者以最久未渲染者先釋；<code>0</code> = 不設上限</td></tr>
+        <tr><td><code>-Djcm.nativeIdleMillis</code></td><td>90000</td><td>實例猶存而久未渲染者，逾此毫秒之數乃釋；<code>0</code> 者，不依時限而釋也</td></tr>
+        <tr><td><code>-Djcm.nativeIdleMax</code></td><td>32</td><td>暖實例之上限；踰之者，以最久未渲染者先釋。<code>0</code> 者，不設其限也</td></tr>
         <tr><td><code>-Djcm.ffm.disable</code></td><td>關</td><td>除錯之關：禁 Panama FFM 載入之途</td></tr>
       </tbody>
     </table>
-    <p>實例退休與銷毀，別有每 tick 之預算（預設 2 個、舊者先出），暨世界卸載 / 切換維度 / 斷線之時一次性沖刷。</p>
+    <p>實例之退休與銷毀，別有每 tick 之預算焉（預設二，舊者先出）；世界既卸，維度既遷，或連接既斷，則一舉沖刷之。</p>
 
     <h2 id="faq">常見之問</h2>
     <h3>模塊全然不載，何也？</h3>
     <ol>
-      <li>先察所用為 <strong>Release 或 Complete Build jar</strong>——速成 CI 之產物不含原生橋，日誌必書 <code>native bridge unavailable</code>（此非君模塊之過）。</li>
-      <li>次察平臺之目：當前系統惟載所應平臺之庫；無副檔名之 stem 宣告自展為諸平臺之路（見<a href="getting-started.html#package">打包</a>）。</li>
-      <li>復察 <code>ID</code> 與宣告條目之 <code>id</code> 是否逐字相合。</li>
-      <li>終察 ABI：宿主受 6–10；ABI 8+ 之庫須 Yanyang.7 及以上之宿主。</li>
+      <li>先察所用者，<strong>Release 之 jar 抑 Complete Build 之 jar</strong>——速成 CI 之產物，不含原生橋，日誌必書 <code>native bridge unavailable</code>（非君模塊之咎也）。</li>
+      <li>次察平臺之目：當前系統，惟載所應平臺之庫；無副檔名之 stem 宣告，自展為諸平臺之路（見<a href="getting-started.html#package">打包</a>）。</li>
+      <li>復察 <code>ID</code> 與宣告條目之 <code>id</code>，逐字相合否。</li>
+      <li>終察 ABI：宿主所受，6 至 10 也；ABI 8+ 之庫，須 Yanyang.7 及以上之宿主。</li>
     </ol>
     <h3>屏現占位之框（tofu），何也？</h3>
-    <p>CJK 字形，宿主字體不覆該碼位則退——以資源字體 id 傳於 <code>Text::font()</code> / <code>Gfx2D</code> 之構造（如 <code>jsblock:shanghai</code>），或察所用字體之集果含此諸字否。</p>
+    <p>CJK 字形，宿主字體不覆其碼位，則退為占位之框——以資源字體之 id，傳於 <code>Text::font()</code> 與 <code>Gfx2D</code> 之構造（如 <code>jsblock:shanghai</code>），或察所用字體之集，果含此諸字否。</p>
     <h3>間或失幀，何也？</h3>
     <ul>
-      <li>先觀是否「每幀重繪全屏」：靜態之內容繪一次，動態之內容 clip 條帶而重繪，以 <code>last_upload_bytes()</code> 驗之。</li>
-      <li>次觀是否多實例同幀齊動：輪播 / 閃爍 / 開門之動，逐物件錯其相。</li>
-      <li>終察 render 之內有無 <code>Api</code> 之呼（兼間接者：<code>ctx.set_auto_z_ordering</code> 等一二上下文之法，於 ABI 8+ 將轉發一遭）。</li>
+      <li>先觀其每幀重繪全屏否：靜態之內容，一繪足矣；動態之內容，clip 條帶而重繪之；以 <code>last_upload_bytes()</code> 驗之。</li>
+      <li>次觀多實例同幀齊動否：輪播也，閃爍也，開門之動也，逐物件而錯其相。</li>
+      <li>終察 render 之內，有無 <code>Api</code> 之呼（兼其間接者：<code>ctx.set_auto_z_ordering</code> 諸一二上下文之法，於 ABI 8+ 將轉發一遭）。</li>
     </ul>
     <h3>Windows 上所行與他處異，何也？</h3>
-    <p>ABI 6 之前之古版，嘗恃「零填充之記憶體可徑作物件用」——此恰惟於 MSVC 布局之下倖存。今 SDK <code>mtrInit()</code> 之約已根治之；君若撰自定義宿主，務於配狀態塊之後呼 <code>mtrInit()</code>。</p>
+    <p>ABI 6 之前古版，嘗恃「零填充之記憶體可徑作物件用」——此恰惟於 MSVC 布局之下，倖存焉耳。今 SDK <code>mtrInit()</code> 之約，已根治之；君若自撰宿主，務於既配狀態塊之後，呼 <code>mtrInit()</code>。</p>
 
     <hr>
     <p>返：<a href="index.html">文檔之首</a>。</p>
@@ -156,9 +156,9 @@
     <div class="footer-links">
       <a href="index.html">文檔之首</a>
       <a href="getting-started.html">入門</a>
-      <a href="performance.html">性能與除錯</a>
+      <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

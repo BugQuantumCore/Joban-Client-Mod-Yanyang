@@ -29,7 +29,7 @@
     <a href="java-api.html" class="active">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
-    <a href="performance.html">性能與除錯</a>
+    <a href="performance.html">疾徐與除錯</a>
   </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
@@ -58,7 +58,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / API 備覽 / mtr::Api 與 Java 互通</div>
       <h1><code>mtr::Api</code> 與 Java 互通</h1>
-      <p class="page-lead">JavaScript 腳本所得訪之公開 Java API，C++ 一無所缺。<code>Api</code> 所呼者，與 JS 同批之公開物件——非使 C++ 行 JavaScript 也。</p>
+      <p class="page-lead">JavaScript 腳本所得訪之公開 Java API，C++ 一無所缺。<code>Api</code> 所呼者，與 JS 同批之公開物件也——非使 C++ 以行 JavaScript 也。</p>
     </header>
 
     <div class="page-toc">
@@ -74,7 +74,7 @@
 
     <div class="admonition danger">
       <span class="admonition-title">熱路徑之禁</span>
-      <p>每 <code>Api</code> 之呼＝一遭 JSON 編碼＋反射＋JSON 解碼之往返。<strong>惟用於 <code>create()</code>、後臺之任、或每秒屈指可數之低頻呼；斷勿納於逐繪製之呼</strong>——往昔「每幀每車一 Api」者，正週期性 GC 頓挫之源也。高頻數據讀快照，高頻繪製行記錄之流。</p>
+      <p><code>Api</code> 一呼，則 JSON 編碼一遭、反射一遭、JSON 解碼又一遭，往而復返。故<strong>惟用諸 <code>create()</code>、後臺之任、與每秒屈指可數之低頻呼；逐繪之呼，斷勿納焉</strong>——往昔「每幀每車一 Api」者，正週期性 GC 頓挫之源也。高頻之數據，讀諸快照；高頻之繪，行諸記錄之流。</p>
     </div>
 
     <h2 id="when">何時用 Api</h2>
@@ -83,13 +83,13 @@
       <tbody>
         <tr><td>車輛 / 到站 / 電梯 / 裝飾逐幀之狀</td><td><a href="data.html">快照包裝器</a>（零費）</td></tr>
         <tr><td>文字 / 貼圖 / 模型 / 聲音之繪</td><td><a href="drawing.html">繪製記錄流</a>（零 JVM 穿越）</td></tr>
-        <tr><td>腳本 <code>input</code> 之配置、一次性資源之建、跨幀緩存之物柄</td><td><code>Api</code>（create 時呼之，柄存 State）</td></tr>
+        <tr><td>腳本 <code>input</code> 之配置，一次性資源之建，跨幀緩存之物柄</td><td><code>Api</code>（create 時呼之，柄存 State）</td></tr>
         <tr><td>網路之請、檔案、BackgroundWorker、聲音管理器等深介面</td><td><code>Api</code>（後臺任務中呼之）</td></tr>
       </tbody>
     </table>
 
     <h2 id="basics">物件與呼叫</h2>
-    <p>以當前幀之輸入構 <code>Api</code>；自根物件（<code>context()</code> / <code>wrapper()</code>）、靜態類或 <code>new</code> 而發，尋徑以往：</p>
+    <p>以當前幀之輸入而構 <code>Api</code>；自根物件（<code>context()</code> / <code>wrapper()</code>）、靜態類、或 <code>new</code> 而發之，尋徑以往：</p>
     <pre><code class="lang-cpp">struct State { mtr::Api::Object tracker; };
 
 struct Example : mtr::PidsScript&lt;State&gt; {
@@ -121,9 +121,9 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
       <tbody>
         <tr><td><code>api.context()</code> / <code>api.wrapper()</code></td><td>當前腳本之上下文 / 包裝器（與 JS 同一對物件）</td></tr>
         <tr><td><code>api.input()</code></td><td>資源包宣告中之 <code>input</code> JSON（= JS 之 <code>SCRIPT_INPUT</code>）</td></tr>
-        <tr><td><code>api.create(class, args)</code></td><td><code>new</code> 一 Java 物件</td></tr>
+        <tr><td><code>api.create(class, args)</code></td><td><code>new</code> 一 Java 之物</td></tr>
         <tr><td><code>api.call(class, member, args)</code> / <code>api.get(class, member)</code></td><td>靜態方法 / 靜態欄</td></tr>
-        <tr><td><code>api.root(name)</code></td><td>按名取根物件：<code>api.root("console")</code>、<code>api.root("Timing")</code>…</td></tr>
+        <tr><td><code>api.root(name)</code></td><td>按名而取根物件：<code>api.root("console")</code>、<code>api.root("Timing")</code> 之屬</td></tr>
       </tbody>
     </table>
     <table>
@@ -134,12 +134,12 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>obj.as&lt;T&gt;()</code></td><td>取原值（<code>int</code>、<code>double</code>、<code>bool</code>、<code>std::string</code>…）</td></tr>
         <tr><td><code>obj.is_null()</code></td><td>可空者判其空</td></tr>
         <tr><td><code>obj.enum_name()</code></td><td>Java 枚舉之名（如 <code>"BOAT"</code>）</td></tr>
-        <tr><td><code>obj.close()</code></td><td>顯呼 <code>close()</code>（會話清理亦必兜底閉其遺資）</td></tr>
+        <tr><td><code>obj.close()</code></td><td>顯呼 <code>close()</code>（會話之清理，亦必兜底而閉其遺資）</td></tr>
       </tbody>
     </table>
     <div class="admonition note">
       <span class="admonition-title">柄之義</span>
-      <p>Java 物件由會話按引用計數而治，柄以十進位字串表之；<code>Object</code> 既析，即釋其引用，欲跨幀而留者，存諸 <code>State</code>。數值 id（含 64 位）全程不失其精。欄與方法按真實 Java 之型而解，含所繼承之公開成員與標準 Java 集合。</p>
+      <p>Java 之物件，會話按引用計數而治之；柄以十進位之字串表之。<code>Object</code> 既析，即釋其引用；欲跨幀而留者，存諸 <code>State</code>。數值之 id（64 位者亦然），全程不失其精。欄與方法，按真實 Java 之型而解；所繼承之公開成員與標準 Java 集合，皆在其中。</p>
     </div>
 
     <h2 id="table">JS ↔ C++ 對照表</h2>
@@ -159,10 +159,10 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>include(...)</code></td><td>C++ 編譯期 <code>#include</code></td></tr>
       </tbody>
     </table>
-    <p>AWT 之類用全限定之名：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 之公開欄 <code>graphics</code> / <code>bufferedImage</code> 曝真實 Java2D 物件。資源路徑之解：<code>Resources.idr</code> 按本模塊宣告之路而解（多庫宣告則各用其各）；<code>Resources.manager()</code> 與 JS 於 MTR 4 同為 null。上游文檔所標未實現之能（車輛連接件之 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>），本模組亦不虛構其行。</p>
+    <p>AWT 之類，用全限定之名：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 之公開欄 <code>graphics</code> 與 <code>bufferedImage</code>，曝其真實之 Java2D 物件。資源路徑之解：<code>Resources.idr</code> 按本模塊宣告之路而解（多庫宣告，則各用其各）；<code>Resources.manager()</code> 於 MTR 4，與 JS 同為 null。上游文檔所標未實現之能（車輛連接件之 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>），本模組亦不虛構其行。</p>
 
     <h2 id="callback">後臺回呼</h2>
-    <p><code>Api::Callback</code> 裹 C++ 函數為 Java 函數式介面（<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>…）。<strong>回呼之物必存活至 Java 不復能呼之日</strong>——納諸 <code>State</code>：</p>
+    <p><code>Api::Callback</code> 者，裹 C++ 函數為 Java 函數式介面（<code>Runnable</code> / <code>Consumer</code> / <code>Function</code> 之屬）者也。<strong>回呼之物，必存其身，以至 Java 不復能呼之日</strong>——納諸 <code>State</code>：</p>
     <pre><code class="lang-cpp">struct State {
     std::unique_ptr&lt;mtr::Api::Callback&gt; task;   // 存之至於銷毀
 };
@@ -178,33 +178,33 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
     api.root("BackgroundWorker").call("submit", {*s.task});
 }</code></pre>
     <ul>
-      <li><strong>render 與回呼或並發</strong>——共享可變之 C++ 狀態，自加其鎖。</li>
-      <li>重載必先止回呼、俟在途之呼既返，而後毀狀態與卸程式碼。</li>
-      <li>後臺備妥之 GPU 模型，以 <code>DynamicModelHolder.uploadLater</code> 上傳；徑 <code>ModelManager.upload</code> 者仍須 Java 渲染線程（自 <code>create</code> 或主線程回呼而呼之）。</li>
+      <li><strong>render 與回呼，或得並發</strong>——共享可變之 C++ 狀態，自加其鎖。</li>
+      <li>重載必先止回呼，俟在途之呼既返，而後毀其狀態、卸其碼。</li>
+      <li>後臺所備之 GPU 模型，以 <code>DynamicModelHolder.uploadLater</code> 上傳之；徑由 <code>ModelManager.upload</code> 者，仍須 Java 渲染之線程（自 <code>create</code> 或主線程之回呼而呼之）。</li>
     </ul>
 
     <h2 id="coverage">所覆之範</h2>
-    <p>常用 API 之面：console、Resources、<code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>、<code>Vector3f</code>、<code>Matrices</code>、<code>GraphicsTexture</code> 與 Java2D、<code>RenderManager / QuadDrawCall</code>、<code>SoundManager / TickableSoundInstance</code>、<code>MinecraftClient</code>、<code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>、<code>Files</code>、<code>Networking</code>、<code>BackgroundWorker</code>、<code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>、<code>DataReader</code>、<code>MTRClientData</code>、TSC 數據類與 <code>DisplayHelper</code>。PIDS / 裝飾 / 車輛可呼成員之清單，錄於倉庫之 <code>bench/api-coverage.json</code>；電梯以其 Java 包裝器為準。</p>
-    <p>既編譯，得對照真實 MTR jar 以稽君呼叫之面：</p>
+    <p>常用 API 之面如次：console、Resources、<code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>、<code>Vector3f</code>、<code>Matrices</code>、<code>GraphicsTexture</code> 與 Java2D、<code>RenderManager / QuadDrawCall</code>、<code>SoundManager / TickableSoundInstance</code>、<code>MinecraftClient</code>、<code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>、<code>Files</code>、<code>Networking</code>、<code>BackgroundWorker</code>、<code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>、<code>DataReader</code>、<code>MTRClientData</code>、TSC 數據類與 <code>DisplayHelper</code>。PIDS、裝飾、車輛可呼成員之清單，錄於倉庫之 <code>bench/api-coverage.json</code>；電梯則以其 Java 包裝器為準。</p>
+    <p>既編譯矣，可對照真實之 MTR jar，以稽君所呼之面：</p>
     <pre><code class="lang-bash">python native/bench/api_coverage.py \
     --classes fabric/build/classes/java/main \
     --jar path/to/mtr.jar</code></pre>
     <div class="admonition note">
       <span class="admonition-title">版本之穩</span>
-      <p><code>MTRClientData</code> 內部之欄，與 JS 側同受版本穩定之限；標 deprecated 之方法仍可呼。快照與包裝器中之等價數據宜先——更疾亦更穩。</p>
+      <p><code>MTRClientData</code> 內部之欄，與 JS 側同受版本穩定之限；標 deprecated 之方法，仍可呼之。快照與包裝器中等價之數據，宜先用之——更疾，亦更穩。</p>
     </div>
 
     <hr>
-    <p>繼之：<a href="abi.html">C ABI 與宿主服務</a> —— 模塊疆界之全約。</p>
+    <p>繼之：<a href="abi.html">C ABI 與宿主服務</a> —— 模塊疆界之全約也。</p>
   </article>
 
   <footer class="footer">
     <div class="footer-links">
       <a href="index.html">文檔之首</a>
       <a href="getting-started.html">入門</a>
-      <a href="performance.html">性能與除錯</a>
+      <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>
