@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -146,7 +146,7 @@
     </table>
 
     <h2 id="history">ABI version history</h2>
-    <p>The host accepts <strong>ABI 6–10</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 10:</p>
+    <p>The host accepts <strong>ABI 6–11</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 11:</p>
     <table>
       <thead><tr><th>ABI</th><th>What it introduced</th></tr></thead>
       <tbody>
@@ -155,6 +155,7 @@
         <tr><td>8</td><td><code>invoke_api</code> (the full Java API channel), the lift snapshot, typed interchange modes; <strong>ABI 8 libraries require a JCM Yanyang.7 or newer host</strong></td></tr>
         <tr><td>9</td><td>Canonical transport <strong>type</strong> ids for interchanges / vehicles (MAGIC MTR extensions); the host stopped copying snapshots every frame, arena capacities became out-parameters</td></tr>
         <tr><td>10</td><td>The <code>defer_free</code> deferred-reclamation hook (freeing the script's own large buffers off the JVM threads)</td></tr>
+        <tr><td>11</td><td><code>door_direction</code> on the vehicle snapshot (door-opening side 0..3 — the former <code>_pad0</code> byte promoted in place; layout and size unchanged, older modules keep working)</td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -175,7 +176,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
   </footer>
 </main>
 </div>

@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -146,7 +146,7 @@
     </table>
 
     <h2 id="history">ABI 版本沿革</h2>
-    <p>宿主所受，<strong>ABI 6–10</strong> 之模塊（各按其時代之布局而餵之，報其自家之 ABI 號）。以今 SDK 編譯，所出即 ABI 10：</p>
+    <p>宿主所受，<strong>ABI 6–11</strong> 之模塊（各按其時代之布局而餵之，報其自家之 ABI 號）。以今 SDK 編譯，所出即 ABI 11：</p>
     <table>
       <thead><tr><th>ABI</th><th>所引入者</th></tr></thead>
       <tbody>
@@ -155,6 +155,7 @@
         <tr><td>8</td><td><code>invoke_api</code>（完備 Java API 通道）、電梯快照、轉乘具型之模式；<strong>ABI 8 之庫，須 JCM Yanyang.7 及以上之宿主</strong></td></tr>
         <tr><td>9</td><td>轉乘 / 車輛規範交通<strong>類型</strong>之 id（MAGIC MTR 所擴）；宿主則止逐幀抄其快照，競技場之容量出參焉</td></tr>
         <tr><td>10</td><td><code>defer_free</code> 延遲回收之鉤（腳本自有大緩衝，離 JVM 線程而釋）</td></tr>
+        <tr><td>11</td><td>車輛快照之 <code>door_direction</code>（開門之向，0..3 —— 舊 <code>_pad0</code> 之位元組升格而為之，布局尺寸皆如其舊，老模塊行如故）</td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -175,7 +176,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -146,7 +146,7 @@
     </table>
 
     <h2 id="history">Évolution des versions d’ABI</h2>
-    <p>L’hôte accepte les modules <strong>ABI 6–10</strong> (chacun est alimenté selon la disposition de son époque et rapporte son propre numéro d’ABI). Compiler avec le SDK actuel produit des modules ABI 10 :</p>
+    <p>L’hôte accepte les modules <strong>ABI 6–11</strong> (chacun est alimenté selon la disposition de son époque et rapporte son propre numéro d’ABI). Compiler avec le SDK actuel produit des modules ABI 10 :</p>
     <table>
       <thead><tr><th>ABI</th><th>Apports</th></tr></thead>
       <tbody>
@@ -155,6 +155,7 @@
         <tr><td>8</td><td><code>invoke_api</code> (canal vers l’intégralité des API Java), instantané ascenseur, mode typé des correspondances ; <strong>une bibliothèque ABI 8 exige un hôte JCM Yanyang.7 ou supérieur</strong></td></tr>
         <tr><td>9</td><td>id de <strong>type</strong> de transport canonique des correspondances / véhicules (extension MAGIC MTR) ; l’hôte cesse de copier l’instantané à chaque frame, capacité des arènes en paramètre de sortie</td></tr>
         <tr><td>10</td><td>crochet de récupération différée <code>defer_free</code> (libération hors des threads JVM des gros tampons appartenant au script)</td></tr>
+        <tr><td>11</td><td><code>door_direction</code> sur l’instantané véhicule (sens d’ouverture des portes 0..3 — l’ancien octet <code>_pad0</code> promu sur place ; disposition et taille inchangées, les anciens modules continuent de fonctionner)</td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -175,7 +176,7 @@
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

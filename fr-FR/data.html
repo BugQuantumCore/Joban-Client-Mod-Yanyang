@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -111,6 +111,7 @@
         <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>indice de la prochaine station sur la ligne courante (précalculé par l’hôte, ne le recalculez pas)</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>nom de la ligne courante / couleur ARGB / état de ligne circulaire (0 aucune, 1 sens horaire, 2 sens antihoraire)</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>voir <a href="#transport">Modes et types de transport</a></td></tr>
+        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>Sens d’ouverture des portes : <code>NOT</code> / <code>"not"</code> (aucun côté), <code>LEFT</code> / <code>"left"</code> (gauche par rapport à la tête), <code>RIGHT</code> / <code>"right"</code> (droite), <code>ALL</code> / <code>"all"</code> (deux côtés). À quai, la valeur est identique quel que soit le stade des portes (pas encore ouvertes, partielles, en fermeture, fermées) ; sur la ligne, elle prédit le prochain arrêt. Identique au JS <code>vehicle.getDirectionOfDoorOpening()</code> (ABI 11)</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>nom affiché de la voie de garage (nom / description personnalisés par l’utilisateur)</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>instantané brut (détails ABI dans <a href="abi.html">ABI C</a>)</td></tr>
       </tbody>
@@ -269,7 +270,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

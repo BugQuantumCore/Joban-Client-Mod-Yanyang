@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -111,6 +111,7 @@
         <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>現時路線的下一站索引（宿主已預先算好，別自己重算）</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>現時路線名 / 顏色 ARGB / 環線狀態（0 無、1 順時針、2 逆時針）</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>見<a href="#transport">交通模式與類型</a></td></tr>
+        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>開門方向：<code>NOT</code> / <code>"not"</code>（兩側皆不開）、<code>LEFT</code> / <code>"left"</code>（車頭左側開）、<code>RIGHT</code> / <code>"right"</code>（車頭右側開）、<code>ALL</code> / <code>"all"</code>（兩側開）。停泊站台時不論車門處於未開 / 半開 / 關閉中 / 已關嘅邊個階段，回報都與完全打開時相同；正線運行時預測下一站。與 JS 嘅 <code>vehicle.getDirectionOfDoorOpening()</code> 完全一致（ABI 11）</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>側線顯示名（用戶自訂名稱 / 描述）</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始快照（ABI 細節見 <a href="abi.html">C ABI</a>）</td></tr>
       </tbody>
@@ -269,7 +270,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

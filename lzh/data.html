@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -111,6 +111,7 @@
         <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>當前線路下一站之索引（宿主既預算之，勿自重算也）</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>當前線路之名 / 色 ARGB / 環線之狀（0 無、1 順時針、2 逆時針）</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>見<a href="#transport">交通之模式與類型</a></td></tr>
+        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>開門之向：曰 <code>NOT</code>，左右皆弗啟；曰 <code>LEFT</code>，車頭之左啟；曰 <code>RIGHT</code>，右啟；曰 <code>ALL</code>，兩側皆啟焉。停站之際，門縱未啟、半啟、方闔、既闔，所報皆與全啟時同；行於正線，則測下一站。與 JS 之 <code>vehicle.getDirectionOfDoorOpening()</code> 同（ABI 11）</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>側線顯示之名（用戶自定之名 / 述）</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始之快照（ABI 細務，見 <a href="abi.html">C ABI</a>）</td></tr>
       </tbody>
@@ -269,7 +270,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 10（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

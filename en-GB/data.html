@@ -42,7 +42,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 10<br>
+    SDK ABI 11<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -111,6 +111,7 @@
         <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>Next-stop index on the current route (precomputed by the host—don't recompute it yourself)</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>Current route name / colour ARGB / circular state (0 none, 1 clockwise, 2 anticlockwise)</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>See <a href="#transport">transport modes and types</a></td></tr>
+        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>Door-opening side: <code>NOT</code> / <code>"not"</code> (neither side), <code>LEFT</code> / <code>"left"</code> (head-left), <code>RIGHT</code> / <code>"right"</code> (head-right), <code>ALL</code> / <code>"all"</code> (both sides). While dwelling at a platform the value is reported the same regardless of the current door phase (not-yet-open / partial / closing / closed); whilst running on the mainline it predicts the next stop. Identical to the JS <code>vehicle.getDirectionOfDoorOpening()</code> (ABI 11)</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>Siding display name (user-defined name / description)</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>Raw snapshot (see <a href="abi.html">C ABI</a> for ABI details)</td></tr>
       </tbody>
@@ -269,7 +270,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ scripting documentation · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+    JCM Yanyang C++ scripting documentation · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
   </footer>
 </main>
 </div>
