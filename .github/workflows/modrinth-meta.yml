@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PYEOF'
-          import json, os, urllib.request
+          import json, os, urllib.error, urllib.request
 
           TOK = os.environ["MODRINTH_TOKEN"]
           UA = "jcm-yanyang-meta/1.0 (BugQuantumCore)"
@@ -35,9 +35,17 @@ jobs:
           def req(url, data=None, method="GET"):
               r = urllib.request.Request(url, data=data, method=method, headers={
                   "User-Agent": UA, "Authorization": TOK, "Content-Type": "application/json"})
-              with urllib.request.urlopen(r, timeout=120) as resp:
-                  body = resp.read()
-                  return json.loads(body.decode()) if body else None
+              try:
+                  with urllib.request.urlopen(r, timeout=120) as resp:
+                      body = resp.read()
+                      return json.loads(body.decode()) if body else None
+              except urllib.error.HTTPError as e:
+                  detail = ""
+                  try:
+                      detail = e.read().decode(errors="replace")[:1000]
+                  except Exception:
+                      pass
+                  raise RuntimeError(f"HTTP {e.code} for {method} {url}: {detail}")
 
           proj = req("https://api.modrinth.com/v2/project/kMMJcRqY")
           old = proj.get("description") or ""
