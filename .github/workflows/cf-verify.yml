@@ -1,8 +1,6 @@
 name: CF Verify (one-shot)
 
 on:
-  push:
-    branches: [ci/modrinth-upload]
   workflow_dispatch:
 
 permissions:

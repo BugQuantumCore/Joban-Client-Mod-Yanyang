@@ -7,7 +7,37 @@ permissions:
   contents: read
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate Modrinth token and project access
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+
+          TOK = os.environ["MODRINTH_TOKEN"]
+          UA = "jcm-yanyang-preflight/1.0 (BugQuantumCore)"
+
+          def get(url):
+              req = urllib.request.Request(url, headers={"User-Agent": UA, "Authorization": TOK})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.loads(r.read().decode())
+
+          user = get("https://api.modrinth.com/v2/user")
+          print(f"token OK, authenticated as: {user.get('username')}")
+          proj = get("https://api.modrinth.com/v2/project/kMMJcRqY")
+          print(f"project accessible: {proj.get('title')} (status: {proj.get('status')})")
+          team = get("https://api.modrinth.com/v2/project/kMMJcRqY/members")
+          print("team:", [(m.get("user", {}).get("username"), m.get("role")) for m in team])
+          print("PREFLIGHT OK")
+          PYEOF
+
   publish:
+    needs: preflight
     strategy:
       fail-fast: false
       matrix:
