@@ -1,0 +1,57 @@
+name: Modrinth Meta (one-shot)
+
+on:
+  push:
+    branches: [ci/modrinth-upload]
+    paths: ['.github/workflows/modrinth-meta.yml', '.github/modrinth-description.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-description:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout description file
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/modrinth-description.md
+
+      - name: Patch project description
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+
+          TOK = os.environ["MODRINTH_TOKEN"]
+          UA = "jcm-yanyang-meta/1.0 (BugQuantumCore)"
+
+          def req(url, data=None, method="GET"):
+              r = urllib.request.Request(url, data=data, method=method, headers={
+                  "User-Agent": UA, "Authorization": TOK, "Content-Type": "application/json"})
+              with urllib.request.urlopen(r, timeout=120) as resp:
+                  body = resp.read()
+                  return json.loads(body.decode()) if body else None
+
+          proj = req("https://api.modrinth.com/v2/project/kMMJcRqY")
+          old = proj.get("description") or ""
+          print(f"current description: {len(old)} chars; head: {old[:120]!r}")
+
+          new = open(".github/modrinth-description.md", encoding="utf-8").read()
+          print(f"new description: {len(new)} chars")
+          assert 0 < len(new) < 65536, "description length out of range"
+
+          out = req("https://api.modrinth.com/v2/project",
+                    data=json.dumps({"description": new}).encode(), method="PATCH")
+          print("PATCH accepted:", json.dumps(out)[:200] if out else "(204 no content)")
+
+          got = req("https://api.modrinth.com/v2/project/kMMJcRqY").get("description") or ""
+          assert got == new, f"description mismatch after PATCH: {len(got)} vs {len(new)} chars"
+          print(f"VERIFIED: project description updated ({len(got)} chars)")
+          PYEOF
