@@ -44,15 +44,19 @@ jobs:
           print(f"current description: {len(old)} chars; head: {old[:120]!r}")
 
           new = open(".github/modrinth-description.md", encoding="utf-8").read()
-          print(f"new description: {len(new)} chars")
-          assert 0 < len(new) < 65536, "description length out of range"
+          short = ("Joban Client Mod Yanyang 分支：为 Minecraft Transit Railway 4 带来 "
+                   "JS + C++ 混合脚本、零 JNI 传输与渲染性能修复。")
+          print(f"new body: {len(new)} chars; short description: {len(short)} chars")
+          assert 0 < len(new) < 65536 and 0 < len(short) < 256, "length out of range"
 
           out = req(f"https://api.modrinth.com/v2/project/{proj['id']}",
-                    data=json.dumps({"description": new}).encode(),
+                    data=json.dumps({"description": short, "body": new}).encode(),
                     method="PATCH")
           print("PATCH accepted:", json.dumps(out)[:200] if out else "(204 no content)")
 
-          got = req("https://api.modrinth.com/v2/project/kMMJcRqY").get("description") or ""
-          assert got == new, f"description mismatch after PATCH: {len(got)} vs {len(new)} chars"
-          print(f"VERIFIED: project description updated ({len(got)} chars)")
+          got = req("https://api.modrinth.com/v2/project/kMMJcRqY")
+          assert (got.get("body") or "") == new, \
+              f"body mismatch after PATCH: {len(got.get('body') or '')} vs {len(new)} chars"
+          assert (got.get("description") or "") == short, "short description mismatch"
+          print(f"VERIFIED: project body ({len(new)} chars) and description updated")
           PYEOF
