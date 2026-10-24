@@ -1,0 +1,73 @@
+name: CF Verify (one-shot)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Query newest CurseForge files of project 1736483
+        env:
+          CF_TOKEN: ${{ secrets.CURSEFORGE_PAT }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, sys, urllib.request
+
+          TOK = os.environ["CF_TOKEN"]
+          PROJECT = "1736483"
+          UA = "jcm-yanyang-verify/1.0 (BugQuantumCore)"
+
+          def get(url):
+              req = urllib.request.Request(url, headers={
+                  "x-api-key": TOK, "User-Agent": UA, "Accept": "application/json"})
+              with urllib.request.urlopen(req, timeout=180) as r:
+                  return json.loads(r.read().decode())
+
+          d = get(f"https://api.curseforge.com/v1/mods/{PROJECT}/files?sort=dateCreated&isAscending=false&pageSize=60")
+          files = d.get("data", [])
+          print(f"newest {len(files)} files on CurseForge project {PROJECT}:")
+
+          new = []
+          for f in files:
+              name = f.get("displayName") or f.get("fileName")
+              is_new = "2.3.0-beta-2.yanyang.7" in name
+              if is_new:
+                  new.append(f)
+              print(f"  [{f['id']}] {name} | {f.get('fileDate')} | status={f.get('fileStatus')}"
+                    f" | gameVersions={','.join(f.get('gameVersions') or [])}"
+                    + ("  <== NEW" if is_new else ""))
+
+          print(f"\nnew yanyang.7 files: {len(new)}")
+          if len(new) != 12:
+              print("EXPECTED 12 NEW FILES")
+              sys.exit(1)
+
+          problems = []
+          for f in new:
+              name = f.get("displayName") or f.get("fileName")
+              deps = f.get("dependencies") or []
+              if not any(d.get("relationType") == 3 for d in deps):
+                  problems.append(f"{name}: no required dependency (MTR) found: {deps}")
+              loaders = [v for v in (f.get("gameVersions") or []) if v.lower() in ("fabric", "forge")]
+              if len(loaders) != 1:
+                  problems.append(f"{name}: loader tags unexpected: {f.get('gameVersions')}")
+              mc = [v for v in (f.get("gameVersions") or [])
+                    if v in ("1.17.1", "1.18.2", "1.19.2", "1.19.4", "1.20.1", "1.20.4")]
+              if len(mc) != 1:
+                  problems.append(f"{name}: mc version tags unexpected: {f.get('gameVersions')}")
+              if f.get("releaseType") != 2:
+                  problems.append(f"{name}: releaseType={f.get('releaseType')} (expected 2=beta)")
+
+          if problems:
+              print("PROBLEMS FOUND:")
+              for p in problems:
+                  print(" -", p)
+              sys.exit(1)
+          print("ALL 12 NEW CURSEFORGE FILES VERIFIED (loader/mc tags, beta channel, MTR required dependency)")
+          PYEOF
