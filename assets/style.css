@@ -525,18 +525,64 @@ th, td {
   text-align: left;
   vertical-align: top;
   line-height: 1.6;
+  /* 列宽地板：每列保底约 8 字宽度，杜绝窄屏下说明列被压成细塔（比例失调） */
+  min-width: 8em;
 }
 
 th {
   background: var(--th-bg);
   font-weight: 600;
-  white-space: nowrap;
+  /* 空间充裕时表头本就不会折行；受限时允许折行，不再反向挤压正文列 */
+  white-space: normal;
   color: var(--th-text);
 }
 
 tbody tr:nth-child(even) { background: var(--row-alt); }
 
-td code { white-space: nowrap; }
+/* 单元格内代码：允许在空隙/斜杠处折行，但单个标识符永不斩断
+   （覆盖内联代码芯片的 word-break: break-word）——
+   列宽不足时由整列撑宽、表格横向滚动解决，避免 MTR_REGISTER_... 被拦腰截断 */
+td code {
+  white-space: normal;
+  word-break: normal;
+}
+
+/* 宽表格仍溢出时：依滚动位置在相应边缘作渐隐提示（can-l / can-r 由 app.js 切换）。
+   mask 挂在滚动容器盒上，内容滑动而提示常驻；两端同时可滑时双 mask 联合（默认 add 合成） */
+.table-wrap.can-l {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 20px);
+  mask-image: linear-gradient(to right, transparent 0, #000 20px);
+}
+.table-wrap.can-r {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
+}
+.table-wrap.can-l.can-r {
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0, #000 20px),
+    linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
+  mask-image:
+    linear-gradient(to right, transparent 0, #000 20px),
+    linear-gradient(to right, #000 calc(100% - 20px), transparent 100%);
+}
+
+/* JS 就绪（app.js 为每表包一层 .table-wrap）后：表格回归标准表格布局——
+   width:100% 铺满优先，配合上面的列宽地板与折行规则；
+   整体最小内容仍超宽时表格自然溢出、由外层容器横向滚动 */
+.table-wrap {
+  margin: 16px 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.table-wrap > table {
+  display: table;
+  width: 100%;
+  margin: 0;
+  overflow-x: visible;
+}
 
 /* ---------------- 提示框 ---------------- */
 
@@ -1144,6 +1190,11 @@ td code { white-space: nowrap; }
   body.nav-open { overflow: visible; }
   body.nav-open::after { display: none; }
   .copy-btn { display: none; }
+  .table-wrap { overflow-x: visible; margin: 12px 0; }
+  .table-wrap.can-l, .table-wrap.can-r {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
   .content { max-width: none; padding: 0; }
   pre { border: 1px solid var(--border); }
 }

@@ -37,6 +37,17 @@
     }, true);
   }
 
+  /* ---- 表格滚动容器 ----
+     为每张表包一层 .table-wrap（overflow-x: auto），表格恢复标准表格布局：
+     width:100% 铺满优先，列宽地板之下不压缩；整体最小内容超宽时由外层滚动。
+     无 JS 时回退为 table 自身 display:block + overflow（样式表中保留）。 */
+  document.querySelectorAll("table").forEach(function (t) {
+    var wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+    t.parentNode.insertBefore(wrap, t);
+    wrap.appendChild(t);
+  });
+
   /* ---- 浅色 / 深色主题 ----
      首次访问跟随系统偏好；手动切换后写入 localStorage("jcm-theme")。
      防闪烁的内联脚本已在各页 <head> 中先行设置 data-theme。 */
@@ -475,4 +486,30 @@
       }
     } catch (e) { /* 保持原样 */ }
   });
+
+  /* ---- 宽表格横向滚动：边缘渐隐提示 ----
+     CSS 为表格列设了保底宽度，窄屏下不再压缩比例；仍放不下的表格
+     依赖 .table-wrap 横向滚动。此处依滚动位置切换 can-l / can-r，
+     CSS 用 mask 在对应边缘渐隐，提示尚有内容可滑。 */
+  function syncTableEdges() {
+    document.querySelectorAll(".table-wrap").forEach(function (w) {
+      var max = w.scrollWidth - w.clientWidth;
+      if (max <= 4) {
+        w.classList.remove("can-l", "can-r");
+        return;
+      }
+      w.classList.toggle("can-r", w.scrollLeft < max - 4);
+      w.classList.toggle("can-l", w.scrollLeft > 4);
+    });
+  }
+
+  document.querySelectorAll(".table-wrap").forEach(function (w) {
+    w.addEventListener("scroll", syncTableEdges, { passive: true });
+  });
+  window.addEventListener("resize", syncTableEdges);
+  window.addEventListener("orientationchange", syncTableEdges);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(syncTableEdges).catch(function () { /* 忽略 */ });
+  }
+  syncTableEdges();
 })();
