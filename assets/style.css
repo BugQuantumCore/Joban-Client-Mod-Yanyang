@@ -88,7 +88,25 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* 触屏基础：去除系统灰色点按高亮，避免景观模式文字自动放大 */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 键盘焦点可见；指针点按不画焦点环 */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+/* 交互控件：消除 300ms 延迟与双击缩放（保留双指缩放），并禁选按钮文字 */
+a, button, select, summary { touch-action: manipulation; }
+
+button, select, .nav a {
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 body {
   margin: 0;
@@ -107,6 +125,7 @@ body {
 .layout {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .sidebar {
@@ -198,9 +217,14 @@ body {
   transition: background 0.15s, color 0.15s;
 }
 
-.nav a:hover {
+.nav a:active {
   background: var(--sidebar-hover);
   color: var(--sidebar-strong);
+}
+
+.nav a.active:active {
+  background: rgba(16, 185, 129, 0.22);
+  color: var(--sidebar-active);
 }
 
 .nav a.active {
@@ -242,10 +266,9 @@ body {
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.theme-toggle:hover {
-  background: var(--sidebar-hover);
+.theme-toggle:active {
+  border-color: var(--sidebar-active);
   color: var(--sidebar-strong);
-  border-color: var(--sidebar-scrollbar);
 }
 
 .theme-icon { font-size: 14px; line-height: 1; }
@@ -268,8 +291,7 @@ body {
   appearance: auto;
 }
 
-.lang-select:hover { border-color: var(--sidebar-scrollbar); }
-.lang-select:focus { outline: none; border-color: var(--sidebar-active); }
+.lang-select:focus-visible { outline: 2px solid var(--sidebar-active); outline-offset: 1px; }
 .lang-select option { background: var(--sidebar-bg); color: var(--sidebar-text); }
 
 .sidebar-footer {
@@ -347,7 +369,7 @@ p { margin: 12px 0; }
 
 a { color: var(--accent-strong); }
 
-a:hover { color: var(--accent); }
+a:active { color: var(--accent); }
 
 ul, ol { padding-left: 26px; }
 li { margin: 5px 0; }
@@ -370,7 +392,7 @@ hr {
 }
 
 .breadcrumb a { color: var(--muted); text-decoration: none; }
-.breadcrumb a:hover { color: var(--accent-strong); }
+.breadcrumb a:active { color: var(--accent-strong); }
 
 /* ---------------- 代码 ---------------- */
 
@@ -399,6 +421,8 @@ pre {
   line-height: 1.68;
   margin: 16px 0;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 pre code {
@@ -430,6 +454,57 @@ pre code {
   padding: 0 4px;
 }
 
+/* 代码复制按钮（app.js 注入；代码块在两主题下均为深底）
+   纯触屏设备常显，鼠标设备悬停代码块时显示，混合设备触摸会话中常显 */
+.code-block-wrap { position: relative; }
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 9px;
+  min-height: 30px;
+  font-size: 11.5px;
+  font-family: inherit;
+  line-height: 1;
+  color: #a8a29e;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.copy-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.copy-btn.ok {
+  opacity: 1;
+  pointer-events: auto;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(110, 231, 183, 0.42);
+}
+
+.copy-btn.err {
+  opacity: 1;
+  pointer-events: auto;
+  color: #f87171;
+  background: rgba(185, 28, 28, 0.16);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.copy-btn:active { background: rgba(255, 255, 255, 0.18); }
+
 /* ---------------- 表格 ---------------- */
 
 table {
@@ -440,6 +515,8 @@ table {
   display: block;
   overflow-x: auto;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 th, td {
@@ -540,10 +617,7 @@ td code { white-space: nowrap; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.card:hover {
-  border-color: var(--accent-border);
-  box-shadow: 0 2px 14px rgba(5, 150, 105, 0.09);
-}
+.card:active { border-color: var(--accent-border); }
 
 .card .card-icon {
   font-size: 21px;
@@ -571,6 +645,8 @@ td code { white-space: nowrap; }
   padding: 24px 20px;
   margin: 20px 0;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .arch-row {
@@ -680,7 +756,7 @@ td code { white-space: nowrap; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.toc-card:hover { border-color: var(--accent-border); box-shadow: 0 2px 12px rgba(5, 150, 105, 0.09); }
+.toc-card:active { border-color: var(--accent-border); }
 
 .toc-card b {
   display: block;
@@ -725,24 +801,13 @@ td code { white-space: nowrap; }
 .page-toc ol { margin: 0; padding-left: 20px; }
 .page-toc li { margin: 3px 0; }
 .page-toc a { text-decoration: none; }
-.page-toc a:hover { text-decoration: underline; }
-
-/* 锚点 */
-h2:hover .anchor, h3:hover .anchor { opacity: 1; }
-
-.anchor {
-  opacity: 0;
-  margin-left: 8px;
-  text-decoration: none;
-  font-size: 0.75em;
-  color: var(--faint);
-  transition: opacity 0.15s;
-}
+.page-toc a:active { text-decoration: underline; }
 
 /* ---------------- 语言选择页 ---------------- */
 
 .picker {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -776,7 +841,7 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   width: auto;
 }
 
-.theme-toggle.on-paper:hover {
+.theme-toggle.on-paper:active {
   background: var(--inline-code-bg);
   color: var(--text);
   border-color: var(--faint);
@@ -820,10 +885,9 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
 }
 
-.lang-card:hover {
+.lang-card:active {
   border-color: var(--accent-border);
   box-shadow: 0 3px 16px rgba(5, 150, 105, 0.1);
-  transform: translateY(-1px);
 }
 
 .lang-card .lc-suggest {
@@ -876,44 +940,210 @@ h2:hover .anchor, h3:hover .anchor { opacity: 1; }
 
 .picker-footer a { color: var(--muted); }
 
+/* ---------------- 悬停表现（仅真实鼠标指针） ----------------
+   纯触屏设备 (hover: none) 不命中以下规则；
+   触屏笔记本/二合一设备在触摸会话中由下方 [data-input="touch"] 压制，
+   鼠标再次移动后自动恢复 —— 消除“粘滞悬停”。 */
+@media (hover: hover) and (pointer: fine) {
+  .nav a:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-strong);
+  }
+  .nav a.active:hover {
+    background: rgba(16, 185, 129, 0.14);
+    color: var(--sidebar-active);
+  }
+  .theme-toggle:hover {
+    background: var(--sidebar-hover);
+    color: var(--sidebar-strong);
+    border-color: var(--sidebar-scrollbar);
+  }
+  .theme-toggle.on-paper:hover {
+    background: var(--inline-code-bg);
+    color: var(--text);
+    border-color: var(--faint);
+  }
+  .lang-select:hover { border-color: var(--sidebar-scrollbar); }
+  a:hover { color: var(--accent); }
+  .breadcrumb a:hover { color: var(--accent-strong); }
+  .card:hover {
+    border-color: var(--accent-border);
+    box-shadow: 0 2px 14px rgba(5, 150, 105, 0.09);
+  }
+  .toc-card:hover {
+    border-color: var(--accent-border);
+    box-shadow: 0 2px 12px rgba(5, 150, 105, 0.09);
+  }
+  .page-toc a:hover { text-decoration: underline; }
+  .lang-card:hover {
+    border-color: var(--accent-border);
+    box-shadow: 0 3px 16px rgba(5, 150, 105, 0.1);
+    transform: translateY(-1px);
+  }
+  .lang-card.suggested:hover { border-color: var(--accent-border); }
+  .code-block-wrap:hover .copy-btn { opacity: 1; pointer-events: auto; }
+  .copy-btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fafaf9;
+  }
+}
+
+/* 混合设备（带触摸屏的电脑/平板）触摸会话：压制悬停表现，改由 :active 提供反馈 */
+:root[data-input="touch"] .nav a:hover { background: none; color: var(--sidebar-text); }
+:root[data-input="touch"] .nav a.active:hover { background: rgba(16, 185, 129, 0.14); color: var(--sidebar-active); }
+:root[data-input="touch"] .theme-toggle:hover { background: none; color: var(--sidebar-text); border-color: var(--sidebar-border); }
+:root[data-input="touch"] .theme-toggle.on-paper:hover { background: none; color: var(--muted); border-color: var(--border-strong); }
+:root[data-input="touch"] .lang-select:hover { border-color: var(--sidebar-border); }
+:root[data-input="touch"] a:hover { color: var(--accent-strong); }
+:root[data-input="touch"] .breadcrumb a:hover { color: var(--muted); }
+:root[data-input="touch"] .card:hover { border-color: var(--border); box-shadow: none; }
+:root[data-input="touch"] .toc-card:hover { border-color: var(--border); box-shadow: none; }
+:root[data-input="touch"] .page-toc a:hover { text-decoration: none; }
+:root[data-input="touch"] .lang-card:hover { border-color: var(--border); box-shadow: none; transform: none; }
+:root[data-input="touch"] .lang-card.suggested:hover { border-color: var(--accent-border); }
+:root[data-input="touch"] .code-block-wrap:hover .copy-btn { opacity: 1; pointer-events: auto; }
+:root[data-input="touch"] .copy-btn:hover { background: rgba(255, 255, 255, 0.07); color: #a8a29e; }
+:root[data-input="touch"] .copy-btn {
+  opacity: 1;
+  pointer-events: auto;
+  padding: 8px 11px;
+  min-height: 38px;
+}
+
+/* 纯触屏（手机/平板）：复制按钮常显并放大触点 */
+@media (hover: none), (pointer: coarse) {
+  .copy-btn {
+    opacity: 1;
+    pointer-events: auto;
+    padding: 8px 11px;
+    min-height: 38px;
+  }
+}
+
 /* ---------------- 响应式 ---------------- */
 
+/* 平板与手机（≤ 960px）：吸顶顶栏 + 抽屉式侧栏 */
 @media (max-width: 960px) {
-  .topbar { display: flex; }
+  .topbar {
+    display: flex;
+    min-height: 56px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-bottom: 12px;
+    padding-left: calc(18px + env(safe-area-inset-left));
+    padding-right: calc(18px + env(safe-area-inset-right));
+  }
 
+  .topbar .menu-btn {
+    padding: 10px 14px;
+    min-height: 44px;
+    align-self: center;
+  }
+
+  /* 抽屉侧栏（env() 不支持时优雅降级为基础样式） */
   .sidebar {
     position: fixed;
     left: 0;
     top: 0;
+    bottom: 0;
+    height: auto;
     z-index: 100;
-    transform: translateX(-100%);
-    transition: transform 0.22s ease;
-    box-shadow: none;
-    width: 288px;
+    width: min(300px, 85vw);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    transform: translateX(-102%);
+    transition: transform 0.24s ease;
   }
 
-  .sidebar.open {
-    transform: translateX(0);
-    box-shadow: 0 0 0 100vmax rgba(28, 25, 23, 0.45);
+  .sidebar.open { transform: translateX(0); }
+
+  /* 打开时锁定背景滚动 + 全屏遮罩（点击遮罩关闭） */
+  body.nav-open { overflow: hidden; }
+
+  body.nav-open::after {
+    content: "";
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(28, 25, 23, 0.5);
+    z-index: 90;
   }
+
+  /* 触点目标 ≥ 44px；select 用 16px 字号避免 iOS 聚焦时自动放大页面 */
+  .nav a { padding: 10px 12px; font-size: 14.5px; }
+  .theme-toggle { padding: 10px 12px; min-height: 44px; }
+  .lang-select { font-size: 16px; min-height: 44px; padding: 8px 10px; }
+
+  /* 页内目录锚点跳转避开吸顶顶栏 */
+  h1, h2, h3, h4 { scroll-margin-top: 84px; }
 
   .content { padding: 28px 22px 56px; }
   h1 { font-size: 27px; }
   .hero h1 { font-size: 29px; }
-  .footer { padding: 18px 22px; }
+  .footer { padding: 18px 22px calc(18px + env(safe-area-inset-bottom)); }
 
-  .picker-header { padding: 14px 18px; }
+  .picker-header {
+    padding: 14px 18px;
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
   .picker-main { padding: 36px 18px 48px; }
   .picker-main h1 { font-size: 25px; }
-  .lang-cards { grid-template-columns: 1fr 1fr; }
+  .picker-footer { padding: 18px 28px calc(18px + env(safe-area-inset-bottom)); }
+  .lang-cards { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 }
 
+/* 平板纵向中段：更宽的留白 */
+@media (min-width: 561px) and (max-width: 960px) {
+  .content { padding: 32px 30px 64px; }
+}
+
+/* 手机（≤ 560px） */
 @media (max-width: 560px) {
   .lang-cards { grid-template-columns: 1fr; }
+  .toc-cards { grid-template-columns: 1fr; }
+  h1 { font-size: 25px; }
+  .hero h1 { font-size: 26px; }
+  h2 { font-size: 20px; margin-top: 42px; }
+  h3 { font-size: 16.5px; }
+  .page-lead { font-size: 15.5px; }
+  pre { font-size: 12.5px; padding: 14px 15px; }
+  table { font-size: 13px; }
+  th, td { padding: 7px 10px; }
+  .arch { padding: 16px 12px; }
+  .arch-row { min-width: 540px; gap: 10px; }
+  .content { padding: 24px 18px 52px; }
+  .breadcrumb { font-size: 12px; }
+  .cards { gap: 10px; }
+  .step { padding-left: 40px; }
+  .footer { padding: 16px 18px calc(16px + env(safe-area-inset-bottom)); }
+  .footer .footer-links { gap: 14px; }
+  .footer .footer-links a { display: inline-block; padding: 8px 2px; }
+  .picker-sub { font-size: 13px; }
+}
+
+/* 超窄屏（≤ 400px 折叠屏外屏） */
+@media (max-width: 400px) {
+  h1 { font-size: 23px; }
+  .hero h1 { font-size: 24px; }
+  .topbar .title { font-size: 13.5px; }
+}
+
+/* 减弱动态效果偏好 */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @media print {
   .sidebar, .topbar, .footer, .sidebar-settings, .picker-header { display: none; }
+  body.nav-open { overflow: visible; }
+  body.nav-open::after { display: none; }
+  .copy-btn { display: none; }
   .content { max-width: none; padding: 0; }
   pre { border: 1px solid var(--border); }
 }

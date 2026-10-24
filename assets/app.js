@@ -13,6 +13,30 @@
     { code: "fr-FR", name: "Français", region: "France", prefix: "fr" }
   ];
 
+  /* ---- 输入方式追踪（桌面触摸屏 / 二合一设备） ----
+     触摸会话 → <html data-input="touch">：CSS 压制 hover 表现，避免“粘滞悬停”；
+     鼠标/触控笔再次使用 → 恢复 fine。初始值按指针能力推断。 */
+  var root = document.documentElement;
+
+  function setInput(type) {
+    if (root.getAttribute("data-input") !== type) root.setAttribute("data-input", type);
+  }
+
+  try {
+    setInput(window.matchMedia("(any-pointer: coarse)").matches ? "touch" : "fine");
+  } catch (e) { setInput("fine"); }
+
+  if (window.PointerEvent) {
+    window.addEventListener("pointerdown", function (e) {
+      setInput(e.pointerType === "touch" ? "touch" : "fine");
+    }, true);
+    window.addEventListener("pointermove", function (e) {
+      if (e.pointerType === "mouse" && root.getAttribute("data-input") === "touch") {
+        setInput("fine");
+      }
+    }, true);
+  }
+
   /* ---- 浅色 / 深色主题 ----
      首次访问跟随系统偏好；手动切换后写入 localStorage("jcm-theme")。
      防闪烁的内联脚本已在各页 <head> 中先行设置 data-theme。 */
@@ -102,20 +126,200 @@
     if (suggested) suggested.classList.add("suggested");
   }
 
-  /* ---- 移动端侧栏开合 ---- */
+  /* ---- 移动端抽屉侧栏：开合 / 遮罩 / 滚动锁定 / 滑动关闭 ---- */
   var sidebar = document.querySelector(".sidebar");
   var btn = document.querySelector(".topbar .menu-btn");
   if (sidebar && btn) {
+    btn.setAttribute("aria-expanded", "false");
+
+    function drawerIsOpen() {
+      return sidebar.classList.contains("open");
+    }
+
+    function openDrawer() {
+      sidebar.classList.add("open");
+      document.body.classList.add("nav-open");
+      btn.setAttribute("aria-expanded", "true");
+    }
+
+    function closeDrawer() {
+      sidebar.classList.remove("open");
+      document.body.classList.remove("nav-open");
+      btn.setAttribute("aria-expanded", "false");
+    }
+
     btn.addEventListener("click", function () {
-      sidebar.classList.toggle("open");
+      drawerIsOpen() ? closeDrawer() : openDrawer();
     });
+
+    /* 点击抽屉外任意处（含遮罩）关闭 */
     document.addEventListener("click", function (e) {
-      if (sidebar.classList.contains("open") &&
-          !sidebar.contains(e.target) && e.target !== btn) {
-        sidebar.classList.remove("open");
+      if (drawerIsOpen() && !sidebar.contains(e.target) && !btn.contains(e.target)) {
+        closeDrawer();
       }
     });
+
+    /* Esc 关闭并把焦点还给菜单按钮 */
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && drawerIsOpen()) {
+        closeDrawer();
+        btn.focus();
+      }
+    });
+
+    /* 触屏：向左滑动关闭抽屉（跟手位移，超过 70px 关闭，纵向滚动不干扰） */
+    var sx = null, sy = 0, dx = 0, dragging = false;
+
+    sidebar.addEventListener("touchstart", function (e) {
+      if (!drawerIsOpen()) return;
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+      dx = 0;
+      dragging = false;
+    }, { passive: true });
+
+    sidebar.addEventListener("touchmove", function (e) {
+      if (sx === null) return;
+      var mx = e.touches[0].clientX - sx;
+      var my = e.touches[0].clientY - sy;
+      if (!dragging) {
+        if (Math.abs(mx) > 10 && Math.abs(mx) > Math.abs(my)) {
+          dragging = true;
+          sidebar.style.transition = "none";
+        } else if (Math.abs(my) > 10) {
+          sx = null; /* 纵向滚动：让给页面 */
+          return;
+        }
+      }
+      if (dragging) {
+        dx = Math.min(0, mx);
+        sidebar.style.transform = "translateX(" + dx + "px)";
+      }
+    }, { passive: true });
+
+    function endSwipe() {
+      if (!dragging) { sx = null; return; }
+      sidebar.style.transition = "";
+      sidebar.style.transform = "";
+      dragging = false;
+      sx = null;
+      if (dx < -70) closeDrawer();
+    }
+
+    sidebar.addEventListener("touchend", endSwipe, { passive: true });
+    sidebar.addEventListener("touchcancel", endSwipe, { passive: true });
+
+    /* 跨断点（如旋转平板）时清理抽屉状态，避免 ≥ 961px 留下遮罩/滚动锁 */
+    var mql = window.matchMedia("(max-width: 960px)");
+    var onMq = function (e) {
+      if (!e.matches && drawerIsOpen()) closeDrawer();
+    };
+    if (mql.addEventListener) mql.addEventListener("change", onMq);
+    else if (mql.addListener) mql.addListener(onMq);
   }
+
+  /* ---- 代码块复制按钮 ----
+     由 JS 注入（免改 HTML）：pre 外套一层 .code-block-wrap，按钮悬于右上角，
+     不随代码横向滚动移动；纯触屏常显，鼠标悬停代码块时显示。
+     文案按页面语言本地化。 */
+  var COPY_LABELS = {
+    "zh-CN": { copy: "复制", ok: "已复制", fail: "复制失败" },
+    "zh-HK": { copy: "複製", ok: "已複製", fail: "複製失敗" },
+    "zh-TW": { copy: "複製", ok: "已複製", fail: "複製失敗" },
+    "lzh": { copy: "錄", ok: "已錄", fail: "弗克錄" },
+    "en-US": { copy: "Copy", ok: "Copied!", fail: "Copy failed" },
+    "en-GB": { copy: "Copy", ok: "Copied!", fail: "Copy failed" },
+    "fr-FR": { copy: "Copier", ok: "Copié !", fail: "Échec de la copie" }
+  };
+  var ICON_COPY = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  var ICON_OK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+  var ICON_ERR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+  function legacyCopy(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.top = "-1000px";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function copyText(text, done, fail) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        legacyCopy(text) ? done() : fail();
+      });
+    } else if (legacyCopy(text)) {
+      done();
+    } else {
+      fail();
+    }
+  }
+
+  var COPY_L = COPY_LABELS[locale] || COPY_LABELS["en-US"];
+
+  document.querySelectorAll("pre").forEach(function (pre) {
+    var code = null;
+    for (var ci = 0; ci < pre.children.length; ci++) {
+      if (pre.children[ci].tagName === "CODE") { code = pre.children[ci]; break; }
+    }
+    if (!code) return;
+
+    var wrap = document.createElement("div");
+    wrap.className = "code-block-wrap";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+
+    var copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "copy-btn";
+    copyBtn.setAttribute("aria-label", COPY_L.copy);
+    copyBtn.innerHTML = ICON_COPY;
+
+    var revertTimer = null;
+    function setBtnState(state) {
+      copyBtn.classList.remove("ok", "err");
+      if (state === "ok") {
+        copyBtn.classList.add("ok");
+        copyBtn.innerHTML = ICON_OK + '<span class="copy-txt">' + esc(COPY_L.ok) + "</span>";
+        copyBtn.setAttribute("aria-label", COPY_L.ok);
+      } else if (state === "err") {
+        copyBtn.classList.add("err");
+        copyBtn.innerHTML = ICON_ERR + '<span class="copy-txt">' + esc(COPY_L.fail) + "</span>";
+        copyBtn.setAttribute("aria-label", COPY_L.fail);
+      } else {
+        copyBtn.innerHTML = ICON_COPY;
+        copyBtn.setAttribute("aria-label", COPY_L.copy);
+      }
+    }
+
+    copyBtn.addEventListener("click", function () {
+      copyText(code.textContent,
+        function () {
+          setBtnState("ok");
+          if (revertTimer) clearTimeout(revertTimer);
+          revertTimer = setTimeout(function () { setBtnState("idle"); }, 1800);
+        },
+        function () {
+          setBtnState("err");
+          if (revertTimer) clearTimeout(revertTimer);
+          revertTimer = setTimeout(function () { setBtnState("idle"); }, 2400);
+        });
+    });
+
+    wrap.appendChild(copyBtn);
+  });
 
   /* ---- 轻量语法高亮 ----
      对 <pre><code class="lang-cpp|json|bash|cmake"> 做保守的词法着色：
