@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数据快照 — JCM Yanyang C++ 脚本开发文档</title>
-<meta name="description" content="Train / Stop / Arrival / Pids / Lift / EyeCandy 快照包装器的完整访问器参考。">
-<link rel="stylesheet" href="assets/style.css">
+<meta name="description" content="Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 快照包装器的完整访问器参考。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
@@ -29,6 +31,16 @@
     <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
   </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
   <div class="sidebar-footer">
     SDK ABI 10<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
@@ -53,7 +65,7 @@
       <b>本页内容</b>
       <ol>
         <li><a href="#how">快照机制</a></li>
-        <li><a href="#train">Train（车辆）</a></li>
+        <li><a href="#vehicle">Vehicle（车辆）</a></li>
         <li><a href="#stop">Stop / 换乘 / 出口</a></li>
         <li><a href="#transport">交通模式与类型</a></li>
         <li><a href="#pids">Pids（到站屏）</a></li>
@@ -64,7 +76,7 @@
     </div>
 
     <h2 id="how">快照机制</h2>
-    <p>每帧开始时，宿主把该实例的数据<strong>一次性</strong>封送成一块 POD 快照（定长头部 + 变长数组池 + UTF-8 字符串池），连同状态块指针一起传给 <code>mtrRender</code>。SDK 的类型化包装器（<code>mtr::Train</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在这块内存上提供与 JS Wrapper <strong>同名的访问器</strong>：</p>
+    <p>每帧开始时，宿主把该实例的数据<strong>一次性</strong>封送成一块 POD 快照（定长头部 + 变长数组池 + UTF-8 字符串池），连同状态块指针一起传给 <code>mtrRender</code>。SDK 的类型化包装器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在这块内存上提供与 JS Wrapper <strong>同名的访问器</strong>：</p>
     <ul>
       <li>字符串以 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）返回，用 <code>.str()</code> 转 <code>std::string</code>、<code>.empty()</code> 判空；视图只在本次 <code>render</code> 调用内有效。</li>
       <li>越界索引抛 <code>std::out_of_range</code>（与 Java 端 <code>IndexOutOfBounds</code> 语义一致）。</li>
@@ -75,8 +87,12 @@
       <p>快照覆盖高频读取的字段。不在快照里的数据（网络、文件、渲染管理器的深接口等）经 <a href="java-api.html"><code>mtr::Api</code></a> 访问——那是低频通道，别在热路径用。</p>
     </div>
 
-    <h2 id="train">Train（车辆）</h2>
-    <p>由 <code>mtr::Train</code> 提供，镜像 JS 的 <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>：</p>
+    <h2 id="vehicle">Vehicle（车辆）</h2>
+    <div class="admonition note">
+      <span class="admonition-title">术语：MTR 3 的 train → MTR 4 的 vehicle</span>
+      <p>MTR 4 统一以 <strong>vehicle</strong> 称呼载具（资源包声明键 <code>vehicleScripts</code>、Java 侧 <code>VehicleWrapper</code>），本 SDK 的数据包装类因此命名为 <code>mtr::Vehicle</code>。更早版本的 SDK 曾按 MTR 3 习惯命名为 <code>mtr::Train</code>，该名称现保留为<strong>源码兼容别名</strong>——两种写法均可编译，行为完全一致。</p>
+    <p>注意：<code>mtr::Vehicle</code> 命名已进入仓库 SDK 源码，将随下一版本的 zip 发布；若你的工程使用 yanyang.7 及更早的 SDK zip，请以 <code>mtr::Train</code> 引用该类（新 SDK 中两种写法均可编译）。</p></div>
+    <p>由 <code>mtr::Vehicle</code> 提供，镜像 JS 的 <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>访问器</th><th>类型</th><th>说明</th></tr></thead>
       <tbody>
@@ -107,7 +123,7 @@
         <tr><td><code>length()</code> / <code>width()</code></td><td>车厢长度 / 宽度</td></tr>
         <tr><td><code>left_door_open()</code> / <code>right_door_open()</code></td><td>左右门是否完全打开</td></tr>
         <tr><td><code>rendered()</code></td><td>该厢本帧是否经剔除后仍可见</td></tr>
-        <tr><td><code>vehicle_type()</code></td><td>车厢类型 id（如 <code>mtr_custom_train_kcx_cab_1</code>）</td></tr>
+        <tr><td><code>vehicle_type()</code></td><td>车厢类型 id（如 <code>mtr_custom_train_demo_cab_1</code>）</td></tr>
       </tbody>
     </table>
 
@@ -116,7 +132,7 @@
       <thead><tr><th>访问器</th><th>说明</th></tr></thead>
       <tbody>
         <tr><td><code>size()</code> / <code>empty()</code> / <code>at(i)</code> / <code>operator[](i)</code></td><td>容量与随机访问（越界抛异常）</td></tr>
-        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>按轨道进度推算下一站；当前线路列表请直接用 <code>Train::next_stop_index()</code>（宿主已预算）</td></tr>
+        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>按轨道进度推算下一站；当前线路列表请直接用 <code>Vehicle::next_stop_index()</code>（宿主已预算）</td></tr>
       </tbody>
     </table>
 
@@ -144,7 +160,7 @@
       <li><strong>模式</strong>（<code>mtr::TransportMode</code> 枚举）：<code>UNKNOWN / TRAIN / BOAT / CABLE_CAR / AIRPLANE</code>，覆盖四种基础载具。</li>
       <li><strong>类型</strong>（字符串 id，<code>mtr::transport_type</code> 常量）：基础模式的小写名（<code>"train"</code>、<code>"boat"</code>、<code>"cable_car"</code>、<code>"airplane"</code>），加上 <strong>MAGIC MTR Addon</strong> 的扩展线路类型 <code>train_normal / train_light_rail / train_high_speed / train_metro / train_bus / train_tram / train_sbahn</code>；无法解析时为 <code>"unknown"</code> 或空视图（旧服务器数据）。</li>
     </ul>
-    <pre><code class="lang-cpp">if (train.getTransportType() == mtr::transport_type::TRAIN_METRO) { /* ... */ }
+    <pre><code class="lang-cpp">if (vehicle.getTransportType() == mtr::transport_type::TRAIN_METRO) { /* ... */ }
 
 for (int i = 0; i &lt; stop.interchange_count(); i++) {
     mtr::Stop::Interchange ic = stop.interchange(i);
@@ -232,7 +248,7 @@ if (event.call("occurred").as&lt;bool&gt;()) {
     <p><code>&lt;mtr/util.hpp&gt;</code> 提供热路径友好的轮播工具（零分配）：</p>
     <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 轮换一段，视图切换只做偏移计算
 mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
-StrView current = dest.value(train.in_game_time());</code></pre>
+StrView current = dest.value(vehicle.in_game_time());</code></pre>
     <table>
       <thead><tr><th>成员</th><th>说明</th></tr></thead>
       <tbody>
@@ -257,6 +273,6 @@ StrView current = dest.value(train.in_game_time());</code></pre>
   </footer>
 </main>
 </div>
-<script src="assets/app.js"></script>
+<script src="../assets/app.js"></script>
 </body>
 </html>

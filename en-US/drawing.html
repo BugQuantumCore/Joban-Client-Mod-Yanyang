@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en-US" data-locale="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drawing and canvases — JCM Yanyang C++ Scripting Docs</title>
+<meta name="description" content="The Text / Texture fluent APIs, Matrices, GraphicsTexture dirty-rectangle uploads, the Gfx2D software rasterizer, and the font stack.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">Script Model</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <div class="nav-group">API Reference</div>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html" class="active">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <div class="nav-group">Advanced</div>
+    <a href="performance.html">Performance and debugging</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">Drawing and canvases</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / API Reference / Drawing and canvases</div>
+      <h1>Drawing and canvases</h1>
+      <p class="page-lead">Two routes: PIDS screens draw directly through the <code>Text</code> / <code>Texture</code> fluent APIs; pixel-level content (LCDs, dot-matrix screens) uses <code>GraphicsTexture</code> + <code>Gfx2D</code> native rasterization.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#text">Text and Texture (PIDS)</a></li>
+        <li><a href="#matrices">Matrices and model drawing</a></li>
+        <li><a href="#texture2d">GraphicsTexture (pixel canvas)</a></li>
+        <li><a href="#gfx2d">Gfx2D software rasterizer</a></li>
+        <li><a href="#fonts">Font stack</a></li>
+      </ol>
+    </div>
+
+    <div class="admonition note">
+      <span class="admonition-title">Choosing between the two routes</span>
+      <p><strong>Screen-coordinate content</strong> (PIDS text rows, texture tiles) → <code>Text</code>/<code>Texture</code>: one draw record, replayed by the host through exactly the same code path as JS. <strong>Pixel-level content</strong> (vehicle LCDs, dynamic dot-matrix screens, charts) → <code>GraphicsTexture</code> draws its own pixels, rasterized through <code>Gfx2D</code> primitives, and only the dirty rectangles are uploaded to the GPU.</p>
+    </div>
+
+    <h2 id="text">Text and Texture (PIDS)</h2>
+    <p><code>&lt;mtr/text.hpp&gt;</code> is a 1:1 port of the JS <code>TextWrapper</code> / <code>TextureWrapper</code> fluent APIs — method names follow the C++ snake_case convention, and calls are chained:</p>
+    <pre><code class="lang-cpp">mtr::Text::create()
+    .text("Tsim Sha Tsui")
+    .scale(1.725)
+    .size(100, 9)
+    .stretch_xy()
+    .font_mc()
+    .color(0xFC9700)
+    .pos(3, rowY)
+    .draw(ctx);</code></pre>
+    <table>
+      <thead><tr><th>Text method</th><th>JS counterpart</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>.text(str[, len])</code></td><td><code>.text()</code></td><td>UTF-8 text</td></tr>
+        <tr><td><code>.scale(s)</code></td><td><code>.scale()</code></td><td>Uniform scale</td></tr>
+        <tr><td><code>.left_align() / .center_align() / .right_align()</code></td><td>Same name</td><td>Alignment (centered by default)</td></tr>
+        <tr><td><code>.shadowed() / .bold() / .italic()</code></td><td>Same name</td><td>Text styling</td></tr>
+        <tr><td><code>.stretch_xy() / .scale_xy() / .wrap_text() / .marquee(duration)</code></td><td>Same name</td><td>Overflow modes (the marquee can pin its progress with <code>.with_marquee_progress(p)</code>)</td></tr>
+        <tr><td><code>.font(id) / .font_mc()</code></td><td>Same name</td><td>Resource-pack font (e.g. <code>.font("jsblock:shanghai")</code>) / the built-in MC font</td></tr>
+        <tr><td><code>.color(argb)</code></td><td>Same name</td><td>Color (ARGB)</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>Same name</td><td>Screen coordinates and bounding box</td></tr>
+        <tr><td><code>.z_order(z) / .layer(l)</code></td><td>Same name</td><td>Layering; <code>z=-1</code> lets the context assign it automatically</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Texture method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>.texture(id)</code></td><td>Texture asset id (e.g. <code>"mtr:textures/block/pids.png"</code>)</td></tr>
+        <tr><td><code>.uv(u1, v1, u2, v2)</code></td><td>UV sub-rectangle</td></tr>
+        <tr><td><code>.color(argb)</code></td><td>Tint</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>Position and size</td></tr>
+        <tr><td><code>.z_order(z) / .layer(l)</code></td><td>Layering</td></tr>
+      </tbody>
+    </table>
+    <p>Companion context methods (<code>PidsContext</code>):</p>
+    <ul>
+      <li><code>ctx.set_auto_z_ordering(bool)</code> — automatic z-ordering (on by default)</li>
+      <li><code>ctx.set_z_order_step(step)</code> — automatic z-ordering step (0.0002 by default)</li>
+    </ul>
+    <p>Render layers (the 2D layer enum <code>MtrRenderLayer</code>, independent of <code>mtr::Matrices</code>): <code>MTR_LAYER_TEXT</code> (text), <code>MTR_LAYER_LIGHT</code> (light-emitting objects), <code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code> (exterior / interior), matching MTR's <code>QueuedRenderLayer</code>.</p>
+
+    <h2 id="matrices">Matrices and model drawing</h2>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> mirrors the JS global <code>Matrices</code>: transforms push onto a stack, and <code>compile()</code> compiles the current stack into a matrix set written into the frame's matrix arena:</p>
+    <pre><code class="lang-cpp">mtr::Matrices m;
+m.translate(0.5f, 1.0f, 0.0f);
+m.rotate_y_degrees(90.0f);
+m.scale(1.0f, 1.0f, 1.0f);
+ctx.draw_car_model(model_handle, car_index, &amp;m);   // vehicle
+ctx.draw_model(model_handle, &amp;m);                   // eyecandy / lift</code></pre>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>translate(x, y, z)</code> / <code>scale(x, y, z)</code></td><td>Translation / scale</td></tr>
+        <tr><td><code>rotate_x / rotate_y / rotate_z(radians)</code></td><td>Rotation (radians)</td></tr>
+        <tr><td><code>rotate_x_degrees / …_y… / …_z…(deg)</code></td><td>Rotation (degrees)</td></tr>
+        <tr><td><code>compile()</code></td><td>Compiles the current pose into the frame (returns a matrix-set index; pass it to draw calls)</td></tr>
+      </tbody>
+    </table>
+    <p>The vehicle context additionally offers <code>draw_bogie_model(model, car, bogie, matrices)</code> (bogies), <code>play_car_sound(sound, car, x, y, z, volume, pitch)</code>, and <code>play_ann_sound(sound, volume, pitch)</code> (announcements audible only to riding players).</p>
+    <p>Model handles come from the host services: <code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> to acquire, <code>release_model(user, handle)</code> to release; <code>acquire_quad_model(...)</code> builds a host-owned textured quad from 4 model-space vertices + UVs (turning a <code>GraphicsTexture</code> into a screen you can mount on a car). See <a href="abi.html">C ABI and host services</a> for details.</p>
+
+    <h2 id="texture2d">GraphicsTexture (pixel canvas)</h2>
+    <p><code>GraphicsTexture</code> from <code>&lt;mtr/gfx.hpp&gt;</code> keeps the pixel buffer inside your module; the game side only receives <strong>dirty-rectangle</strong> uploads — pixel data is not hauled across the boundary every frame:</p>
+    <pre><code class="lang-cpp">struct LcdState {
+    mtr::GraphicsTexture tex;      // Best kept in State: same lifetime as the instance
+};
+
+void create(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp;) {
+    s.tex.create(ctx.input(), 512, 128);   // Also registers the GPU texture with the host
+    // Mount the texture on a car: host-&gt;acquire_quad_model(...) → draw_car_model(...)
+}
+
+void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp; vehicle) {
+    // 1. Draw pixels (Gfx2D, or set_pixel directly)
+    // 2. Upload only the changed region:
+    s.tex.upload(ctx.frame());
+}</code></pre>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>create(input, w, h)</code></td><td>Allocates the pixel buffer (BGRA8, row-major) and creates the GPU texture on the host side; everything is treated as dirty after it returns</td></tr>
+        <tr><td><code>pixels() / pixels32()</code></td><td>Direct pixel pointers (<code>uint8_t*</code> / <code>uint32_t*</code>)</td></tr>
+        <tr><td><code>set_pixel(x, y, argb)</code></td><td>Writes a single pixel and accumulates the dirty region automatically</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>Writes the current dirty rectangle into the frame's pixel arena (one <code>JCM_DRAW_TEXTURE_UPLOAD</code> record); the dirty region then resets</td></tr>
+        <tr><td><code>last_upload_bytes()</code></td><td>Bytes uploaded last time — a great performance probe</td></tr>
+        <tr><td><code>close(input)</code> / destructor</td><td>Releases the host GPU texture</td></tr>
+        <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>Host texture handle and size information</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">Performance note</span>
+      <p><code>upload()</code> only transfers <strong>the bounding box of what changed since the last upload</strong>. Paint the static background once; each frame, touch only the strips that need to move (marquees, blinking segments, progress bars). If a vehicle LCD's blink/cycle changes only a thin strip, the upload is only that strip.</p>
+    </div>
+    <p>The same header also provides <code>LcdCanvas</code> — an LCD paintbrush on the built-in 5×7 dot-matrix font (on/off colors configurable), a good fit for classic dot-matrix screens.</p>
+
+    <h2 id="gfx2d">Gfx2D software rasterizer</h2>
+    <p><code>&lt;mtr/gfx2d.hpp&gt;</code> implements the commonly used subset of <code>java.awt.Graphics2D</code> as a <strong>deterministic software rasterizer</strong> that draws straight onto a <code>GraphicsTexture</code>. The <code>fillRect / fillOval / drawLine / GeneralPath / clip / drawString</code> logic from JS resource packs ports over mechanically:</p>
+    <pre><code class="lang-cpp">mtr::Gfx2D g(s.tex, ctx.host(), "jsblock:shanghai");  // canvas + host font
+
+g.set_color(mtr::clr(12, 28, 44));                    // dark background
+g.fill_rect(0, 0, W, H);
+
+g.push_clip(8, 8, W - 16, 40);                       // clip stack
+g.set_color(mtr::clra(255, 205, 66, 255));
+g.draw_text_centered(W / 2, 30, 18.0, "下一站 Next");
+g.pop_clip();</code></pre>
+    <table>
+      <thead><tr><th>Primitive</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>fill_rect / fill_round_rect / draw_round_rect</code></td><td>Rectangles (with a rounded-corner arc-radius parameter)</td></tr>
+        <tr><td><code>fill_oval / draw_oval</code></td><td>Oval fill / stroke (line width)</td></tr>
+        <tr><td><code>draw_line(x1, y1, x2, y2, lw)</code></td><td>Line segment</td></tr>
+        <tr><td><code>fill_polygon(xs, ys, n)</code></td><td>Polygon fill (GeneralPath equivalent)</td></tr>
+        <tr><td><code>push_clip / pop_clip</code></td><td>Clip-rectangle stack; every primitive is clipped before rasterizing, and the dirty region is clip-constrained too</td></tr>
+        <tr><td><code>draw_text / draw_text_centered / draw_text_compressed / draw_mixed_text</code></td><td>Text (fonts in the next section)</td></tr>
+        <tr><td><code>draw_logo_badge(x, y, w, h, bg, fg)</code></td><td>Rounded badge background</td></tr>
+      </tbody>
+    </table>
+    <p>Color helpers: <code>mtr::clr(r, g, b)</code> / <code>mtr::clra(r, g, b, a)</code> (opaque / with alpha), matching the same-named functions in the JS <code>config.js</code>. Semi-transparent colors composite with src-over; opaque colors take a fast path.</p>
+
+    <h2 id="fonts">Font stack</h2>
+    <p>Three font tiers, falling back automatically by availability:</p>
+    <table>
+      <thead><tr><th>Tier</th><th>Coverage</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Resource-pack font (preferred)</td><td>Full UTF-8</td><td>Pass a font asset id to <code>Text::font("jsblock:shanghai")</code> or as the third <code>Gfx2D</code> constructor argument: it uses the host's real <code>FontMetrics</code> and <code>drawString</code>, preserving letter spacing, baselines, compression, alpha, and device clipping — the same font pipeline as the JS side</td></tr>
+        <tr><td>Host TTF callback</td><td>CJK and more</td><td>Without a resource-pack font, CJK glyphs are rasterized through the <code>rasterize_text</code> host service (mirroring the JCM FontManager's TTF set)</td></tr>
+        <tr><td>Built-in 5×7 bitmap font</td><td>ASCII / Latin</td><td>Scaled to the requested size, with proportional advances per glyph shape (narrow i/l/., wide m/W) — <code>text_width()</code> and the actual drawing share the same numbers, so JS adaptive font sizes / the 5% compression layout algorithm port over as-is; CJK degrades to placeholder boxes when there is no host</td></tr>
+      </tbody>
+    </table>
+    <p>Metric conventions of the built-in font: ascent = 0.78 em, descent = 0.22 em (≈ Arial / HanSans); CJK full-width glyphs advance 1.0 em. Resource-pack fonts are measured (<code>measure_font_text</code> host service) with their real font metrics.</p>
+
+    <hr>
+    <p>Up next: <a href="java-api.html">mtr::Api and Java interop</a> — everything beyond the snapshots.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Docs home</a>
+      <a href="getting-started.html">Quick start</a>
+      <a href="performance.html">Performance and debugging</a>
+    </div>
+    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

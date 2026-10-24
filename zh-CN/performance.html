@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>性能与调试 — JCM Yanyang C++ 脚本开发文档</title>
 <meta name="description" content="GC 卫生守则、脏矩形上传策略、latest.log 观测、JVM 参数与常见问题排查。">
-<link rel="stylesheet" href="assets/style.css">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
@@ -29,6 +31,16 @@
     <div class="nav-group">进阶</div>
     <a href="performance.html" class="active">性能与调试</a>
   </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
   <div class="sidebar-footer">
     SDK ABI 10<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
@@ -67,7 +79,7 @@
       <thead><tr><th>环节</th><th>成本</th></tr></thead>
       <tbody>
         <tr><td>快照封送（宿主 → 模块）</td><td><strong>唯一强制的 Java 穿越</strong>：宿主用复用构建器把 POD 快照写进共享页 / 直接缓冲</td></tr>
-        <tr><td>数据读取（<code>Train</code> / <code>Pids</code> / …）</td><td>普通内存读，零成本</td></tr>
+        <tr><td>数据读取（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>普通内存读，零成本</td></tr>
         <tr><td>绘制记录写入</td><td>竞技场内 bump 分配，零分配零装箱</td></tr>
         <tr><td>像素光栅（<code>Gfx2D</code>）</td><td>纯 C++ 循环；src-over 不透明快速路径</td></tr>
         <tr><td>宿主回放</td><td>与 JS 相同的渲染路径；纹理上传只搬运脏矩形</td></tr>
@@ -150,6 +162,6 @@
   </footer>
 </main>
 </div>
-<script src="assets/app.js"></script>
+<script src="../assets/app.js"></script>
 </body>
 </html>

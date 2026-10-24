@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Démarrage rapide — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Récupérer le SDK, créer un projet de module, compiler, intégrer le résultat à un pack de ressources et le vérifier en jeu.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html" class="active">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Démarrage rapide</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Démarrage rapide</div>
+      <h1>Démarrage rapide</h1>
+      <p class="page-lead">De zéro à l’exécution en jeu : récupérer le SDK → écrire un premier module → compiler → l’intégrer à un pack de ressources.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#prereq">Prérequis</a></li>
+        <li><a href="#sdk">Récupérer le SDK</a></li>
+        <li><a href="#project">Créer le projet de module</a></li>
+        <li><a href="#first-module">Premier module</a></li>
+        <li><a href="#build">Compilation</a></li>
+        <li><a href="#package">Intégration dans un pack de ressources</a></li>
+        <li><a href="#verify">Vérification en jeu</a></li>
+      </ol>
+    </div>
+
+    <h2 id="prereq">Prérequis</h2>
+    <table>
+      <thead><tr><th>Outil</th><th>Version</th><th>Remarques</th></tr></thead>
+      <tbody>
+        <tr><td>Compilateur C++</td><td>C++17</td><td>MSVC (Windows) / GCC / Clang, au choix</td></tr>
+        <tr><td>CMake</td><td>≥ 3.16</td><td>recommandé, mais non obligatoire — le SDK est entièrement constitué d’en-têtes</td></tr>
+        <tr><td>JDK</td><td>facultatif</td><td>uniquement nécessaire pour exécuter les tests d’intégration JVM livrés avec le SDK</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">Astuce</span>
+      <p>Le SDK est fourni intégralement sous forme d’en-têtes (<code>native/include/mtr/</code>), sans la moindre dépendance à une bibliothèque précompilée ; ajoutez simplement <code>include/</code> au chemin d’inclusion de votre système de construction habituel.</p>
+    </div>
+
+    <h2 id="sdk">Récupérer le SDK</h2>
+    <p>Le SDK est publié à chaque Release sous la forme <code>jcm-native-sdk-&lt;version&gt;.zip</code> (voir les pièces jointes des GitHub Releases) ; son contenu correspond aux sources du répertoire <code>native/</code> du dépôt :</p>
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+├── include/mtr/          # tous les en-têtes du SDK (script.hpp est le point d'entrée principal)
+│   ├── mtr_native.h      # ABI C : fonctions exportées, instantanés, enregistrements de dessin, services de l'hôte
+│   ├── script.hpp        # classes de base de script + macros d'enregistrement (un seul #include suffit)
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
+│   ├── api.hpp           # mtr::Api (accès complet aux API Java)
+│   └── crash_guard.hpp ...
+├── examples/             # trois exemples de modules minimaux
+├── bench/                # tests et outils
+└── CMakeLists.txt</code></pre>
+
+    <h2 id="project">Créer le projet de module</h2>
+    <p>Le plus simple : décompressez le SDK dans votre projet de pack de ressources et ajoutez vos propres cibles à la fin de son <code>CMakeLists.txt</code> — le SDK a déjà encapsulé dans la fonction <code>mtr_add_script()</code> tous les détails de liaison propres à chaque plateforme (Windows <code>.dll</code> sans préfixe, <code>.dylib</code> et <code>-undefined dynamic_lookup</code> sur macOS, alignement de page de 16 Ko sur Android) :</p>
+    <pre><code class="lang-cmake"># À ajouter à la fin du native/CMakeLists.txt du SDK
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <p>Pour un projet autonome, voici le modèle complet équivalent à cette fonction :</p>
+    <pre><code class="lang-cmake">cmake_minimum_required(VERSION 3.16)
+project(my_native_scripts LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# chemin des en-têtes du SDK (pointez vers le répertoire include du SDK décompressé)
+add_library(mtr_script_sdk INTERFACE)
+target_include_directories(mtr_script_sdk INTERFACE path/to/sdk/include)
+
+function(mtr_add_script name)          # fonction de cible de module, identique à celle du SDK
+  add_library(${name} MODULE ${ARGN})
+  target_link_libraries(${name} PRIVATE mtr_script_sdk)
+  set_target_properties(${name} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+  if(WIN32)
+    set_target_properties(${name} PROPERTIES PREFIX "" SUFFIX ".dll")
+  elseif(APPLE)
+    set_target_properties(${name} PROPERTIES PREFIX "lib" SUFFIX ".dylib")
+    target_link_options(${name} PRIVATE "-Wl,-undefined,dynamic_lookup")
+  elseif(ANDROID)
+    target_link_options(${name} PRIVATE "-Wl,-z,max-page-size=16384")
+  endif()
+endfunction()
+
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">À noter</span>
+      <p>Un script est une bibliothèque <code>MODULE</code> (aucun binaire du SDK n’est lié) ; par défaut, les symboles sont masqués et seules les 7 fonctions <code>mtr*</code> exigées par l’ABI sont exportées (c’est le rôle des macros d’enregistrement de <code>script.hpp</code>). C++17 est le standard minimal.</p>
+    </div>
+
+    <h2 id="first-module">Premier module</h2>
+    <p>Un module PIDS minimal d’affichage des arrivées — complet, compilable et directement utilisable en jeu :</p>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};                    // état persistant par instance (vide dans cet exemple)
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";   // doit correspondre à la déclaration du pack de ressources
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;,
+                const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+
+            if (!text.empty())
+                mtr::Text::create()
+                    .text(text.c_str())
+                    .pos(2, row * 10.0 + 2)
+                    .size(pids.width() - 4, 9)
+                    .draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+    <p>Points essentiels :</p>
+    <ul>
+      <li><strong>La classe de base</strong> détermine le type de script : <code>PidsScript</code> / <code>VehicleScript</code> / <code>LiftScript</code> / <code>EyecandyScript</code> ; le paramètre modèle est le type d’état par instance.</li>
+      <li><strong>Le cycle de vie</strong> est identique à JS : surchargez selon vos besoins les trois fonctions virtuelles <code>create</code> / <code>render</code> / <code>dispose</code> (toutes facultatives).</li>
+      <li><strong>La macro d’enregistrement</strong> développe l’intégralité des exportations ABI ; une unité de traduction n’enregistre qu’un seul script.</li>
+    </ul>
+    <p>D’autres exemples se trouvent dans <code>examples/</code> du SDK : véhicule / ascenseur / eyecandy, chacun avec son exemple minimal.</p>
+
+    <h2 id="build">Compilation</h2>
+    <pre><code class="lang-bash">cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+cmake --build native/build --config Release --parallel 4
+ctest --test-dir native/build -C Release --output-on-failure   # facultatif : exécuter les tests fournis avec le SDK</code></pre>
+    <table>
+      <thead><tr><th>Plateforme cible</th><th>Produit</th><th>Remarques</th></tr></thead>
+      <tbody>
+        <tr><td>Windows x64</td><td><code>my_pids.dll</code></td><td>MSVC ; <code>/utf-8</code> est préréglé par le projet du SDK</td></tr>
+        <tr><td>Linux x64 / ARM64</td><td><code>libmy_pids.so</code></td><td>GCC / Clang</td></tr>
+        <tr><td>macOS x64 / arm64</td><td><code>libmy_pids.dylib</code></td><td>architecture choisie via <code>-DCMAKE_OSX_ARCHITECTURES=arm64</code> (ou <code>x86_64</code>), <code>-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0</code></td></tr>
+        <tr><td>Android arm64</td><td><code>libmy_pids.so</code></td><td>compilation croisée avec la chaîne d’outils NDK, API 21+ ; l’alignement de page de 16 Ko est déjà pris en charge par le modèle de projet</td></tr>
+        <tr><td>iOS / iPadOS arm64</td><td><code>libmy_pids.dylib</code></td><td>compilation croisée Mach-O, aucune signature requise (re-signature au moment du sideload)</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition note">
+      <span class="admonition-title">Astuce</span>
+      <p>Dans un pack de ressources, les bibliothèques sont associées à la plateforme selon l’<strong>extension du fichier</strong> (<code>.dll</code> → Windows, <code>.so</code> → Linux/Android, <code>.dylib</code> → macOS/iOS) ; les règles précises de répertoire sont détaillées dans la section suivante.</p>
+    </div>
+
+    <h2 id="package">Intégration dans un pack de ressources</h2>
+    <h3>Arborescence</h3>
+    <p>Placez les produits de compilation de chaque plateforme dans le répertoire <code>natives/&lt;platform&gt;/</code> du pack de ressources :</p>
+    <pre><code class="lang-bash">my_pack/
+├── natives/
+│   ├── windows-x64/my_pids.dll
+│   ├── linux-x64/libmy_pids.so
+│   ├── linux-arm64/libmy_pids.so
+│   ├── macos-x64/libmy_pids.dylib
+│   ├── macos-arm64/libmy_pids.dylib
+│   ├── android-arm64/libmy_pids.so
+│   └── ios-arm64/libmy_pids.dylib
+└── ... (textures, modèles et autres ressources)</code></pre>
+
+    <h3>Déclaration dans minecraft_custom_resources.json</h3>
+    <p>Aucun champ <code>language</code> n’est nécessaire — le mod détermine automatiquement la langue d’après les caractéristiques de chaque entrée de <code>scriptLocations</code> ; JS et C++ peuvent être mélangés en toute proportion au sein d’une même entrée :</p>
+    <pre><code class="lang-json">"pidsScripts": [{
+    "id": "example:arrivals",
+    "scriptLocations": [
+        "mtr:my_pack/natives/my_pids"
+    ]
+}]</code></pre>
+    <p>Règles de résolution des entrées :</p>
+    <table>
+      <thead><tr><th>Entrée <code>scriptLocations</code></th><th>Résultat</th></tr></thead>
+      <tbody>
+        <tr><td><code>…/main.js</code> (insensible à la casse)</td><td>JavaScript</td></tr>
+        <tr><td><code>mtr:my_pack/natives/my_pids</code> (sans extension)</td><td><strong>racine (stem) C++ indépendante de la plateforme</strong> → résolue automatiquement pour chaque plateforme en <code>natives/linux-x64/libmy_pids.so</code>, <code>natives/windows-x64/my_pids.dll</code>, <code>natives/macos-arm64/libmy_pids.dylib</code>, etc. ; dans un environnement Linux ARM64, les candidats ios-arm64 / android-arm64 sont automatiquement ajoutés</td></tr>
+        <tr><td><code>…/libfoo.so</code> / <code>….dll</code> / <code>….dylib</code></td><td>chemin complet C++ (associé à la plateforme correspondant à l’extension ; ignoré sur les autres plateformes)</td></tr>
+        <tr><td><code>{"windows": …, "linux": …, "macos": …}</code></td><td>table de correspondance C++ par plateforme ; les clés précises telles que <code>macos-arm64</code> sont prises en charge (les clés précises ont priorité sur les clés génériques)</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Mêmes règles pour les quatre catégories</strong> : <code>vehicleScripts</code> / <code>pidsScripts</code> (et les <code>scriptLocations</code> des préréglages PIDS) / ascenseurs / eyecandy prennent tous en charge les déclarations mixtes décrites ci-dessus.</li>
+      <li><strong>Compatibilité avec l’ancien format</strong> : les anciennes déclarations <code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> restent valides et peuvent également être mélangées avec du <code>.js</code> ; <code>"language": "javascript"</code> force l’analyse de l’entrée entière comme JS.</li>
+      <li><strong>Champs JS inchangés</strong> : la signification des champs <code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code>, etc. ne change pas ; le côté C++ lit <code>input</code> via <code>api.input()</code>.</li>
+    </ul>
+    <div class="admonition warn">
+      <span class="admonition-title">Note</span>
+      <p>Les modules de script (vos <code>.dll/.so/.dylib</code> compilés) appartiennent au <strong>pack de ressources</strong> : placez-les dans <code>natives/&lt;platform&gt;/</code> ; le <code>assets/jcm/natives/</code> embarqué dans le jar du mod ne contient que les ponts natifs — ne les confondez pas. Le jeu ne charge que les bibliothèques de la plateforme correspondant au système d’exploitation courant.</p>
+    </div>
+
+    <h2 id="verify">Vérification en jeu</h2>
+    <ol>
+      <li>Installez JCM Yanyang et MTR, placez le pack de ressources dans <code>resourcepacks/</code> et activez-le (ou distribuez-le en tant que ressource intégrée avec la sauvegarde).</li>
+      <li>Placez le bloc correspondant (par exemple un PIDS), puis sélectionnez votre script dans la configuration / faites en sorte que l’entrée déclarée soit active.</li>
+      <li>Ouvrez <code>logs/latest.log</code> et recherchez <code>native script</code> — au chargement, le mod y imprime un résumé census des modules (nombre de modules, types de scripts, canal de transport, etc.). Si votre <code>example:arrivals</code> y figure, le chargement a réussi.</li>
+      <li>Après avoir modifié une bibliothèque, appuyez sur <strong>F3+T</strong> pour recharger le pack de ressources, ce qui recharge également les scripts C++ (ou utilisez le raccourci du mod « Recharger tous les scripts MTR ») — nul besoin de redémarrer le jeu.</li>
+    </ol>
+    <div class="admonition danger">
+      <span class="admonition-title">Important</span>
+      <p>Utilisez impérativement un <strong>jar Release</strong> ou un produit Complete Build. Les artefacts de la CI rapide (push/PR) <strong>ne contiennent pas les ponts natifs</strong> : le journal affiche <code>native bridge unavailable</code> et tous les scripts C++ sont ignorés — ce n’est pas une erreur de votre module.</p>
+    </div>
+
+    <hr>
+    <p>Étape suivante : <a href="script-model.html">Modèle de script et cycle de vie</a> — la sémantique complète des quatre catégories de scripts ; ou passez directement aux <a href="data.html">instantanés de données</a> pour consulter les données accessibles en lecture.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

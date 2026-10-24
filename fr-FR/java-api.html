@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mtr::Api et interopérabilité Java — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Appeler via mtr::Api toutes les API Java publiques accessibles aux scripts JavaScript — objets, champs, méthodes, callbacks et tableau de correspondance JS ↔ C++.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html" class="active">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">mtr::Api et interopérabilité Java</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Référence API / mtr::Api et interopérabilité Java</div>
+      <h1><code>mtr::Api</code> et interopérabilité Java</h1>
+      <p class="page-lead">Toutes les API Java publiques accessibles aux scripts JavaScript le sont aussi en C++, sans la moindre exception. <code>Api</code> appelle les mêmes objets publics que JS — il ne s’agit pas de faire exécuter du JavaScript par C++.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#when">Quand utiliser Api</a></li>
+        <li><a href="#basics">Objets et appels</a></li>
+        <li><a href="#table">Tableau de correspondance JS ↔ C++</a></li>
+        <li><a href="#callback">Callbacks en arrière-plan</a></li>
+        <li><a href="#coverage">Couverture</a></li>
+      </ol>
+    </div>
+
+    <div class="admonition danger">
+      <span class="admonition-title">Interdit sur le chemin chaud</span>
+      <p>Chaque appel <code>Api</code> = un aller-retour encodage JSON + réflexion + décodage JSON. <strong>À n’utiliser que dans <code>create()</code>, les tâches d’arrière-plan ou des appels basse fréquence se comptant en quelques unités par seconde ; jamais dans un appel de dessin</strong> — historiquement, « un appel Api par frame et par véhicule » était précisément la source des à-coups GC périodiques. Pour les données à haute fréquence, lisez l’instantané ; pour le dessin à haute fréquence, passez par le flux d’enregistrements.</p>
+    </div>
+
+    <h2 id="when">Quand utiliser Api</h2>
+    <table>
+      <thead><tr><th>Besoin</th><th>Canal</th></tr></thead>
+      <tbody>
+        <tr><td>État frame par frame des véhicules / arrivées / ascenseurs / eyecandy</td><td><a href="data.html">enveloppes d’instantané</a> (sans coût)</td></tr>
+        <tr><td>Dessin de texte / textures / modèles / sons</td><td><a href="drawing.html">flux d’enregistrements de dessin</a> (zéro traversée de JVM)</td></tr>
+        <tr><td>Configuration <code>input</code> du script, création de ressources ponctuelle, handles d’objets conservés entre frames</td><td><code>Api</code> (appel dans create, handles stockés dans State)</td></tr>
+        <tr><td>Requêtes réseau, fichiers, BackgroundWorker, gestionnaire de sons et autres interfaces profondes</td><td><code>Api</code> (appel depuis une tâche d’arrière-plan)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="basics">Objets et appels</h2>
+    <p>Construisez <code>Api</code> avec l’entrée de la frame courante ; naviguez depuis les objets racine (<code>context()</code> / <code>wrapper()</code>), les classes statiques ou <code>new</code> :</p>
+    <pre><code class="lang-cpp">struct State { mtr::Api::Object tracker; };
+
+struct Example : mtr::PidsScript&lt;State&gt; {
+    static constexpr auto ID = "example:arrivals";
+
+    void create(mtr::PidsContext&amp; ctx, State&amp; state, const mtr::Pids&amp;) override {
+        mtr::Api api(ctx.input());
+        state.tracker = api.create("StateTracker");            // new StateTracker()
+        api.context().call("setZOrderStep", {0.0002});         // ctx.setZOrderStep(0.0002)
+    }
+
+    void render(mtr::PidsContext&amp; ctx, State&amp; state, const mtr::Pids&amp;) override {
+        mtr::Api api(ctx.input());
+        auto arrivals = api.wrapper().call("arrivals");        // wrapper.arrivals()
+        if (arrivals.call("size").as&lt;int&gt;() == 0) return;
+        auto arrival = arrivals.call("get", {0});
+        if (arrival.is_null()) return;
+
+        auto text = api.call("Text", "create");                // new Text()
+        text.call("text", {arrival.call("destination")});
+        text.call("pos", {2.0, 3.0});
+        text.call("draw", {api.context()});
+    }
+};
+MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
+
+    <table>
+      <thead><tr><th>Membre Api</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>api.context()</code> / <code>api.wrapper()</code></td><td>contexte / enveloppe du script courant (les mêmes objets que côté JS)</td></tr>
+        <tr><td><code>api.input()</code></td><td>le JSON <code>input</code> de la déclaration du pack de ressources (= <code>SCRIPT_INPUT</code> en JS)</td></tr>
+        <tr><td><code>api.create(class, args)</code></td><td>instancie (<code>new</code>) un objet Java</td></tr>
+        <tr><td><code>api.call(class, member, args)</code> / <code>api.get(class, member)</code></td><td>méthode statique / champ statique</td></tr>
+        <tr><td><code>api.root(name)</code></td><td>récupère un objet racine par son nom : <code>api.root("console")</code>, <code>api.root("Timing")</code>…</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Membre Object</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td><code>obj.call(member, args)</code></td><td>appel de méthode d’instance, retourne un nouvel <code>Object</code></td></tr>
+        <tr><td><code>obj.get(member)</code> / <code>obj.set(member, value)</code></td><td>lecture / écriture de champ (y compris membres publics hérités et collections standard)</td></tr>
+        <tr><td><code>obj.as&lt;T&gt;()</code></td><td>extrait la valeur brute (<code>int</code>, <code>double</code>, <code>bool</code>, <code>std::string</code>…)</td></tr>
+        <tr><td><code>obj.is_null()</code></td><td>test de vacuité pour les valeurs annulables</td></tr>
+        <tr><td><code>obj.enum_name()</code></td><td>nom d’une énumération Java (par ex. <code>"BOAT"</code>)</td></tr>
+        <tr><td><code>obj.close()</code></td><td>appelle explicitement <code>close()</code> (le nettoyage de session ferme aussi, en dernier recours, les ressources oubliées)</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition note">
+      <span class="admonition-title">Sémantique des handles</span>
+      <p>Les objets Java sont gérés par la session avec un comptage de références, les handles étant représentés en chaînes décimales ; la destruction d’un <code>Object</code> libère la référence — stockez dans <code>State</code> les objets à conserver entre frames. Les id numériques (y compris 64 bits) ne perdent jamais en précision. Champs et méthodes sont résolus selon les vrais types Java, y compris les membres publics hérités et les collections Java standard.</p>
+    </div>
+
+    <h2 id="table">Tableau de correspondance JS ↔ C++</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>Resources.id("example:file")</code></td><td><code>api.call("Resources", "id", {"example:file"})</code></td></tr>
+        <tr><td><code>new Matrices()</code></td><td><code>api.create("Matrices")</code></td></tr>
+        <tr><td><code>ctx.getRenderManager()</code></td><td><code>api.context().call("getRenderManager")</code></td></tr>
+        <tr><td><code>obj.method(a, b)</code></td><td><code>obj.call("method", {a, b})</code></td></tr>
+        <tr><td><code>obj.field</code> / <code>obj.field = v</code></td><td><code>obj.get("field")</code> / <code>obj.set("field", v)</code></td></tr>
+        <tr><td><code>TransportMode.BOAT</code></td><td><code>api.get("TransportMode", "BOAT")</code></td></tr>
+        <tr><td><code>SCRIPT_INPUT</code></td><td><code>api.input()</code> (valeur JSON)</td></tr>
+        <tr><td><code>console.log(...)</code> / <code>print(...)</code></td><td><code>api.root("console").call("log", {...})</code></td></tr>
+        <tr><td><code>Timing.delta()</code></td><td><code>api.root("Timing").call("delta").as&lt;double&gt;()</code></td></tr>
+        <tr><td><code>array.length</code> / <code>array[i]</code></td><td><code>array.call("length")</code> / <code>array.call("get", {i})</code></td></tr>
+        <tr><td><code>include(...)</code></td><td><code>#include</code> à la compilation côté C++</td></tr>
+      </tbody>
+    </table>
+    <p>Les classes AWT s’utilisent avec leur nom complet : <code>java.awt.Color</code>, <code>java.awt.Font</code>, <code>java.awt.BasicStroke</code>, <code>java.awt.geom.AffineTransform</code>. Les champs publics <code>graphics</code> / <code>bufferedImage</code> de <code>GraphicsTexture</code> exposent les véritables objets Java2D. Résolution des chemins de ressources : <code>Resources.idr</code> se base sur le chemin déclaré du module courant (en cas de déclarations multi-bibliothèques, chacune utilise le sien) ; <code>Resources.manager()</code> vaut null, comme en JS sur MTR 4. Les capacités signalées comme non implémentées dans la documentation amont (<code>drawConnModel</code> / <code>drawConnStretchTexture</code> pour les attelages de véhicules) ne sont pas davantage inventées par ce mod.</p>
+
+    <h2 id="callback">Callbacks en arrière-plan</h2>
+    <p><code>Api::Callback</code> encapsule une fonction C++ en interface fonctionnelle Java (<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>…). <strong>L’objet de callback doit rester en vie tant que Java peut encore l’appeler</strong> — placez-le dans <code>State</code> :</p>
+    <pre><code class="lang-cpp">struct State {
+    std::unique_ptr&lt;mtr::Api::Callback&gt; task;   // conservé jusqu'à la destruction
+};
+
+void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
+    mtr::Api api(ctx.input());
+    s.task = std::make_unique&lt;mtr::Api::Callback&gt;([api](mtr::Json) {
+        auto response = api.call("Networking", "fetch",
+                                 {"https://example.org/data"});
+        // publier le résultat dans votre propre état synchronisé ; lu dans render
+        return mtr::Json();
+    });
+    api.root("BackgroundWorker").call("submit", {*s.task});
+}</code></pre>
+    <ul>
+      <li><strong>render et les callbacks peuvent être concurrents</strong> — verrouillez vous-même l’état C++ mutable partagé.</li>
+      <li>Au rechargement, les callbacks sont d’abord arrêtés et les appels en cours attendus, avant la destruction des états et le déchargement du code.</li>
+      <li>Les modèles GPU préparés en arrière-plan se téléversent via <code>DynamicModelHolder.uploadLater</code> ; <code>ModelManager.upload</code> en direct exige toujours le thread de rendu Java (appelez-le depuis <code>create</code> ou un callback du thread principal).</li>
+    </ul>
+
+    <h2 id="coverage">Couverture</h2>
+    <p>Surface d’API usuelle : console, Resources, <code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>, <code>Vector3f</code>, <code>Matrices</code>, <code>GraphicsTexture</code> et Java2D, <code>RenderManager / QuadDrawCall</code>, <code>SoundManager / TickableSoundInstance</code>, <code>MinecraftClient</code>, <code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>, <code>Files</code>, <code>Networking</code>, <code>BackgroundWorker</code>, <code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>, <code>DataReader</code>, <code>MTRClientData</code>, les classes de données TSC et <code>DisplayHelper</code>. La liste des membres appelables de PIDS / eyecandy / véhicule est consignée dans <code>bench/api-coverage.json</code> du dépôt ; pour l’ascenseur, l’enveloppe Java fait foi.</p>
+    <p>Après compilation, vous pouvez auditer votre surface d’appels face au véritable jar MTR :</p>
+    <pre><code class="lang-bash">python native/bench/api_coverage.py \
+    --classes fabric/build/classes/java/main \
+    --jar path/to/mtr.jar</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">Stabilité entre versions</span>
+      <p>Les champs internes de <code>MTRClientData</code> sont, comme côté JS, soumis à des garanties de stabilité limitées entre versions ; les méthodes marquées deprecated restent appelables. Privilégiez les données équivalentes des instantanés et enveloppes — plus rapides et plus stables.</p>
+    </div>
+
+    <hr>
+    <p>Ensuite : <a href="abi.html">ABI C et services de l’hôte</a> — le contrat complet de la frontière du module.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

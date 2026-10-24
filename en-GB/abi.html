@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-locale="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C ABI and host services — JCM Yanyang C++ Scripting Documentation</title>
+<meta name="description" content="Module exported functions, frame input and output, draw records, host services and ABI version history.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">Script Model</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <div class="nav-group">API Reference</div>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html" class="active">C ABI and host services</a>
+    <div class="nav-group">Advanced</div>
+    <a href="performance.html">Performance and debugging</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">C ABI and host services</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / API Reference / C ABI and host services</div>
+      <h1>C ABI and host services</h1>
+      <p class="page-lead">The complete contract between module and host. When you use the base classes and registration macros from <code>script.hpp</code>, the SDK takes care of all these details for you—this page is written for those who want to understand the boundary, write test drivers or troubleshoot loading problems.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#exports">Module exports</a></li>
+        <li><a href="#frame">Frame input and frame output</a></li>
+        <li><a href="#records">Draw records</a></li>
+        <li><a href="#host">Host services</a></li>
+        <li><a href="#history">ABI version history</a></li>
+      </ol>
+    </div>
+
+    <h2 id="exports">Module exports</h2>
+    <p>Every script library exports 7 C functions (<code>mtr_native.h</code>; the registration macros generate them all):</p>
+    <table>
+      <thead><tr><th>Export</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>Returns the ABI version compiled against (currently 10); the host rejects incompatible versions—matching JCM's version-mismatch reload policy for JS scripts</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code></td></tr>
+        <tr><td><code>const char* mtrScriptId()</code></td><td>The script id (must match the resource pack declaration)</td></tr>
+        <tr><td><code>size_t mtrStateSize()</code></td><td>Per-instance state block size; the host allocates one block per instance</td></tr>
+        <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>Called once right after the host allocates the state block; placement-new constructs the <code>State</code> (required since ABI 6; if the host forgets to call it, the module falls back to lazy construction)</td></tr>
+        <tr><td><code>int32_t mtrCreate / mtrRender / mtrDispose(const JcmFrameInput*, …)</code></td><td>Lifecycle entry points; return 0 for success, -1 for a null argument, -2 for an ABI mismatch, -3 for a resource kind mismatch. The host calls them serially per instance on a single background thread per module</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="frame">Frame input and frame output</h2>
+    <h3>JcmFrameInput (host → module)</h3>
+    <pre><code class="lang-cpp">typedef struct JcmFrameInput {
+    uint32_t abi_version;              /* The negotiated ABI version */
+    int32_t  resource_kind;            /* MtrResourceKind: vehicle/pids/eyecandy/lift */
+    const void* snapshot;              /* The corresponding Jcm*Snapshot */
+    void*    state;                    /* Host-allocated per-instance state block */
+    size_t   state_size;
+    const struct JcmHostServices* host;/* Host services callable on the render thread */
+} JcmFrameInput;</code></pre>
+    <p>Snapshot internals: every <code>*_offset</code> field is a byte offset relative to the first byte of the snapshot; <code>string_pool_offset/len</code> describes the location of the shared UTF-8 string pool. The SDK wrappers do all of this addressing for you.</p>
+
+    <h3>JcmFrameOutput (module → host)</h3>
+    <p>The output is a <strong>flat record stream + five arenas</strong>; once <code>mtrRender</code> returns, the host reads it immediately and reclaims the frame (double buffering between modules is handled by the host):</p>
+    <table>
+      <thead><tr><th>Arena</th><th>Contents</th><th>Capacity (SDK default)</th></tr></thead>
+      <tbody>
+        <tr><td><code>records</code></td><td>Draw records laid out in sequence (variable length; walk them in <code>record_size</code> steps)</td><td>256 records</td></tr>
+        <tr><td><code>matrix_arena</code></td><td>A stream of matrices (column-major 4×4, 16 floats each)</td><td>128 sets</td></tr>
+        <tr><td><code>string_arena</code></td><td>A stream of UTF-8 strings (texture ids, text, sound ids, …)</td><td>32 KB</td></tr>
+        <tr><td><code>pixel_arena</code></td><td>A stream of BGRA8 pixels (texture uploads)</td><td>Starts at 1 MB, grows on demand up to 16 MB, decays back when idle</td></tr>
+        <tr><td><code>float_arena</code></td><td>A stream of floats (voxel collision boxes and so on)</td><td>1024 floats</td></tr>
+      </tbody>
+    </table>
+    <p>Since ABI 9 the output also carries each arena's <strong>full capacity</strong>—the host creates just one <code>ByteBuffer</code> per arena and reuses it by changing the limit each frame, instead of allocating five wrapper objects every frame.</p>
+
+    <h2 id="records">Draw records</h2>
+    <p>Every record starts with a <code>JcmRecordHeader{kind, record_size}</code> and is laid out sequentially with variable length. The 8 kinds:</p>
+    <table>
+      <thead><tr><th>kind</th><th>Structure</th><th>Purpose / JS call mirrored</th></tr></thead>
+      <tbody>
+        <tr><td><code>JCM_DRAW_TEXT</code></td><td><code>JcmDrawText</code></td><td>PIDS / general text (the fields align one-to-one with <code>TextWrapper</code>: alignment, overflow mode, marquee, z-order, layer, font id)</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE</code></td><td><code>JcmDrawTexture</code></td><td>Texture quads (UV, tint, z-order)</td></tr>
+        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>Vehicle cars / bogies / eyecandy models (host model handle + pose matrix set)</td></tr>
+        <tr><td><code>JCM_DRAW_SOUND</code></td><td><code>JcmDrawSound</code></td><td>Positioned sound effects (car-local coordinate offset)</td></tr>
+        <tr><td><code>JCM_DRAW_LOCAL_SOUND</code></td><td><code>JcmDrawSound</code></td><td>In-car announcements (audible only to riding players)</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE_UPLOAD</code></td><td><code>JcmDrawTextureUpload</code></td><td><code>GraphicsTexture</code> pixel upload (BGRA8 + dirty rectangle)</td></tr>
+        <tr><td><code>JCM_DRAW_OUTLINE_SHAPE</code></td><td><code>JcmDrawShape</code></td><td>Eyecandy outline / collision boxes (6 floats per box; collision boxes are capped at 1.5 blocks)</td></tr>
+        <tr><td><code>JCM_DRAW_BLOCK_EVENT</code></td><td>—</td><td>Eyecandy onBlockUse event handshake</td></tr>
+      </tbody>
+    </table>
+    <p>The host replays these records along <strong>exactly the same rendering code path as JS scripts</strong> (<code>PIDSDrawCall</code> / <code>ScriptRenderManager</code>)—what gets drawn is the same thing.</p>
+
+    <h2 id="host">Host services</h2>
+    <p><code>JcmHostServices</code> is a table of function pointers (<code>in-&gt;host</code>) callable on the render thread. On older hosts the newer slots are <code>null</code>; test for null before calling and degrade gracefully:</p>
+    <table>
+      <thead><tr><th>Service</th><th>Since</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>acquire_model / release_model</code></td><td>ABI 1</td><td>Model JSON handle lifecycle (mirrors ModelJS handles)</td></tr>
+        <tr><td><code>create_texture / release_texture</code></td><td>ABI 1</td><td><code>GraphicsTexture</code> lifecycle (mirrors the Java class)</td></tr>
+        <tr><td><code>rasterize_text</code></td><td>ABI 1</td><td>Host TTF rasterisation callback (CJK and more), writing BGRA8 into the caller's buffer; -1 means the font does not cover that code point (fall back to the built-in bitmap font)</td></tr>
+        <tr><td><code>log</code></td><td>ABI 1</td><td>The <code>console.log</code> / <code>console.error</code> channel</td></tr>
+        <tr><td><code>acquire_quad_model</code></td><td>ABI 4</td><td>The host builds a textured quad (4 vertices + UV + render stage + texture handle)—the native equivalent of the JS <code>DisplayHelper</code> slot model; vertices are in model space, UVs are anchored at the texture's top-left corner, and y points down. Headless drivers return -1; skip drawing then</td></tr>
+        <tr><td><code>measure_font_text / draw_font_text</code></td><td>ABI 7</td><td>Metric measurement and baseline rasterisation for resource fonts (the same font as JS Graphics2D, the same compression and clipping semantics; dirty bounds as out-parameters)</td></tr>
+        <tr><td><code>invoke_api</code></td><td>ABI 8</td><td>The channel underneath <code>mtr::Api</code>: a UTF-8 JSON request goes in, the result lands in a thread-local buffer (valid until the next call)</td></tr>
+        <tr><td><code>defer_free</code></td><td>ABI 10</td><td>Hands <strong>already-dead</strong> large memory blocks to the host's background reclamation thread (see <a href="performance.html">Performance and debugging</a> for details)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="history">ABI version history</h2>
+    <p>The host accepts <strong>ABI 6–10</strong> modules (each is fed the layout of its era and reports its own ABI number). Compiling with the current SDK produces ABI 10:</p>
+    <table>
+      <thead><tr><th>ABI</th><th>What it introduced</th></tr></thead>
+      <tbody>
+        <tr><td>6</td><td><code>mtrInit()</code>: the host must construct the state object (a zero-filled block is undefined behaviour for non-trivial types)</td></tr>
+        <tr><td>7</td><td>Resource-font metrics + baseline text rasterisation join the host services</td></tr>
+        <tr><td>8</td><td><code>invoke_api</code> (the full Java API channel), the lift snapshot, typed interchange modes; <strong>ABI 8 libraries require a JCM Yanyang.7 or newer host</strong></td></tr>
+        <tr><td>9</td><td>Canonical transport <strong>type</strong> ids for interchanges / vehicles (the MAGIC MTR extensions); the host stops copying the snapshot every frame, arena capacities become out-parameters</td></tr>
+        <tr><td>10</td><td>The <code>defer_free</code> deferred-reclamation hook (freeing scripts' own large buffers off the JVM threads)</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition warn">
+      <span class="admonition-title">Why old hosts must be rejected</span>
+      <p>The function pointer table grows with the ABI: a new module would call slots that an old host does not have. The host picks the matching structure layout and feeding strategy from the ABI number the module reports and refuses to load on mismatch—this fail-fast policy is deliberate.</p>
+    </div>
+
+    <h3>Transport layer (internal to the host, invisible to scripts)</h3>
+    <p>Since 2.3.0-beta-2.yanyang.6 (layout v2) the mod contains <strong>no JNI at all</strong>: two calling planes carry all cross-language traffic—the Panama FFM plane (JDK 22+, <code>libraryLookup</code> + <code>jcm_*</code> downcalls + an upcall vtable) and the shared-memory polling plane (any JDK ≥ 16, where the background poller thread started by the bridge's constructor discovers regions via a file-system handshake and everything is served through shared pages). Script code is completely unaware of this—modules only ever see the C ABI above.</p>
+
+    <hr>
+    <p>Up next: <a href="performance.html">Performance and debugging</a> — keeping your scripts fast and stable.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Documentation home</a>
+      <a href="getting-started.html">Quick start</a>
+      <a href="performance.html">Performance and debugging</a>
+    </div>
+    JCM Yanyang C++ scripting documentation · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

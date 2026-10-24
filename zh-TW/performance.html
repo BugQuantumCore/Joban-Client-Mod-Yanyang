@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-locale="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>效能與除錯 — JCM Yanyang C++ 腳本開發文件</title>
+<meta name="description" content="GC 衛生守則、髒矩形上傳策略、latest.log 觀測、JVM 參數與常見問題疑難排解。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">開始</div>
+    <a href="index.html">總覽</a>
+    <a href="getting-started.html">快速上手</a>
+    <div class="nav-group">腳本模型</div>
+    <a href="script-model.html">腳本模型與生命週期</a>
+    <div class="nav-group">API 參考</div>
+    <a href="data.html">資料快照</a>
+    <a href="drawing.html">繪製與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通作業</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">進階</div>
+    <a href="performance.html" class="active">效能與除錯</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="淺色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切換語言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="開啟導覽選單">☰ 目錄</button>
+    <span class="title">效能與除錯</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文件</a> / 進階 / 效能與除錯</div>
+      <h1>效能與除錯</h1>
+      <p class="page-lead">把腳本跑得又快又穩：熱路徑守則、記憶體衛生，以及出問題時該看哪裡。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁內容</b>
+      <ol>
+        <li><a href="#model">效能模型</a></li>
+        <li><a href="#rules">熱路徑守則</a></li>
+        <li><a href="#memory">記憶體與延遲回收</a></li>
+        <li><a href="#observe">觀測與日誌</a></li>
+        <li><a href="#flags">JVM 參數</a></li>
+        <li><a href="#faq">常見問題</a></li>
+      </ol>
+    </div>
+
+    <h2 id="model">效能模型</h2>
+    <p>每幀每實例的成本結構：</p>
+    <table>
+      <thead><tr><th>環節</th><th>成本</th></tr></thead>
+      <tbody>
+        <tr><td>快照封送處理（宿主 → 模組）</td><td><strong>唯一強制的 Java 穿越</strong>：宿主用可複用的建構器把 POD 快照寫進共享頁 / 直接緩衝區</td></tr>
+        <tr><td>資料讀取（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>普通記憶體讀取，零成本</td></tr>
+        <tr><td>繪製記錄寫入</td><td>競技場內以 bump 方式配置，零額外配置、零裝箱</td></tr>
+        <tr><td>像素光柵（<code>Gfx2D</code>）</td><td>純 C++ 迴圈；src-over 不透明快速路徑</td></tr>
+        <tr><td>宿主回放</td><td>與 JS 相同的渲染路徑；紋理上傳只搬運髒矩形</td></tr>
+        <tr><td><code>Api</code> 呼叫</td><td>JSON 編碼 + 反射 + JSON 解碼往返——<span class="pill warn">昂貴</span> 只作低頻通道</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="rules">熱路徑守則</h2>
+    <ol>
+      <li><strong>render 裡不碰 <code>Api</code></strong>。高頻資料全在快照裡；高頻繪製全走記錄流。JS 時代的週期性 GC 卡頓正是「每幀每車一次反射呼叫」造成的。</li>
+      <li><strong>資源只在 <code>create</code> 時建立</strong>：模型、紋理、Java 物件控制代碼、回呼——建好存入 <code>State</code>，<code>render</code> 只用。</li>
+      <li><strong>避免每幀資源讀取 / HTTP</strong>：網路請求丟進 <code>BackgroundWorker</code>，結果放進你自己的同步快取，render 讀快取。</li>
+      <li><strong>紋理只在內容變化時上傳</strong>：靜態背景畫一次；動態內容用 <code>push_clip</code> 限定重繪範圍，讓髒矩形只覆蓋真正變化的條帶。</li>
+      <li><strong>逐物件錯相</strong>：多實例輪播 / 閃爍不要同幀齊動——用相位錯開的排程讓髒區分散到不同幀（以 <code>in_game_time()</code> 或 <code>game_time_millis()</code> 當時鐘）。</li>
+      <li><strong>字串暫存物件要節制</strong>：<code>StrView</code> 比較免複製；確實要串接時注意 <code>std::string</code> 的配置（短字串 SSO 免配置）。</li>
+    </ol>
+
+    <h2 id="memory">記憶體與延遲回收</h2>
+    <p>宿主側的記憶體紀律（腳本作者了解即可，SDK 自動受益）：</p>
+    <ul>
+      <li>五個輸出競技場<strong>每模組一份、幀間複用</strong>；像素競技場初始 1 MB、按需增長（上限 16 MB）、尖峰過後確定性收縮回下限——不再有每模組 16 MB 的固定駐留。</li>
+      <li>實例離開視錐不銷毀（保持熱態、重新入鏡零重建）；真正離開用戶端車輛清單約 5 秒後才退休。</li>
+      <li><strong>大塊釋放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 裡死亡的上百萬位元組緩衝交給宿主背景回收執行緒，避免把 <code>free</code> 的全部成本計到目前幀、並放大 GC 安全點等待。契約：區塊必須已死、無解構、此後無任何執行緒（含宿主回放）再碰觸。SDK 的像素競技場收縮已自動遵守；你自己的大緩衝按同樣規則呼叫 <code>host-&gt;defer_free</code>，宿主過舊（槽位為 null）時同步 free 即可。</li>
+    </ul>
+
+    <h2 id="observe">觀測與日誌</h2>
+    <table>
+      <thead><tr><th>看什麼</th><th>在哪裡</th><th>內容</th></tr></thead>
+      <tbody>
+        <tr><td>模組 census</td><td><code>logs/latest.log</code> 啟動段落</td><td>已載入模組數與類型；傳輸通道摘要行（含 <code>transport:</code> 字樣：shared-memory / panama-ffm 等）——確認 shm / FFM 真正生效、是否靜默降級</td></tr>
+        <tr><td>載入失敗原因</td><td>census 行 + 除錯模式</td><td>某一側（JS 或 C++）缺失 / 載入失敗只跳過該側並留下提示，另一側照常工作</td></tr>
+        <tr><td>崩潰圍欄</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模組被停用的精確原因</td></tr>
+        <tr><td>清掃流量</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏的彙總日誌，可直接觀測實例壽命行為</td></tr>
+        <tr><td>上傳位元組數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>在你的程式碼裡打點：髒矩形策略是否奏效一目瞭然</td></tr>
+      </tbody>
+    </table>
+    <p>改完程式庫按 <strong>F3+T</strong>（或模組的「重新載入全部 MTR 腳本」快速鍵）即可重新載入 C++ 腳本——卸載與重新探索走完整流程，無需重新啟動遊戲。</p>
+
+    <h2 id="flags">JVM 參數</h2>
+    <table>
+      <thead><tr><th>參數</th><th>預設</th><th>作用</th></tr></thead>
+      <tbody>
+        <tr><td><code>-Djcm.nativeIdleMillis</code></td><td>90000</td><td>實例仍存在但長期未渲染時，超過該毫秒數才釋放；<code>0</code> = 不按時間限制釋放</td></tr>
+        <tr><td><code>-Djcm.nativeIdleMax</code></td><td>32</td><td>熱實例上限，超出時按最久未渲染者優先釋放；<code>0</code> = 不設上限</td></tr>
+        <tr><td><code>-Djcm.ffm.disable</code></td><td>關</td><td>除錯開關：停用 Panama FFM 載入路徑</td></tr>
+      </tbody>
+    </table>
+    <p>實例退休與銷毀還有每 tick 預算（預設 2 個、舊者先出）與世界卸載 / 切換維度 / 斷線時的一次性排清。</p>
+
+    <h2 id="faq">常見問題</h2>
+    <h3>模組完全不載入？</h3>
+    <ol>
+      <li>確認用的是 <strong>Release 或 Complete Build jar</strong>——快速 CI 產物不含原生橋，日誌會寫 <code>native bridge unavailable</code>（這不是你的模組的問題）。</li>
+      <li>查平台目錄：目前系統只會載入對應平台的程式庫；無副檔名的 stem 宣告會自動展開為各平台路徑（見<a href="getting-started.html#package">打包</a>）。</li>
+      <li>查 <code>ID</code> 與宣告條目的 <code>id</code> 是否逐字一致。</li>
+      <li>查 ABI：宿主接受 6–10；ABI 8+ 程式庫需要 Yanyang.7 及以上宿主。</li>
+    </ol>
+    <h3>螢幕出現佔位方框（tofu）？</h3>
+    <p>CJK 字形在宿主字型未涵蓋該碼點時退化——給 <code>Text::font()</code> / <code>Gfx2D</code> 建構子傳資源字型 id（如 <code>jsblock:shanghai</code>），或檢查所用字型集是否包含這些字元。</p>
+    <h3>偶發掉幀？</h3>
+    <ul>
+      <li>先看是不是「每幀整螢幕重繪」：靜態內容畫一次、動態內容以 clip 條帶重繪，用 <code>last_upload_bytes()</code> 驗證。</li>
+      <li>再看是不是多實例同幀齊動：輪播 / 閃爍 / 開門動畫逐物件錯相。</li>
+      <li>最後查有沒有 render 裡的 <code>Api</code> 呼叫（包括間接的：<code>ctx.set_auto_z_ordering</code> 等個別上下文方法在 ABI 8+ 會轉發一次）。</li>
+    </ul>
+    <h3>Windows 上行為和別處不一樣？</h3>
+    <p>ABI 6 之前的歷史版本曾依賴「零填充記憶體可直接當物件用」——這恰好只在 MSVC 佈局下倖存。目前 SDK 的 <code>mtrInit()</code> 契約已根治；如果你在寫自訂宿主，務必在配置狀態區塊後呼叫 <code>mtrInit()</code>。</p>
+
+    <hr>
+    <p>回到：<a href="index.html">文件首頁</a>。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文件首頁</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">效能與除錯</a>
+    </div>
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-locale="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance and debugging — JCM Yanyang C++ Scripting Documentation</title>
+<meta name="description" content="GC hygiene rules, dirty-rectangle upload strategy, latest.log observability, JVM flags and troubleshooting.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">Script Model</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <div class="nav-group">API Reference</div>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <div class="nav-group">Advanced</div>
+    <a href="performance.html" class="active">Performance and debugging</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">Performance and debugging</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / Advanced / Performance and debugging</div>
+      <h1>Performance and debugging</h1>
+      <p class="page-lead">Keeping scripts fast and stable: hot path rules, memory hygiene, and where to look when things go wrong.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#model">Performance model</a></li>
+        <li><a href="#rules">Hot path rules</a></li>
+        <li><a href="#memory">Memory and deferred reclamation</a></li>
+        <li><a href="#observe">Observability and logs</a></li>
+        <li><a href="#flags">JVM flags</a></li>
+        <li><a href="#faq">Frequently asked questions</a></li>
+      </ol>
+    </div>
+
+    <h2 id="model">Performance model</h2>
+    <p>The cost structure per frame per instance:</p>
+    <table>
+      <thead><tr><th>Stage</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>Snapshot marshalling (host → module)</td><td><strong>The only mandatory Java crossing</strong>: the host writes the POD snapshot into a shared page / direct buffer with reused builders</td></tr>
+        <tr><td>Data reads (<code>Vehicle</code> / <code>Pids</code> / …)</td><td>Plain memory reads; zero cost</td></tr>
+        <tr><td>Draw record writes</td><td>Bump allocation inside the arena; no heap allocation, no boxing</td></tr>
+        <tr><td>Pixel rasterisation (<code>Gfx2D</code>)</td><td>Pure C++ loops; a src-over fast path for opaque colours</td></tr>
+        <tr><td>Host replay</td><td>The same render path as JS; texture uploads carry only the dirty rectangle</td></tr>
+        <tr><td><code>Api</code> calls</td><td>A JSON encode + reflection + JSON decode round trip—<span class="pill warn">expensive</span>; use only as a low-frequency channel</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="rules">Hot path rules</h2>
+    <ol>
+      <li><strong>Never touch <code>Api</code> inside render</strong>. High-frequency data is all in the snapshot; high-frequency drawing all goes through the record stream. The periodic GC stutters of the JS era were caused precisely by 'one reflective call per vehicle per frame'.</li>
+      <li><strong>Build resources only in <code>create</code></strong>: models, textures, Java object handles, callbacks—build them, store them in <code>State</code>, and merely use them in <code>render</code>.</li>
+      <li><strong>Avoid per-frame resource reads / HTTP</strong>: put networking on the <code>BackgroundWorker</code>, the results into your own synchronised cache, and have render read the cache.</li>
+      <li><strong>Upload textures only when content changes</strong>: paint static backgrounds once; bound the repaint region of dynamic content with <code>push_clip</code> so the dirty rectangle covers only the strips that actually changed.</li>
+      <li><strong>Stagger per object</strong>: don't let the marquees / blinking of multiple instances all move in the same frame—use phase-offset scheduling to spread dirty regions across different frames (use <code>in_game_time()</code> or <code>game_time_millis()</code> as the clock).</li>
+      <li><strong>Be frugal with string temporaries</strong>: <code>StrView</code> comparisons are copy-free; when you really must concatenate, mind the <code>std::string</code> allocations (short strings are allocation-free thanks to SSO).</li>
+    </ol>
+
+    <h2 id="memory">Memory and deferred reclamation</h2>
+    <p>The host-side memory discipline (script authors need only be aware of it; the SDK benefits automatically):</p>
+    <ul>
+      <li>The five output arenas are <strong>one per module, reused between frames</strong>; the pixel arena starts at 1 MB, grows on demand (capped at 16 MB) and deterministically shrinks back to the floor after a spike—no more fixed 16 MB residency per module.</li>
+      <li>Instances leaving the view frustum are not destroyed (they stay warm, so re-entering costs zero rebuilds); only after genuinely leaving the client's vehicle list, roughly 5 seconds later, do they retire.</li>
+      <li><strong>Route large frees through <code>defer_free</code></strong> (ABI 10): megabyte-scale buffers that die inside <code>render</code> / <code>dispose</code> are handed to the host's background reclamation thread, so the full cost of <code>free</code> is not booked to the current frame and GC safepoint waits are not amplified. The contract: the block must already be dead, have no destructor, and never be touched again by any thread (host replay included). The SDK's pixel-arena shrinking already complies automatically; call <code>host-&gt;defer_free</code> by the same rules for your own large buffers—if the host is too old (the slot is null), just free synchronously.</li>
+    </ul>
+
+    <h2 id="observe">Observability and logs</h2>
+    <table>
+      <thead><tr><th>What to look at</th><th>Where</th><th>What it shows</th></tr></thead>
+      <tbody>
+        <tr><td>Module census</td><td>The startup section of <code>logs/latest.log</code></td><td>The number and kinds of loaded modules; the transport channel summary line (containing <code>transport:</code>: shared-memory / panama-ffm and so on)—confirm that shm / FFM is actually in effect, or whether it silently degraded</td></tr>
+        <tr><td>Why loading failed</td><td>The census line + debug mode</td><td>A missing / failed side (JS or C++) is only skipped with a note left behind, while the other side keeps working as normal</td></tr>
+        <tr><td>Crash guard</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>—the precise reason a module was disabled</td></tr>
+        <tr><td>Sweep traffic</td><td>latest.log (one line per minute)</td><td>An aggregated log of instance destruction pacing; instance lifetime behaviour is directly observable</td></tr>
+        <tr><td>Uploaded bytes</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>Instrument it in your own code: whether the dirty-rectangle strategy is working is plain to see</td></tr>
+      </tbody>
+    </table>
+    <p>After changing a library, press <strong>F3+T</strong> (or the mod's 'Reload all MTR scripts' keybind) to reload the C++ scripts—unload and rediscovery go through the full path, no game restart needed.</p>
+
+    <h2 id="flags">JVM flags</h2>
+    <table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>-Djcm.nativeIdleMillis</code></td><td>90000</td><td>When an instance still exists but has not been rendered for a long time, release it only after this many milliseconds; <code>0</code> = never release on a time limit</td></tr>
+        <tr><td><code>-Djcm.nativeIdleMax</code></td><td>32</td><td>Cap on warm instances; beyond it, the longest-unrendered ones are released first; <code>0</code> = no cap</td></tr>
+        <tr><td><code>-Djcm.ffm.disable</code></td><td>Off</td><td>Debug switch: disables the Panama FFM loading path</td></tr>
+      </tbody>
+    </table>
+    <p>Instance retirement and destruction additionally has a per-tick budget (2 by default, oldest first) plus a one-off flush when a world unloads / the dimension changes / the player disconnects.</p>
+
+    <h2 id="faq">Frequently asked questions</h2>
+    <h3>The module does not load at all?</h3>
+    <ol>
+      <li>Confirm you are using a <strong>Release or Complete Build jar</strong>—fast CI artefacts lack the native bridge, and the log will say <code>native bridge unavailable</code> (that is not your module's fault).</li>
+      <li>Check the platform directory: the current system loads only the library for its own platform; extension-less stem declarations expand automatically to per-platform paths (see <a href="getting-started.html#package">Packaging</a>).</li>
+      <li>Check that <code>ID</code> and the declaration entry's <code>id</code> match verbatim.</li>
+      <li>Check the ABI: the host accepts 6–10; ABI 8+ libraries need a Yanyang.7 or newer host.</li>
+    </ol>
+    <h3>Placeholder boxes (tofu) appear on screen?</h3>
+    <p>CJK glyphs degrade when the host font does not cover the code point—pass a resource font id to <code>Text::font()</code> / the <code>Gfx2D</code> constructor (e.g. <code>jsblock:shanghai</code>), or check that the font set you use contains these characters.</p>
+    <h3>Occasional frame drops?</h3>
+    <ul>
+      <li>First check whether you are 'repainting the whole screen every frame': paint static content once, repaint dynamic content in clipped strips, and verify with <code>last_upload_bytes()</code>.</li>
+      <li>Then check whether multiple instances all move in the same frame: stagger the marquees / blinking / door animations per object.</li>
+      <li>Finally check for <code>Api</code> calls inside render (including indirect ones: a few context methods such as <code>ctx.set_auto_z_ordering</code> forward one call on ABI 8+).</li>
+    </ul>
+    <h3>Behaviour differs on Windows?</h3>
+    <p>Historical versions before ABI 6 relied on 'zero-filled memory being usable directly as an object'—which happened to survive only under the MSVC layout. The current SDK's <code>mtrInit()</code> contract has cured this for good; if you are writing a custom host, always call <code>mtrInit()</code> after allocating the state block.</p>
+
+    <hr>
+    <p>Back to: <a href="index.html">documentation home</a>.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Documentation home</a>
+      <a href="getting-started.html">Quick start</a>
+      <a href="performance.html">Performance and debugging</a>
+    </div>
+    JCM Yanyang C++ scripting documentation · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

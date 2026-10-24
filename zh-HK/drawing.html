@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-HK" data-locale="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>繪製與畫布 — JCM Yanyang C++ 腳本開發文件</title>
+<meta name="description" content="Text / Texture 串流 API、Matrices、GraphicsTexture 髒矩形上載、Gfx2D 軟件光柵器與字型體系。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">開始</div>
+    <a href="index.html">概覽</a>
+    <a href="getting-started.html">快速上手</a>
+    <div class="nav-group">腳本模型</div>
+    <a href="script-model.html">腳本模型與生命週期</a>
+    <div class="nav-group">API 參考</div>
+    <a href="data.html">資料快照</a>
+    <a href="drawing.html" class="active">繪製與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">進階</div>
+    <a href="performance.html">效能與除錯</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="淺色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切換語言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="開啟導覽選單">☰ 目錄</button>
+    <span class="title">繪製與畫布</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文件</a> / API 參考 / 繪製與畫布</div>
+      <h1>繪製與畫布</h1>
+      <p class="page-lead">兩條路線：PIDS 螢幕用 <code>Text</code> / <code>Texture</code> 串流 API 直出；像素級內容（LCD、點陣螢幕）用 <code>GraphicsTexture</code> + <code>Gfx2D</code> 原生光柵。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁內容</b>
+      <ol>
+        <li><a href="#text">Text 與 Texture（PIDS）</a></li>
+        <li><a href="#matrices">Matrices 與模型繪製</a></li>
+        <li><a href="#texture2d">GraphicsTexture（像素畫布）</a></li>
+        <li><a href="#gfx2d">Gfx2D 軟件光柵器</a></li>
+        <li><a href="#fonts">字型體系</a></li>
+      </ol>
+    </div>
+
+    <div class="admonition note">
+      <span class="admonition-title">兩條路線怎樣選</span>
+      <p><strong>螢幕座標系內容</strong>（PIDS 文字行、貼圖塊）→ <code>Text</code>/<code>Texture</code>：一條繪製記錄，宿主用與 JS 完全相同的程式碼路徑回放。<strong>像素級內容</strong>（車輛 LCD、動態點陣螢幕、圖表）→ <code>GraphicsTexture</code> 自繪像素，經 <code>Gfx2D</code> 光柵化基元，只把髒矩形上載 GPU。</p>
+    </div>
+
+    <h2 id="text">Text 與 Texture（PIDS）</h2>
+    <p><code>&lt;mtr/text.hpp&gt;</code> 是 JS <code>TextWrapper</code> / <code>TextureWrapper</code> 串流 API 的 1:1 移植——方法名按 C++ 慣例 snake_case，鏈式呼叫：</p>
+    <pre><code class="lang-cpp">mtr::Text::create()
+    .text("Tsim Sha Tsui")
+    .scale(1.725)
+    .size(100, 9)
+    .stretch_xy()
+    .font_mc()
+    .color(0xFC9700)
+    .pos(3, rowY)
+    .draw(ctx);</code></pre>
+    <table>
+      <thead><tr><th>Text 方法</th><th>對應 JS</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>.text(str[, len])</code></td><td><code>.text()</code></td><td>UTF-8 文字</td></tr>
+        <tr><td><code>.scale(s)</code></td><td><code>.scale()</code></td><td>整體縮放</td></tr>
+        <tr><td><code>.left_align() / .center_align() / .right_align()</code></td><td>同名</td><td>對齊（預設置中）</td></tr>
+        <tr><td><code>.shadowed() / .bold() / .italic()</code></td><td>同名</td><td>字飾</td></tr>
+        <tr><td><code>.stretch_xy() / .scale_xy() / .wrap_text() / .marquee(duration)</code></td><td>同名</td><td>溢出模式（跑馬燈可用 <code>.with_marquee_progress(p)</code> 固定進度）</td></tr>
+        <tr><td><code>.font(id) / .font_mc()</code></td><td>同名</td><td>資源字型（如 <code>.font("jsblock:shanghai")</code>）/ MC 內置字型</td></tr>
+        <tr><td><code>.color(argb)</code></td><td>同名</td><td>顏色（ARGB）</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>同名</td><td>螢幕座標與包圍盒</td></tr>
+        <tr><td><code>.z_order(z) / .layer(l)</code></td><td>同名</td><td>層級；<code>z=-1</code> 時由上下文自動指派</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Texture 方法</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>.texture(id)</code></td><td>貼圖資源 id（如 <code>"mtr:textures/block/pids.png"</code>）</td></tr>
+        <tr><td><code>.uv(u1, v1, u2, v2)</code></td><td>UV 子矩形</td></tr>
+        <tr><td><code>.color(argb)</code></td><td>染色</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>位置與尺寸</td></tr>
+        <tr><td><code>.z_order(z) / .layer(l)</code></td><td>層級</td></tr>
+      </tbody>
+    </table>
+    <p>配套上下文方法（<code>PidsContext</code>）：</p>
+    <ul>
+      <li><code>ctx.set_auto_z_ordering(bool)</code> —— 自動 z 序（預設開啟）</li>
+      <li><code>ctx.set_z_order_step(step)</code> —— 自動 z 序步長（預設 0.0002）</li>
+    </ul>
+    <p>渲染層（<code>mtr::Matrices</code> 無關的 2D 層列舉 <code>MtrRenderLayer</code>）：<code>MTR_LAYER_TEXT</code>（文字）、<code>MTR_LAYER_LIGHT</code>（發光體）、<code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code>（外觀 / 內飾），與 MTR 的 <code>QueuedRenderLayer</code> 一致。</p>
+
+    <h2 id="matrices">Matrices 與模型繪製</h2>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> 對應 JS 的全域 <code>Matrices</code>：變換推入堆疊、<code>compile()</code> 把現時堆疊編譯為一組矩陣寫進幀矩陣競技場：</p>
+    <pre><code class="lang-cpp">mtr::Matrices m;
+m.translate(0.5f, 1.0f, 0.0f);
+m.rotate_y_degrees(90.0f);
+m.scale(1.0f, 1.0f, 1.0f);
+ctx.draw_car_model(model_handle, car_index, &amp;m);   // 車輛
+ctx.draw_model(model_handle, &amp;m);                   // 裝飾 / 電梯</code></pre>
+    <table>
+      <thead><tr><th>成員</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>translate(x, y, z)</code> / <code>scale(x, y, z)</code></td><td>平移 / 縮放</td></tr>
+        <tr><td><code>rotate_x / rotate_y / rotate_z(radians)</code></td><td>旋轉（弧度）</td></tr>
+        <tr><td><code>rotate_x_degrees / …_y… / …_z…(deg)</code></td><td>旋轉（角度）</td></tr>
+        <tr><td><code>compile()</code></td><td>把現時姿態編譯進幀（傳回矩陣組索引；傳給 draw 呼叫）</td></tr>
+      </tbody>
+    </table>
+    <p>車輛上下文另有 <code>draw_bogie_model(model, car, bogie, matrices)</code>（轉向架）、<code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> 與 <code>play_ann_sound(sound, volume, pitch)</code>（僅乘坐玩家可聽到的報站廣播）。</p>
+    <p>模型控制代碼來自宿主服務：<code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> 取得、<code>release_model(user, handle)</code> 釋放；<code>acquire_quad_model(...)</code> 可用 4 個模型空間頂點 + UV 建構宿主持有的貼圖面片（把 <code>GraphicsTexture</code> 變成可貼到車廂上的螢幕）。細節見 <a href="abi.html">C ABI 與宿主服務</a>。</p>
+
+    <h2 id="texture2d">GraphicsTexture（像素畫布）</h2>
+    <p><code>&lt;mtr/gfx.hpp&gt;</code> 的 <code>GraphicsTexture</code> 把像素緩衝區留在你的模組裏，遊戲側只收<strong>髒矩形</strong>上載——像素資料不逐幀跨邊界搬運：</p>
+    <pre><code class="lang-cpp">struct LcdState {
+    mtr::GraphicsTexture tex;      // 建議放 State：與實例同生命週期
+};
+
+void create(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp;) {
+    s.tex.create(ctx.input(), 512, 128);   // 同時向宿主註冊 GPU 紋理
+    // 把紋理貼到車廂：host-&gt;acquire_quad_model(...) → draw_car_model(...)
+}
+
+void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp; vehicle) {
+    // 1. 畫像素（Gfx2D 或直接 set_pixel）
+    // 2. 只上載變化區域：
+    s.tex.upload(ctx.frame());
+}</code></pre>
+    <table>
+      <thead><tr><th>成員</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>create(input, w, h)</code></td><td>配置像素緩衝區（BGRA8 行主序）並在宿主側建立 GPU 紋理，傳回後整體視為髒</td></tr>
+        <tr><td><code>pixels() / pixels32()</code></td><td>直接像素指標（<code>uint8_t*</code> / <code>uint32_t*</code>）</td></tr>
+        <tr><td><code>set_pixel(x, y, argb)</code></td><td>寫單一像素並自動累計髒區</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>把現時髒矩形寫入幀像素競技場（一條 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄），隨後髒區復位</td></tr>
+        <tr><td><code>last_upload_bytes()</code></td><td>上次上載的位元組數——效能觀測利器</td></tr>
+        <tr><td><code>close(input)</code> / 解構</td><td>釋放宿主 GPU 紋理</td></tr>
+        <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>宿主紋理控制代碼與尺寸資訊</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">效能要點</span>
+      <p><code>upload()</code> 只搬運<strong>自上次上載以來變化過的包圍盒</strong>。靜態背景畫一次即可；每幀只動需要動的條帶（跑馬燈、閃爍段、進度條）。車輛 LCD 閃爍／輪播如果只改一小條，上載量就只有那一小條。</p>
+    </div>
+    <p>同一標頭檔還提供 <code>LcdCanvas</code>——基於內置 5×7 點陣字型的 LCD 畫筆（可配置亮／熄顏色），適合經典點陣螢幕。</p>
+
+    <h2 id="gfx2d">Gfx2D 軟件光柵器</h2>
+    <p><code>&lt;mtr/gfx2d.hpp&gt;</code> 把 <code>java.awt.Graphics2D</code> 的常用子集實作為<strong>確定性軟件光柵器</strong>，直接畫在 <code>GraphicsTexture</code> 上。JS 資源包裏的 <code>fillRect / fillOval / drawLine / GeneralPath / clip / drawString</code> 邏輯可以機械地移植過來：</p>
+    <pre><code class="lang-cpp">mtr::Gfx2D g(s.tex, ctx.host(), "jsblock:shanghai");  // 畫布 + 宿主字型
+
+g.set_color(mtr::clr(12, 28, 44));                    // 深色底
+g.fill_rect(0, 0, W, H);
+
+g.push_clip(8, 8, W - 16, 40);                       // 裁剪堆疊
+g.set_color(mtr::clra(255, 205, 66, 255));
+g.draw_text_centered(W / 2, 30, 18.0, "下一站 Next");
+g.pop_clip();</code></pre>
+    <table>
+      <thead><tr><th>基元</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>fill_rect / fill_round_rect / draw_round_rect</code></td><td>矩形（圓角弧半徑參數）</td></tr>
+        <tr><td><code>fill_oval / draw_oval</code></td><td>橢圓填充 / 描邊（線寬）</td></tr>
+        <tr><td><code>draw_line(x1, y1, x2, y2, lw)</code></td><td>線段</td></tr>
+        <tr><td><code>fill_polygon(xs, ys, n)</code></td><td>多邊形填充（GeneralPath 等價）</td></tr>
+        <tr><td><code>push_clip / pop_clip</code></td><td>裁剪框堆疊；所有基元先裁剪再光柵，髒區同樣被裁剪約束</td></tr>
+        <tr><td><code>draw_text / draw_text_centered / draw_text_compressed / draw_mixed_text</code></td><td>文字（見下節字型）</td></tr>
+        <tr><td><code>draw_logo_badge(x, y, w, h, bg, fg)</code></td><td>圓角徽章底色</td></tr>
+      </tbody>
+    </table>
+    <p>顏色助手：<code>mtr::clr(r, g, b)</code> / <code>mtr::clra(r, g, b, a)</code>（不透明 / 帶 alpha），對應 JS <code>config.js</code> 裏的同名函式。半透明顏色走 src-over 合成；不透明顏色有快速路徑。</p>
+
+    <h2 id="fonts">字型體系</h2>
+    <p>三層字型，按可用性自動降級：</p>
+    <table>
+      <thead><tr><th>層級</th><th>覆蓋</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td>資源字型（首選）</td><td>全 UTF-8</td><td>給 <code>Text::font("jsblock:shanghai")</code>、<code>Gfx2D</code> 建構第三參傳字型資源 id：用宿主的真實 <code>FontMetrics</code> 與 <code>drawString</code>，保留字距、基線、壓縮、alpha 與裝置裁剪——和 JS 端同一字型管線</td></tr>
+        <tr><td>宿主 TTF 回呼</td><td>CJK 等</td><td>無資源字型時，CJK 字形經宿主服務 <code>rasterize_text</code> 光柵化（對應 JCM FontManager 的 TTF 集）</td></tr>
+        <tr><td>內置 5×7 點陣字型</td><td>ASCII / 拉丁</td><td>按請求尺寸縮放、按字形寬窄給比例步進（窄的 i、l、.、,；寬的 m、W）——<code>text_width()</code> 與實際繪製用同一組數字，JS 的自適應字號 / 5% 壓縮排版演算法可原樣移植；CJK 無宿主時退化為佔位框</td></tr>
+      </tbody>
+    </table>
+    <p>內置字型的度量約定：ascent = 0.78 em、descent = 0.22 em（≈ Arial / HanSans）；CJK 全形 1.0 em 步進。資源字型的度量（<code>measure_font_text</code> 宿主服務）按真實字型計算。</p>
+
+    <hr>
+    <p>接下來：<a href="java-api.html">mtr::Api 與 Java 互通</a> —— 快照之外的一切。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文件首頁</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">效能與除錯</a>
+    </div>
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

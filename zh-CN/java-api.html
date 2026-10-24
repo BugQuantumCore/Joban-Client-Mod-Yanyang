@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>mtr::Api 与 Java 互操作 — JCM Yanyang C++ 脚本开发文档</title>
 <meta name="description" content="经 mtr::Api 调用 JavaScript 脚本能访问的全部公开 Java API：对象、字段、方法、回调与 JS↔C++ 对照表。">
-<link rel="stylesheet" href="assets/style.css">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
@@ -29,6 +31,16 @@
     <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
   </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
   <div class="sidebar-footer">
     SDK ABI 10<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
@@ -69,7 +81,7 @@
     <table>
       <thead><tr><th>需求</th><th>通道</th></tr></thead>
       <tbody>
-        <tr><td>列车 / 到站 / 电梯 / 装饰的逐帧状态</td><td><a href="data.html">快照包装器</a>（零成本）</td></tr>
+        <tr><td>车辆 / 到站 / 电梯 / 装饰的逐帧状态</td><td><a href="data.html">快照包装器</a>（零成本）</td></tr>
         <tr><td>文字 / 贴图 / 模型 / 声音绘制</td><td><a href="drawing.html">绘制记录流</a>（零 JVM 穿越）</td></tr>
         <tr><td>脚本 <code>input</code> 配置、一次性资源创建、跨帧缓存的对象句柄</td><td><code>Api</code>（create 时调用，句柄存 State）</td></tr>
         <tr><td>网络请求、文件、BackgroundWorker、声音管理器等深接口</td><td><code>Api</code>（后台任务中调用）</td></tr>
@@ -196,6 +208,6 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
   </footer>
 </main>
 </div>
-<script src="assets/app.js"></script>
+<script src="../assets/app.js"></script>
 </body>
 </html>

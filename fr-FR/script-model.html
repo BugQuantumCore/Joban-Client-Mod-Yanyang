@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modèle de script et cycle de vie — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Classes de base des quatre catégories de scripts, sémantique de State, ordonnancement create/render/dispose, modèle de threading et isolation des plantages.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html" class="active">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Modèle de script et cycle de vie</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Modèle de script et cycle de vie</div>
+      <h1>Modèle de script et cycle de vie</h1>
+      <p class="page-lead">Les classes de base des quatre catégories de scripts, l’état par instance, l’ordonnancement du cycle de vie, ainsi que la sémantique des threads et de l’isolation des plantages.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#kinds">Les quatre catégories de scripts</a></li>
+        <li><a href="#state">State : l’état par instance</a></li>
+        <li><a href="#lifecycle">Ordonnancement du cycle de vie</a></li>
+        <li><a href="#threading">Modèle de threading</a></li>
+        <li><a href="#crash">Isolation des plantages</a></li>
+        <li><a href="#errors">Codes de retour</a></li>
+      </ol>
+    </div>
+
+    <h2 id="kinds">Les quatre catégories de scripts</h2>
+    <p>Incluez <code>&lt;mtr/script.hpp&gt;</code>, héritez de la classe de base correspondante et exportez-la avec la macro d’enregistrement. Le paramètre modèle de la classe de base est le <strong>type d’état par instance</strong> :</p>
+    <table>
+      <thead><tr><th>Ressource</th><th>Classe de base</th><th>Macro d’enregistrement</th><th>Enveloppe de données</th></tr></thead>
+      <tbody>
+        <tr><td>Véhicule</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Vehicle</code></td></tr>
+        <tr><td>PIDS</td><td><code>mtr::PidsScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PIDS_SCRIPT</code></td><td><code>mtr::Pids</code></td></tr>
+        <tr><td>Ascenseur</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
+        <tr><td>Eyecandy</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
+      </tbody>
+    </table>
+
+    <p>Le squelette d’un script de véhicule (pour les trois autres catégories, seuls la classe de base et les types de paramètres changent) :</p>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct MyVehicleState {
+    mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};   // n'importe quel type C++ à vous
+    mtr::Api::Object tracker;                        // handle d'objet Java
+    std::unique_ptr&lt;mtr::GraphicsTexture&gt; lcd;    // ressource détenue
+};
+
+struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
+    static constexpr auto ID = "demo:vehicle";
+
+    void create(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
+                const mtr::Vehicle&amp; vehicle) override {
+        // appelé une fois avant la première frame : créer les ressources, enregistrer les callbacks
+    }
+
+    void render(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
+                const mtr::Vehicle&amp; vehicle) override {
+        // appelé à chaque frame : lire l'instantané, écrire les enregistrements de dessin
+    }
+
+    void dispose(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
+                 const mtr::Vehicle&amp; vehicle) override {
+        // appelé avant la destruction de l'instance : libérer les ressources
+    }
+};
+
+MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
+
+    <ul>
+      <li><strong><code>ID</code></strong> est l’identifiant nommé du script (par ex. <code>demo:vehicle</code>) ; il doit être identique au champ <code>id</code> de l’entrée déclarée dans le <code>minecraft_custom_resources.json</code> du pack de ressources.</li>
+      <li>Les trois fonctions du cycle de vie peuvent toutes être surchargées au besoin (la classe de base fournit des implémentations vides) ; leurs signatures sont fixes.</li>
+      <li>Une unité de traduction enregistre un seul script ; pour plusieurs scripts, répartissez-les dans plusieurs bibliothèques modules.</li>
+    </ul>
+
+    <h2 id="state">State : l’état par instance</h2>
+    <p>Chaque instance de script (chaque véhicule, chaque bloc-entité PIDS…) possède son propre bloc <code>State</code> indépendant, <strong>alloué et construit par l’hôte</strong> :</p>
+    <ul>
+      <li>L’hôte alloue le bloc d’état selon <code>mtrStateSize()</code> (généré par la macro d’enregistrement à partir de <code>sizeof(State)</code>) et le construit via <code>mtrInit()</code> par placement-new avant la première utilisation — <strong>ne supposez pas</strong> qu’une mémoire remplie de zéros est utilisable (les types non triviaux comme <code>std::string</code> ont un comportement indéfini sur de la mémoire nulle).</li>
+      <li>Le contenu du bloc d’état <strong>persiste d’une frame à l’autre</strong> : placez-y les textures, les handles de modèles, les callbacks et les caches.</li>
+      <li>Les <strong>membres de la classe de script</strong> (les champs que vous écrivez dans <code>MyVehicleScript</code>) sont en revanche <strong>partagés par toutes les instances</strong> du module — n’y placez que des constantes en lecture seule et de la configuration globale.</li>
+      <li>Le bloc d’état est détruit dès que <code>dispose</code> retourne ; une instance est retirée environ 5 secondes après sa disparition du côté client, et toutes sont détruites au rechargement du pack de ressources (F3+T).</li>
+    </ul>
+    <div class="admonition tip">
+      <span class="admonition-title">Astuce</span>
+      <p>Les objets de callback en arrière-plan (<code>mtr::Api::Callback</code>) doivent être conservés dans <code>State</code> jusqu’à leur destruction — le côté Java peut les appeler à tout moment.</p>
+    </div>
+
+    <h2 id="lifecycle">Ordonnancement du cycle de vie</h2>
+    <div class="steps">
+      <div class="step">
+        <h3>Allocation + construction</h3>
+        <p>L’hôte alloue le bloc d’état de l’instance et appelle <code>mtrInit()</code> → construction de <code>State()</code>.</p>
+      </div>
+      <div class="step">
+        <h3>create</h3>
+        <p>Appelé une seule fois avant le premier rendu de l’instance. <strong>Les enregistrements de dessin soumis pendant create sont conservés et réutilisés par le premier render</strong> — placez-y le contenu statique à usage unique (formes, textures permanentes), render ne dessinera que la partie dynamique. L’acquisition de ressources, les appels <code>Api</code> et l’enregistrement de callbacks conviennent également ici.</p>
+      </div>
+      <div class="step">
+        <h3>render (à chaque frame)</h3>
+        <p>Lecture de l’instantané → calculs → écriture des enregistrements de dessin dans l’arène de frame. L’instantané et ses enveloppes ne sont valables que durant cet appel ; dès que <code>render</code> retourne, l’hôte lit la sortie et récupère la frame. Pendant les périodes où l’instance est invisible, <code>render</code> n’est pas appelé, mais l’état reste chaud.</p>
+      </div>
+      <div class="step">
+        <h3>dispose</h3>
+        <p>Appelé lors du retrait de l’instance ou d’un rechargement. Fermez ici les ressources détenues (textures, modèles…) ; la destruction de <code>State</code> suit immédiatement. Même si <code>dispose</code> lève une exception, l’état est détruit en toute sécurité.</p>
+      </div>
+    </div>
+    <div class="admonition note">
+      <span class="admonition-title">Correspondance avec JS</span>
+      <p>Ce modèle <code>create / render / dispose + état par instance</code> est la transcription native exacte du modèle que JCM offre aux scripts JS (un objet <code>state</code> par <code>ScriptInstance</code>) ; lors de la migration d’un script JS, la logique se traduit segment par segment.</p>
+    </div>
+
+    <h2 id="threading">Modèle de threading</h2>
+    <ul>
+      <li>L’hôte appelle <strong>en série</strong> toutes les fonctions du cycle de vie d’un module donné sur un unique thread d’arrière-plan <strong>par module</strong> (miroir de l’exécuteur mono-thread par script que JCM applique aux scripts JS) — les <code>create / render / dispose</code> d’une même instance ne sont jamais concurrents.</li>
+      <li>En revanche, <strong>render et les callbacks asynchrones peuvent être concurrents</strong> (une tâche soumise au <code>BackgroundWorker</code> peut s’exécuter à cet instant sur un autre thread) : la synchronisation de l’état mutable partagé incombe au script.</li>
+      <li>Au rechargement du pack de ressources, les callbacks sont d’abord arrêtés et les appels en cours attendus, puis les états sont détruits et le code déchargé.</li>
+    </ul>
+
+    <h2 id="crash">Isolation des plantages</h2>
+    <p>Les macros d’enregistrement enveloppent chaque fonction exportée dans un garde-fou anti-plantage (<code>crash_guard.hpp</code>) :</p>
+    <ul>
+      <li>Défauts matériels du type segmentation fault → <strong>seul le module est désactivé</strong>, le processus du jeu continue de tourner ; <code>latest.log</code> conserve une ligne <code>native script faulted … module disabled</code>.</li>
+      <li>Les exceptions C++ non interceptées sont elles aussi bloquées par le garde-fou — mais faites vos propres try/catch pour garder une sémantique claire.</li>
+      <li>Les signaux POSIX ne sont <strong>pas</strong> « récupérés » à la longjmp : sauter par-dessus le gestionnaire de signal est plus dangereux que le plantage lui-même ; la mise hors ligne immédiate du module est un choix délibéré.</li>
+    </ul>
+
+    <h2 id="errors">Codes de retour</h2>
+    <table>
+      <thead><tr><th>Valeur retournée par mtrCreate / mtrRender / mtrDispose</th><th>Signification</th></tr></thead>
+      <tbody>
+        <tr><td><code>0</code></td><td>succès</td></tr>
+        <tr><td><code>-1</code></td><td>paramètre d’entrée nul</td></tr>
+        <tr><td><code>-2</code></td><td>version d’ABI incompatible (échec de la négociation entre l’hôte et le module)</td></tr>
+        <tr><td><code>-3</code></td><td>type de ressource inadéquat (par ex. un module véhicule appelé comme PIDS)</td></tr>
+      </tbody>
+    </table>
+    <p>Ces codes de retour sont générés par le SDK ; un code de script ordinaire n’a pas à s’en soucier. Si vous écrivez un hôte personnalisé ou un pilote de test, interprétez-les selon le tableau ci-dessus (détails dans <a href="abi.html">ABI C et services de l’hôte</a>).</p>
+
+    <hr>
+    <p>Ensuite : <a href="data.html">Instantanés de données</a> — ce que render peut lire ; <a href="drawing.html">Dessin et canevas</a> — comment le dessiner.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

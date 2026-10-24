@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="lzh" data-locale="lzh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>入門 — JCM Yanyang C++ 腳本開發文檔</title>
+<meta name="description" content="取 SDK、立模塊工程、編譯、納諸資源包、驗於遊戲之中。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">肇始</div>
+    <a href="index.html">綜覽</a>
+    <a href="getting-started.html" class="active">入門</a>
+    <div class="nav-group">腳本體例</div>
+    <a href="script-model.html">腳本體例與生命週期</a>
+    <div class="nav-group">API 備覽</div>
+    <a href="data.html">數據快照</a>
+    <a href="drawing.html">繪事與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">精進</div>
+    <a href="performance.html">性能與除錯</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="夜色" data-light="晝色">夜色</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="擇語"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="展開目錄">☰ 目錄</button>
+    <span class="title">入門</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文檔</a> / 入門</div>
+      <h1>入門</h1>
+      <p class="page-lead">自零而至行於遊戲之中：取 SDK → 撰首模塊 → 編譯 → 納諸資源包。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁之目</b>
+      <ol>
+        <li><a href="#prereq">先決之件</a></li>
+        <li><a href="#sdk">取 SDK</a></li>
+        <li><a href="#project">立模塊工程</a></li>
+        <li><a href="#first-module">第一模塊</a></li>
+        <li><a href="#build">編譯</a></li>
+        <li><a href="#package">納諸資源包</a></li>
+        <li><a href="#verify">驗於遊戲之中</a></li>
+      </ol>
+    </div>
+
+    <h2 id="prereq">先決之件</h2>
+    <table>
+      <thead><tr><th>工具</th><th>版本</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td>C++ 編譯器</td><td>C++17</td><td>MSVC（Windows）/ GCC / Clang 任擇其一</td></tr>
+        <tr><td>CMake</td><td>≥ 3.16</td><td>所薦，然非硬性之求——SDK 純為頭文件</td></tr>
+        <tr><td>JDK</td><td>可省</td><td>惟行 SDK 自帶 JVM 集成測試時所需</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">要訣</span>
+      <p>SDK 悉以頭文件供之（<code>native/include/mtr/</code>），無毫釐預編譯庫之依賴；以君所熟之構建系統，徑納 <code>include/</code> 於包含路徑即可。</p>
+    </div>
+
+    <h2 id="sdk">取 SDK</h2>
+    <p>SDK 隨每 Release 刊為 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（見 GitHub Releases 之附件），其內即倉庫 <code>native/</code> 目錄之源碼：</p>
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+├── include/mtr/          # SDK 諸頭文件盡在（script.hpp 為總門）
+│   ├── mtr_native.h      # C ABI：導出函數、快照、繪製記錄、宿主服務
+│   ├── script.hpp        # 腳本基類＋註冊宏（惟 #include 此一足矣）
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
+│   ├── api.hpp           # mtr::Api（Java API 之全訪）
+│   └── crash_guard.hpp ...
+├── examples/             # 最小示例模塊凡三
+├── bench/                # 測試與器具
+└── CMakeLists.txt</code></pre>
+
+    <h2 id="project">立模塊工程</h2>
+    <p>至簡之法：解 SDK 於君之資源包工程，徑於其 <code>CMakeLists.txt</code> 之末追加己之目標——SDK 已將諸平臺鏈結之細務（Windows 無前綴 <code>.dll</code>、macOS <code>.dylib</code> 與 <code>-undefined dynamic_lookup</code>、Android 16 KB 頁對齊）封為 <code>mtr_add_script()</code> 一函：</p>
+    <pre><code class="lang-cmake"># 追加於 SDK native/CMakeLists.txt 之末
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <p>若欲自立工程，下方即與彼函數等價之全模板：</p>
+    <pre><code class="lang-cmake">cmake_minimum_required(VERSION 3.16)
+project(my_native_scripts LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# SDK 頭文件路徑（指往解壓所得 SDK 之 include 目錄）
+add_library(mtr_script_sdk INTERFACE)
+target_include_directories(mtr_script_sdk INTERFACE path/to/sdk/include)
+
+function(mtr_add_script name)          # 與 SDK 同式之模塊目標函數
+  add_library(${name} MODULE ${ARGN})
+  target_link_libraries(${name} PRIVATE mtr_script_sdk)
+  set_target_properties(${name} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+  if(WIN32)
+    set_target_properties(${name} PROPERTIES PREFIX "" SUFFIX ".dll")
+  elseif(APPLE)
+    set_target_properties(${name} PROPERTIES PREFIX "lib" SUFFIX ".dylib")
+    target_link_options(${name} PRIVATE "-Wl,-undefined,dynamic_lookup")
+  elseif(ANDROID)
+    target_link_options(${name} PRIVATE "-Wl,-z,max-page-size=16384")
+  endif()
+endfunction()
+
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">按語</span>
+      <p>腳本為 <code>MODULE</code> 庫（不鏈任何 SDK 二進位之物），預設符號隱藏，惟導出 ABI 所求之七個 <code>mtr*</code> 函數（由 <code>script.hpp</code> 之註冊宏成之）。C++17 乃最低之標準。</p>
+    </div>
+
+    <h2 id="first-module">第一模塊</h2>
+    <p>一至小之 PIDS 到站顯示模塊——完備、可編譯、可徑入遊戲：</p>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};                    // 逐實例恆存之狀態（本例為空）
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";   // 須與資源包之宣告相符
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;,
+                const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+
+            if (!text.empty())
+                mtr::Text::create()
+                    .text(text.c_str())
+                    .pos(2, row * 10.0 + 2)
+                    .size(pids.width() - 4, 9)
+                    .draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+    <p>其要曰：</p>
+    <ul>
+      <li><strong>基類</strong>定腳本之屬：<code>PidsScript</code> / <code>VehicleScript</code> / <code>LiftScript</code> / <code>EyecandyScript</code>，模板參數即逐實例狀態之型。</li>
+      <li><strong>生命週期</strong>與 JS 無異：<code>create</code> / <code>render</code> / <code>dispose</code> 三虛函數按所需而 override（皆可省）。</li>
+      <li><strong>註冊宏</strong>敷展全部 ABI 導出，一翻譯單元惟註一腳本。</li>
+    </ul>
+    <p>更多示例見 SDK 之 <code>examples/</code>：車輛 / 電梯 / 裝飾三類各有至小之樣。</p>
+
+    <h2 id="build">編譯</h2>
+    <pre><code class="lang-bash">cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+cmake --build native/build --config Release --parallel 4
+ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SDK 自帶之測試</code></pre>
+    <table>
+      <thead><tr><th>目標平臺</th><th>產物</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td>Windows x64</td><td><code>my_pids.dll</code></td><td>MSVC，<code>/utf-8</code> 已由 SDK 工程預設</td></tr>
+        <tr><td>Linux x64 / ARM64</td><td><code>libmy_pids.so</code></td><td>GCC / Clang</td></tr>
+        <tr><td>macOS x64 / arm64</td><td><code>libmy_pids.dylib</code></td><td>以 <code>-DCMAKE_OSX_ARCHITECTURES=arm64</code>（或 <code>x86_64</code>）擇架構，<code>-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0</code></td></tr>
+        <tr><td>Android arm64</td><td><code>libmy_pids.so</code></td><td>NDK 工具鏈交叉編譯，API 21+；16 KB 頁對齊已由工程模板處之</td></tr>
+        <tr><td>iOS / iPadOS arm64</td><td><code>libmy_pids.dylib</code></td><td>Mach-O 交叉編譯，無須簽章（側載時重簽之）</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition note">
+      <span class="admonition-title">要訣</span>
+      <p>資源包內之庫，按<strong>副檔名</strong>繫乎平臺（<code>.dll</code> → Windows、<code>.so</code> → Linux/Android、<code>.dylib</code> → macOS/iOS），目錄之詳規見下節。</p>
+    </div>
+
+    <h2 id="package">納諸資源包</h2>
+    <h3>目錄之布局</h3>
+    <p>置諸平臺編譯之產物於資源包 <code>natives/&lt;platform&gt;/</code> 之目錄：</p>
+    <pre><code class="lang-bash">my_pack/
+├── natives/
+│   ├── windows-x64/my_pids.dll
+│   ├── linux-x64/libmy_pids.so
+│   ├── linux-arm64/libmy_pids.so
+│   ├── macos-x64/libmy_pids.dylib
+│   ├── macos-arm64/libmy_pids.dylib
+│   ├── android-arm64/libmy_pids.so
+│   └── ios-arm64/libmy_pids.dylib
+└── ...（貼圖、模型等其餘資源）</code></pre>
+
+    <h3>宣之於 minecraft_custom_resources.json</h3>
+    <p>無須 <code>language</code> 欄——模組按 <code>scriptLocations</code> 中每條目之特徵自判其語，JS 與 C++ 於同一條目得混用任意之數：</p>
+    <pre><code class="lang-json">"pidsScripts": [{
+    "id": "example:arrivals",
+    "scriptLocations": [
+        "mtr:my_pack/natives/my_pids"
+    ]
+}]</code></pre>
+    <p>條目解析之規：</p>
+    <table>
+      <thead><tr><th><code>scriptLocations</code> 條目</th><th>所判</th></tr></thead>
+      <tbody>
+        <tr><td><code>…/main.js</code>（不辨大小寫）</td><td>JavaScript</td></tr>
+        <tr><td><code>mtr:my_pack/natives/my_pids</code>（無副檔名）</td><td><strong>C++ 平臺無關之 stem</strong> → 諸平臺自析為 <code>natives/linux-x64/libmy_pids.so</code>、<code>natives/windows-x64/my_pids.dll</code>、<code>natives/macos-arm64/libmy_pids.dylib</code> 等；ARM64 Linux 之境自動益以 ios-arm64 / android-arm64 候選</td></tr>
+        <tr><td><code>…/libfoo.so</code> / <code>….dll</code> / <code>….dylib</code></td><td>C++ 完整路徑（繫於該副檔名所應之平臺，餘臺跳過）</td></tr>
+        <tr><td><code>{"windows": …, "linux": …, "macos": …}</code></td><td>C++ 按平臺映射之表；許 <code>macos-arm64</code> 等精確之鍵（精確之鍵先於通用之鍵）</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>四類腳本同其規</strong>：<code>vehicleScripts</code> / <code>pidsScripts</code>（暨 PIDS 預設之 <code>scriptLocations</code>）/ 電梯 / 裝飾，皆許上述混雜之宣告。</li>
+      <li><strong>舊格相容</strong>：<code>"language": "cpp"</code> 加 <code>nativeLibrary</code> / <code>nativeLibraries</code> 之舊宣告依然有效，亦得與 <code>.js</code> 混用；<code>"language": "javascript"</code> 可強使整條按 JS 解之。</li>
+      <li><strong>JS 欄如常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等欄之義不變，C++ 側經 <code>api.input()</code> 讀 <code>input</code>。</li>
+    </ul>
+    <div class="admonition warn">
+      <span class="admonition-title">慎之</span>
+      <p>腳本模塊（君所編之 <code>.dll/.so/.dylib</code>）屬乎<strong>資源包</strong>，納諸 <code>natives/&lt;platform&gt;/</code>；模組 jar 自帶之 <code>assets/jcm/natives/</code> 惟有原生橋，二者慎勿相混。遊戲惟載當前作業系統所應平臺之庫。</p>
+    </div>
+
+    <h2 id="verify">驗於遊戲之中</h2>
+    <ol>
+      <li>安 JCM Yanyang 與 MTR，置資源包於 <code>resourcepacks/</code> 而啟之（或以內建資源隨存檔散之）。</li>
+      <li>置所應之方塊（如 PIDS），於配置中擇君之腳本 / 使宣告條目生效。</li>
+      <li>啟 <code>logs/latest.log</code>，索 <code>native script</code>——模組載入之際，必印模塊 census 之摘要（模塊之數、腳本之類、傳輸通道等）。見君之 <code>example:arrivals</code>，則載入成矣。</li>
+      <li>既改庫文件，按 <strong>F3+T</strong> 重載資源包，即可重載 C++ 腳本（或用模組所供「重載全部 MTR 腳本」之快捷鍵），無須重啟遊戲。</li>
+    </ol>
+    <div class="admonition danger">
+      <span class="admonition-title">切記</span>
+      <p>必用 <strong>Release 版 jar</strong> 或 Complete Build 之產物。push/PR 之速成 CI 產物<strong>不含原生橋</strong>，日誌必示 <code>native bridge unavailable</code>，諸 C++ 腳本盡被略過——此非君模塊之過。</p>
+    </div>
+
+    <hr>
+    <p>下一步：<a href="script-model.html">腳本體例與生命週期</a> —— 四類腳本完備之義；或徑往<a href="data.html">數據快照</a>以閱可讀之數據。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文檔之首</a>
+      <a href="getting-started.html">入門</a>
+      <a href="performance.html">性能與除錯</a>
+    </div>
+    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

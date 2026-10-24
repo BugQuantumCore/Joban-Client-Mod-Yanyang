@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="lzh" data-locale="lzh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>綜覽 — JCM Yanyang C++ 腳本開發文檔</title>
+<meta name="description" content="Joban Client Mod Yanyang 分支 C++ 原生腳本開發文檔：綜覽、入門、API 備覽與性能指南。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">肇始</div>
+    <a href="index.html" class="active">綜覽</a>
+    <a href="getting-started.html">入門</a>
+    <div class="nav-group">腳本體例</div>
+    <a href="script-model.html">腳本體例與生命週期</a>
+    <div class="nav-group">API 備覽</div>
+    <a href="data.html">數據快照</a>
+    <a href="drawing.html">繪事與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">精進</div>
+    <a href="performance.html">性能與除錯</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="夜色" data-light="晝色">夜色</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="擇語"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="展開目錄">☰ 目錄</button>
+    <span class="title">綜覽</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header hero">
+      <span class="eyebrow">Native Scripting</span>
+      <h1>C++ 原生腳本</h1>
+      <p class="lead">為 Minecraft Transit Railway 4 資源包之作者而設：以 C++ 撰<strong>車輛、PIDS、電梯、裝飾</strong>四類腳本——與 JavaScript 腳本同生命週期、同 API 面，熱路徑零 JVM 穿越。</p>
+    </header>
+
+    <h2>此為何物</h2>
+    <p>Joban Client Mod（JCM）原版許資源包以 JavaScript 撰動態顯示之腳本。Yanyang 分支於斯增益 <strong>C++ 原生腳本</strong>：編腳本為本機共享庫（<code>.dll</code> / <code>.so</code> / <code>.dylib</code>），由模組載之於遊戲之內，逐幀驅之。</p>
+    <p>C++ 腳本與 JS 腳本得混用於<strong>同一宣告條目</strong>、並時渲染。模組按文件之特徵自判其語——<code>.js</code> 者 JavaScript 也，餘皆按 C++ 模塊解之。兩側各捕繪製之令、各自回放，兩不相擾。</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🧩</div>
+        <h3>同式腳本模型</h3>
+        <p><code>create</code> / <code>render</code> / <code>dispose</code> 生命週期與逐實例恆存之狀態，與 JS 全同；快照包裝器逐欄位對齊 JS Wrapper。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>零 JNI 傳輸</h3>
+        <p>Java ↔ C++ 之通，或經共享記憶體輪詢平面（任意 JDK ≥ 16），或經 Panama FFM（JDK 22+），全程不涉 JNI；每幀每實例惟一遭宿主穿越而已。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <h3>七平臺原生橋</h3>
+        <p>windows-x64 / linux-x64 / linux-arm64 / android-arm64 / macos-x64 / macos-arm64 / ios-arm64 諸橋悉內置於 jar，按系統架構自動匹配。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>崩潰隔離</h3>
+        <p>腳本崩潰，惟禁出事之模塊本身，留日誌一行，遊戲行程不為所擾；模塊內之 C++ 異常亦為圍欄所截。</p>
+      </div>
+    </div>
+
+    <h2>一幀之行</h2>
+    <div class="arch">
+      <div class="arch-row">
+        <div class="arch-col">
+          <div class="arch-node"><b>資源包</b><span>minecraft_custom_resources.json 之宣告<br>natives/&lt;platform&gt;/ 庫文件</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>JCM 宿主（Java）</b><span>察覺模塊 · 配置狀態塊<br>每幀序列化緊湊快照</span></div>
+          <div class="arch-node transport"><b>傳輸層（零 JNI）</b><span>共享記憶體輪詢平面 · Panama FFM 平面</span></div>
+          <div class="arch-node native"><b>君之 C++ 模塊</b><span>mtrCreate → mtrRender → mtrDispose<br>讀快照 · 書繪製記錄</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>回放繪製</b><span>文字 / 紋理 / 模型 / 聲音<br>與 JS 腳本同一渲染之路</span></div>
+        </div>
+      </div>
+      <div class="arch-legend">數據右行：快照（POD 結構＋字串池）入於模塊；模塊以扁平繪製記錄流書於五輸出競技場（arena），宿主循與 JS 相同之程式碼路徑回放。繪製、字體、像素悉留原生之側，惟快照封送乃每幀所必、Java 唯一之穿越。</div>
+    </div>
+
+    <h2>十五行 PIDS 腳本</h2>
+    <div class="code-caption"><span>examples/pids_arrivals.cpp — 到站顯示</span></div>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;, const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+            if (!text.empty())
+                mtr::Text::create().text(text.c_str())
+                    .pos(2, row * 10.0 + 2).size(pids.width() - 4, 9).draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+
+    <p>無 JNI、無反射、無逐呼叫之裝箱——<code>pids.rows()</code>、<code>arrivals().at(i).destination()</code> 皆緊湊快照上尋常記憶體之讀耳。</p>
+
+    <h2>何時宜用 C++</h2>
+    <table>
+      <thead><tr><th>場景</th><th>所宜</th></tr></thead>
+      <tbody>
+        <tr><td>高解析度 LCD / 點陣屏，每幀重繪巨量像素</td><td><span class="pill ok">C++</span> <code>Gfx2D</code> 軟體光柵＋髒矩形（dirty rectangle）上傳，像素不越 JVM</td></tr>
+        <tr><td>繁難字串之處理 / 逐幀排序 / 算學之運算</td><td><span class="pill ok">C++</span> 原生計算，分配全無</td></tr>
+        <tr><td>須頻喚 Java API（網路、檔案、聲音管理器）</td><td><span class="pill muted">皆可</span> 兩側皆得經 <code>Api</code> 訪同一批公開物件</td></tr>
+        <tr><td>簡單一次性顯示之邏輯</td><td><span class="pill muted">JS</span> 無須編譯工具鏈，更迭其疾</td></tr>
+      </tbody>
+    </table>
+
+    <h2>相容性</h2>
+    <table>
+      <thead><tr><th>項目</th><th>所需</th></tr></thead>
+      <tbody>
+        <tr><td>Minecraft</td><td>1.17.1 – 1.20.4（Fabric / Forge）</td></tr>
+        <tr><td>前置</td><td>Minecraft Transit Railway 4.0.5+（必需）；Fabric 版另需 Fabric API</td></tr>
+        <tr><td>Java</td><td>16 及以上；22+ 自動啟用全程零 JNI 之 FFM 平面</td></tr>
+        <tr><td>ABI</td><td>宿主受 ABI 6–10 之模塊；今之 SDK 編譯所出為 ABI 10</td></tr>
+        <tr><td>工具鏈</td><td>C++17；MSVC / GCC / Clang；CMake ≥ 3.16（薦）</td></tr>
+      </tbody>
+    </table>
+
+    <h2>文檔之目</h2>
+    <div class="toc-cards">
+      <a class="toc-card" href="getting-started.html"><b>入門</b><span>取 SDK、立工程、編首模塊、納諸資源包</span></a>
+      <a class="toc-card" href="script-model.html"><b>腳本體例與生命週期</b><span>四類腳本基類、State 之義、create / render / dispose 時序、線程與崩潰隔離</span></a>
+      <a class="toc-card" href="data.html"><b>數據快照</b><span>Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 訪問器之全備覽</span></a>
+      <a class="toc-card" href="drawing.html"><b>繪事與畫布</b><span>Text / Texture 流式 API、Matrices、GraphicsTexture、Gfx2D 光柵器與字體</span></a>
+      <a class="toc-card" href="java-api.html"><b>mtr::Api 與 Java 互通</b><span>呼 JS 所得訪之全部公開 Java API、回呼、JS ↔ C++ 對照表</span></a>
+      <a class="toc-card" href="abi.html"><b>C ABI 與宿主服務</b><span>導出函數、幀之輸入輸出、繪製記錄、宿主服務、ABI 版本沿革</span></a>
+      <a class="toc-card" href="performance.html"><b>性能與除錯</b><span>GC 衛生、髒矩形上傳、latest.log 觀測、常見問題排查</span></a>
+    </div>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文檔之首</a>
+      <a href="getting-started.html">入門</a>
+      <a href="performance.html">性能與除錯</a>
+    </div>
+    JCM Yanyang C++ 腳本文檔 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與倉庫 <code>native/README.md</code> 同步修訂
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

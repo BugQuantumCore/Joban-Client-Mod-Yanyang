@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instantanés de données — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Référence complète des accesseurs des enveloppes d’instantané Vehicle / Stop / Arrival / Pids / Lift / EyeCandy.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html" class="active">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Instantanés de données</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Référence API / Instantanés de données</div>
+      <h1>Instantanés de données</h1>
+      <p class="page-lead">Des données en lecture seule, marshallées par l’hôte une fois par frame. Tous les accesseurs sont de simples lectures mémoire — zéro JNI, zéro réflexion, zéro boxing.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#how">Mécanique des instantanés</a></li>
+        <li><a href="#vehicle">Vehicle (véhicule)</a></li>
+        <li><a href="#stop">Stop / correspondances / sorties</a></li>
+        <li><a href="#transport">Modes et types de transport</a></li>
+        <li><a href="#pids">Pids (écran d’arrivées)</a></li>
+        <li><a href="#lift">Lift (ascenseur)</a></li>
+        <li><a href="#eyecandy">EyeCandy (décoration)</a></li>
+        <li><a href="#helpers">Types utilitaires</a></li>
+      </ol>
+    </div>
+
+    <h2 id="how">Mécanique des instantanés</h2>
+    <p>Au début de chaque frame, l’hôte marshalle <strong>en une seule fois</strong> les données de l’instance en un instantané POD (en-tête de longueur fixe + pools de tableaux de longueur variable + pool de chaînes UTF-8), qu’il transmet à <code>mtrRender</code> avec le pointeur du bloc d’état. Les enveloppes typées du SDK (<code>mtr::Vehicle</code>, <code>mtr::Pids</code>, <code>mtr::Lift</code>, <code>mtr::EyeCandy</code>) fournissent sur ce bloc mémoire des accesseurs <strong>homonymes</strong> de ceux du Wrapper JS :</p>
+    <ul>
+      <li>Les chaînes sont retournées sous forme de <code>mtr::StrView</code> (<code>data</code> + <code>len</code>) ; convertissez avec <code>.str()</code> en <code>std::string</code> et testez la vacuité avec <code>.empty()</code> ; la vue n’est valable que durant l’appel <code>render</code> en cours.</li>
+      <li>Un index hors limites lève <code>std::out_of_range</code> (sémantique identique à l’<code>IndexOutOfBounds</code> côté Java).</li>
+      <li>Ne conservez <strong>pas</strong> les pointeurs d’instantané ni les enveloppes d’une frame à l’autre.</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">Couverture</span>
+      <p>L’instantané couvre les champs lus à haute fréquence. Les données absentes de l’instantané (réseau, fichiers, interfaces profondes des gestionnaires de rendu, etc.) s’accèdent via <a href="java-api.html"><code>mtr::Api</code></a> — un canal basse fréquence, à ne pas utiliser sur le chemin chaud.</p>
+    </div>
+
+    <h2 id="vehicle">Vehicle (véhicule)</h2>
+    <div class="admonition note">
+      <span class="admonition-title">Terminologie : train (MTR 3) → vehicle (MTR 4)</span>
+      <p>MTR 4 désigne uniformément les véhicules par <strong>vehicle</strong> (clé de déclaration <code>vehicleScripts</code> côté pack de ressources, <code>VehicleWrapper</code> côté Java) ; la classe d’enveloppe de données de ce SDK est donc nommée <code>mtr::Vehicle</code>. Les versions antérieures du SDK la nommaient <code>mtr::Train</code>, selon l’usage de MTR 3 ; ce nom est aujourd’hui conservé comme <strong>alias de compatibilité source</strong> — les deux écritures compilent et se comportent strictement de la même façon.</p>
+    <p>Remarque : le nom <code>mtr::Vehicle</code> est présent dans les sources du SDK du dépôt et sera livré avec le zip de la prochaine version ; si votre projet utilise le zip du SDK yanyang.7 (ou antérieur), référencez cette classe par <code>mtr::Train</code> (les deux graphies compilent avec le nouveau SDK).</p></div>
+    <p>Fourni par <code>mtr::Vehicle</code>, miroir des <code>VehicleWrapper</code> + <code>NTETrainWrapper</code> de JS :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Type</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>siding_id()</code> / <code>this_route_id()</code> / <code>departure_index()</code></td><td><code>int64_t</code></td><td>id du véhicule / de la voie de garage / de la ligne courante, indice de départ (les id 64 bits ne perdent jamais en précision)</td></tr>
+        <tr><td><code>car_count()</code> / <code>car(i)</code></td><td><code>int32_t</code> / <code>Car</code></td><td>nombre de voitures et données par voiture (voir ci-dessous)</td></tr>
+        <tr><td><code>speed_kmh()</code> / <code>speed_ms()</code></td><td><code>double</code></td><td>vitesse du véhicule</td></tr>
+        <tr><td><code>rail_progress()</code> / <code>rail_progress(car)</code></td><td><code>double</code></td><td>progression sur rail ; la version paramétrée déduit la position de la i-ème voiture d’après les longueurs des voitures</td></tr>
+        <tr><td><code>door_value()</code></td><td><code>double</code></td><td>ouverture des portes 0..1</td></tr>
+        <tr><td><code>notch_level()</code> / <code>notch_position()</code></td><td><code>int32_t</code> / <code>double</code></td><td>cran 0..5 et position normalisée</td></tr>
+        <tr><td><code>reversed()</code> / <code>on_route()</code> / <code>door_opening()</code></td><td><code>bool</code></td><td>marche arrière / sur ligne / portes en cours d’ouverture</td></tr>
+        <tr><td><code>currently_manual()</code> / <code>manual_allowed()</code></td><td><code>bool</code></td><td>état de conduite manuelle</td></tr>
+        <tr><td><code>client_player_riding()</code> / <code>rendered()</code></td><td><code>bool</code></td><td>joueur client à bord / au moins une voiture visible</td></tr>
+        <tr><td><code>total_dwell_time_millis()</code> / <code>elapsed_dwell_time_millis()</code></td><td><code>double</code></td><td>durée totale d’arrêt / durée déjà passée à quai</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td><code>int64_t</code></td><td>horloge murale de l’hôte (décalage serveur corrigé) / tick en jeu 0..24000</td></tr>
+        <tr><td><code>stops()</code> / <code>this_route_stops()</code> / <code>next_route_stops()</code></td><td><code>StopList</code></td><td>table des stations : toutes / ligne courante / ligne suivante (voir ci-dessous)</td></tr>
+        <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>indice de la prochaine station sur la ligne courante (précalculé par l’hôte, ne le recalculez pas)</td></tr>
+        <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>nom de la ligne courante / couleur ARGB / état de ligne circulaire (0 aucune, 1 sens horaire, 2 sens antihoraire)</td></tr>
+        <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>voir <a href="#transport">Modes et types de transport</a></td></tr>
+        <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>nom affiché de la voie de garage (nom / description personnalisés par l’utilisateur)</td></tr>
+        <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>instantané brut (détails ABI dans <a href="abi.html">ABI C</a>)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Car (voiture)</h3>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>length()</code> / <code>width()</code></td><td>longueur / largeur de la voiture</td></tr>
+        <tr><td><code>left_door_open()</code> / <code>right_door_open()</code></td><td>portes gauche / droite entièrement ouvertes</td></tr>
+        <tr><td><code>rendered()</code></td><td>la voiture est encore visible après culling pour cette frame</td></tr>
+        <tr><td><code>vehicle_type()</code></td><td>id du type de voiture (par ex. <code>mtr_custom_train_demo_cab_1</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>StopList</h3>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>size()</code> / <code>empty()</code> / <code>at(i)</code> / <code>operator[](i)</code></td><td>taille et accès aléatoire (hors limites : exception levée)</td></tr>
+        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>déduit la prochaine station d’après la progression sur rail ; pour la liste de la ligne courante, utilisez directement <code>Vehicle::next_stop_index()</code> (précalculé par l’hôte)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="stop">Stop / correspondances / sorties</h2>
+    <p><code>mtr::Stop</code> est le miroir du <code>VehicleWrapper.Stop</code> de JS :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>name()</code></td><td>nom de la station</td></tr>
+        <tr><td><code>destination_name()</code></td><td>nom affiché du terminus pour ce quai</td></tr>
+        <tr><td><code>has_custom_destination()</code> / <code>custom_destination()</code></td><td>terminus personnalisé (lorsqu’il n’est pas défini, JS retourne null ; en C++, testez avec <code>has_custom_destination()</code>)</td></tr>
+        <tr><td><code>distance()</code></td><td>progression sur rail (-1 si indisponible)</td></tr>
+        <tr><td><code>dwell_time_millis()</code></td><td>durée d’arrêt à cette station</td></tr>
+        <tr><td><code>route_id()</code> / <code>station_id()</code> / <code>platform_id()</code></td><td>id de ligne / station / quai (64 bits)</td></tr>
+        <tr><td><code>is_route_switchover()</code></td><td>station de changement de ligne ou non</td></tr>
+        <tr><td><code>route_circular_state()</code></td><td>état de ligne circulaire de la ligne de rattachement de la station (distingue les changements de sens après changement de ligne)</td></tr>
+        <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>informations de correspondance : chacune contient <code>color</code> (ARGB), <code>name</code> (nom de ligne), <code>getTransportMode()</code>, <code>getTransportType()</code></td></tr>
+        <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>sorties de la station : chacune contient <code>name</code> (lettre de la sortie, par ex. <code>"A"</code>) et <code>destination(j)</code> (liste de chaînes de points de repère)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="transport">Modes et types de transport</h2>
+    <p>Deux axes complémentaires, qui retournent <strong>exactement les mêmes valeurs</strong> que <code>getTransportMode()</code> / <code>getTransportType()</code> côté JS ; des scripts écrits dans des langues différentes peuvent donc partager la logique de mise en page :</p>
+    <ul>
+      <li><strong>Mode</strong> (énumération <code>mtr::TransportMode</code>) : <code>UNKNOWN / TRAIN / BOAT / CABLE_CAR / AIRPLANE</code>, couvrant les quatre catégories de véhicules de base.</li>
+      <li><strong>Type</strong> (id sous forme de chaîne, constantes <code>mtr::transport_type</code>) : le nom en minuscules du mode de base (<code>"train"</code>, <code>"boat"</code>, <code>"cable_car"</code>, <code>"airplane"</code>), augmenté des types de ligne étendus de <strong>MAGIC MTR Addon</strong> <code>train_normal / train_light_rail / train_high_speed / train_metro / train_bus / train_tram / train_sbahn</code> ; en cas d’échec d’analyse : <code>"unknown"</code> ou vue vide (données de serveurs anciens).</li>
+    </ul>
+    <pre><code class="lang-cpp">if (vehicle.getTransportType() == mtr::transport_type::TRAIN_METRO) { /* ... */ }
+
+for (int i = 0; i &lt; stop.interchange_count(); i++) {
+    mtr::Stop::Interchange ic = stop.interchange(i);
+    if (ic.getTransportType() == mtr::transport_type::TRAIN_HIGH_SPEED) { /* ... */ }
+}</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">Source des données</span>
+      <p>Les types MAGIC sont analysés à partir de la configuration locale lorsque l’addon est installé côté client ; si le serveur le possède mais pas le client, ils parviennent par le jeu de données synchronisé ; les serveurs anciens n’envoyant pas de métadonnées de ligne, la valeur retournée est alors vide / UNKNOWN — les serveurs équipés de ce mod peuvent fournir les métadonnées complètes des stations distantes.</p>
+    </div>
+
+    <h2 id="pids">Pids (écran d’arrivées)</h2>
+    <p><code>mtr::Pids</code> est le miroir du <code>PIDSWrapper</code> de JS :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>largeur / hauteur de l’écran (1,0 unité = 16 px, système de coordonnées écran)</td></tr>
+        <tr><td><code>rows()</code> / <code>is_row_hidden(i)</code></td><td>nombre de lignes de texte / la ligne i est masquée ou non (32 lignes au maximum)</td></tr>
+        <tr><td><code>station_id()</code></td><td>id de la station où se trouve l’écran</td></tr>
+        <tr><td><code>is_key_block()</code> / <code>is_platform_number_hidden()</code></td><td>bloc à touche ou non (contrôle le masquage des autres écrans) / numéro de quai masqué ou non</td></tr>
+        <tr><td><code>get_custom_message(i)</code></td><td>message personnalisé de la ligne i ; vide si non défini (JS retourne null)</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>Arrivals</code> : la liste des arrivées (voir ci-dessous)</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>horloge (décalage serveur corrigé)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Arrivals / Arrival</h3>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>arrivals().size()</code> / <code>.at(i)</code></td><td>nombre d’entrées d’arrivée et accès</td></tr>
+        <tr><td><code>arrivals().next_for_platform(platform_id, out, cursor)</code></td><td>parcours dans l’ordre du quai (miroir du <code>forEach(platformId, cb)</code> de JS), curseur réutilisé, zéro allocation</td></tr>
+        <tr><td><code>arrivals().mixed_car_length()</code></td><td>les entrées ont-elles des nombres de voitures incohérents (miroir de <code>mixedCarLength()</code>)</td></tr>
+        <tr><td><code>destination()</code> / <code>route_name()</code> / <code>route_number()</code> / <code>platform_name()</code></td><td>terminus / nom de ligne / numéro de ligne / nom de quai</td></tr>
+        <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>horodatages d’arrivée / de départ et écart (millisecondes epoch, corrigés)</td></tr>
+        <tr><td><code>arrived()</code> / <code>departed()</code></td><td>déjà arrivé / déjà parti (comparé à l’instant courant)</td></tr>
+        <tr><td><code>realtime()</code> / <code>terminating()</code> / <code>circular_state()</code></td><td>données temps réel / service terminus ici / état de ligne circulaire</td></tr>
+        <tr><td><code>route_id()</code> / <code>platform_id()</code> / <code>route_color()</code> / <code>car_count()</code> / <code>departure_index()</code></td><td>id de ligne / de quai, couleur ARGB de la ligne, nombre de voitures, indice de départ</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="lift">Lift (ascenseur)</h2>
+    <p><code>mtr::Lift</code> (combinaison instantané + enveloppe Java ; partie instantané) :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code></td><td>id de l’instance d’ascenseur</td></tr>
+        <tr><td><code>should_render()</code> / <code>is_double_sided()</code> / <code>is_client_player_riding()</code></td><td>rendu / double face / joueur client à bord</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code> / <code>depth()</code></td><td>dimensions</td></tr>
+        <tr><td><code>door_value()</code></td><td>ouverture des portes 0..1</td></tr>
+        <tr><td><code>angle_degrees()</code> / <code>angle_radians()</code></td><td>angle d’orientation</td></tr>
+        <tr><td><code>direction()</code></td><td>sens de déplacement</td></tr>
+        <tr><td><code>floor_count()</code> / <code>floor(i)</code></td><td>table des étages : chaque étage contient <code>index</code>, les indicateurs <code>current_floor</code> / <code>target_floor</code>, <code>position[3]</code>, le numéro d’étage et une chaîne de description (obtenus via <code>string(offset,len)</code>)</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>horloge</td></tr>
+      </tbody>
+    </table>
+    <p>Les interfaces plus profondes — gestionnaire de rendu, gestionnaire de sons, visibilité, etc. — s’accèdent via le <code>wrapper()</code> de <code>Api</code> (l’ascenseur n’a pas de page de documentation JS dédiée ; l’enveloppe Java fait foi).</p>
+
+    <h2 id="eyecandy">EyeCandy (décoration)</h2>
+    <p><code>mtr::EyeCandy</code> est le miroir de l’<code>EyecandyBlockEntityWrapper</code> :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>model_id()</code></td><td>id du modèle courant</td></tr>
+        <tr><td><code>translate_x() / _y() / _z()</code> / <code>rotate_x() / _y() / _z()</code></td><td>translation / rotation configurées par l’utilisateur</td></tr>
+        <tr><td><code>facing()</code></td><td>orientation (<code>Direction.ordinal()</code> de MC, 0..5)</td></tr>
+        <tr><td><code>full_brightness()</code></td><td>rendu à pleine luminosité</td></tr>
+        <tr><td><code>redstone_level()</code></td><td>signal de redstone 0..15</td></tr>
+        <tr><td><code>is_crosshair_target()</code></td><td>visé par le réticule ou non</td></tr>
+        <tr><td><code>block_pos(i)</code></td><td>composante de la position du bloc (i = 0..2)</td></tr>
+        <tr><td><code>consume_block_use()</code></td><td>consomme un événement onBlockUse accumulé durant la frame (au plus une fois par frame ; les clics multiples dans la même frame sont fusionnés — comportement identique à la file d’événements JS)</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>horloge</td></tr>
+      </tbody>
+    </table>
+    <p>Les détails de l’événement (joueur, objet en main, etc.) se lisent via <code>Api</code> :</p>
+    <pre><code class="lang-cpp">mtr::Api api(ctx.input());
+auto event = api.context().call("events").get("onBlockUse");
+if (event.call("occurred").as&lt;bool&gt;()) {
+    auto detail = event.call("detail");
+    auto player = detail.call("player");
+    auto item   = detail.call("item");
+}</code></pre>
+    <p>Le contexte de dessin de l’eyecandy, <code>EyeCandyContext</code>, fournit <code>draw_model(model, matrices)</code>, <code>play_sound(sound, volume, pitch)</code>, <code>set_outline_shape(boxes, count)</code> et <code>set_collision_shape(boxes, count)</code> (6 float par boîte ; les boîtes de collision conservent la limite de hauteur de 1,5 bloc appliquée côté Java, tout dépassement est validé et journalisé par l’hôte). L’ascenseur réutilise le même type de contexte (<code>LiftContext = EyeCandyContext</code>).</p>
+
+    <h2 id="helpers">Types utilitaires</h2>
+    <p><code>&lt;mtr/util.hpp&gt;</code> fournit des utilitaires de carrousel adaptés au chemin chaud (zéro allocation) :</p>
+    <pre><code class="lang-cpp">// "A|B|C" alterne un segment toutes les 40 ticks ; le changement de vue se résume à un calcul d'offset
+mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
+StrView current = dest.value(vehicle.in_game_time());</code></pre>
+    <table>
+      <thead><tr><th>Membre</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>CycleTracker(packed, interval_ticks=40)</code></td><td>construit un carrousel (miroir de <code>TextUtil.cycleString</code>)</td></tr>
+        <tr><td><code>value(game_tick)</code> / <code>value_str(game_tick)</code></td><td>segment actif courant (vue / chaîne)</td></tr>
+        <tr><td><code>interval()</code> / <code>part_count()</code></td><td>intervalle de rotation et nombre de segments</td></tr>
+        <tr><td><code>StrView</code></td><td>vue de chaîne <code>{data, len}</code> : <code>.str()</code>, <code>.empty()</code>, comparable avec <code>==</code></td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+    <p>Ensuite : <a href="drawing.html">Dessin et canevas</a> — comment dessiner ces données.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>绘制与画布 — JCM Yanyang C++ 脚本开发文档</title>
 <meta name="description" content="Text / Texture 流式 API、Matrices、GraphicsTexture 脏矩形上传、Gfx2D 软件光栅器与字体体系。">
-<link rel="stylesheet" href="assets/style.css">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
@@ -29,6 +31,16 @@
     <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
   </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
   <div class="sidebar-footer">
     SDK ABI 10<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
@@ -133,12 +145,12 @@ ctx.draw_model(model_handle, &amp;m);                   // 装饰 / 电梯</code
     mtr::GraphicsTexture tex;      // 建议放 State：与实例同生命周期
 };
 
-void create(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Train&amp;) {
+void create(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp;) {
     s.tex.create(ctx.input(), 512, 128);   // 同时向宿主注册 GPU 纹理
     // 把纹理贴到车厢：host-&gt;acquire_quad_model(...) → draw_car_model(...)
 }
 
-void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Train&amp; train) {
+void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&amp; vehicle) {
     // 1. 画像素（Gfx2D 或直接 set_pixel）
     // 2. 只上传变化区域：
     s.tex.upload(ctx.frame());
@@ -212,6 +224,6 @@ g.pop_clip();</code></pre>
   </footer>
 </main>
 </div>
-<script src="assets/app.js"></script>
+<script src="../assets/app.js"></script>
 </body>
 </html>

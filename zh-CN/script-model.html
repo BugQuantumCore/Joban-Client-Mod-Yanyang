@@ -1,11 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale="zh-CN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>脚本模型与生命周期 — JCM Yanyang C++ 脚本开发文档</title>
 <meta name="description" content="四类脚本基类、State 语义、create/render/dispose 时序、线程模型与崩溃隔离。">
-<link rel="stylesheet" href="assets/style.css">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
 </head>
 <body>
 <div class="layout">
@@ -29,6 +31,16 @@
     <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
   </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
   <div class="sidebar-footer">
     SDK ABI 10<br>
     JCM 2.3.0-beta-2.yanyang.7<br>
@@ -66,7 +78,7 @@
     <table>
       <thead><tr><th>资源</th><th>基类</th><th>注册宏</th><th>数据包装器</th></tr></thead>
       <tbody>
-        <tr><td>车辆</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Train</code></td></tr>
+        <tr><td>车辆</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Vehicle</code></td></tr>
         <tr><td>PIDS</td><td><code>mtr::PidsScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PIDS_SCRIPT</code></td><td><code>mtr::Pids</code></td></tr>
         <tr><td>电梯</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>装饰</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
@@ -86,17 +98,17 @@ struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
     static constexpr auto ID = "demo:vehicle";
 
     void create(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
-                const mtr::Train&amp; train) override {
+                const mtr::Vehicle&amp; vehicle) override {
         // 首帧前调用一次：建资源、注册回调
     }
 
     void render(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
-                const mtr::Train&amp; train) override {
+                const mtr::Vehicle&amp; vehicle) override {
         // 每帧调用：读快照、写绘制记录
     }
 
     void dispose(mtr::VehicleContext&amp; ctx, MyVehicleState&amp; state,
-                 const mtr::Train&amp; train) override {
+                 const mtr::Vehicle&amp; vehicle) override {
         // 实例销毁前调用：释放资源
     }
 };
@@ -187,6 +199,6 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
   </footer>
 </main>
 </div>
-<script src="assets/app.js"></script>
+<script src="../assets/app.js"></script>
 </body>
 </html>

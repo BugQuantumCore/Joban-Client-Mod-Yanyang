@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-locale="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mtr::Api and Java interop — JCM Yanyang C++ Scripting Documentation</title>
+<meta name="description" content="Call every public Java API that JavaScript scripts can reach via mtr::Api: objects, fields, methods, callbacks and the JS↔C++ mapping table.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">Script Model</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <div class="nav-group">API Reference</div>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html" class="active">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <div class="nav-group">Advanced</div>
+    <a href="performance.html">Performance and debugging</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">mtr::Api and Java interop</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / API Reference / mtr::Api and Java interop</div>
+      <h1><code>mtr::Api</code> and Java interop</h1>
+      <p class="page-lead">Every public Java API accessible to JavaScript scripts is available to C++ without exception. <code>Api</code> calls the same public objects JS does—it does not make C++ execute JavaScript.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#when">When to use Api</a></li>
+        <li><a href="#basics">Objects and calls</a></li>
+        <li><a href="#table">JS ↔ C++ mapping table</a></li>
+        <li><a href="#callback">Background callbacks</a></li>
+        <li><a href="#coverage">Coverage</a></li>
+      </ol>
+    </div>
+
+    <div class="admonition danger">
+      <span class="admonition-title">Hot path prohibition</span>
+      <p>Every <code>Api</code> call = one JSON encode + reflection + JSON decode round trip. <strong>Use it only in <code>create()</code>, background tasks, or a handful of low-frequency calls per second; never inside per-draw calls</strong>—historically, 'one Api call per vehicle per frame' was precisely the source of the periodic GC stutters. Read high-frequency data from the snapshot; push high-frequency drawing through the record stream.</p>
+    </div>
+
+    <h2 id="when">When to use Api</h2>
+    <table>
+      <thead><tr><th>Need</th><th>Channel</th></tr></thead>
+      <tbody>
+        <tr><td>Per-frame state of vehicles / arrivals / lifts / eyecandy</td><td><a href="data.html">Snapshot wrappers</a> (zero cost)</td></tr>
+        <tr><td>Text / texture / model / sound drawing</td><td><a href="drawing.html">The draw record stream</a> (zero JVM crossings)</td></tr>
+        <tr><td>Script <code>input</code> configuration, one-off resource creation, object handles cached across frames</td><td><code>Api</code> (call it in create; store handles in State)</td></tr>
+        <tr><td>Deep interfaces such as network requests, files, BackgroundWorker, the sound manager</td><td><code>Api</code> (call it from background tasks)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="basics">Objects and calls</h2>
+    <p>Construct <code>Api</code> from the current frame's input; navigate from the root objects (<code>context()</code> / <code>wrapper()</code>), static classes or <code>new</code>:</p>
+    <pre><code class="lang-cpp">struct State { mtr::Api::Object tracker; };
+
+struct Example : mtr::PidsScript&lt;State&gt; {
+    static constexpr auto ID = "example:arrivals";
+
+    void create(mtr::PidsContext&amp; ctx, State&amp; state, const mtr::Pids&amp;) override {
+        mtr::Api api(ctx.input());
+        state.tracker = api.create("StateTracker");            // new StateTracker()
+        api.context().call("setZOrderStep", {0.0002});         // ctx.setZOrderStep(0.0002)
+    }
+
+    void render(mtr::PidsContext&amp; ctx, State&amp; state, const mtr::Pids&amp;) override {
+        mtr::Api api(ctx.input());
+        auto arrivals = api.wrapper().call("arrivals");        // wrapper.arrivals()
+        if (arrivals.call("size").as&lt;int&gt;() == 0) return;
+        auto arrival = arrivals.call("get", {0});
+        if (arrival.is_null()) return;
+
+        auto text = api.call("Text", "create");                // new Text()
+        text.call("text", {arrival.call("destination")});
+        text.call("pos", {2.0, 3.0});
+        text.call("draw", {api.context()});
+    }
+};
+MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
+
+    <table>
+      <thead><tr><th>Api member</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>api.context()</code> / <code>api.wrapper()</code></td><td>The current script's context / wrapper (the same pair of objects as JS)</td></tr>
+        <tr><td><code>api.input()</code></td><td>The <code>input</code> JSON from the resource pack declaration (= JS's <code>SCRIPT_INPUT</code>)</td></tr>
+        <tr><td><code>api.create(class, args)</code></td><td><code>new</code>s a Java object</td></tr>
+        <tr><td><code>api.call(class, member, args)</code> / <code>api.get(class, member)</code></td><td>Static methods / static fields</td></tr>
+        <tr><td><code>api.root(name)</code></td><td>Fetches a root object by name: <code>api.root("console")</code>, <code>api.root("Timing")</code>…</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Object member</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>obj.call(member, args)</code></td><td>Instance method call; returns a new <code>Object</code></td></tr>
+        <tr><td><code>obj.get(member)</code> / <code>obj.set(member, value)</code></td><td>Field read / write (including inherited public members and standard collections)</td></tr>
+        <tr><td><code>obj.as&lt;T&gt;()</code></td><td>Extracts the raw value (<code>int</code>, <code>double</code>, <code>bool</code>, <code>std::string</code>, …)</td></tr>
+        <tr><td><code>obj.is_null()</code></td><td>Null test for nullable values</td></tr>
+        <tr><td><code>obj.enum_name()</code></td><td>The name of a Java enum (e.g. <code>"BOAT"</code>)</td></tr>
+        <tr><td><code>obj.close()</code></td><td>Explicitly calls <code>close()</code> (session cleanup also closes leftover resources as a backstop)</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition note">
+      <span class="admonition-title">Handle semantics</span>
+      <p>Java objects are managed by the session with reference counting, and handles are represented as decimal strings; destroying an <code>Object</code> releases its reference, so store objects you want to keep across frames in <code>State</code>. Numeric ids (64-bit included) keep full precision throughout. Fields and methods are resolved against the real Java types, including inherited public members and standard Java collections.</p>
+    </div>
+
+    <h2 id="table">JS ↔ C++ mapping table</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>Resources.id("example:file")</code></td><td><code>api.call("Resources", "id", {"example:file"})</code></td></tr>
+        <tr><td><code>new Matrices()</code></td><td><code>api.create("Matrices")</code></td></tr>
+        <tr><td><code>ctx.getRenderManager()</code></td><td><code>api.context().call("getRenderManager")</code></td></tr>
+        <tr><td><code>obj.method(a, b)</code></td><td><code>obj.call("method", {a, b})</code></td></tr>
+        <tr><td><code>obj.field</code> / <code>obj.field = v</code></td><td><code>obj.get("field")</code> / <code>obj.set("field", v)</code></td></tr>
+        <tr><td><code>TransportMode.BOAT</code></td><td><code>api.get("TransportMode", "BOAT")</code></td></tr>
+        <tr><td><code>SCRIPT_INPUT</code></td><td><code>api.input()</code> (JSON value)</td></tr>
+        <tr><td><code>console.log(...)</code> / <code>print(...)</code></td><td><code>api.root("console").call("log", {...})</code></td></tr>
+        <tr><td><code>Timing.delta()</code></td><td><code>api.root("Timing").call("delta").as&lt;double&gt;()</code></td></tr>
+        <tr><td><code>array.length</code> / <code>array[i]</code></td><td><code>array.call("length")</code> / <code>array.call("get", {i})</code></td></tr>
+        <tr><td><code>include(...)</code></td><td>C++ compile-time <code>#include</code></td></tr>
+      </tbody>
+    </table>
+    <p>AWT classes use fully qualified names: <code>java.awt.Color</code>, <code>java.awt.Font</code>, <code>java.awt.BasicStroke</code>, <code>java.awt.geom.AffineTransform</code>. The public fields <code>graphics</code> / <code>bufferedImage</code> of <code>GraphicsTexture</code> expose the real Java2D objects. Resource path resolution: <code>Resources.idr</code> resolves against this module's declaration path (with multiple library declarations, each uses its own); <code>Resources.manager()</code> is null on MTR 4, same as in JS. Capabilities that upstream documentation marks as unimplemented (the vehicle connector's <code>drawConnModel</code> / <code>drawConnStretchTexture</code>) are equally not invented by this mod.</p>
+
+    <h2 id="callback">Background callbacks</h2>
+    <p><code>Api::Callback</code> wraps a C++ function as a Java functional interface (<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>, …). <strong>The callback object must stay alive for as long as Java could possibly call it</strong>—keep it in <code>State</code>:</p>
+    <pre><code class="lang-cpp">struct State {
+    std::unique_ptr&lt;mtr::Api::Callback&gt; task;   // Keep until destruction
+};
+
+void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
+    mtr::Api api(ctx.input());
+    s.task = std::make_unique&lt;mtr::Api::Callback&gt;([api](mtr::Json) {
+        auto response = api.call("Networking", "fetch",
+                                 {"https://example.org/data"});
+        // Publish the result into your own synchronised state; read it in render
+        return mtr::Json();
+    });
+    api.root("BackgroundWorker").call("submit", {*s.task});
+}</code></pre>
+    <ul>
+      <li><strong>render and callbacks may run concurrently</strong>—lock shared mutable C++ state yourself.</li>
+      <li>A reload first stops callbacks and waits for in-flight calls to return before destroying state and unloading the code.</li>
+      <li>Upload GPU models prepared in the background with <code>DynamicModelHolder.uploadLater</code>; a direct <code>ModelManager.upload</code> still requires the Java render thread (call it from <code>create</code> or a main-thread callback).</li>
+    </ul>
+
+    <h2 id="coverage">Coverage</h2>
+    <p>The commonly used API surface: console, Resources, <code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>, <code>Vector3f</code>, <code>Matrices</code>, <code>GraphicsTexture</code> and Java2D, <code>RenderManager / QuadDrawCall</code>, <code>SoundManager / TickableSoundInstance</code>, <code>MinecraftClient</code>, <code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>, <code>Files</code>, <code>Networking</code>, <code>BackgroundWorker</code>, <code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>, <code>DataReader</code>, <code>MTRClientData</code>, the TSC data classes and <code>DisplayHelper</code>. The full list of callable members for PIDS / eyecandy / vehicles is recorded in the repository's <code>bench/api-coverage.json</code>; for lifts, the Java wrapper is authoritative.</p>
+    <p>After building, you can audit your call surface against a real MTR jar:</p>
+    <pre><code class="lang-bash">python native/bench/api_coverage.py \
+    --classes fabric/build/classes/java/main \
+    --jar path/to/mtr.jar</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">Version stability</span>
+      <p>The internal fields of <code>MTRClientData</code> are subject to version stability limits exactly as on the JS side; methods marked deprecated can still be called. Prefer the equivalent data in the snapshots and wrappers—faster and more stable.</p>
+    </div>
+
+    <hr>
+    <p>Up next: <a href="abi.html">C ABI and host services</a> — the complete contract at the module boundary.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Documentation home</a>
+      <a href="getting-started.html">Quick start</a>
+      <a href="performance.html">Performance and debugging</a>
+    </div>
+    JCM Yanyang C++ scripting documentation · Matches SDK ABI 10 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

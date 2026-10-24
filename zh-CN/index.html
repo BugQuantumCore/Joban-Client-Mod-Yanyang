@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-locale="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>概览 — JCM Yanyang C++ 脚本开发文档</title>
+<meta name="description" content="Joban Client Mod Yanyang 分支的 C++ 原生脚本开发文档：概览、快速上手、API 参考与性能指南。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html" class="active">概览</a>
+    <a href="getting-started.html">快速上手</a>
+    <div class="nav-group">脚本模型</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <div class="nav-group">API 参考</div>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <div class="nav-group">进阶</div>
+    <a href="performance.html">性能与调试</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">概览</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header hero">
+      <span class="eyebrow">Native Scripting</span>
+      <h1>C++ 原生脚本</h1>
+      <p class="lead">为 Minecraft Transit Railway 4 的资源包作者提供以 C++ 编写<strong>车辆、PIDS、电梯、装饰</strong>四类脚本的能力——与 JavaScript 脚本同生命周期、同 API 面，热路径零 JVM 穿越。</p>
+    </header>
+
+    <h2>这是什么</h2>
+    <p>Joban Client Mod（JCM）原版允许资源包用 JavaScript 编写动态显示脚本。Yanyang 分支在此基础上加入 <strong>C++ 原生脚本</strong>：把脚本编译为本机共享库（<code>.dll</code> / <code>.so</code> / <code>.dylib</code>），由模组在游戏内加载并逐帧驱动。</p>
+    <p>C++ 脚本与 JS 脚本可以在<strong>同一个声明条目里混用、同时渲染</strong>。模组按文件特征自动判定语言——<code>.js</code> 是 JavaScript，其余按 C++ 模块解析。两侧各自捕获绘制指令、各自回放，互不干扰。</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🧩</div>
+        <h3>同款脚本模型</h3>
+        <p><code>create</code> / <code>render</code> / <code>dispose</code> 生命周期与逐实例持久状态，和 JS 完全一致；快照包装器逐字段对齐 JS Wrapper。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>零 JNI 传输</h3>
+        <p>Java ↔ C++ 经共享内存轮询平面（任意 JDK ≥ 16）或 Panama FFM（JDK 22+）通信，全程不经 JNI；每帧每实例仅一次宿主穿越。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <h3>7 平台原生桥</h3>
+        <p>windows-x64 / linux-x64 / linux-arm64 / android-arm64 / macos-x64 / macos-arm64 / ios-arm64 全部内置于 jar，按系统架构自动匹配。</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>崩溃隔离</h3>
+        <p>脚本崩溃只禁用出错模块本身并留下一行日志，游戏进程不受影响；模块内的 C++ 异常同样被围栏拦截。</p>
+      </div>
+    </div>
+
+    <h2>一帧的旅程</h2>
+    <div class="arch">
+      <div class="arch-row">
+        <div class="arch-col">
+          <div class="arch-node"><b>资源包</b><span>minecraft_custom_resources.json 声明<br>natives/&lt;platform&gt;/ 库文件</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>JCM 宿主（Java）</b><span>发现模块 · 分配状态块<br>每帧序列化紧凑快照</span></div>
+          <div class="arch-node transport"><b>传输层（零 JNI）</b><span>共享内存轮询平面 · Panama FFM 平面</span></div>
+          <div class="arch-node native"><b>你的 C++ 模块</b><span>mtrCreate → mtrRender → mtrDispose<br>读快照 · 写绘制记录</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>回放绘制</b><span>文字 / 纹理 / 模型 / 声音<br>与 JS 脚本同一渲染路径</span></div>
+        </div>
+      </div>
+      <div class="arch-legend">数据向右流动：快照（POD 结构 + 字符串池）进入模块；模块把扁平的绘制记录流写进五个输出竞技场，宿主按与 JS 相同的代码路径回放。绘制、字体、像素全部留在原生侧，只有快照封送是每帧强制的唯一 Java 穿越。</div>
+    </div>
+
+    <h2>十五行的 PIDS 脚本</h2>
+    <div class="code-caption"><span>examples/pids_arrivals.cpp — 到站显示</span></div>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;, const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+            if (!text.empty())
+                mtr::Text::create().text(text.c_str())
+                    .pos(2, row * 10.0 + 2).size(pids.width() - 4, 9).draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+
+    <p>没有 JNI、没有反射、没有逐调用的装箱——<code>pids.rows()</code>、<code>arrivals().at(i).destination()</code> 都是紧凑快照上的普通内存读取。</p>
+
+    <h2>什么时候选 C++</h2>
+    <table>
+      <thead><tr><th>场景</th><th>建议</th></tr></thead>
+      <tbody>
+        <tr><td>高分辨率 LCD / 点阵屏，每帧重画大量像素</td><td><span class="pill ok">C++</span> <code>Gfx2D</code> 软件光栅 + 脏矩形上传，像素不跨 JVM</td></tr>
+        <tr><td>复杂字符串处理 / 逐帧排序 / 数学计算</td><td><span class="pill ok">C++</span> 原生计算零分配</td></tr>
+        <tr><td>需要调用大量 Java API（网络、文件、声音管理器）</td><td><span class="pill muted">皆可</span> 两侧都能经 <code>Api</code> 访问同一批公开对象</td></tr>
+        <tr><td>简单的一次性显示逻辑</td><td><span class="pill muted">JS</span> 无需编译工具链，迭代更快</td></tr>
+      </tbody>
+    </table>
+
+    <h2>兼容性</h2>
+    <table>
+      <thead><tr><th>项目</th><th>要求</th></tr></thead>
+      <tbody>
+        <tr><td>Minecraft</td><td>1.17.1 – 1.20.4（Fabric / Forge）</td></tr>
+        <tr><td>前置</td><td>Minecraft Transit Railway 4.0.5+（必需）；Fabric 版另需 Fabric API</td></tr>
+        <tr><td>Java</td><td>16 及以上；22+ 自动启用全程零 JNI 的 FFM 平面</td></tr>
+        <tr><td>ABI</td><td>宿主接受 ABI 6–10 模块；当前 SDK 编译产出 ABI 10</td></tr>
+        <tr><td>工具链</td><td>C++17；MSVC / GCC / Clang；CMake ≥ 3.16（推荐）</td></tr>
+      </tbody>
+    </table>
+
+    <h2>文档目录</h2>
+    <div class="toc-cards">
+      <a class="toc-card" href="getting-started.html"><b>快速上手</b><span>获取 SDK、建立工程、编译第一个模块、打包进资源包</span></a>
+      <a class="toc-card" href="script-model.html"><b>脚本模型与生命周期</b><span>四类脚本基类、State 语义、create / render / dispose 时序、线程与崩溃隔离</span></a>
+      <a class="toc-card" href="data.html"><b>数据快照</b><span>Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 全部访问器参考</span></a>
+      <a class="toc-card" href="drawing.html"><b>绘制与画布</b><span>Text / Texture 流式 API、Matrices、GraphicsTexture、Gfx2D 光栅器与字体</span></a>
+      <a class="toc-card" href="java-api.html"><b>mtr::Api 与 Java 互操作</b><span>调用 JS 能访问的全部公开 Java API、回调、JS ↔ C++ 对照表</span></a>
+      <a class="toc-card" href="abi.html"><b>C ABI 与宿主服务</b><span>导出函数、帧输入输出、绘制记录、宿主服务、ABI 版本演进</span></a>
+      <a class="toc-card" href="performance.html"><b>性能与调试</b><span>GC 卫生、脏矩形上传、latest.log 观测、常见问题排查</span></a>
+    </div>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">性能与调试</a>
+    </div>
+    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

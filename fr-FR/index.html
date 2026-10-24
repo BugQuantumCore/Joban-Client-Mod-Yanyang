@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vue d’ensemble — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Documentation de scriptage natif C++ de la branche Joban Client Mod Yanyang — vue d’ensemble, démarrage rapide, référence API et guide de performance.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html" class="active">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Vue d’ensemble</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header hero">
+      <span class="eyebrow">Native Scripting</span>
+      <h1>Scripts natifs C++</h1>
+      <p class="lead">Offre aux auteurs de packs de ressources de Minecraft Transit Railway 4 la possibilité d’écrire en C++ les quatre catégories de scripts — <strong>véhicule, PIDS, ascenseur, eyecandy (décoration)</strong> — avec le même cycle de vie et la même surface d’API que les scripts JavaScript, et zéro traversée de la JVM sur le chemin chaud.</p>
+    </header>
+
+    <h2>De quoi s’agit-il ?</h2>
+    <p>La version d’origine de Joban Client Mod (JCM) permet aux packs de ressources d’écrire des scripts d’affichage dynamique en JavaScript. La branche Yanyang y ajoute les <strong>scripts natifs C++</strong> : le script est compilé en bibliothèque partagée native (<code>.dll</code> / <code>.so</code> / <code>.dylib</code>), que le mod charge en jeu et pilote frame par frame.</p>
+    <p>Scripts C++ et scripts JS peuvent être <strong>mélangés au sein d’une même entrée de déclaration et rendus simultanément</strong>. Le mod détermine automatiquement la langue d’après les caractéristiques du fichier — <code>.js</code> est du JavaScript, tout le reste est analysé comme un module C++. Chaque côté capture ses instructions de dessin et les rejoue indépendamment, sans interférence.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🧩</div>
+        <h3>Le même modèle de script</h3>
+        <p>Cycle de vie <code>create</code> / <code>render</code> / <code>dispose</code> et état persistant par instance, rigoureusement identiques à JS ; les enveloppes d’instantané alignent le Wrapper JS champ par champ.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Transport zéro JNI</h3>
+        <p>Java ↔ C++ communiquent par le plan de scrutation en mémoire partagée (tout JDK ≥ 16) ou par Panama FFM (JDK 22+), sans jamais passer par JNI ; une seule traversée vers l’hôte par frame et par instance.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <h3>Ponts natifs, 7 plateformes</h3>
+        <p>windows-x64 / linux-x64 / linux-arm64 / android-arm64 / macos-x64 / macos-arm64 / ios-arm64 sont tous intégrés au jar et appariés automatiquement selon l’architecture du système.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>Isolation des plantages</h3>
+        <p>Un plantage de script désactive uniquement le module fautif et laisse une ligne de journal ; le processus du jeu n’est pas affecté. Les exceptions C++ levées dans le module sont elles aussi interceptées par le garde-fou anti-plantage.</p>
+      </div>
+    </div>
+
+    <h2>Le parcours d’une frame</h2>
+    <div class="arch">
+      <div class="arch-row">
+        <div class="arch-col">
+          <div class="arch-node"><b>Pack de ressources</b><span>déclaration dans minecraft_custom_resources.json<br>bibliothèques dans natives/&lt;platform&gt;/</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>Hôte JCM (Java)</b><span>découverte des modules · allocation des blocs d’état<br>sérialisation d’un instantané compact à chaque frame</span></div>
+          <div class="arch-node transport"><b>Couche de transport (zéro JNI)</b><span>plan de scrutation en mémoire partagée · plan Panama FFM</span></div>
+          <div class="arch-node native"><b>Votre module C++</b><span>mtrCreate → mtrRender → mtrDispose<br>lecture de l’instantané · écriture des enregistrements de dessin</span></div>
+        </div>
+        <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
+        <div class="arch-col">
+          <div class="arch-node host"><b>Rejeu du dessin</b><span>texte / textures / modèles / sons<br>le même chemin de rendu que les scripts JS</span></div>
+        </div>
+      </div>
+      <div class="arch-legend">Les données circulent vers la droite : l’instantané (structure POD + pool de chaînes) entre dans le module ; le module écrit un flux plat d’enregistrements de dessin dans les cinq arènes de sortie, que l’hôte rejoue par le même chemin de code que pour JS. Dessin, polices et pixels restent intégralement côté natif ; seul le marshalling de l’instantané demeure l’unique traversée Java imposée à chaque frame.</div>
+    </div>
+
+    <h2>Un script PIDS en quinze lignes</h2>
+    <div class="code-caption"><span>examples/pids_arrivals.cpp — affichage des arrivées</span></div>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;, const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+            if (!text.empty())
+                mtr::Text::create().text(text.c_str())
+                    .pos(2, row * 10.0 + 2).size(pids.width() - 4, 9).draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+
+    <p>Pas de JNI, pas de réflexion, pas de boxing appel par appel — <code>pids.rows()</code> ou <code>arrivals().at(i).destination()</code> sont de simples lectures mémoire sur l’instantané compact.</p>
+
+    <h2>Quand choisir C++</h2>
+    <table>
+      <thead><tr><th>Scénario</th><th>Recommandation</th></tr></thead>
+      <tbody>
+        <tr><td>LCD haute résolution / écran à matrice de points, avec d’importantes surfaces de pixels redessinées à chaque frame</td><td><span class="pill ok">C++</span> rastériseur logiciel <code>Gfx2D</code> + téléversement des rectangles modifiés, les pixels ne traversent pas la JVM</td></tr>
+        <tr><td>Traitement de chaînes complexe / tri à chaque frame / calculs mathématiques</td><td><span class="pill ok">C++</span> calcul natif sans allocation</td></tr>
+        <tr><td>Besoin d’appeler de nombreuses API Java (réseau, fichiers, gestionnaire de sons…)</td><td><span class="pill muted">Au choix</span> les deux côtés accèdent via <code>Api</code> au même ensemble d’objets publics</td></tr>
+        <tr><td>Logique d’affichage ponctuelle et simple</td><td><span class="pill muted">JS</span> aucune chaîne d’outils de compilation requise, itérations plus rapides</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Compatibilité</h2>
+    <table>
+      <thead><tr><th>Élément</th><th>Exigence</th></tr></thead>
+      <tbody>
+        <tr><td>Minecraft</td><td>1.17.1 – 1.20.4 (Fabric / Forge)</td></tr>
+        <tr><td>Dépendances</td><td>Minecraft Transit Railway 4.0.5+ (requis) ; la variante Fabric requiert en outre Fabric API</td></tr>
+        <tr><td>Java</td><td>16 et plus ; en 22+, le plan FFM entièrement sans JNI s’active automatiquement</td></tr>
+        <tr><td>ABI</td><td>l’hôte accepte les modules ABI 6–10 ; le SDK actuel produit des modules ABI 10</td></tr>
+        <tr><td>Chaîne d’outils</td><td>C++17 ; MSVC / GCC / Clang ; CMake ≥ 3.16 (recommandé)</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Sommaire de la documentation</h2>
+    <div class="toc-cards">
+      <a class="toc-card" href="getting-started.html"><b>Démarrage rapide</b><span>Récupérer le SDK, créer un projet, compiler un premier module, l’intégrer à un pack de ressources</span></a>
+      <a class="toc-card" href="script-model.html"><b>Modèle de script et cycle de vie</b><span>Les quatre classes de base de scripts, la sémantique de State, l’ordonnancement create / render / dispose, threads et isolation des plantages</span></a>
+      <a class="toc-card" href="data.html"><b>Instantanés de données</b><span>Référence complète des accesseurs de Vehicle / Stop / Arrival / Pids / Lift / EyeCandy</span></a>
+      <a class="toc-card" href="drawing.html"><b>Dessin et canevas</b><span>API en chaîne Text / Texture, Matrices, GraphicsTexture, rastériseur Gfx2D et polices</span></a>
+      <a class="toc-card" href="java-api.html"><b>mtr::Api et interopérabilité Java</b><span>Appeler toutes les API Java publiques accessibles depuis JS, les callbacks, et le tableau de correspondance JS ↔ C++</span></a>
+      <a class="toc-card" href="abi.html"><b>ABI C et services de l’hôte</b><span>Fonctions exportées, entrée/sortie de frame, enregistrements de dessin, services de l’hôte, évolution des versions d’ABI</span></a>
+      <a class="toc-card" href="performance.html"><b>Performance et débogage</b><span>Hygiène du GC, téléversement des rectangles modifiés, observation via latest.log, résolution des problèmes courants</span></a>
+    </div>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

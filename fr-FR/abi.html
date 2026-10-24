@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABI C et services de l’hôte — Documentation JCM Yanyang C++ Scripting</title>
+<meta name="description" content="Fonctions exportées du module, entrée et sortie de frame, enregistrements de dessin, services de l’hôte et évolution des versions d’ABI.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Modèle de script</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <div class="nav-group">Référence API</div>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html" class="active">ABI C et services de l’hôte</a>
+    <div class="nav-group">Aller plus loin</div>
+    <a href="performance.html">Performance et débogage</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">ABI C et services de l’hôte</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Référence API / ABI C et services de l’hôte</div>
+      <h1>ABI C et services de l’hôte</h1>
+      <p class="page-lead">Le contrat complet entre le module et l’hôte. Avec les classes de base et macros d’enregistrement de <code>script.hpp</code>, tous ces détails sont pris en charge par le SDK — cette page s’adresse à ceux qui veulent comprendre la frontière, écrire des pilotes de test ou diagnostiquer des problèmes de chargement.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#exports">Exportations du module</a></li>
+        <li><a href="#frame">Entrée et sortie de frame</a></li>
+        <li><a href="#records">Enregistrements de dessin</a></li>
+        <li><a href="#host">Services de l’hôte</a></li>
+        <li><a href="#history">Évolution des versions d’ABI</a></li>
+      </ol>
+    </div>
+
+    <h2 id="exports">Exportations du module</h2>
+    <p>Chaque bibliothèque de script exporte 7 fonctions C (<code>mtr_native.h</code> ; les macros d’enregistrement les génèrent toutes automatiquement) :</p>
+    <table>
+      <thead><tr><th>Exportation</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>retourne la version d’ABI de compilation (actuellement 10) ; l’hôte refuse les versions incompatibles — même politique de rechargement sur différence de version que JCM applique aux scripts JS</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code></td></tr>
+        <tr><td><code>const char* mtrScriptId()</code></td><td>id du script (doit correspondre à la déclaration du pack de ressources)</td></tr>
+        <tr><td><code>size_t mtrStateSize()</code></td><td>taille du bloc d’état par instance ; l’hôte en alloue un par instance</td></tr>
+        <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>appelée une fois juste après l’allocation du bloc d’état par l’hôte, construit <code>State</code> par placement-new (requis depuis ABI 6 ; si l’hôte omet l’appel, le module retombe sur une construction paresseuse)</td></tr>
+        <tr><td><code>int32_t mtrCreate / mtrRender / mtrDispose(const JcmFrameInput*, …)</code></td><td>points d’entrée du cycle de vie ; retours : 0 succès, -1 entrée nulle, -2 ABI incompatible, -3 type de ressource inadéquat. L’hôte appelle en série, instance par instance, sur un unique thread d’arrière-plan par module</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="frame">Entrée et sortie de frame</h2>
+    <h3>JcmFrameInput (hôte → module)</h3>
+    <pre><code class="lang-cpp">typedef struct JcmFrameInput {
+    uint32_t abi_version;              /* version ABI négociée */
+    int32_t  resource_kind;            /* MtrResourceKind : vehicle/pids/eyecandy/lift */
+    const void* snapshot;              /* le Jcm*Snapshot correspondant */
+    void*    state;                    /* bloc d'état par instance, alloué par l'hôte */
+    size_t   state_size;
+    const struct JcmHostServices* host;/* services de l'hôte appelables depuis le thread de rendu */
+} JcmFrameInput;</code></pre>
+    <p>Conventions internes de l’instantané : tous les champs <code>*_offset</code> sont des décalages en octets relatifs au premier octet de l’instantané ; <code>string_pool_offset/len</code> décrit l’emplacement du pool de chaînes UTF-8 partagé. Les enveloppes du SDK font tout l’adressage à votre place.</p>
+
+    <h3>JcmFrameOutput (module → hôte)</h3>
+    <p>La sortie est un <strong>flux plat d’enregistrements + cinq arènes</strong> ; dès que <code>mtrRender</code> retourne, l’hôte lit la sortie et récupère la frame (le double tampon entre modules est assuré par l’hôte) :</p>
+    <table>
+      <thead><tr><th>Arène</th><th>Contenu</th><th>Capacité (défaut SDK)</th></tr></thead>
+      <tbody>
+        <tr><td><code>records</code></td><td>enregistrements de dessin en ordre séquentiel (longueur variable, parcourus par pas de <code>record_size</code>)</td><td>256 entrées</td></tr>
+        <tr><td><code>matrix_arena</code></td><td>flux de matrices (4×4 en ordre colonne, 16 float par matrice)</td><td>128 jeux</td></tr>
+        <tr><td><code>string_arena</code></td><td>flux de chaînes UTF-8 (id de texture, textes, id de son…)</td><td>32 Ko</td></tr>
+        <tr><td><code>pixel_arena</code></td><td>flux de pixels BGRA8 (téléversement de textures)</td><td>1 Mo au départ, croît à la demande jusqu’à 16 Mo, se rétracte après les pics</td></tr>
+        <tr><td><code>float_arena</code></td><td>flux de float (boîtes de collision voxel, etc.)</td><td>1024 valeurs</td></tr>
+      </tbody>
+    </table>
+    <p>Depuis ABI 9, la sortie donne aussi la <strong>capacité complète</strong> de chaque arène — l’hôte ne crée qu’un seul <code>ByteBuffer</code> par arène, dont seul le limit change à chaque frame ; plus aucune allocation de cinq objets d’emballage par frame.</p>
+
+    <h2 id="records">Enregistrements de dessin</h2>
+    <p>Chaque enregistrement commence par un <code>JcmRecordHeader{kind, record_size}</code>, en ordre séquentiel à longueur variable. 8 types :</p>
+    <table>
+      <thead><tr><th>kind</th><th>Structure</th><th>Usage / appel JS reflété</th></tr></thead>
+      <tbody>
+        <tr><td><code>JCM_DRAW_TEXT</code></td><td><code>JcmDrawText</code></td><td>texte PIDS / générique (alignement champ par champ avec <code>TextWrapper</code> : alignement, mode de débordement, marquee, ordre z, couche, id de police)</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE</code></td><td><code>JcmDrawTexture</code></td><td>facette texturée (UV, teinte, ordre z)</td></tr>
+        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>modèles de voiture / bogie / eyecandy (handle de modèle de l’hôte + jeu de matrices de pose)</td></tr>
+        <tr><td><code>JCM_DRAW_SOUND</code></td><td><code>JcmDrawSound</code></td><td>son spatialisé (décalage en coordonnées locales de la voiture)</td></tr>
+        <tr><td><code>JCM_DRAW_LOCAL_SOUND</code></td><td><code>JcmDrawSound</code></td><td>annonce de station (audible uniquement des joueurs à bord)</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE_UPLOAD</code></td><td><code>JcmDrawTextureUpload</code></td><td>téléversement de pixels <code>GraphicsTexture</code> (BGRA8 + rectangle modifié)</td></tr>
+        <tr><td><code>JCM_DRAW_OUTLINE_SHAPE</code></td><td><code>JcmDrawShape</code></td><td>contour / boîte de collision d’eyecandy (6 float par boîte ; hauteur de collision plafonnée à 1,5 bloc)</td></tr>
+        <tr><td><code>JCM_DRAW_BLOCK_EVENT</code></td><td>—</td><td>poignée de main de l’événement onBlockUse d’eyecandy</td></tr>
+      </tbody>
+    </table>
+    <p>Pour rejouer ces enregistrements, l’hôte emprunte <strong>exactement le même chemin de code de rendu que les scripts JS</strong> (<code>PIDSDrawCall</code> / <code>ScriptRenderManager</code>) — le résultat à l’écran est identique.</p>
+
+    <h2 id="host">Services de l’hôte</h2>
+    <p><code>JcmHostServices</code> est une table de pointeurs de fonctions (<code>in-&gt;host</code>), appelable depuis le thread de rendu. Sur les anciens hôtes, les emplacements ajoutés récemment valent <code>null</code> ; testez la vacuité avant l’appel pour rétrograder proprement :</p>
+    <table>
+      <thead><tr><th>Service</th><th>Depuis</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>acquire_model / release_model</code></td><td>ABI 1</td><td>cycle de vie des handles de modèles JSON (miroir des handles ModelJS)</td></tr>
+        <tr><td><code>create_texture / release_texture</code></td><td>ABI 1</td><td>cycle de vie de <code>GraphicsTexture</code> (miroir de la classe Java)</td></tr>
+        <tr><td><code>rasterize_text</code></td><td>ABI 1</td><td>rappel de rastérisation TTF de l’hôte (CJK, etc.), écrit en BGRA8 dans le tampon de l’appelant ; retourne -1 si la police ne couvre pas le point de code (retombez alors sur la police bitmap intégrée)</td></tr>
+        <tr><td><code>log</code></td><td>ABI 1</td><td>canal <code>console.log</code> / <code>console.error</code></td></tr>
+        <tr><td><code>acquire_quad_model</code></td><td>ABI 4</td><td>l’hôte construit une facette texturée (4 sommets + UV + étape de rendu + handle de texture) — l’équivalent natif des modèles de slot du <code>DisplayHelper</code> JS ; sommets en espace modèle, UV origin au coin supérieur gauche de la texture, y vers le bas. Un pilote headless retourne -1 : sautez alors le dessin</td></tr>
+        <tr><td><code>measure_font_text / draw_font_text</code></td><td>ABI 7</td><td>métrique et rastérisation sur ligne de base des polices de ressource (même police, mêmes sémantiques de compression et de clipping que le Graphics2D de JS ; bornes de la zone modifiée en paramètre de sortie)</td></tr>
+        <tr><td><code>invoke_api</code></td><td>ABI 8</td><td>canal sous-jacent de <code>mtr::Api</code> : requête JSON UTF-8 en entrée, résultat écrit dans un tampon local au thread (valable jusqu’au prochain appel)</td></tr>
+        <tr><td><code>defer_free</code></td><td>ABI 10</td><td>confie un gros bloc de mémoire <strong>déjà mort</strong> au thread de récupération en arrière-plan de l’hôte (détails dans <a href="performance.html">Performance et débogage</a>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="history">Évolution des versions d’ABI</h2>
+    <p>L’hôte accepte les modules <strong>ABI 6–10</strong> (chacun est alimenté selon la disposition de son époque et rapporte son propre numéro d’ABI). Compiler avec le SDK actuel produit des modules ABI 10 :</p>
+    <table>
+      <thead><tr><th>ABI</th><th>Apports</th></tr></thead>
+      <tbody>
+        <tr><td>6</td><td><code>mtrInit()</code> : l’hôte doit construire l’objet d’état (un bloc rempli de zéros est un comportement indéfini pour les types non triviaux)</td></tr>
+        <tr><td>7</td><td>métrique des polices de ressource + rastérisation de texte sur ligne de base ajoutées aux services de l’hôte</td></tr>
+        <tr><td>8</td><td><code>invoke_api</code> (canal vers l’intégralité des API Java), instantané ascenseur, mode typé des correspondances ; <strong>une bibliothèque ABI 8 exige un hôte JCM Yanyang.7 ou supérieur</strong></td></tr>
+        <tr><td>9</td><td>id de <strong>type</strong> de transport canonique des correspondances / véhicules (extension MAGIC MTR) ; l’hôte cesse de copier l’instantané à chaque frame, capacité des arènes en paramètre de sortie</td></tr>
+        <tr><td>10</td><td>crochet de récupération différée <code>defer_free</code> (libération hors des threads JVM des gros tampons appartenant au script)</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition warn">
+      <span class="admonition-title">Pourquoi refuser les anciens hôtes</span>
+      <p>La table de pointeurs de fonctions croît avec l’ABI : un module récent appellera des emplacements absents d’un hôte ancien. L’hôte choisit la disposition de structure et le mode d’alimentation selon le numéro d’ABI rapporté par le module, et refuse le chargement en cas de discordance — une stratégie d’échec rapide délibérée.</p>
+    </div>
+
+    <h3>Couche de transport (interne à l’hôte, invisible pour les scripts)</h3>
+    <p>Depuis 2.3.0-beta-2.yanyang.6 (layout v2), le mod est <strong>totalement dépourvu de JNI</strong> : deux plans d’appel portent l’intégralité du trafic inter-langages — le plan Panama FFM (JDK 22+, <code>libraryLookup</code> + downcalls <code>jcm_*</code> + vtable d’upcalls) et le plan de scrutation en mémoire partagée (tout JDK ≥ 16 ; un thread poller d’arrière-plan démarré par le constructeur du pont découvre la région par une poignée de main via le système de fichiers, tout est servi via des pages partagées). Le code des scripts n’en a absolument pas conscience — le module ne voit que l’ABI C décrite ci-dessus.</p>
+
+    <hr>
+    <p>Ensuite : <a href="performance.html">Performance et débogage</a> — rendre les scripts rapides et stables.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+      <a href="performance.html">Performance et débogage</a>
+    </div>
+    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 10 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

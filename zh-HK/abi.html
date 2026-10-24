@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-HK" data-locale="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>C ABI 與宿主服務 — JCM Yanyang C++ 腳本開發文件</title>
+<meta name="description" content="模組匯出函式、幀輸入輸出、繪製記錄、宿主服務與 ABI 版本演進。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">開始</div>
+    <a href="index.html">概覽</a>
+    <a href="getting-started.html">快速上手</a>
+    <div class="nav-group">腳本模型</div>
+    <a href="script-model.html">腳本模型與生命週期</a>
+    <div class="nav-group">API 參考</div>
+    <a href="data.html">資料快照</a>
+    <a href="drawing.html">繪製與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html" class="active">C ABI 與宿主服務</a>
+    <div class="nav-group">進階</div>
+    <a href="performance.html">效能與除錯</a>
+  </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="淺色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切換語言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="開啟導覽選單">☰ 目錄</button>
+    <span class="title">C ABI 與宿主服務</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文件</a> / API 參考 / C ABI 與宿主服務</div>
+      <h1>C ABI 與宿主服務</h1>
+      <p class="page-lead">模組與宿主之間的完整契約。用 <code>script.hpp</code> 的基類與註冊巨集時這些細節全部由 SDK 代勞——本頁寫給想理解邊界、寫測試驅動或排解載入問題的人。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁內容</b>
+      <ol>
+        <li><a href="#exports">模組匯出</a></li>
+        <li><a href="#frame">幀輸入與幀輸出</a></li>
+        <li><a href="#records">繪製記錄</a></li>
+        <li><a href="#host">宿主服務</a></li>
+        <li><a href="#history">ABI 版本演進</a></li>
+      </ol>
+    </div>
+
+    <h2 id="exports">模組匯出</h2>
+    <p>每個腳本程式庫匯出 7 個 C 函式（<code>mtr_native.h</code>；註冊巨集自動生成全部）：</p>
+    <table>
+      <thead><tr><th>匯出</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>傳回編譯時的 ABI 版本（現時 10）；宿主拒絕不相容的版本——與 JCM 對 JS 腳本的版本失配重新載入策略一致</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code></td></tr>
+        <tr><td><code>const char* mtrScriptId()</code></td><td>腳本 id（須與資源包宣告一致）</td></tr>
+        <tr><td><code>size_t mtrStateSize()</code></td><td>逐實例狀態塊大小；宿主為每個實例配置一塊</td></tr>
+        <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>在宿主剛配置狀態塊後呼叫一次，placement-new 建構 <code>State</code>（ABI 6 起必需；宿主漏調時模組惰性建構兜底）</td></tr>
+        <tr><td><code>int32_t mtrCreate / mtrRender / mtrDispose(const JcmFrameInput*, …)</code></td><td>生命週期入口；傳回 0 成功、-1 空入參、-2 ABI 不符、-3 資源類型不符。宿主在每模組單一背景執行緒上按實例序列呼叫</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="frame">幀輸入與幀輸出</h2>
+    <h3>JcmFrameInput（宿主 → 模組）</h3>
+    <pre><code class="lang-cpp">typedef struct JcmFrameInput {
+    uint32_t abi_version;              /* 協商後的 ABI 版本 */
+    int32_t  resource_kind;            /* MtrResourceKind：vehicle/pids/eyecandy/lift */
+    const void* snapshot;              /* 對應的 Jcm*Snapshot */
+    void*    state;                    /* 宿主配置的逐實例狀態塊 */
+    size_t   state_size;
+    const struct JcmHostServices* host;/* 渲染執行緒可呼叫的宿主服務 */
+} JcmFrameInput;</code></pre>
+    <p>快照內部約定：所有 <code>*_offset</code> 欄位都是相對快照首個位元組的位元組偏移；<code>string_pool_offset/len</code> 描述共享 UTF-8 字串池的位置。SDK 包裝器替你完成了全部定址。</p>
+
+    <h3>JcmFrameOutput（模組 → 宿主）</h3>
+    <p>輸出是<strong>扁平記錄流 + 五個競技場</strong>，<code>mtrRender</code> 傳回後宿主立即讀取並回收幀（模組間雙緩衝由宿主完成）：</p>
+    <table>
+      <thead><tr><th>競技場</th><th>內容</th><th>容量（SDK 預設）</th></tr></thead>
+      <tbody>
+        <tr><td><code>records</code></td><td>順序排列的繪製記錄（變長，按 <code>record_size</code> 步進遍歷）</td><td>256 條</td></tr>
+        <tr><td><code>matrix_arena</code></td><td>矩陣流（列主序 4×4，每矩陣 16 個 float）</td><td>128 組</td></tr>
+        <tr><td><code>string_arena</code></td><td>UTF-8 字串流（貼圖 id、文字、聲音 id…）</td><td>32 KB</td></tr>
+        <tr><td><code>pixel_arena</code></td><td>BGRA8 像素流（紋理上載）</td><td>初始 1 MB，按需增長至 16 MB，閒置後衰減回落</td></tr>
+        <tr><td><code>float_arena</code></td><td>float 流（體素碰撞箱等）</td><td>1024 個</td></tr>
+      </tbody>
+    </table>
+    <p>ABI 9 起輸出同時給出各競技場的<strong>完整容量</strong>——宿主為每個競技場只建一個 <code>ByteBuffer</code>、每幀改 limit 重用，不再逐幀配置五個包裝物件。</p>
+
+    <h2 id="records">繪製記錄</h2>
+    <p>每條記錄以 <code>JcmRecordHeader{kind, record_size}</code> 開頭，變長順序排列。8 種類型：</p>
+    <table>
+      <thead><tr><th>kind</th><th>結構</th><th>用途 / 對應的 JS 呼叫</th></tr></thead>
+      <tbody>
+        <tr><td><code>JCM_DRAW_TEXT</code></td><td><code>JcmDrawText</code></td><td>PIDS / 通用文字（<code>TextWrapper</code> 欄位逐一對齊：對齊、溢出模式、跑馬燈、z 序、層、字型 id）</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE</code></td><td><code>JcmDrawTexture</code></td><td>貼圖面片（UV、染色、z 序）</td></tr>
+        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>車輛車廂 / 轉向架 / 裝飾模型（宿主模型控制代碼 + 姿態矩陣組）</td></tr>
+        <tr><td><code>JCM_DRAW_SOUND</code></td><td><code>JcmDrawSound</code></td><td>定位音效（車廂局部座標偏移）</td></tr>
+        <tr><td><code>JCM_DRAW_LOCAL_SOUND</code></td><td><code>JcmDrawSound</code></td><td>報站廣播（僅乘坐玩家可聞）</td></tr>
+        <tr><td><code>JCM_DRAW_TEXTURE_UPLOAD</code></td><td><code>JcmDrawTextureUpload</code></td><td><code>GraphicsTexture</code> 像素上載（BGRA8 + 髒矩形）</td></tr>
+        <tr><td><code>JCM_DRAW_OUTLINE_SHAPE</code></td><td><code>JcmDrawShape</code></td><td>裝飾輪廓 / 碰撞箱（每箱 6 個 float；碰撞箱上限 1.5 格）</td></tr>
+        <tr><td><code>JCM_DRAW_BLOCK_EVENT</code></td><td>—</td><td>裝飾 onBlockUse 事件握手</td></tr>
+      </tbody>
+    </table>
+    <p>宿主回放這些記錄用的是<strong>與 JS 腳本完全相同的渲染程式碼路徑</strong>（<code>PIDSDrawCall</code> / <code>ScriptRenderManager</code>）——畫出來就是同一個東西。</p>
+
+    <h2 id="host">宿主服務</h2>
+    <p><code>JcmHostServices</code> 是一張函式指標表（<code>in-&gt;host</code>），渲染執行緒內可呼叫。舊宿主上新插槽為 <code>null</code>，呼叫前判斷是否為 null 即可降級：</p>
+    <table>
+      <thead><tr><th>服務</th><th>起始版本</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>acquire_model / release_model</code></td><td>ABI 1</td><td>模型 JSON 控制代碼生命週期（對應 ModelJS 控制代碼）</td></tr>
+        <tr><td><code>create_texture / release_texture</code></td><td>ABI 1</td><td><code>GraphicsTexture</code> 生命週期（對應 Java 類別）</td></tr>
+        <tr><td><code>rasterize_text</code></td><td>ABI 1</td><td>宿主 TTF 光柵化回呼（CJK 等），BGRA8 寫入呼叫方緩衝區；傳回 -1 表示字型不覆蓋該碼點（應回退內置點陣字型）</td></tr>
+        <tr><td><code>log</code></td><td>ABI 1</td><td><code>console.log</code> / <code>console.error</code> 通道</td></tr>
+        <tr><td><code>acquire_quad_model</code></td><td>ABI 4</td><td>宿主建構貼圖面片（4 頂點 + UV + 渲染階段 + 紋理控制代碼）——JS <code>DisplayHelper</code> 插槽模型的原生等價物；頂點為模型空間、UV 以貼圖左上角為原點、y 向下。無頭驅動傳回 -1，此時跳過繪製</td></tr>
+        <tr><td><code>measure_font_text / draw_font_text</code></td><td>ABI 7</td><td>資源字型的度量與基線光柵化（與 JS Graphics2D 同一字型、同一壓縮與裁剪語義；髒邊界出參）</td></tr>
+        <tr><td><code>invoke_api</code></td><td>ABI 8</td><td><code>mtr::Api</code> 的底層通道：UTF-8 JSON 請求進、結果出至執行緒區域緩衝區（下次呼叫前有效）</td></tr>
+        <tr><td><code>defer_free</code></td><td>ABI 10</td><td>把<strong>已死亡</strong>的大塊記憶體交給宿主背景回收執行緒（詳見 <a href="performance.html">效能與除錯</a>）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="history">ABI 版本演進</h2>
+    <p>宿主接受 <strong>ABI 6–10</strong> 模組（各自按其時代的佈局餵資料、回報自己的 ABI 號）。用現時 SDK 編譯即產出 ABI 10：</p>
+    <table>
+      <thead><tr><th>ABI</th><th>引入內容</th></tr></thead>
+      <tbody>
+        <tr><td>6</td><td><code>mtrInit()</code>：宿主必須建構狀態物件（零填充塊對非平凡類型是未定義行為）</td></tr>
+        <tr><td>7</td><td>資源字型度量 + 基線文字光柵化加入宿主服務</td></tr>
+        <tr><td>8</td><td><code>invoke_api</code>（完整 Java API 通道）、電梯快照、轉乘型別化模式；<strong>ABI 8 程式庫要求 JCM Yanyang.7 及以上宿主</strong></td></tr>
+        <tr><td>9</td><td>轉乘 / 車輛的規範交通<strong>類型</strong> id（MAGIC MTR 擴展）；宿主停止逐幀複製快照、競技場容量出參</td></tr>
+        <tr><td>10</td><td><code>defer_free</code> 延遲回收掛鉤（腳本自有大緩衝區的離 JVM 執行緒釋放）</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition warn">
+      <span class="admonition-title">為甚麼必須拒絕舊宿主</span>
+      <p>函式指標表隨 ABI 增長：新模組會呼叫舊宿主不存在的插槽。宿主按模組回報的 ABI 號選擇對應的結構佈局與餵料方式，不符就拒載——這是刻意的快速失敗策略。</p>
+    </div>
+
+    <h3>傳輸層（宿主內部，腳本不可見）</h3>
+    <p>自 2.3.0-beta-2.yanyang.6（layout v2）起模組內<strong>完全無 JNI</strong>：兩個呼叫平面承載全部跨語言流量——Panama FFM 平面（JDK 22+，<code>libraryLookup</code> + <code>jcm_*</code> downcall + upcall vtable）與共享記憶體輪詢平面（任何 JDK ≥ 16，橋以建構函式啟動的背景 poller 執行緒經檔案系統握手發現區域，一切經共享頁服務）。腳本程式碼對此完全無感——模組只看到上述 C ABI。</p>
+
+    <hr>
+    <p>接下來：<a href="performance.html">效能與除錯</a> —— 把腳本跑得又快又穩。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文件首頁</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">效能與除錯</a>
+    </div>
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>
