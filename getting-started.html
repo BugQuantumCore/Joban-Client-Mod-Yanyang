@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>快速上手 — JCM Yanyang C++ 脚本开发文档</title>
+<meta name="description" content="获取 SDK、建立模块工程、编译、打包进资源包并在游戏内验证。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html" class="active">快速上手</a>
+    <div class="nav-group">脚本模型</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <div class="nav-group">API 参考</div>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <div class="nav-group">进阶</div>
+    <a href="performance.html">性能与调试</a>
+  </nav>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">快速上手</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / 快速上手</div>
+      <h1>快速上手</h1>
+      <p class="page-lead">从零到游戏内运行：获取 SDK → 写第一个模块 → 编译 → 打包进资源包。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#prereq">先决条件</a></li>
+        <li><a href="#sdk">获取 SDK</a></li>
+        <li><a href="#project">建立模块工程</a></li>
+        <li><a href="#first-module">第一个模块</a></li>
+        <li><a href="#build">编译</a></li>
+        <li><a href="#package">打包进资源包</a></li>
+        <li><a href="#verify">游戏内验证</a></li>
+      </ol>
+    </div>
+
+    <h2 id="prereq">先决条件</h2>
+    <table>
+      <thead><tr><th>工具</th><th>版本</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>C++ 编译器</td><td>C++17</td><td>MSVC（Windows）/ GCC / Clang 任一</td></tr>
+        <tr><td>CMake</td><td>≥ 3.16</td><td>推荐，但非硬性——SDK 是纯头文件</td></tr>
+        <tr><td>JDK</td><td>可选</td><td>仅运行 SDK 自带的 JVM 集成测试时需要</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">提示</span>
+      <p>SDK 全部以头文件提供（<code>native/include/mtr/</code>），没有任何预编译库依赖；用你熟悉的构建系统直接把 <code>include/</code> 加进包含路径即可。</p>
+    </div>
+
+    <h2 id="sdk">获取 SDK</h2>
+    <p>SDK 随每个 Release 发布为 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（见 GitHub Releases 附件），内容即仓库 <code>native/</code> 目录源码：</p>
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+├── include/mtr/          # 全部 SDK 头文件（script.hpp 是总入口）
+│   ├── mtr_native.h      # C ABI：导出函数、快照、绘制记录、宿主服务
+│   ├── script.hpp        # 脚本基类 + 注册宏（#include 这一个就够）
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
+│   ├── api.hpp           # mtr::Api（完整 Java API 访问）
+│   └── crash_guard.hpp ...
+├── examples/             # 三个最小示例模块
+├── bench/                # 测试与工具
+└── CMakeLists.txt</code></pre>
+
+    <h2 id="project">建立模块工程</h2>
+    <p>最省事的方式：把 SDK 解压进你的资源包工程，直接在它的 <code>CMakeLists.txt</code> 末尾追加自己的目标——SDK 已经把各平台的链接细节（Windows 无前缀 <code>.dll</code>、macOS <code>.dylib</code> 与 <code>-undefined dynamic_lookup</code>、Android 16 KB 页对齐）封装成 <code>mtr_add_script()</code> 函数：</p>
+    <pre><code class="lang-cmake"># 追加到 SDK 的 native/CMakeLists.txt 末尾
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <p>若想独立建工程，下面是与该函数等价的完整模板：</p>
+    <pre><code class="lang-cmake">cmake_minimum_required(VERSION 3.16)
+project(my_native_scripts LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# SDK 头文件路径（把解压的 SDK include 目录指进来）
+add_library(mtr_script_sdk INTERFACE)
+target_include_directories(mtr_script_sdk INTERFACE path/to/sdk/include)
+
+function(mtr_add_script name)          # 与 SDK 同款的模块目标函数
+  add_library(${name} MODULE ${ARGN})
+  target_link_libraries(${name} PRIVATE mtr_script_sdk)
+  set_target_properties(${name} PROPERTIES CXX_VISIBILITY_PRESET hidden)
+  if(WIN32)
+    set_target_properties(${name} PROPERTIES PREFIX "" SUFFIX ".dll")
+  elseif(APPLE)
+    set_target_properties(${name} PROPERTIES PREFIX "lib" SUFFIX ".dylib")
+    target_link_options(${name} PRIVATE "-Wl,-undefined,dynamic_lookup")
+  elseif(ANDROID)
+    target_link_options(${name} PRIVATE "-Wl,-z,max-page-size=16384")
+  endif()
+endfunction()
+
+mtr_add_script(my_pids src/my_pids.cpp)</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">说明</span>
+      <p>脚本是 <code>MODULE</code> 库（不链接任何 SDK 二进制），默认符号隐藏、只导出 ABI 要求的 7 个 <code>mtr*</code> 函数（由 <code>script.hpp</code> 的注册宏完成）。C++17 是最低标准。</p>
+    </div>
+
+    <h2 id="first-module">第一个模块</h2>
+    <p>一个最小的 PIDS 到站显示模块——完整、可编译、可直接进游戏：</p>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct ArrivalState {};                    // 逐实例持久状态（本例为空）
+
+struct ArrivalDisplay : mtr::PidsScript&lt;ArrivalState&gt; {
+    static constexpr auto ID = "example:arrivals";   // 必须与资源包声明一致
+
+    void render(mtr::PidsContext&amp; ctx, ArrivalState&amp;,
+                const mtr::Pids&amp; pids) override {
+        for (int row = 0; row &lt; pids.rows(); row++) {
+            if (pids.is_row_hidden(row)) continue;
+
+            std::string text = pids.get_custom_message(row).str();
+            if (text.empty() &amp;&amp; row &lt; pids.arrivals().size())
+                text = pids.arrivals().at(row).destination().str();
+
+            if (!text.empty())
+                mtr::Text::create()
+                    .text(text.c_str())
+                    .pos(2, row * 10.0 + 2)
+                    .size(pids.width() - 4, 9)
+                    .draw(ctx);
+        }
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
+    <p>要点：</p>
+    <ul>
+      <li><strong>基类</strong>决定脚本类型：<code>PidsScript</code> / <code>VehicleScript</code> / <code>LiftScript</code> / <code>EyecandyScript</code>，模板参数是逐实例状态类型。</li>
+      <li><strong>生命周期</strong>与 JS 相同：<code>create</code> / <code>render</code> / <code>dispose</code> 三个虚函数按需 override（全部可选）。</li>
+      <li><strong>注册宏</strong>展开全部 ABI 导出，一个翻译单元只注册一个脚本。</li>
+    </ul>
+    <p>更多示例见 SDK 的 <code>examples/</code>：车辆 / 电梯 / 装饰三类各有最小样例。</p>
+
+    <h2 id="build">编译</h2>
+    <pre><code class="lang-bash">cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+cmake --build native/build --config Release --parallel 4
+ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SDK 自带测试</code></pre>
+    <table>
+      <thead><tr><th>目标平台</th><th>产物</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>Windows x64</td><td><code>my_pids.dll</code></td><td>MSVC，<code>/utf-8</code> 由 SDK 工程预设</td></tr>
+        <tr><td>Linux x64 / ARM64</td><td><code>libmy_pids.so</code></td><td>GCC / Clang</td></tr>
+        <tr><td>macOS x64 / arm64</td><td><code>libmy_pids.dylib</code></td><td>用 <code>-DCMAKE_OSX_ARCHITECTURES=arm64</code>（或 <code>x86_64</code>）选择架构，<code>-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0</code></td></tr>
+        <tr><td>Android arm64</td><td><code>libmy_pids.so</code></td><td>NDK 工具链交叉编译，API 21+；16 KB 页对齐已由工程模板处理</td></tr>
+        <tr><td>iOS / iPadOS arm64</td><td><code>libmy_pids.dylib</code></td><td>Mach-O 交叉编译，无需签名（侧载时重签）</td></tr>
+      </tbody>
+    </table>
+    <div class="admonition note">
+      <span class="admonition-title">提示</span>
+      <p>资源包内的库按<strong>文件扩展名</strong>绑定平台（<code>.dll</code> → Windows、<code>.so</code> → Linux/Android、<code>.dylib</code> → macOS/iOS），具体目录规则见下节。</p>
+    </div>
+
+    <h2 id="package">打包进资源包</h2>
+    <h3>目录布局</h3>
+    <p>把各平台编译产物放进资源包的 <code>natives/&lt;platform&gt;/</code> 目录：</p>
+    <pre><code class="lang-bash">my_pack/
+├── natives/
+│   ├── windows-x64/my_pids.dll
+│   ├── linux-x64/libmy_pids.so
+│   ├── linux-arm64/libmy_pids.so
+│   ├── macos-x64/libmy_pids.dylib
+│   ├── macos-arm64/libmy_pids.dylib
+│   ├── android-arm64/libmy_pids.so
+│   └── ios-arm64/libmy_pids.dylib
+└── ...（贴图、模型等其余资源）</code></pre>
+
+    <h3>在 minecraft_custom_resources.json 中声明</h3>
+    <p>不需要 <code>language</code> 字段——模组按 <code>scriptLocations</code> 里每个条目的特征自动判定语言，JS 与 C++ 可以在同一条目混用任意数量：</p>
+    <pre><code class="lang-json">"pidsScripts": [{
+    "id": "example:arrivals",
+    "scriptLocations": [
+        "mtr:my_pack/natives/my_pids"
+    ]
+}]</code></pre>
+    <p>条目解析规则：</p>
+    <table>
+      <thead><tr><th><code>scriptLocations</code> 条目</th><th>判定结果</th></tr></thead>
+      <tbody>
+        <tr><td><code>…/main.js</code>（大小写不敏感）</td><td>JavaScript</td></tr>
+        <tr><td><code>mtr:my_pack/natives/my_pids</code>（无扩展名）</td><td><strong>C++ 平台无关 stem</strong> → 各平台自动解析为 <code>natives/linux-x64/libmy_pids.so</code>、<code>natives/windows-x64/my_pids.dll</code>、<code>natives/macos-arm64/libmy_pids.dylib</code> 等；ARM64 Linux 环境自动追加 ios-arm64 / android-arm64 候选</td></tr>
+        <tr><td><code>…/libfoo.so</code> / <code>….dll</code> / <code>….dylib</code></td><td>C++ 完整路径（绑定该扩展名对应的平台，其它平台跳过）</td></tr>
+        <tr><td><code>{"windows": …, "linux": …, "macos": …}</code></td><td>C++ 按平台映射表；支持 <code>macos-arm64</code> 等精确键（精确键优先于通用键）</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>四类脚本同规则</strong>：<code>vehicleScripts</code> / <code>pidsScripts</code>（及 PIDS 预设的 <code>scriptLocations</code>）/ 电梯 / 装饰全部支持上述混合声明。</li>
+      <li><strong>老格式兼容</strong>：<code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> 的旧声明继续有效，也可与 <code>.js</code> 混用；<code>"language": "javascript"</code> 可强制整条按 JS 解析。</li>
+      <li><strong>JS 字段照常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等字段含义不变，C++ 侧经 <code>api.input()</code> 读取 <code>input</code>。</li>
+    </ul>
+    <div class="admonition warn">
+      <span class="admonition-title">注意</span>
+      <p>脚本模块（你编译的 <code>.dll/.so/.dylib</code>）属于<strong>资源包</strong>，放进 <code>natives/&lt;platform&gt;/</code>；模组 jar 自带的 <code>assets/jcm/natives/</code> 只有原生桥，两者不要混淆。游戏只会加载当前操作系统对应平台的库。</p>
+    </div>
+
+    <h2 id="verify">游戏内验证</h2>
+    <ol>
+      <li>装好 JCM Yanyang 与 MTR，把资源包放进 <code>resourcepacks/</code> 并启用（或作为内置资源随存档分发）。</li>
+      <li>放置对应方块（如 PIDS），在配置里选中你的脚本 / 让声明条目生效。</li>
+      <li>打开 <code>logs/latest.log</code>，搜索 <code>native script</code>——模组在加载时会打印模块 census 摘要（模块数、脚本类型、传输通道等）。看到你的 <code>example:arrivals</code> 即为加载成功。</li>
+      <li>改了库文件后，按 <strong>F3+T</strong> 重载资源包即可重载 C++ 脚本（或使用模组提供的「重载全部 MTR 脚本」快捷键），无需重启游戏。</li>
+    </ol>
+    <div class="admonition danger">
+      <span class="admonition-title">重要</span>
+      <p>必须使用 <strong>Release 版 jar</strong> 或 Complete Build 产物。push/PR 的快速 CI 产物<strong>不含原生桥</strong>，日志会提示 <code>native bridge unavailable</code>、所有 C++ 脚本被跳过——这不是你的模块出错。</p>
+    </div>
+
+    <hr>
+    <p>下一步：<a href="script-model.html">脚本模型与生命周期</a> —— 四类脚本的完整语义；或直接跳 <a href="data.html">数据快照</a> 查阅可读数据。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">性能与调试</a>
+    </div>
+    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+  </footer>
+</main>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>

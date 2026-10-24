@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据快照 — JCM Yanyang C++ 脚本开发文档</title>
+<meta name="description" content="Train / Stop / Arrival / Pids / Lift / EyeCandy 快照包装器的完整访问器参考。">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html">快速上手</a>
+    <div class="nav-group">脚本模型</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <div class="nav-group">API 参考</div>
+    <a href="data.html" class="active">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <div class="nav-group">进阶</div>
+    <a href="performance.html">性能与调试</a>
+  </nav>
+  <div class="sidebar-footer">
+    SDK ABI 10<br>
+    JCM 2.3.0-beta-2.yanyang.7<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">数据快照</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / API 参考 / 数据快照</div>
+      <h1>数据快照</h1>
+      <p class="page-lead">每帧一次、由宿主封送的只读数据。全部访问器都是普通内存读取——零 JNI、零反射、零装箱。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#how">快照机制</a></li>
+        <li><a href="#train">Train（车辆）</a></li>
+        <li><a href="#stop">Stop / 换乘 / 出口</a></li>
+        <li><a href="#transport">交通模式与类型</a></li>
+        <li><a href="#pids">Pids（到站屏）</a></li>
+        <li><a href="#lift">Lift（电梯）</a></li>
+        <li><a href="#eyecandy">EyeCandy（装饰）</a></li>
+        <li><a href="#helpers">工具类型</a></li>
+      </ol>
+    </div>
+
+    <h2 id="how">快照机制</h2>
+    <p>每帧开始时，宿主把该实例的数据<strong>一次性</strong>封送成一块 POD 快照（定长头部 + 变长数组池 + UTF-8 字符串池），连同状态块指针一起传给 <code>mtrRender</code>。SDK 的类型化包装器（<code>mtr::Train</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在这块内存上提供与 JS Wrapper <strong>同名的访问器</strong>：</p>
+    <ul>
+      <li>字符串以 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）返回，用 <code>.str()</code> 转 <code>std::string</code>、<code>.empty()</code> 判空；视图只在本次 <code>render</code> 调用内有效。</li>
+      <li>越界索引抛 <code>std::out_of_range</code>（与 Java 端 <code>IndexOutOfBounds</code> 语义一致）。</li>
+      <li>快照指针与包装器<strong>不要</strong>跨帧保存。</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">覆盖范围</span>
+      <p>快照覆盖高频读取的字段。不在快照里的数据（网络、文件、渲染管理器的深接口等）经 <a href="java-api.html"><code>mtr::Api</code></a> 访问——那是低频通道，别在热路径用。</p>
+    </div>
+
+    <h2 id="train">Train（车辆）</h2>
+    <p>由 <code>mtr::Train</code> 提供，镜像 JS 的 <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>siding_id()</code> / <code>this_route_id()</code> / <code>departure_index()</code></td><td><code>int64_t</code></td><td>车辆 / 侧线 / 当前线路 id、发车序号（64 位 id 全程不丢精度）</td></tr>
+        <tr><td><code>car_count()</code> / <code>car(i)</code></td><td><code>int32_t</code> / <code>Car</code></td><td>车厢数量与逐厢数据（见下）</td></tr>
+        <tr><td><code>speed_kmh()</code> / <code>speed_ms()</code></td><td><code>double</code></td><td>车速</td></tr>
+        <tr><td><code>rail_progress()</code> / <code>rail_progress(car)</code></td><td><code>double</code></td><td>轨道进度；带参版本按车厢长度推算第 i 节的位置</td></tr>
+        <tr><td><code>door_value()</code></td><td><code>double</code></td><td>车门开度 0..1</td></tr>
+        <tr><td><code>notch_level()</code> / <code>notch_position()</code></td><td><code>int32_t</code> / <code>double</code></td><td>档位 0..5 与归一化位置</td></tr>
+        <tr><td><code>reversed()</code> / <code>on_route()</code> / <code>door_opening()</code></td><td><code>bool</code></td><td>反向 / 在线路上 / 车门正在开</td></tr>
+        <tr><td><code>currently_manual()</code> / <code>manual_allowed()</code></td><td><code>bool</code></td><td>手动驾驶状态</td></tr>
+        <tr><td><code>client_player_riding()</code> / <code>rendered()</code></td><td><code>bool</code></td><td>玩家乘坐 / 任一车厢可见</td></tr>
+        <tr><td><code>total_dwell_time_millis()</code> / <code>elapsed_dwell_time_millis()</code></td><td><code>double</code></td><td>停站总时长 / 已停留时长</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td><code>int64_t</code></td><td>宿主墙钟（已做服务器偏移校正）/ 游戏内 tick 0..24000</td></tr>
+        <tr><td><code>stops()</code> / <code>this_route_stops()</code> / <code>next_route_stops()</code></td><td><code>StopList</code></td><td>全部 / 当前线路 / 下一线路站点表（见下）</td></tr>
+        <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>当前线路的下一站索引（宿主预算好，别自己重算）</td></tr>
+        <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>当前线路名 / 颜色 ARGB / 环线状态（0 无、1 顺时针、2 逆时针）</td></tr>
+        <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>见<a href="#transport">交通模式与类型</a></td></tr>
+        <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>侧线显示名（用户自定义名称 / 描述）</td></tr>
+        <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始快照（ABI 细节见 <a href="abi.html">C ABI</a>）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Car（车厢）</h3>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>length()</code> / <code>width()</code></td><td>车厢长度 / 宽度</td></tr>
+        <tr><td><code>left_door_open()</code> / <code>right_door_open()</code></td><td>左右门是否完全打开</td></tr>
+        <tr><td><code>rendered()</code></td><td>该厢本帧是否经剔除后仍可见</td></tr>
+        <tr><td><code>vehicle_type()</code></td><td>车厢类型 id（如 <code>mtr_custom_train_kcx_cab_1</code>）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>StopList</h3>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>size()</code> / <code>empty()</code> / <code>at(i)</code> / <code>operator[](i)</code></td><td>容量与随机访问（越界抛异常）</td></tr>
+        <tr><td><code>next_stop_index(rail_progress, tolerance=0.5)</code></td><td>按轨道进度推算下一站；当前线路列表请直接用 <code>Train::next_stop_index()</code>（宿主已预算）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="stop">Stop / 换乘 / 出口</h2>
+    <p><code>mtr::Stop</code> 镜像 JS 的 <code>VehicleWrapper.Stop</code>：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>name()</code></td><td>站名</td></tr>
+        <tr><td><code>destination_name()</code></td><td>该站台的终点站显示名</td></tr>
+        <tr><td><code>has_custom_destination()</code> / <code>custom_destination()</code></td><td>自定义终点站（未设置时 JS 返回 null，C++ 用 <code>has_custom_destination()</code> 判空）</td></tr>
+        <tr><td><code>distance()</code></td><td>轨道进度（不可用时为 -1）</td></tr>
+        <tr><td><code>dwell_time_millis()</code></td><td>该站停站时长</td></tr>
+        <tr><td><code>route_id()</code> / <code>station_id()</code> / <code>platform_id()</code></td><td>线路 / 车站 / 站台 id（64 位）</td></tr>
+        <tr><td><code>is_route_switchover()</code></td><td>是否线路切换站</td></tr>
+        <tr><td><code>route_circular_state()</code></td><td>该站所属线路的环线状态（区分跨线后的方向变化）</td></tr>
+        <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>换乘信息：每个含 <code>color</code>（ARGB）、<code>name</code>（线路名）、<code>getTransportMode()</code>、<code>getTransportType()</code></td></tr>
+        <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>车站出口：每个含 <code>name</code>（出口字母，如 <code>"A"</code>）与 <code>destination(j)</code>（地标字符串列表）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="transport">交通模式与类型</h2>
+    <p>两条互补的口径，与 JS 侧 <code>getTransportMode()</code> / <code>getTransportType()</code> 返回<strong>完全相同的值</strong>，跨语言脚本可共享布局逻辑：</p>
+    <ul>
+      <li><strong>模式</strong>（<code>mtr::TransportMode</code> 枚举）：<code>UNKNOWN / TRAIN / BOAT / CABLE_CAR / AIRPLANE</code>，覆盖四种基础载具。</li>
+      <li><strong>类型</strong>（字符串 id，<code>mtr::transport_type</code> 常量）：基础模式的小写名（<code>"train"</code>、<code>"boat"</code>、<code>"cable_car"</code>、<code>"airplane"</code>），加上 <strong>MAGIC MTR Addon</strong> 的扩展线路类型 <code>train_normal / train_light_rail / train_high_speed / train_metro / train_bus / train_tram / train_sbahn</code>；无法解析时为 <code>"unknown"</code> 或空视图（旧服务器数据）。</li>
+    </ul>
+    <pre><code class="lang-cpp">if (train.getTransportType() == mtr::transport_type::TRAIN_METRO) { /* ... */ }
+
+for (int i = 0; i &lt; stop.interchange_count(); i++) {
+    mtr::Stop::Interchange ic = stop.interchange(i);
+    if (ic.getTransportType() == mtr::transport_type::TRAIN_HIGH_SPEED) { /* ... */ }
+}</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">数据来源</span>
+      <p>MAGIC 类型在客户端装了该 addon 时从本地配置解析；服务器装了而客户端没装时经同步数据集下发；旧服务器不下发线路元数据时返回空 / UNKNOWN——装了本模组的服务器可提供远程车站的完整元数据。</p>
+    </div>
+
+    <h2 id="pids">Pids（到站屏）</h2>
+    <p><code>mtr::Pids</code> 镜像 JS 的 <code>PIDSWrapper</code>：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>显示屏宽高（1.0 单位 = 16 px，屏幕坐标系）</td></tr>
+        <tr><td><code>rows()</code> / <code>is_row_hidden(i)</code></td><td>文本行数 / 第 i 行是否被隐藏（最多 32 行）</td></tr>
+        <tr><td><code>station_id()</code></td><td>所在车站 id</td></tr>
+        <tr><td><code>is_key_block()</code> / <code>is_platform_number_hidden()</code></td><td>是否按键方块（控制隐藏其它屏）/ 是否隐藏站台号</td></tr>
+        <tr><td><code>get_custom_message(i)</code></td><td>第 i 行自定义消息；未设置返回空（JS 返回 null）</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>Arrivals</code>：到站列表（见下）</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>时钟（已做服务器偏移校正）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Arrivals / Arrival</h3>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>arrivals().size()</code> / <code>.at(i)</code></td><td>到站条目数与访问</td></tr>
+        <tr><td><code>arrivals().next_for_platform(platform_id, out, cursor)</code></td><td>按站台顺序遍历（镜像 JS 的 <code>forEach(platformId, cb)</code>），游标复用、零分配</td></tr>
+        <tr><td><code>arrivals().mixed_car_length()</code></td><td>各条目车厢数是否不一致（镜像 <code>mixedCarLength()</code>）</td></tr>
+        <tr><td><code>destination()</code> / <code>route_name()</code> / <code>route_number()</code> / <code>platform_name()</code></td><td>终点站 / 线路名 / 线路号 / 站台名</td></tr>
+        <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>到站 / 离站时刻与偏差（epoch 毫秒，已校正）</td></tr>
+        <tr><td><code>arrived()</code> / <code>departed()</code></td><td>是否已到站 / 已离站（按当前时刻比较）</td></tr>
+        <tr><td><code>realtime()</code> / <code>terminating()</code> / <code>circular_state()</code></td><td>实时数据 / 本班终止 / 环线状态</td></tr>
+        <tr><td><code>route_id()</code> / <code>platform_id()</code> / <code>route_color()</code> / <code>car_count()</code> / <code>departure_index()</code></td><td>线路 / 站台 id、线路颜色 ARGB、车厢数、发车序号</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="lift">Lift（电梯）</h2>
+    <p><code>mtr::Lift</code>（快照 + Java 包装器结合；快照部分）：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code></td><td>电梯实例 id</td></tr>
+        <tr><td><code>should_render()</code> / <code>is_double_sided()</code> / <code>is_client_player_riding()</code></td><td>渲染 / 双面 / 玩家乘坐</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code> / <code>depth()</code></td><td>尺寸</td></tr>
+        <tr><td><code>door_value()</code></td><td>门开度 0..1</td></tr>
+        <tr><td><code>angle_degrees()</code> / <code>angle_radians()</code></td><td>朝向角</td></tr>
+        <tr><td><code>direction()</code></td><td>运行方向</td></tr>
+        <tr><td><code>floor_count()</code> / <code>floor(i)</code></td><td>楼层表：每层含 <code>index</code>、<code>current_floor</code> / <code>target_floor</code> 标志、<code>position[3]</code>、楼层号与描述字符串（经 <code>string(offset,len)</code> 取）</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>时钟</td></tr>
+      </tbody>
+    </table>
+    <p>渲染管理器、声音管理器、可见性等更深的接口经 <code>Api</code> 的 <code>wrapper()</code> 访问（电梯没有独立的 JS 文档页，以 Java 包装器为准）。</p>
+
+    <h2 id="eyecandy">EyeCandy（装饰）</h2>
+    <p><code>mtr::EyeCandy</code> 镜像 <code>EyecandyBlockEntityWrapper</code>：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>model_id()</code></td><td>当前模型 id</td></tr>
+        <tr><td><code>translate_x() / _y() / _z()</code> / <code>rotate_x() / _y() / _z()</code></td><td>用户配置的平移 / 旋转</td></tr>
+        <tr><td><code>facing()</code></td><td>朝向（MC <code>Direction.ordinal()</code>，0..5）</td></tr>
+        <tr><td><code>full_brightness()</code></td><td>全亮渲染</td></tr>
+        <tr><td><code>redstone_level()</code></td><td>红石信号 0..15</td></tr>
+        <tr><td><code>is_crosshair_target()</code></td><td>是否被准星指向</td></tr>
+        <tr><td><code>block_pos(i)</code></td><td>方块坐标分量（i = 0..2）</td></tr>
+        <tr><td><code>consume_block_use()</code></td><td>消费一次本帧累积的 onBlockUse 事件（每帧至多一次；同帧多次点击被合并——与 JS 事件队列行为一致）</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>时钟</td></tr>
+      </tbody>
+    </table>
+    <p>事件详情（玩家、手持物品等）经 <code>Api</code> 读取：</p>
+    <pre><code class="lang-cpp">mtr::Api api(ctx.input());
+auto event = api.context().call("events").get("onBlockUse");
+if (event.call("occurred").as&lt;bool&gt;()) {
+    auto detail = event.call("detail");
+    auto player = detail.call("player");
+    auto item   = detail.call("item");
+}</code></pre>
+    <p>装饰的绘制上下文 <code>EyeCandyContext</code> 提供 <code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code>（每箱 6 个 float；碰撞箱沿用 Java 端 1.5 格高度上限，超出由宿主校验并记日志）。电梯复用同一上下文类型（<code>LiftContext = EyeCandyContext</code>）。</p>
+
+    <h2 id="helpers">工具类型</h2>
+    <p><code>&lt;mtr/util.hpp&gt;</code> 提供热路径友好的轮播工具（零分配）：</p>
+    <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 轮换一段，视图切换只做偏移计算
+mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
+StrView current = dest.value(train.in_game_time());</code></pre>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>CycleTracker(packed, interval_ticks=40)</code></td><td>构造轮播（镜像 <code>TextUtil.cycleString</code>）</td></tr>
+        <tr><td><code>value(game_tick)</code> / <code>value_str(game_tick)</code></td><td>当前活跃段（视图 / 字符串）</td></tr>
+        <tr><td><code>interval()</code> / <code>part_count()</code></td><td>轮换间隔与段数</td></tr>
+        <tr><td><code>StrView</code></td><td><code>{data, len}</code> 字符串视图：<code>.str()</code>、<code>.empty()</code>，可 <code>==</code> 比较</td></tr>
+      </tbody>
+    </table>
+
+    <hr>
+    <p>接下来：<a href="drawing.html">绘制与画布</a> —— 把这些数据画出来。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="getting-started.html">快速上手</a>
+      <a href="performance.html">性能与调试</a>
+    </div>
+    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 10（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+  </footer>
+</main>
+</div>
+<script src="assets/app.js"></script>
+</body>
+</html>
