@@ -48,7 +48,8 @@ jobs:
           assert 0 < len(new) < 65536, "description length out of range"
 
           out = req("https://api.modrinth.com/v2/project",
-                    data=json.dumps({"description": new}).encode(), method="PATCH")
+                    data=json.dumps({"id": proj["id"], "description": new}).encode(),
+                    method="PATCH")
           print("PATCH accepted:", json.dumps(out)[:200] if out else "(204 no content)")
 
           got = req("https://api.modrinth.com/v2/project/kMMJcRqY").get("description") or ""
