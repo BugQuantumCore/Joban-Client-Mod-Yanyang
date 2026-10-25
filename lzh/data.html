@@ -111,7 +111,7 @@
         <tr><td><code>next_stop_index()</code></td><td><code>int32_t</code></td><td>當前線路下一站之索引（宿主既預算之，勿自重算也）</td></tr>
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>當前線路之名 / 色 ARGB / 環線之狀（0 無、1 順時針、2 逆時針）</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>見<a href="#transport">交通之模式與類型</a></td></tr>
-        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>開門之向：曰 <code>NOT</code>，左右皆弗啟；曰 <code>LEFT</code>，車頭之左啟；曰 <code>RIGHT</code>，右啟；曰 <code>ALL</code>，兩側皆啟焉。停站之際，門縱未啟、半啟、方闔、既闔，所報皆與全啟時同；行於正線，則測下一站。與 JS 之 <code>vehicle.getDirectionOfDoorOpening()</code> 同（ABI 11）</td></tr>
+        <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>開門之向：曰 <code>NOT</code>，左右皆弗啟；曰 <code>LEFT</code>，車頭之左啟；曰 <code>RIGHT</code>，右啟；曰 <code>ALL</code>，兩側皆啟焉。停站之際，門縱未啟、半啟、方闔、既闔，所報皆與全啟時同；行於正線，則測下一站——設車於當泊之處，逐廂循 MTR <code>canOpenDoors</code> 察塊之法。一側苟有一門可啟，舉側悉記可啟；左右以車首為準，行向倒行，皆弗易焉。特詢而已，門實啟閉，仍司於 MTR。與 JS 之 <code>vehicle.getDirectionOfDoorOpening()</code> 同（ABI 11）</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>側線顯示之名（用戶自定之名 / 述）</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始之快照（ABI 細務，見 <a href="abi.html">C ABI</a>）</td></tr>
       </tbody>
