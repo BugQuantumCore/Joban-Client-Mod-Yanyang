@@ -1,0 +1,189 @@
+name: Modrinth Publish (one-shot)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate Modrinth token and project access
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, urllib.request
+
+          TOK = os.environ["MODRINTH_TOKEN"]
+          UA = "jcm-yanyang-preflight/1.0 (BugQuantumCore)"
+
+          def get(url):
+              req = urllib.request.Request(url, headers={"User-Agent": UA, "Authorization": TOK})
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return json.loads(r.read().decode())
+
+          user = get("https://api.modrinth.com/v2/user")
+          print(f"token OK, authenticated as: {user.get('username')}")
+          proj = get("https://api.modrinth.com/v2/project/kMMJcRqY")
+          print(f"project accessible: {proj.get('title')} (status: {proj.get('status')})")
+          team = get("https://api.modrinth.com/v2/project/kMMJcRqY/members")
+          print("team:", [(m.get("user", {}).get("username"), m.get("role")) for m in team])
+          print("PREFLIGHT OK")
+          PYEOF
+
+  publish:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { minecraft: "1.17.1", loader: "fabric", featured: false, deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.17.1", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+          - { minecraft: "1.18.2", loader: "fabric", featured: false, deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.18.2", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+          - { minecraft: "1.19.2", loader: "fabric", featured: false, deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.19.2", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+          - { minecraft: "1.19.4", loader: "fabric", featured: false, deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.19.4", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+          - { minecraft: "1.20.1", loader: "fabric", featured: false, deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.20.1", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+          - { minecraft: "1.20.4", loader: "fabric", featured: true,  deps: "minecraft-transit-railway(required)\nfabric-api(required)\njcm(incompatible)" }
+          - { minecraft: "1.20.4", loader: "forge",  featured: false, deps: "minecraft-transit-railway(required)\njcm(incompatible)" }
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/release-notes.md
+
+      - name: Download the verified GitHub Release jar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILE_NAME: JCM-${{ matrix.loader }}-2.3.0-prerelease.2-yanyang.1+${{ matrix.minecraft }}.jar
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          gh release download "v2.3.0-prerelease.2-yanyang.1" \
+            --repo "${{ github.repository }}" \
+            --pattern "$FILE_NAME" \
+            --dir dist
+          test -s "dist/$FILE_NAME"
+
+      - name: Publish ${{ matrix.loader }} ${{ matrix.minecraft }} to Modrinth
+        uses: Kira-NT/mc-publish@v3.3
+        with:
+          modrinth-id: kMMJcRqY
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: dist/JCM-${{ matrix.loader }}-2.3.0-prerelease.2-yanyang.1+${{ matrix.minecraft }}.jar
+          name: '[${{ matrix.loader }} ${{ matrix.minecraft }}] v2.3.0-prerelease.2-yanyang.1'
+          version: prerelease.2-yanyang.1+${{ matrix.minecraft }}-${{ matrix.loader }}
+          version-type: beta
+          loaders: ${{ matrix.loader }}
+          game-versions: ${{ matrix.minecraft }}
+          dependencies: ${{ matrix.deps }}
+          changelog-file: .github/release-notes.md
+          modrinth-featured: ${{ matrix.featured }}
+          retry-attempts: 3
+          retry-delay: 30000
+          fail-mode: fail
+
+  verify:
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify all twelve versions on Modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, sys, urllib.request
+
+          API = "https://api.modrinth.com/v2"
+          TOK = os.environ["MODRINTH_TOKEN"]
+          PROJECT = "kMMJcRqY"
+          UA = "jcm-yanyang-verify/1.0 (BugQuantumCore)"
+
+          def get(url):
+              req = urllib.request.Request(url, headers={"User-Agent": UA, "Authorization": TOK})
+              with urllib.request.urlopen(req, timeout=180) as r:
+                  return json.loads(r.read().decode())
+
+          def patch(url, payload):
+              data = json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, method="PATCH",
+                  headers={"User-Agent": UA, "Authorization": TOK, "Content-Type": "application/json"})
+              with urllib.request.urlopen(req, timeout=120) as r:
+                  r.read()
+
+          mtr_id = get(f"{API}/project/minecraft-transit-railway")["id"]
+          fapi_id = get(f"{API}/project/fabric-api")["id"]
+          jcm_id = get(f"{API}/project/jcm")["id"]
+          print(f"dep ids: MTR={mtr_id} fabric-api={fapi_id} jcm={jcm_id}")
+
+          versions = get(f"{API}/project/{PROJECT}/version")
+          print(f"total versions visible on project: {len(versions)}")
+
+          MC = ["1.17.1", "1.18.2", "1.19.2", "1.19.4", "1.20.1", "1.20.4"]
+          expect = {f"prerelease.2-yanyang.1+{mc}-{ld}" for mc in MC for ld in ("fabric", "forge")}
+          by_num = {v["version_number"]: v for v in versions}
+          missing = sorted(expect - set(by_num))
+          if missing:
+              print("MISSING VERSIONS:", missing)
+              sys.exit(1)
+
+          problems = []
+          for n in sorted(expect):
+              v = by_num[n]
+              loader = n.rsplit("-", 1)[1]
+              mc = n.split("+")[1].rsplit("-", 1)[0]
+              if v["version_type"] != "beta":
+                  problems.append(f"{n}: version_type={v['version_type']}")
+              if v["game_versions"] != [mc]:
+                  problems.append(f"{n}: game_versions={v['game_versions']}")
+              if v["loaders"] != [loader]:
+                  problems.append(f"{n}: loaders={v['loaders']}")
+              if len(v["files"]) != 1 or not v["files"][0]["filename"].endswith(".jar"):
+                  problems.append(f"{n}: files={[(f['filename']) for f in v['files']]}")
+              elif v["files"][0]["size"] < 20_000_000:
+                  problems.append(f"{n}: suspicious file size {v['files'][0]['size']}")
+              deps = {(d.get("project_id"), d["dependency_type"]) for d in v["dependencies"]}
+              if (mtr_id, "required") not in deps:
+                  problems.append(f"{n}: MTR required dependency missing ({deps})")
+              if loader == "fabric" and (fapi_id, "required") not in deps:
+                  problems.append(f"{n}: fabric-api required dependency missing ({deps})")
+              if (jcm_id, "incompatible") not in deps:
+                  problems.append(f"{n}: jcm incompatible dependency missing ({deps})")
+
+          featured = sorted(n for n in expect if by_num[n].get("featured"))
+          if featured != ["prerelease.2-yanyang.1+1.20.4-fabric"]:
+              problems.append(f"featured among new versions wrong: {featured}")
+
+          # Keep only the newest release's pick featured project-wide.
+          stale_featured = [v for v in versions
+                            if v.get("featured") and v["version_number"] not in expect]
+          for v in stale_featured:
+              print(f"unfeaturing older version: {v['version_number']}")
+              patch(f"{API}/version/{v['id']}", {"featured": False})
+
+          for n in sorted(expect):
+              v = by_num[n]
+              f = v["files"][0]
+              print(f"OK {n} | {f['filename']} {f['size']:,} B | deps {len(v['dependencies'])} | featured {v.get('featured')}")
+
+          if problems:
+              print("PROBLEMS FOUND:")
+              for p in problems:
+                  print(" -", p)
+              sys.exit(1)
+          print(f"ALL {len(expect)} VERSIONS VERIFIED ON MODRINTH")
+          PYEOF
