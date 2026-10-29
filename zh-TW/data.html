@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>C++ 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -227,6 +227,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>model_id()</code></td><td>目前模型 id</td></tr>
         <tr><td><code>translate_x() / _y() / _z()</code> / <code>rotate_x() / _y() / _z()</code></td><td>使用者設定的平移 / 旋轉</td></tr>
         <tr><td><code>facing()</code></td><td>朝向（MC <code>Direction.ordinal()</code>，0..5）</td></tr>
+        <tr><td><code>facing_angle()</code></td><td>朝向角（<code>Direction.asRotation()</code> 度數：南 0 / 西 90 / 北 180 / 東 270）——與 JS <code>facingAngle()</code> 一致</td></tr>
         <tr><td><code>full_brightness()</code></td><td>全亮渲染</td></tr>
         <tr><td><code>redstone_level()</code></td><td>紅石訊號 0..15</td></tr>
         <tr><td><code>is_crosshair_target()</code></td><td>是否被準星指向</td></tr>
@@ -246,7 +247,7 @@ if (event.call("occurred").as&lt;bool&gt;()) {
     <p>裝飾的繪製上下文 <code>EyeCandyContext</code> 提供 <code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code>（每箱 6 個 float；碰撞箱沿用 Java 端 1.5 格高度上限，超出時由宿主驗證並記錄日誌）。電梯複用同一上下文型別（<code>LiftContext = EyeCandyContext</code>）。</p>
 
     <h2 id="helpers">工具型別</h2>
-    <p><code>&lt;mtr/util.hpp&gt;</code> 提供熱路徑友善的輪播工具（零配置）：</p>
+    <p><code>&lt;mtr/util.hpp&gt;</code> 提供熱路徑友善的輪播與狀態追蹤工具（零分配）：</p>
     <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 輪替一段，視圖切換只做偏移計算
 mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
 StrView current = dest.value(vehicle.in_game_time());</code></pre>
@@ -257,6 +258,26 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
         <tr><td><code>value(game_tick)</code> / <code>value_str(game_tick)</code></td><td>目前活躍段（視圖 / 字串）</td></tr>
         <tr><td><code>interval()</code> / <code>part_count()</code></td><td>輪替間隔與段數</td></tr>
         <tr><td><code>StrView</code></td><td><code>{data, len}</code> 字串視圖：<code>.str()</code>、<code>.empty()</code>，可用 <code>==</code> 比較</td></tr>
+      </tbody>
+    </table>
+    <p>狀態機追蹤 <code>mtr::StateTracker&lt;T&gt;</code>（對應上游 <code>StateTrackerJS</code>；時鐘顯式傳入——快照的 <code>game_time_millis()</code> 即為天然等價物）：把狀態欄位放進 <code>State</code>，在 render 裡只做一次轉移判定：</p>
+    <pre><code class="lang-cpp">struct State {
+    mtr::StateTracker&lt;Phase&gt; phase;   // 跨幀持久
+};
+
+// render 裡：
+if (s.phase.set_state(next, vehicle.game_time_millis())) {
+    // 傳回 true —— 進入該狀態的首幀（上游 prerelease.2 新語意）
+}
+double staying = s.phase.state_now_duration(vehicle.game_time_millis());
+if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 播放進站動畫 */ }</code></pre>
+    <table>
+      <thead><tr><th>成員</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>set_state(value, now_ms)</code></td><td>更新狀態；<strong>傳回是否為進入該狀態的首幀</strong>（上游 v2.3.0-prerelease.2 起 <code>setState</code> 傳回布林值）</td></tr>
+        <tr><td><code>state_now() / state_last() / state_now_first()</code></td><td>目前 / 上一狀態；是否首幀</td></tr>
+        <tr><td><code>state_now_duration(now_ms)</code></td><td>目前狀態已持續時間（毫秒）</td></tr>
+        <tr><td><code>changed_to(state) / changed_from_to(old, new)</code></td><td>本幀是否進入指定狀態 / 從指定狀態轉入</td></tr>
       </tbody>
     </table>
 
@@ -270,7 +291,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

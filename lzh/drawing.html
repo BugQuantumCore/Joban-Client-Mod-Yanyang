@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>C++ 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,13 +58,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / API 備覽 / 繪事與畫布</div>
       <h1>繪事與畫布</h1>
-      <p class="page-lead">其途有二：PIDS 之屏，以 <code>Text</code> / <code>Texture</code> 流式之 API 徑出之；像素之級（LCD、點陣屏），以 <code>GraphicsTexture</code> 與 <code>Gfx2D</code> 原生光柵之。</p>
+      <p class="page-lead">其途有二：PIDS 之屏，以 <code>Text</code> / <code>Texture</code> / <code>Rect</code> 流式之 API 徑出之；像素之級（LCD、點陣屏），以 <code>GraphicsTexture</code> 與 <code>Gfx2D</code> 原生光柵之。</p>
     </header>
 
     <div class="page-toc">
       <b>本頁之目</b>
       <ol>
-        <li><a href="#text">Text 與 Texture（PIDS）</a></li>
+        <li><a href="#text">Text、Texture 與 Rect（PIDS）</a></li>
         <li><a href="#matrices">Matrices 與模型之繪</a></li>
         <li><a href="#texture2d">GraphicsTexture（像素畫布）</a></li>
         <li><a href="#gfx2d">Gfx2D 軟體光柵器</a></li>
@@ -77,8 +77,8 @@
       <p><strong>螢幕坐標系之內容</strong>（PIDS 文字之行、貼圖之塊），則歸 <code>Text</code>/<code>Texture</code>：一繪製記錄，宿主循與 JS 全同之程式碼路徑而回放。<strong>像素之級</strong>（車輛 LCD、動態點陣屏、圖表），則歸 <code>GraphicsTexture</code>：自繪其像素，經 <code>Gfx2D</code> 光柵諸基元，惟以髒矩形（dirty rectangle）上諸 GPU。</p>
     </div>
 
-    <h2 id="text">Text 與 Texture（PIDS）</h2>
-    <p><code>&lt;mtr/text.hpp&gt;</code> 者，JS <code>TextWrapper</code> / <code>TextureWrapper</code> 流式 API 一比一之移植也——其法之名，循 C++ 之習為 snake_case，鏈鏈相承而呼之：</p>
+    <h2 id="text">Text、Texture 與 Rect（PIDS）</h2>
+    <p><code>&lt;mtr/text.hpp&gt;</code> 者，JS <code>TextWrapper</code> / <code>TextureWrapper</code> / <code>Rect</code> 流式 API 一比一之移植也——其法之名，循 C++ 之習為 snake_case，鏈鏈相承而呼之：</p>
     <pre><code class="lang-cpp">mtr::Text::create()
     .text("Tsim Sha Tsui")
     .scale(1.725)
@@ -100,6 +100,8 @@
         <tr><td><code>.color(argb)</code></td><td>同名</td><td>色（ARGB）</td></tr>
         <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>同名</td><td>螢幕坐標與包圍之匣</td></tr>
         <tr><td><code>.z_order(z) / .layer(l)</code></td><td>同名</td><td>層級；<code>z=-1</code> 時上下文自配之</td></tr>
+        <tr><td><code>.render_type("LIGHT_1")</code></td><td><code>.renderType()</code></td><td>以名舉渲染之層（同 <code>QueuedRenderLayer.valueOf</code> 之義；名之不識者，則擲異常）</td></tr>
+        <tr><td><code>.natural_light()</code></td><td><code>.naturalLight()</code></td><td>取世間之光照，不用至亮之渲染光</td></tr>
       </tbody>
     </table>
     <table>
@@ -110,6 +112,23 @@
         <tr><td><code>.color(argb)</code></td><td>染色</td></tr>
         <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>位置與尺寸</td></tr>
         <tr><td><code>.z_order(z) / .layer(l)</code></td><td>層級</td></tr>
+        <tr><td><code>.render_type("LIGHT_1")</code> / <code>.natural_light()</code></td><td>以名舉層 / 取世間光照（同 Text）</td></tr>
+      </tbody>
+    </table>
+    <h3>Rect（純色矩形）</h3>
+    <p><code>mtr::Rect</code> 映上游 JS 之 <code>Rect</code> 類（舊名 <code>Rectangle</code>，易名自上游 v2.3.0-prerelease.2 始；Java 類名如故）——繪 <code>mtr:white.png</code> 全 UV 之四邊形而通體染色，凡底色之塊、分隔之條、狀態之帶，莫便於斯：</p>
+    <pre><code class="lang-cpp">mtr::Rect::create()
+    .color(0xFF00539F)          // 不透明之染（預設 ARGB_WHITE）
+    .pos(2, rowY + 18)
+    .size(pids.width() - 4, 1)  // 預設 20×20
+    .draw(ctx);</code></pre>
+    <table>
+      <thead><tr><th>Rect 之法</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>.color(argb)</code></td><td>染色（預設白 ARGB_WHITE）</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>位置與尺寸（預設 20×20）</td></tr>
+        <tr><td><code>.render_type("LIGHT_2")</code></td><td>以名舉層（預設 LIGHT_2）</td></tr>
+        <tr><td><code>.natural_light() / .z_order(z)</code></td><td>世間光照 / 層級（<code>z=-1</code> 則上下文自配之）</td></tr>
       </tbody>
     </table>
     <p>配套之上下文法（<code>PidsContext</code>）：</p>
@@ -194,6 +213,7 @@ g.pop_clip();</code></pre>
         <tr><td><code>push_clip / pop_clip</code></td><td>裁剪匣之棧；諸基元先裁而後光柵，髒區亦受裁剪之約</td></tr>
         <tr><td><code>draw_text / draw_text_centered / draw_text_compressed / draw_mixed_text</code></td><td>文字（字體見下節）</td></tr>
         <tr><td><code>draw_logo_badge(x, y, w, h, bg, fg)</code></td><td>圓角徽章之底</td></tr>
+        <tr><td><code>full_aa() / no_aa()</code></td><td>一像素覆蓋率抗鋸齒之開關（預設關，映上游 <code>fullAA()</code> / <code>noAA()</code>）：橢圓、圓角矩形、描邊、多邊形填充之緣，行整數 src-over 之合成；文字恆為宿主 TTF 抗鋸齒，不與焉</td></tr>
       </tbody>
     </table>
     <p>顏色之輔：<code>mtr::clr(r, g, b)</code> 與 <code>mtr::clra(r, g, b, a)</code>（一不透明，一帶 alpha），應 JS <code>config.js</code> 同名之函。半透明之色，行 src-over 之合成；不透明之色，則有快捷之途焉。</p>
@@ -220,7 +240,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

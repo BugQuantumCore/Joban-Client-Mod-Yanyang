@@ -1,7 +1,7 @@
 # Develop-Documentation-Website — JCM Yanyang C++ 脚本开发文档（网页版）
 
 本分支存放 **Joban Client Mod — Yanyang** 的 C++ 原生脚本开发文档静态站点，与仓库
-`native/README.md` / `native/include/mtr/` 的 SDK（ABI 10，对应 2.3.0-beta-2.yanyang.7）同步维护。
+`native/README.md` / `native/include/mtr/` 的 SDK（ABI 11，对应 2.3.0-prerelease.2-yanyang.1）同步维护。
 
 - **在线地址**：<https://bugquantumcore.github.io/Joban-Client-Mod-Yanyang/>
 - **浅色 / 深色主题**：全站支持，首次访问跟随系统偏好，手动切换后记住选择（`localStorage`）

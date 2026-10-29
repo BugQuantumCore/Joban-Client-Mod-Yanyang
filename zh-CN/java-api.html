@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>C++ 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -159,7 +159,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>include(...)</code></td><td>C++ 编译期 <code>#include</code></td></tr>
       </tbody>
     </table>
-    <p>AWT 类用全限定名：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 的公开字段 <code>graphics</code> / <code>bufferedImage</code> 暴露真实 Java2D 对象。资源路径解析：<code>Resources.idr</code> 按本模块的声明路径解析（多库声明时各用各的）；<code>Resources.manager()</code> 与 JS 在 MTR 4 上一样为 null。上游文档标注为未实现的能力（车辆连接件的 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>）本模组同样不虚构行为。</p>
+    <p>AWT 类用全限定名：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 的公开字段 <code>graphics</code> / <code>bufferedImage</code> 暴露真实 Java2D 对象。资源路径解析：<code>Resources.idr</code> 按本模块的声明路径解析（多库声明时各用各的）；<code>Resources.manager()</code> 与 JS 在 MTR 4 上一样为 null。上游 v2.3.0-prerelease.2 新增的成员——<code>Resources.id(id, suffix)</code> 拼接形式、<code>Resources.mgr()</code> 别名（ANTE 资源包兼容）、<code>VanillaText.withFont(String)</code> 等字符串参数变体——经同一 JSON-RPC 通道开箱可用。上游文档标注为未实现的能力（车辆连接件的 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>）本模组同样不虚构行为。</p>
 
     <h2 id="callback">后台回调</h2>
     <p><code>Api::Callback</code> 把 C++ 函数包装成 Java 函数式接口（<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>…）。<strong>回调对象必须存活到 Java 不再可能调用为止</strong>——放进 <code>State</code>：</p>
@@ -204,7 +204,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>C++ Scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -113,7 +113,7 @@
     <p>Since ABI 9 the output also reports each arena's <strong>full capacity</strong> — the host creates a single <code>ByteBuffer</code> per arena and reuses it every frame by moving the limit, instead of allocating five wrapper objects per frame.</p>
 
     <h2 id="records">Draw records</h2>
-    <p>Every record starts with <code>JcmRecordHeader{kind, record_size}</code>, and records are laid out sequentially with variable lengths. 8 kinds:</p>
+    <p>Each record starts with <code>JcmRecordHeader{kind, flags, record_size}</code> and is laid out sequentially with variable length. <code>flags</code> carries record-level switches: currently <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code> (the <code>natural_light()</code> option of Text / Texture / Rect — take the world light value instead of the max render light). The byte was promoted in place from padding: modules compiled against older SDKs always write 0 and older hosts ignore it — <strong>binary compatible in both directions, no ABI bump</strong>. Eight kinds:</p>
     <table>
       <thead><tr><th>kind</th><th>Struct</th><th>Purpose / JS call mirrored</th></tr></thead>
       <tbody>
@@ -176,7 +176,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository
   </footer>
 </main>
 </div>

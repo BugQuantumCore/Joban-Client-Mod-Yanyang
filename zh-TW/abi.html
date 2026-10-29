@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>C++ 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -113,7 +113,7 @@
     <p>ABI 9 起輸出同時給出各競技場的<strong>完整容量</strong>——宿主為每個競技場只建一個 <code>ByteBuffer</code>、每幀改 limit 複用，不再逐幀配置五個包裝物件。</p>
 
     <h2 id="records">繪製記錄</h2>
-    <p>每條記錄以 <code>JcmRecordHeader{kind, record_size}</code> 開頭，變長順序排列。8 種類型：</p>
+    <p>每條記錄以 <code>JcmRecordHeader{kind, flags, record_size}</code> 開頭，變長順序排列。<code>flags</code> 承載記錄級開關：目前定義 <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code>（Text / Texture / Rect 的 <code>natural_light()</code>——取環境光照而非最大渲染亮度）。該位元組由原 padding 就地升格：舊 SDK 編譯的模組恆寫 0、舊宿主忽略之——<strong>雙向二進位相容，無 ABI 跳版</strong>。8 種類型：</p>
     <table>
       <thead><tr><th>kind</th><th>結構</th><th>用途 · 對應的 JS 呼叫</th></tr></thead>
       <tbody>
@@ -176,7 +176,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

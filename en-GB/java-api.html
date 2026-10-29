@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>C++ Scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
@@ -43,7 +43,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -159,7 +159,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>include(...)</code></td><td>C++ compile-time <code>#include</code></td></tr>
       </tbody>
     </table>
-    <p>AWT classes use fully qualified names: <code>java.awt.Color</code>, <code>java.awt.Font</code>, <code>java.awt.BasicStroke</code>, <code>java.awt.geom.AffineTransform</code>. The public fields <code>graphics</code> / <code>bufferedImage</code> of <code>GraphicsTexture</code> expose the real Java2D objects. Resource path resolution: <code>Resources.idr</code> resolves against this module's declaration path (with multiple library declarations, each uses its own); <code>Resources.manager()</code> is null on MTR 4, same as in JS. Capabilities that upstream documentation marks as unimplemented (the vehicle connector's <code>drawConnModel</code> / <code>drawConnStretchTexture</code>) are equally not invented by this mod.</p>
+    <p>AWT classes use fully qualified names: <code>java.awt.Color</code>, <code>java.awt.Font</code>, <code>java.awt.BasicStroke</code>, <code>java.awt.geom.AffineTransform</code>. The public fields <code>graphics</code> / <code>bufferedImage</code> of <code>GraphicsTexture</code> expose the real Java2D objects. Resource path resolution: <code>Resources.idr</code> resolves against this module's declaration path (with multiple library declarations, each uses its own); <code>Resources.manager()</code> is null on MTR 4, same as in JS. Members new in upstream v2.3.0-prerelease.2 — the <code>Resources.id(id, suffix)</code> concatenation form, the <code>Resources.mgr()</code> alias (ANTE resource-pack compatibility), string-argument variants such as <code>VanillaText.withFont(String)</code> — work out of the box over the same JSON-RPC channel. Capabilities that upstream documentation marks as unimplemented (the vehicle connector's <code>drawConnModel</code> / <code>drawConnStretchTexture</code>) are equally not invented by this mod.</p>
 
     <h2 id="callback">Background callbacks</h2>
     <p><code>Api::Callback</code> wraps a C++ function as a Java functional interface (<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>, …). <strong>The callback object must stay alive for as long as Java could possibly call it</strong>—keep it in <code>State</code>:</p>
@@ -204,7 +204,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ scripting documentation · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+    JCM Yanyang C++ scripting documentation · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>
   </footer>
 </main>
 </div>
