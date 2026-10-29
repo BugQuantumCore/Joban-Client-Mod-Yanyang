@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Extensions Yanyang — Documentation JCM Yanyang Scripting</title>
+<meta name="description" content="Les capacités que le JCM modifié par l’équipe technique Yanyang ajoute aux scripts JavaScript : entrées mixtes JS+C++, mémoire du sens d’ouverture des portes côté serveur, subdivision des types de transport et téléversement de pixels par écriture directe.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Scripts C++</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <a href="performance.html">Performance et débogage</a>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html" class="active">Extensions Yanyang</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Extensions Yanyang</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Scripts JavaScript / Extensions Yanyang</div>
+      <h1>Extensions Yanyang</h1>
+      <p class="page-lead">Ce que cette branche (le JCM modifié par l’équipe technique Yanyang) ajoute aux API JS de JCM 2.3.0-prerelease.2 amont. Tout ce qui existe déjà côté amont fonctionne comme avant ; cette page ne consigne que les apports incrémentaux.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#overview">Aperçu des extensions</a></li>
+        <li><a href="#mixed">Entrées mixtes JS + C++</a></li>
+        <li><a href="#doordir">Mémoire du sens d’ouverture des portes</a></li>
+        <li><a href="#transporttype">Subdivision des types de transport</a></li>
+        <li><a href="#rawupload">Téléversement de pixels par écriture directe</a></li>
+        <li><a href="#parity">Parité de vocabulaire JS / C++</a></li>
+      </ol>
+    </div>
+
+    <h2 id="overview">Aperçu des extensions</h2>
+    <table>
+      <thead><tr><th>Extension</th><th>Point d’entrée</th><th>En résumé</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#mixed">Entrées mixtes JS + C++</a></td><td>entrées de déclaration</td><td>mélangez librement modules JS et C++ dans une même entrée ; les deux moteurs rendent simultanément</td></tr>
+        <tr><td><a href="#doordir">Mémoire du sens d’ouverture des portes</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>quel côté s’ouvrira à l’arrivée — à quai, en prédiction sur ligne principale, au-delà de la distance de rendu, c’est le serveur qui s’en souvient</td></tr>
+        <tr><td><a href="#transporttype">Subdivision des types de transport</a></td><td><code>VehicleWrapper.getTransportType()</code>, etc.</td><td>id de type étendu des lignes (en lien avec MAGIC MTR) et champs d’extension des correspondances</td></tr>
+        <tr><td><a href="#rawupload">Téléversement de pixels par écriture directe</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>écriture directe d’un tableau d’octets + téléversement de la seule zone modifiée : le canal économe en bande passante des mises à jour pixel par pixel à haute fréquence</td></tr>
+        <tr><td>Alias de compatibilité</td><td>entrées de déclaration</td><td>accepte le nom de clé <code>script_input</code> des exemples de la documentation NTE ; <code>nativeLibrary</code> / <code>nativeLibraries</code> cohabite avec du <code>.js</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="mixed">Entrées mixtes JS + C++</h2>
+    <p>Dans le format amont, une entrée de script est intégralement en JS. Yanyang confie <strong>la décision aux caractéristiques du fichier</strong> : chaque élément de <code>scriptLocations</code> est examiné isolément — <code>*.js</code> (insensible à la casse) part côté JavaScript, tout le reste est analysé comme module C++. Au sein d’une même entrée, mélangez les deux à volonté, sans limite de nombre :</p>
+    <pre><code class="lang-json">"vehicleScripts": [
+    {
+        "id": "demo:sp1900",
+        "scriptLocations": [
+            "demo:js/sp1900_ui.js",
+            "demo:natives/sp1900_motor",
+            {"windows": "demo:natives/win-x64/libmotor.dll",
+             "linux":   "demo:natives/linux-x64/libmotor.so",
+             "macos":   "demo:natives/macos-arm64/libmotor.dylib"}
+        ],
+        "prependExpressions": ["print('JS 侧照常执行')"],
+        "input": { "era": 2004 }
+    }
+]</code></pre>
+    <p>La déclaration C++ prend trois formes :</p>
+    <table>
+      <thead><tr><th>Forme</th><th>Écriture</th><th>Résolution</th></tr></thead>
+      <tbody>
+        <tr><td>stem indépendant de la plateforme</td><td><code>"demo:natives/sp1900_motor"</code></td><td>se développe pour chaque plateforme : <code>natives/linux-x64/libsp1900_motor.so</code>, <code>natives/windows-x64/sp1900_motor.dll</code>, <code>natives/macos-arm64/libsp1900_motor.dylib</code>… (l’agencement des répertoires est détaillé dans <a href="getting-started.html#package">Démarrage rapide</a>)</td></tr>
+        <tr><td>chemin complet de bibliothèque</td><td><code>"demo:natives/linux-x64/libfoo.so"</code></td><td>lié au système correspondant d’après l’extension ; les autres systèmes ignorent l’élément</td></tr>
+        <tr><td>correspondance par plateforme</td><td><code>{"windows": ..., "linux": ..., "macos": ...}</code></td><td>les clés peuvent descendre à l’architecture (<code>macos-arm64</code>, <code>linux-x64</code>…), les clés précises ont priorité sur les clés génériques ; la valeur est elle-même un stem ou un chemin complet</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Chaque moteur dessine de son côté</strong> : la partie JS (avec ses <code>prependExpressions</code> et son <code>input</code>) est assemblée en un script analysé normalement ; la partie C++ tout entière est chargée par le gestionnaire natif sous le même id de script. Au rendu, chaque camp capture et rejoue ses instructions de dessin, sans jamais se mélanger ; si un côté manque ou échoue au chargement, ce côté ne dessine simplement pas — l’autre n’en souffre pas.</p>
+    <h3>Le champ language (la solution de repli)</h3>
+    <table>
+      <thead><tr><th>Valeur</th><th>Effet</th></tr></thead>
+      <tbody>
+        <tr><td>absent (recommandé)</td><td>détection automatique d’après les caractéristiques du fichier — zéro configuration dans l’immense majorité des cas</td></tr>
+        <tr><td><code>"cpp"</code></td><td>entrée purement native (ancienne sémantique) : les <code>.js</code> de <code>scriptLocations</code> sont ignorés, avec un message laissé dans le journal ; à utiliser avec <code>nativeLibrary</code> / <code>nativeLibraries</code></td></tr>
+        <tr><td><code>"javascript"</code> / <code>"js"</code></td><td>force l’analyse de tout en JS — la porte de sortie pour les noms de fichiers JS sans extension</td></tr>
+      </tbody>
+    </table>
+    <p>Le nom du champ dépend du format : <code>language</code> pour MTR 4, <code>scriptLang</code> (camelCase) / <code>script_lang</code> (snake_case) pour les anciens formats. <code>nativeLibrary</code> / <code>nativeLibraries</code> (ce dernier accroche plusieurs bibliothèques à un même id) est toujours traité comme C++, et cohabite aussi avec du <code>.js</code> dans une même entrée.</p>
+    <div class="admonition note">
+      <span class="admonition-title">Relation avec les entrées JS pures</span>
+      <p>La signification des champs JS <code>prependExpressions</code> / <code>input</code> / <code>rateLimit</code> / <code>dataFetchMode</code>, etc. ne change pas ; une entrée JS pure (uniquement des <code>.js</code>) se comporte exactement comme en amont. La façon dont le côté C++ lit <code>input</code> est décrite dans la <a href="getting-started.html">documentation C++</a>.</p>
+    </div>
+
+    <h2 id="doordir">Mémoire du sens d’ouverture des portes</h2>
+    <p><code>VehicleWrapper.getDirectionOfDoorOpening(): String</code> répond à « quel côté ce train <strong>ouvrira-t-il</strong> » ; valeurs : <code>"not"</code> (aucun côté) / <code>"left"</code> (gauche de la tête) / <code>"right"</code> (droite de la tête) / <code>"all"</code> (deux côtés) :</p>
+    <ul>
+      <li><strong>À quai</strong> : que les portes soient non ouvertes, entrouvertes, en fermeture ou fermées, la réponse est la même que portes entièrement ouvertes — le côté « s’ouvrira » est celui où se trouvent les blocs de quai (ou les portes PSD / APG déverrouillées). Quand la valeur d’ouverture est &gt; 0, on lit directement l’évaluation voiture par voiture de la frame courante.</li>
+      <li><strong>Sur ligne principale</strong> : prédiction du côté d’ouverture à la <strong>prochaine station</strong> — le train est repositionné à son point d’arrêt sur son propre chemin, puis analysé avec le même balayage de blocs <code>canOpenDoors</code> que MTR. Disponible dès que le chunk du point d’arrêt est chargé ; <strong>au-delà de la distance de rendu</strong>, c’est le <strong>serveur</strong> qui répond : le serveur a balayé toute la carte une fois et persisté le résultat (toute création / suppression / modification de bloc de quai déclenche une réanalyse incrémentielle), et sert depuis un cache par ligne les réponses des deux côtés — embarquement en cours de route, redémarrage du jeu ou première visite n’y changent rien.</li>
+      <li><strong>Serveur sans ce mod ou sans réponse</strong> : repli sur le balayage du client dans sa distance de rendu — la prédiction pour des quais lointains peut alors manquer.</li>
+      <li><strong>Règle d’agrégation</strong> : une seule voiture dont une porte jouxte un bloc de quai suffit à marquer tout le côté comme ouvrable (agrégation par côté, pas par porte). Gauche et droite se rapportent à la <strong>tête</strong> (extrémité bogie 1) : chaque voiture est évaluée dans son propre repère (-X = gauche de la tête, convention des modèles MTR) ; le sens de marche comme le retournement ne modifient jamais la lecture.</li>
+      <li><strong>Purement consultatif</strong> : ne sert que la logique d’affichage (indicateur du côté d’ouverture, flèches des écrans de bord), sans intervenir sur l’ouverture réelle des portes par MTR.</li>
+    </ul>
+    <div class="admonition tip">
+      <span class="admonition-title">Exemple : voyants de côté d’ouverture</span>
+      <pre><code class="lang-js">function render(ctx, state, vehicle) {
+    let dir = vehicle.getDirectionOfDoorOpening();   // "not"/"left"/"right"/"all"
+    if (dir == "left" || dir == "all") drawLamp(ctx, state, "left", 0x00FF00);
+    if (dir == "right" || dir == "all") drawLamp(ctx, state, "right", 0x00FF00);
+}</code></pre>
+    </div>
+
+    <h2 id="transporttype">Subdivision des types de transport</h2>
+    <p>Le <code>TransportMode</code> de MTR n’offre que quatre modes de base (train / boat / cable_car / airplane), insuffisant pour l’affichage. L’addon <a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> permet au joueur de subdiviser encore le type d’affichage des « trains » (conservés dans son <code>route_types.json</code>, indexé par id de ligne). Cette branche fait circuler ces types jusqu’aux scripts :</p>
+    <ul>
+      <li><code>VehicleWrapper.getTransportType(): String</code> — l’id de <strong>type canonique</strong> de la ligne courante : la subdivision MAGIC attribuée (<code>train_normal</code> / <code>train_light_rail</code> / <code>train_high_speed</code> / <code>train_metro</code> / <code>train_bus</code> / <code>train_tram</code> / <code>train_sbahn</code>) si elle existe, sinon repli sur l’id du mode de base (<code>train</code> / <code>boat</code> / <code>cable_car</code> / <code>airplane</code>), <code>unknown</code> pour l’inconnu — <strong>jamais null</strong>.</li>
+      <li><code>Stop.routeInterchanges[i]</code> (<code>RouteInterchange</code>) s’enrichit : <code>getTransportMode(): TransportMode?</code> (mode de transport de la ligne de correspondance, <code>null</code> possible avec d’anciennes données), <code>getTransportType(): String</code> (le même id canonique), <code>getRouteId(): long</code> (id de la ligne d’origine, 0 si la donnée manque côté serveur) — les panneaux de correspondance peuvent enfin choisir icône / couleur selon le type, au lieu de ne lire que la couleur.</li>
+      <li>Sans MAGIC installé, ou sans subdivision attribuée à la ligne, tout retombe comme avant sur le mode de base — le script n’a pas à détecter la présence de l’addon. Le résultat des requêtes de type est mis en cache brièvement par ligne (environ 1 seconde) : un type modifié dans MTR est visible très vite.</li>
+    </ul>
+
+    <h2 id="rawupload">Téléversement de pixels par écriture directe</h2>
+    <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>
+    <p>Écrit directement dans le tampon de texture un tableau de pixels de <code>width × height × 4</code> octets, en ordre des lignes, composantes en ordre <strong>BGRA</strong>, puis ne téléverse vers le GPU que ce rectangle :</p>
+    <ul>
+      <li><strong>Positionnement</strong> : le canal économe en bande passante des mises à jour pixel par pixel à haute fréquence. Le <code>upload()</code> de la voie AWT ordinaire déplace l’image entière ; un écran de 4 Mpx intégralement transféré à chaque frame, ce sont plus de dix Mo de copie, alors qu’une animation point à point (barre de progression, chiffres qui s’animent) ne modifie le plus souvent qu’une bande — ici, quelques centaines de Ko suffisent.</li>
+      <li><code>ppm</code> est une <strong>table de recherche de prémultiplication</strong> de 4 × 256 entrées (quatre tranches de 256 : B / G / R / A dans l’ordre), détenue par l’appelant ; les octets sont développés via la table au moment de l’écriture, évitant une multiplication par pixel.</li>
+      <li>Après écriture, seul ce rectangle est téléversé automatiquement, le reste de la texture demeure intact — un pas de gagné sur <code>upload(x, y, w, h)</code>, qui commence par « modifier sur le canevas AWT ».</li>
+      <li>Utilisable depuis JS (assemblez le tableau d’octets avec <code>Java.newArray</code>), mais la raison d’être est le retour des pixels de frame du pont C++ ; les auteurs purement JS se contentent d’AWT + téléversement de sous-zone.</li>
+    </ul>
+
+    <h2 id="parity">Parité de vocabulaire JS / C++</h2>
+    <p>Les mêmes données portent le même nom dans les deux langages — quand les deux côtés d’une entrée mixte dessinent la même chose, personne ne perd le nord :</p>
+    <table>
+      <thead><tr><th>JS</th><th>C++ (SDK)</th><th>Introduit en</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
+        <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code>, etc.</td><td>le champ de type de <code>mtr::Stop::interchange(i)</code></td><td>ABI 9</td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+      </tbody>
+    </table>
+    <p>Le lecteur purement JS n’a qu’une chose à retenir : <strong>les extensions de cette page existent aussi côté C++</strong> (lecture directe des champs de l’instantané, coût de marshalling nul) — voir <a href="data.html">Instantanés de données</a>.</p>
+
+    <hr>
+    <p>Retour à : <a href="js-types.html">Types de scripts JS</a> · <a href="js-api.html">API communes JS</a> ; les mêmes données sans le moindre coût JVM ? Voyez les <a href="getting-started.html">scripts natifs C++</a>.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="js-types.html">Types de scripts JS</a>
+      <a href="js-api.html">API communes JS</a>
+    </div>
+    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.2-yanyang.1 · extensions de l’équipe technique Yanyang
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

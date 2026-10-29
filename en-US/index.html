@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Overview — JCM Yanyang C++ Scripting Docs</title>
+<title>Overview — JCM Yanyang Scripting Docs</title>
 <meta name="description" content="C++ native scripting documentation for the Joban Client Mod Yanyang fork: overview, quick start, API reference, and performance guide.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html" class="active">Overview</a>
     <a href="getting-started.html">Quick start</a>
-    <div class="nav-group">Script Model</div>
+    <div class="nav-group">C++ Scripting</div>
     <a href="script-model.html">Script model and lifecycle</a>
-    <div class="nav-group">API Reference</div>
     <a href="data.html">Data snapshots</a>
     <a href="drawing.html">Drawing and canvases</a>
     <a href="java-api.html">mtr::Api and Java interop</a>
     <a href="abi.html">C ABI and host services</a>
-    <div class="nav-group">Advanced</div>
     <a href="performance.html">Performance and debugging</a>
-  </nav>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html">JS Common APIs</a>
+    <a href="js-types.html">JS Script Types</a>
+    <a href="js-yanyang.html">Yanyang Extensions</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,7 +62,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>C++ native scripting</h1>
-      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write all four script kinds — <strong>vehicle, PIDS, lift, and eyecandy</strong> — in C++, with the same lifecycle and the same API surface as JavaScript scripts, and zero JVM crossings on the hot path.</p>
+      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write all four script kinds — <strong>vehicle, PIDS, lift, and eyecandy</strong> — in C++, with the same lifecycle and the same API surface as JavaScript scripts, and zero JVM crossings on the hot path. The full documentation of JavaScript scripting (the upstream JCM scripting system) is in the JavaScript Scripting section below.</p>
     </header>
 
     <h2>What this is</h2>
@@ -92,7 +96,7 @@
     <div class="arch">
       <div class="arch-row">
         <div class="arch-col">
-          <div class="arch-node"><b>Resource pack</b><span>minecraft_custom_resources.json declarations<br>natives/&lt;platform&gt;/ library files</span></div>
+          <div class="arch-node"><b>Resource pack</b><span>mtr_custom_resources.json declarations<br>natives/&lt;platform&gt;/ library files</span></div>
         </div>
         <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
         <div class="arch-col">
@@ -152,7 +156,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
         <tr><td>Minecraft</td><td>1.17.1 – 1.20.4 (Fabric / Forge)</td></tr>
         <tr><td>Prerequisites</td><td>Minecraft Transit Railway 4.0.5+ (required); the Fabric build also needs Fabric API</td></tr>
         <tr><td>Java</td><td>16 or newer; 22+ automatically enables the end-to-end zero-JNI FFM plane</td></tr>
-        <tr><td>ABI</td><td>The host accepts ABI 6–10 modules; the current SDK builds ABI 10</td></tr>
+        <tr><td>ABI</td><td>The host accepts ABI 6–11 modules; the current SDK builds ABI 11</td></tr>
         <tr><td>Toolchain</td><td>C++17; MSVC / GCC / Clang; CMake ≥ 3.16 (recommended)</td></tr>
       </tbody>
     </table>
@@ -166,6 +170,10 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a class="toc-card" href="java-api.html"><b>mtr::Api and Java interop</b><span>Call every public Java API JS can reach, callbacks, and a JS ↔ C++ cheat sheet</span></a>
       <a class="toc-card" href="abi.html"><b>C ABI and host services</b><span>Exported functions, frame input and output, draw records, host services, and ABI version history</span></a>
       <a class="toc-card" href="performance.html"><b>Performance and debugging</b><span>GC hygiene, dirty-rectangle uploads, latest.log observability, and troubleshooting</span></a>
+      <a class="toc-card" href="js-getting-started.html"><b>JS Getting Started</b><span>Registration, lifecycle, debugging aids, and writing guidelines</span></a>
+      <a class="toc-card" href="js-api.html"><b>JS Common APIs</b><span>Resources, rendering, models, sounds, networking, MTR data, and utilities</span></a>
+      <a class="toc-card" href="js-types.html"><b>JS Script Types</b><span>Per-type APIs for vehicle / eyecandy / lift / PIDS, plus DisplayHelper</span></a>
+      <a class="toc-card" href="js-yanyang.html"><b>Yanyang Extensions</b><span>Mixed JS + C++ entries, door-direction memory, fine-grained transport types</span></a>
     </div>
   </article>
 
@@ -175,7 +183,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository
   </footer>
 </main>
 </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Quick start — JCM Yanyang C++ Scripting Docs</title>
+<title>Quick start — JCM Yanyang Scripting Docs</title>
 <meta name="description" content="Get the SDK, set up a module project, build it, package it into a resource pack, and verify it in game.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
     <a href="getting-started.html" class="active">Quick start</a>
-    <div class="nav-group">Script Model</div>
+    <div class="nav-group">C++ Scripting</div>
     <a href="script-model.html">Script model and lifecycle</a>
-    <div class="nav-group">API Reference</div>
     <a href="data.html">Data snapshots</a>
     <a href="drawing.html">Drawing and canvases</a>
     <a href="java-api.html">mtr::Api and Java interop</a>
     <a href="abi.html">C ABI and host services</a>
-    <div class="nav-group">Advanced</div>
     <a href="performance.html">Performance and debugging</a>
-  </nav>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html">JS Common APIs</a>
+    <a href="js-types.html">JS Script Types</a>
+    <a href="js-yanyang.html">Yanyang Extensions</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -90,7 +94,7 @@
 
     <h2 id="sdk">Get the SDK</h2>
     <p>The SDK ships with every release as <code>jcm-native-sdk-&lt;version&gt;.zip</code> (see the GitHub Releases assets); its contents are the source of the repository's <code>native/</code> directory:</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
 ├── include/mtr/          # All SDK headers (script.hpp is the single entry point)
 │   ├── mtr_native.h      # C ABI: exported functions, snapshots, draw records, host services
 │   ├── script.hpp        # Script base classes + registration macros (one #include is all you need)
@@ -208,14 +212,16 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
 │   └── ios-arm64/libmy_pids.dylib
 └── ... (the rest of the pack: textures, models, and so on)</code></pre>
 
-    <h3>Declare it in minecraft_custom_resources.json</h3>
+    <h3>Declare it in joban_custom_resources.json (PIDS preset)</h3>
     <p>No <code>language</code> field is needed — the mod detects the language automatically from the characteristics of each <code>scriptLocations</code> entry, and any number of JS and C++ files can be mixed within one entry:</p>
-    <pre><code class="lang-json">"pidsScripts": [{
-    "id": "example:arrivals",
-    "scriptLocations": [
-        "mtr:my_pack/natives/my_pids"
-    ]
-}]</code></pre>
+    <pre><code class="lang-json">{
+    "pids_images": [{
+        "id": "example:arrivals",
+        "scriptLocations": [
+            "mtr:my_pack/natives/my_pids"
+        ]
+    }]
+}</code></pre>
     <p>Entry resolution rules:</p>
     <table>
       <thead><tr><th><code>scriptLocations</code> entry</th><th>Resolution</th></tr></thead>
@@ -227,7 +233,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
       </tbody>
     </table>
     <ul>
-      <li><strong>Same rules for all four script kinds</strong>: <code>vehicleScripts</code> / <code>pidsScripts</code> (including <code>scriptLocations</code> on PIDS presets) / lift / eyecandy all support the mixed declarations above.</li>
+      <li><strong>Same rules for all four script kinds</strong>: <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> in <code>mtr_custom_resources.json</code> and <code>pids_images</code> presets (via <code>scriptLocations</code>) in <code>joban_custom_resources.json</code> all support the mixed declarations above.</li>
       <li><strong>Legacy format still works</strong>: old declarations using <code>"language": "cpp"</code> plus <code>nativeLibrary</code> / <code>nativeLibraries</code> keep working and can be mixed with <code>.js</code>; <code>"language": "javascript"</code> forces the whole entry to be parsed as JS.</li>
       <li><strong>JS fields behave as usual</strong>: fields such as <code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> keep their meaning, and the C++ side reads <code>input</code> through <code>api.input()</code>.</li>
     </ul>
@@ -258,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository
   </footer>
 </main>
 </div>

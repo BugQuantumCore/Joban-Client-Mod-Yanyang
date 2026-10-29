@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>效能與除錯 — JCM Yanyang C++ 腳本開發文件</title>
+<title>效能與除錯 — JCM Yanyang 腳本開發文件</title>
 <meta name="description" content="GC 衛生守則、髒矩形上載策略、latest.log 觀測、JVM 參數與常見問題排解。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">概覽</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">腳本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 腳本</div>
     <a href="script-model.html">腳本模型與生命週期</a>
-    <div class="nav-group">API 參考</div>
     <a href="data.html">資料快照</a>
     <a href="drawing.html">繪製與畫布</a>
     <a href="java-api.html">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
-    <div class="nav-group">進階</div>
     <a href="performance.html" class="active">效能與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 腳本</div>
+    <a href="js-getting-started.html">JS 腳本入門</a>
+    <a href="js-api.html">JS 公用 API</a>
+    <a href="js-types.html">JS 腳本類型</a>
+    <a href="js-yanyang.html">晏陽擴展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -78,9 +82,9 @@
     <table>
       <thead><tr><th>環節</th><th>成本</th></tr></thead>
       <tbody>
-        <tr><td>快照封送處理（宿主 → 模組）</td><td><strong>唯一強制的 Java 穿越</strong>：宿主用重用的建構器把 POD 快照寫進共享頁 / 直接緩衝區</td></tr>
+        <tr><td>快照搬運處理（宿主 → 模組）</td><td><strong>唯一強制的 Java 穿越</strong>：宿主用重用的建構器把 POD 快照寫進共享頁 / 直接緩衝區</td></tr>
         <tr><td>資料讀取（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>普通記憶體讀取，零成本</td></tr>
-        <tr><td>繪製記錄寫入</td><td>競技場內 bump 配置，零配置零裝箱</td></tr>
+        <tr><td>繪製記錄寫入</td><td>記憶體區內 bump 配置，零配置零裝箱</td></tr>
         <tr><td>像素光柵（<code>Gfx2D</code>）</td><td>純 C++ 迴圈；src-over 不透明快速路徑</td></tr>
         <tr><td>宿主回放</td><td>與 JS 相同的渲染路徑；紋理上載只搬運髒矩形</td></tr>
         <tr><td><code>Api</code> 呼叫</td><td>JSON 編碼 + 反射 + JSON 解碼往返——<span class="pill warn">昂貴</span> 只作低頻通道</td></tr>
@@ -100,9 +104,9 @@
     <h2 id="memory">記憶體與延遲回收</h2>
     <p>宿主側的記憶體紀律（腳本作者了解即可，SDK 自動受益）：</p>
     <ul>
-      <li>五個輸出競技場<strong>每模組一份、幀間重用</strong>；像素競技場初始 1 MB、按需增長（上限 16 MB）、尖峰過後確定性收縮回下限——不再有每模組 16 MB 的固定駐留。</li>
-      <li>實例離開視錐不銷毀（保持熱態、重新入鏡零重建）；真正離開用戶端車輛清單約 5 秒後才退休。</li>
-      <li><strong>大塊釋放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 裏死掉的 MB 級緩衝區交給宿主背景回收執行緒，避免把 <code>free</code> 的全部成本記到現時幀、並放大 GC 安全點等待。契約：塊必須已死、無解構、此後無執行緒（含宿主回放）再觸碰。SDK 的像素競技場收縮已自動遵守；你自己的大緩衝區按同樣規則呼叫 <code>host-&gt;defer_free</code>，宿主過舊（插槽為 null）時同步 free 即可。</li>
+      <li>五個輸出記憶體區<strong>每模組一份、幀間重用</strong>；像素記憶體區初始 1 MB、按需增長（上限 16 MB）、尖峰過後確定性收縮回下限——不再有每模組 16 MB 的固定駐留。</li>
+      <li>實例離開視錐不銷毀（原樣保留、重新入鏡零重建）；真正離開用戶端車輛清單約 5 秒後才回收。</li>
+      <li><strong>大塊釋放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 裏死掉的 MB 級緩衝區交給宿主背景回收執行緒，避免把 <code>free</code> 的全部成本記到現時幀、並放大 GC 安全點等待。契約：塊必須已死、無解構、此後無執行緒（含宿主回放）再觸碰。SDK 的像素記憶體區收縮已自動遵守；你自己的大緩衝區按同樣規則呼叫 <code>host-&gt;defer_free</code>，宿主過舊（插槽為 null）時同步 free 即可。</li>
     </ul>
 
     <h2 id="observe">觀測與日誌</h2>
@@ -111,7 +115,7 @@
       <tbody>
         <tr><td>模組 census</td><td><code>logs/latest.log</code> 啟動段</td><td>已載入模組數目與類型；傳輸通道摘要行（含 <code>transport:</code> 字樣：shared-memory / panama-ffm 等）——確認 shm / FFM 真正生效、是否靜默降級</td></tr>
         <tr><td>載入失敗原因</td><td>census 行 + 除錯模式</td><td>某側（JS 或 C++）缺失 / 載入失敗只跳過該側並留提示，另一側照常工作</td></tr>
-        <tr><td>崩潰圍欄</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模組被停用的精確原因</td></tr>
+        <tr><td>崩潰防護</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模組被停用的精確原因</td></tr>
         <tr><td>清掃流量</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏的聚合日誌，可直接觀測實例壽命行為</td></tr>
         <tr><td>上載位元組數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>你的程式碼裏打點：髒矩形策略是否奏效一目了然</td></tr>
       </tbody>
@@ -127,7 +131,7 @@
         <tr><td><code>-Djcm.ffm.disable</code></td><td>關</td><td>除錯開關：停用 Panama FFM 載入路徑</td></tr>
       </tbody>
     </table>
-    <p>實例退休與銷毀還有每 tick 預算（預設 2 個、舊者先出）與世界卸載 / 切換維度 / 斷線時的一次性沖刷。</p>
+    <p>實例回收與銷毀還有每 tick 預算（預設 2 個、舊者先出）與世界卸載 / 切換維度 / 斷線時的一次性沖刷。</p>
 
     <h2 id="faq">常見問題</h2>
     <h3>模組完全不載入？</h3>
@@ -135,7 +139,7 @@
       <li>確認用的是 <strong>Release 或 Complete Build jar</strong>——快速 CI 產物不含原生橋，日誌會寫 <code>native bridge unavailable</code>（這不是你的模組的問題）。</li>
       <li>查平台目錄：現時系統只會載入對應平台的程式庫；無副檔名 stem 宣告會自動展開為各平台路徑（見<a href="getting-started.html#package">打包</a>）。</li>
       <li>查 <code>ID</code> 與宣告項目的 <code>id</code> 是否逐字一致。</li>
-      <li>查 ABI：宿主接受 6–10；ABI 8+ 程式庫需要 Yanyang.7 及以上宿主。</li>
+      <li>查 ABI：宿主接受 6–11；ABI 8+ 程式庫需要 2.3.0-beta-2.yanyang.7 及以上宿主。</li>
     </ol>
     <h3>螢幕出現佔位方框（tofu）？</h3>
     <p>CJK 字形在宿主字型不覆蓋該碼點時退化——給 <code>Text::font()</code> / <code>Gfx2D</code> 建構傳資源字型 id（如 <code>jsblock:shanghai</code>），或檢查所用字型集是否包含這些字元。</p>
@@ -158,7 +162,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

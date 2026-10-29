@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-locale="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JS 公共 API — JCM Yanyang 脚本开发文档</title>
+<meta name="description" content="四类 JS 脚本共用的 API 参考：资源、文件、数学、渲染、模型、动态纹理、声音、网络、控制台、MTR 数据、Minecraft 环境与工具类。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <a href="performance.html">性能与调试</a>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html" class="active">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">JS 公共 API</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / JavaScript 脚本 / JS 公共 API</div>
+      <h1>JS 公共 API</h1>
+      <p class="page-lead">四类脚本都能用的全局类与函数。表格按主题分组；各脚本类型专属的 <code>ctx</code> / <code>wrapper</code> 见 <a href="js-types.html">JS 脚本类型</a>，晏阳自有的扩展见 <a href="js-yanyang.html">晏阳扩展 API</a>。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#notation">速记约定</a></li>
+        <li><a href="#resources">资源与文件</a></li>
+        <li><a href="#math">数学与变换</a></li>
+        <li><a href="#render">渲染</a></li>
+        <li><a href="#model">模型</a></li>
+        <li><a href="#gtexture">动态纹理</a></li>
+        <li><a href="#sound">声音</a></li>
+        <li><a href="#net">网络与后台</a></li>
+        <li><a href="#console">控制台</a></li>
+        <li><a href="#mtrdata">MTR 数据</a></li>
+        <li><a href="#mc">Minecraft 环境</a></li>
+        <li><a href="#utils">工具类</a></li>
+        <li><a href="#features">脚本特性</a></li>
+      </ol>
+    </div>
+
+    <h2 id="notation">速记约定</h2>
+    <ul>
+      <li><code>static</code> 前缀 = 直接以类名调用（<code>Resources.id(...)</code>）；没有它就需要先拿到实例（通常来自其他函数的返回值）。</li>
+      <li>类型标注按 Java 书写：<code>str: String</code> 收 Java 字符串（JS 字符串自动转换）；返回 <code>String?</code> 表示可能为 <code>null</code>；<code>String...</code> 表示可变个数的字符串参数。</li>
+      <li>标 <span class="pill warn">已弃用</span> 的项是 NTE 时代的兼容接口，新脚本别再用；标 <span class="pill yy">晏阳</span> 的项是本分支自有扩展。</li>
+    </ul>
+
+    <h2 id="resources">资源与文件</h2>
+    <h3>Identifier（资源路径）</h3>
+    <p>Minecraft 用 <code>命名空间:路径</code> 形式的 <strong>Identifier</strong> 定位资源。自 JCM v2.3 起，大多数收 Identifier 的地方也能直接给普通字符串：完整形式 <code>"mtr:asd.png"</code>，相对当前脚本目录的路径加 <code>./</code> 前缀（等价 <code>idr()</code>）。</p>
+    <table>
+      <thead><tr><th>函数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Resources.id(idStr: String): Identifier</code></td><td>由字符串创建 Identifier</td></tr>
+        <tr><td><code>static Resources.idr(relPath: String): Identifier</code></td><td>相对<strong>当前脚本</strong>所在目录解析；只能在解析阶段用（运行期没有「当前脚本」概念）</td></tr>
+        <tr><td><code>static Resources.id(id: Identifier, suffix: String): Identifier</code></td><td>在已有 Identifier 后追加后缀——解析期用 <code>idr()</code> 记下基准，运行期再拼路径</td></tr>
+      </tbody>
+    </table>
+    <h3>Resources（资源包读取）</h3>
+    <p>从磁盘读资源比内存操作慢得多：能在解析阶段读好的内容别放进 <code>render()</code> 每帧重读。</p>
+    <table>
+      <thead><tr><th>函数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Resources.read(id): DataReader?</code></td><td>读取资源包文件，返回 <a href="#utils">DataReader</a>；文件不存在返回 <code>null</code></td></tr>
+        <tr><td><code>static Resources.exist(id): boolean</code></td><td>文件是否存在</td></tr>
+        <tr><td><code>static Resources.getSystemFont(name: String): Font</code></td><td>取 AWT 字体。内置项：<code>Noto Serif</code>（CJK 衬线）、<code>Noto Sans SemiBold</code>、<code>Noto Sans CJK TC Medium</code>；另收 <code>Serif</code> / <code>SansSerif</code> / <code>Monospaced</code>（依玩家机器已装字体而定）</td></tr>
+        <tr><td><code>static Resources.hasSystemFont(name: String): boolean</code></td><td>系统里是否存在该字体族（不做内置项特判）</td></tr>
+        <tr><td><code>static Resources.getFontRenderContext(): FontRenderContext</code></td><td>AWT 文字度量用的上下文</td></tr>
+        <tr><td><code>static Resources.ensureStrFonts(text, primaryFont, fallbackFonts...): AttributedString</code></td><td>按主字体＋后备字体链组装文本，主字体缺字时自动回退——多语言混排防「豆腐块」用</td></tr>
+        <tr><td><code>static Resources.getAddonVersion(modId: String): String</code></td><td>取模组版本：<code>"mtr"</code> / <code>"jcm"</code> / <code>"mtrscripting"</code>（车辆 / 装饰物 / 电梯脚本查 <code>mtrscripting</code>，PIDS 查 <code>jcm</code>）</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th><span class="pill warn">已弃用</span></th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>Resources.readString(id)</code> / <code>readBufferedImage(id)</code> / <code>readFont(id)</code></td><td>统一改用 <code>read()</code> + <a href="#utils">DataReader</a></td></tr>
+        <tr><td><code>Resources.manager()</code> / <code>Resources.mgr()</code></td><td>MTR 4 跨版本框架不暴露，恒返回 <code>null</code>；需要它的函数也接受 <code>null</code></td></tr>
+        <tr><td><code>Resources.getMTRVersion()</code> 等 NTE 版本函数</td><td>改用 <code>getAddonVersion()</code>；NTE 系列恒返回旧值只为兼容</td></tr>
+      </tbody>
+    </table>
+    <h3>Files（本地文件）</h3>
+    <p>只能在 <code>.minecraft</code> 内活动：<strong>读 + 写 + 删</strong>限 <code>.minecraft/data/mtrscripting</code>（脚本数据目录），<strong>读</strong>放开到整个 <code>.minecraft</code>。路径以多个参数传递，不要带斜杠：<code>Files.read("config", "mtr.json")</code>。</p>
+    <table>
+      <thead><tr><th>函数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Files.read(path: String...): DataReader?</code></td><td>读 <code>.minecraft</code> 下的文件，不存在返回 <code>null</code></td></tr>
+        <tr><td><code>static Files.readData(path: String...): DataReader?</code></td><td>同上，但相对 <code>data/mtrscripting</code></td></tr>
+        <tr><td><code>static Files.saveData(content: String | BufferedImage, path: String...): void</code></td><td>保存文本或图片；父目录自动创建</td></tr>
+        <tr><td><code>static Files.deleteData(path: String...): void</code></td><td>删除文件</td></tr>
+        <tr><td><code>static Files.hasData(path: String...): boolean</code></td><td>文件 / 目录是否存在</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="math">数学与变换</h2>
+    <h3>Vector3f（三维向量）</h3>
+    <p>坐标 (x, y, z)。JCM 实现底层是 double、对外收放 float，运算方法都返回自身可链式调用：</p>
+    <p><code>new Vector3f(x, y, z)</code>（也可由 TSC 的 <code>Vector</code> / <code>Position</code> 构造）· <code>x() y() z()</code> · <code>copy()</code> · <code>normalize()</code> · <code>add(x,y,z)</code> / <code>add(v)</code> · <code>sub(v)</code> · <code>mul(x,y,z)</code> / <code>mul(n)</code> · <code>rotX(rad)</code> / <code>rotY(rad)</code> / <code>rotZ(rad)</code>（弧度）· <code>cross(v)</code> · <code>distance(v)</code> · <code>distanceSq(v)</code> · <code>rawBlockPos()</code>。常量 <code>Vector3f.ZERO</code> / <code>XP</code> / <code>YP</code> / <code>ZP</code>——<strong>只读，别改动</strong>。</p>
+    <h3>Matrices（变换栈）</h3>
+    <p>渲染常需要「画完这一段、回到之前的变换」。Matrices 是一个变换栈，<code>push</code> 与 <code>pop</code> 成对使用：</p>
+    <p><code>new Matrices()</code>（初始为单位矩阵）· <code>translate(x,y,z)</code> · <code>rotateX/Y/Z(rad)</code>（弧度）· <code>rotateX/Y/ZDegrees(deg)</code>（角度）· <code>pushPose()</code>（保存当前状态）· <code>popPose()</code>（恢复上次保存）· <code>popPushPose()</code>（先恢复再保存）。</p>
+
+    <h2 id="render">渲染</h2>
+    <p>脚本在后台线程跑，渲染在主线程——因此绘制走<strong>绘制指令（draw call）</strong>模式：你在 <code>render()</code> 里把「怎么画」提交给 <code>RenderManager</code>，JCM 记住这批指令，直到你下一次执行前一直按它画。旧指令在每次脚本执行后被清空，<strong>想持续显示就得每轮重新提交</strong>；但执行慢导致漏帧也不怕——JCM 会沿用上一批指令直到你交出新的。</p>
+    <h3>RenderManager</h3>
+    <p>由各类型 <code>ctx.getRenderManager()</code> 获得，自带一个「基础变换」（装饰物 = 方块位置 + GUI 位移与旋转；车辆按车厢……各类型见 <a href="js-types.html">脚本类型</a>页），一切提交相对它绘制：</p>
+    <table>
+      <thead><tr><th>函数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>drawModel(model: Model, matrices?: Matrices)</code></td><td>提交模型；可选附加变换</td></tr>
+        <tr><td><code>drawModel(model, matrices?, light: int)</code></td><td>同上，自定义光照（<code>MinecraftClient.lightAt</code> 取值）</td></tr>
+        <tr><td><code>drawModel(holder: DynamicModelHolder, matrices?: Matrices)</code></td><td>直接提交动态模型持有器——内部自动处理「下一帧才传完」的空档，避免闪烁</td></tr>
+        <tr><td><code>draw(call: DrawCall)</code></td><td>提交裸绘制指令（<code>QuadDrawCall</code> 等）</td></tr>
+      </tbody>
+    </table>
+    <h3>QuadDrawCall（四边形）</h3>
+    <p>画一个四边形面，可指定纹理、UV、染色、光照——常拿来贴动态纹理模拟屏幕：</p>
+    <p><code>static QuadDrawCall.create()</code>（可带注释参数）· <code>quad(c1, c2, c3, c4)</code> 或 <code>corner1..4(pos)</code>（四个 <code>Vector3f</code>）· <code>renderType(str)</code> · <code>color(rgb)</code> · <code>texture(id)</code> · <code>uv(u1,v1,u2,v2)</code>（0–1）· <code>matrices(m)</code>。</p>
+    <p><strong>renderType 取值</strong>：<code>EXTERIOR</code>（车外漆面，受位置光照，默认）、<code>EXTERIOR_TRANSLUCENT</code>、<code>INTERIOR</code>（车内，全亮带面着色）、<code>INTERIOR_TRANSLUCENT</code>、<code>LIGHT</code>（全亮无阴影，适合 LCD）、<code>LIGHT_TRANSLUCENT</code>。模型侧另有 <code>ALWAYS_ON_LIGHT</code>。</p>
+
+    <h2 id="model">模型</h2>
+    <p>支持 <strong>WaveFront OBJ</strong> 与 <strong>Metasequoia（.mqo）</strong>；Blockbench 的 <code>.bbmodel</code> <strong>不支持</strong>。Blender / Blockbench 导出的 OBJ 需要翻转 V 轴（<code>flipV = true</code>，默认值），Metasequoia 导出的要显式传 <code>false</code>。</p>
+    <table>
+      <thead><tr><th>类</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td><code>ModelManager</code></td><td><code>loadModel(id, flipV=true): RawModel</code>、<code>loadModelParts(id, flipV=true): Map&lt;String, RawModel&gt;</code>（按对象组拆分）、<code>upload(rawModel): Model</code>（上传 GPU；<strong>仅解析阶段</strong>——运行期用 DynamicModelHolder）</td></tr>
+        <tr><td><code>RawModel</code></td><td>顶点数据容器：<code>append(mesh|model)</code>、<code>applyTranslation(x,y,z)</code>、<code>applyRotation(dir, angleDeg)</code>、<code>applyScale(x,y,z)</code>、<code>applyMirror(x,y,z)</code>、<code>applyUVMirror(u,v)</code>、<code>setAllRenderType(str)</code>、<code>copy()</code>、<code>replaceTexture(fileName, id)</code>、<code>replaceAllTexture(id)</code></td></tr>
+        <tr><td><code>Model</code></td><td>已上传 GPU：顶点不可再改，但仍可 <code>replaceTexture(...)</code> / <code>replaceAllTexture(...)</code> / <code>copyForMaterialChanges()</code> / <code>close()</code></td></tr>
+        <tr><td><code>RawMeshBuilder</code></td><td>代码建模型：<code>new RawMeshBuilder(faceSize, renderType, textureId)</code> 后 <code>vertex(pos)</code> → <code>normal(x,y,z)</code> → <code>uv(u,v)</code> → <code>endVertex()</code>（可加 <code>color(r,g,b,a)</code>），<code>getMesh()</code> 或 <code>asRawModel()</code> 收工</td></tr>
+        <tr><td><code>DynamicModelHolder</code></td><td>运行期上传：<code>uploadLater(rawModel)</code>（下一帧在渲染线程上传）、<code>getUploadedModel()</code>（可能为旧模型或 null，优先直接把持有器交给 <code>drawModel</code>）、<code>close()</code></td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">提示</span>
+      <p>运行期的简单变换（平移 / 旋转 / 缩放）用 <code>Matrices</code> 传给 <code>drawModel</code>，别每帧改顶点再重上传——后者性能差几个数量级。</p>
+    </div>
+
+    <h2 id="gtexture">动态纹理</h2>
+    <h3>GraphicsTexture</h3>
+    <p>固定分辨率的虚拟纹理 + Java AWT 画布，画完上传给游戏显示——车内外屏幕、LED 显示牌都靠它：</p>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>new GraphicsTexture(width, height)</code></td><td>创建。逐块屏 / 逐车的内容请在 <code>create</code> 里建并存进 <code>state</code></td></tr>
+        <tr><td><code>.identifier</code></td><td>该纹理的 Identifier——交给 <code>QuadDrawCall.texture()</code> 或替换模型贴图</td></tr>
+        <tr><td><code>.bufferedImage</code> / <code>.graphics</code></td><td>AWT <code>BufferedImage</code> 画布与其 <code>Graphics2D</code>（默认只开文字抗锯齿）</td></tr>
+        <tr><td><code>.fullAA()</code> / <code>.noAA()</code></td><td>全抗锯齿 / 全关（点阵屏常用 noAA）</td></tr>
+        <tr><td><code>.upload()</code></td><td>把整张图上传显存。开销不小——配合 <code>RateLimit</code> 降频（如 10 Hz）、远处不更新</td></tr>
+        <tr><td><code>.upload(x, y, width, height)</code></td><td>只上传子区域，旧内容保留。参数形式 2：<code>upload(dstX, dstY, srcX, srcY, w, h)</code>；还可直接传外部 <code>BufferedImage</code>：<code>upload(img, dstX, dstY, srcX, srcY, w, h)</code></td></tr>
+        <tr><td><code>.close()</code></td><td>释放显存。在 <code>create</code> 里建就必须在 <code>dispose</code> 里关，否则泄漏</td></tr>
+        <tr><td><span class="pill yy">晏阳</span> <code>.uploadRawABGR(bytes, dstX, dstY, w, h, lut)</code></td><td>把 BGRA 顺序的字节行阵直写进纹理再只上传该矩形——供逐像素高频更新省带宽，详见 <a href="js-yanyang.html#rawupload">晏阳扩展</a></td></tr>
+      </tbody>
+    </table>
+    <p>AWT 侧常用：<code>Color.decode</code> / <code>new Color</code>、<code>graphics.setColor / setFont / setStroke</code>、<code>drawRect / fillRect / drawRoundRect / fillRoundRect</code>、<code>drawImage / drawString</code>、<code>Font.deriveFont</code>、<code>GradientPaint</code>、<code>AffineTransform</code>、<code>setClip</code>、<code>AlphaComposite</code>；用 Rhino 的 <code>importPackage(java.awt)</code> 引入。教程看 <a href="https://docs.oracle.com/javase/8/docs/api/java/awt/Graphics2D.html" rel="noopener">Graphics2D 的 JavaDoc</a>。</p>
+    <div class="admonition warn">
+      <span class="admonition-title">注意</span>
+      <p>新建的纹理内容不保证干净（可能复用旧内存显示花屏）——创建后先 <code>upload()</code> 一次刷成自己的内容。</p>
+    </div>
+    <p>车辆多屏需求可改用内置的 <strong>DisplayHelper</strong>（<code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code>）：一张大纹理切槽位、模型随配置自动生成，见 <a href="js-types.html#displayhelper">脚本类型页</a>。</p>
+
+    <h2 id="sound">声音</h2>
+    <h3>SoundManager</h3>
+    <p>各类型 <code>ctx.getSoundManager()</code> 获得，基准位置随类型而定：</p>
+    <p><code>playLocalSound(id, volume, pitch, category="MASTER")</code>（无定位，报站类）· <code>playSound(id, pos, volume, pitch, category="MASTER")</code>（世界定位，相对基准位置）· <code>play(soundInstance)</code> / <code>stop(soundInstance)</code>（可控制实例）。</p>
+    <h3>TickableSoundInstance</h3>
+    <p>一次性音效播完就没法再管；需要中途调音量 / 打断的场景用可控制实例（车载复杂报站、电机音、循环音乐）：</p>
+    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code>（1.0 为基准）· <code>setLoopable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code>（跟随玩家恒定音量）· <code>setPos(v)</code>（循环声音必须自己逐帧更新位置）· <code>isPlaying()</code>。循环实例务必在 <code>dispose</code> 里 <code>stop</code>。</p>
+    <p><strong>声音类别</strong>：<code>MASTER</code> <code>BLOCKS</code> <code>MUSIC</code> <code>RECORDS</code> <code>WEATHER</code> <code>HOSTILE</code> <code>NEUTRAL</code> <code>PLAYERS</code> <code>AMBIENT</code> <code>VOICE</code>。</p>
+
+    <h2 id="net">网络与后台</h2>
+    <h3>Networking</h3>
+    <p><code>static Networking.fetch(url, requestOption?): NetworkResponse&lt;DataReader&gt;</code>。<code>RequestOption</code> 是普通 JS 对象：<code>method</code>（默认 GET）、<code>connectTimeout</code> / <code>readTimeout</code>（毫秒）、<code>headers</code>（对象）、<code>body</code>（字符串，自动带 Content-Length）。</p>
+    <p><code>NetworkResponse</code>：<code>getResponseCode()</code> · <code>success()</code>（拿到响应即真——判业务成功用 <code>ok()</code>，即 200–299）· <code>getData()</code>（失败为 null）· <code>exception()</code> · <code>getHeaders()</code>。</p>
+    <p>请求默认带 <code>User-Agent: Joban Client Mod (https://jcm.joban.org)</code>，正常途径改不掉（除非玩家关闭脚本限制）。网络请求放后台线程做（见下）。</p>
+    <h3>BackgroundWorker</h3>
+    <p><code>static BackgroundWorker.submit(task)</code> 把 lambda 任务交给单线程后台执行器——别过度依赖，其他脚本也要用它；任务内部的异常要自己 try/catch。资源包重载时队列清空、在跑任务被中断，卡死也能自愈。</p>
+    <pre><code class="lang-js">BackgroundWorker.submit(() =&gt; {
+    let resp = Networking.fetch("https://example.com/data.json");
+    if (resp.ok()) {
+        let str = resp.getData().asString();
+        // 处理后写进 state，render 里读
+    }
+});</code></pre>
+
+    <h2 id="console">控制台</h2>
+    <p><code>print(...)</code> 与 <code>console.log(...)</code> 等价（NTE 遗产，随便用）。Console API 对齐 Web 惯例但不含表格 / profile 类方法：</p>
+    <p><code>console.log / warn / error / debug(...)</code>（debug 仅调试模式输出）· <code>console.count(label="default")</code> / <code>countReset(label)</code>（计数器按标签独立）· <code>console.time(label)</code> / <code>timeLog(label)</code> / <code>timeEnd(label)</code>（计时器按标签独立）。占位符插值不支持，模板字符串够用。</p>
+
+    <h2 id="mtrdata">MTR 数据</h2>
+    <h3>MTR.ClientConfig（玩家偏好）</h3>
+    <p><code>isChatAnnouncementEnabled()</code> · <code>isTtsAnnouncementEnabled()</code> · <code>shouldHideTranslucentParts()</code> · <code>getLanguageDisplay()</code>（<code>NORMAL</code> / <code>CJK_ONLY</code> / <code>NON_CJK_ONLY</code>）· <code>getDynamicTextureResolution()</code>（0–8）· <code>getVehicleOscillationMultiplier()</code>（×10 得百分比）· <code>getDefaultRail3D()</code> · <code>isCustomFontEnabled()</code>。</p>
+    <h3>MTR.Data（客户端已知数据）</h3>
+    <p>MTR 4 只同步<strong>附近</strong>的数据——查不到远处不奇怪，很多函数会返回 <code>null</code>：</p>
+    <table>
+      <thead><tr><th>分组</th><th>函数</th></tr></thead>
+      <tbody>
+        <tr><td>车站 / 车厂</td><td><code>findStation(pos)</code> · <code>getStation(id)</code> · <code>getKnownStations()</code>；<code>findDepot(pos)</code> · <code>getDepot(id)</code> · <code>getKnownDepots()</code></td></tr>
+        <tr><td>线路</td><td><code>getRoute(id)</code> · <code>getKnownRoutes()</code> · <code>getKnownRoutesPassingPlatform(platformId)</code></td></tr>
+        <tr><td>载具</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code></td></tr>
+        <tr><td>电梯</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code></td></tr>
+        <tr><td>轨道</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code></td></tr>
+        <tr><td>站台 / 侧线</td><td><code>getPlatform(id)</code> · <code>getKnownPlatforms()</code> · <code>findNearbyPlatforms(pos, radius)</code>；<code>getSiding(id)</code> · <code>getKnownSidings()</code> · <code>findNearbySidings(pos, radius)</code></td></tr>
+        <tr><td>到站</td><td><code>getArrivals(platformId | platformIds[]): ArrivalEntries</code>——与 PIDS 脚本里 <code>pids.arrivals()</code> 同物</td></tr>
+      </tbody>
+    </table>
+    <p><code>MTRClientData</code> 是 MTR 内部数据类的直通引用，仅作最后手段——它没有稳定性承诺，跨版本可能变。</p>
+
+    <h2 id="mc">Minecraft 环境</h2>
+    <h3>MinecraftClient</h3>
+    <p><code>worldIsRaining()</code> · <code>worldIsThundering()</code> · <code>worldIsRainingAt(pos)</code> · <code>worldDayTime()</code> · <code>blockLightAt(pos)</code> · <code>skyLightAt(pos)</code> · <code>lightAt(pos)</code>（渲染用打包值）· <code>lightLevelAt(pos)</code> · <code>renderDistance()</code> · <code>localPlayer()</code> · <code>gamePaused()</code>（TSC 模拟不随暂停停！）· <code>narrate(msg)</code> · <code>displayMessage(msg, actionBar)</code>（也收 <code>VanillaText</code>）· <code>spawnParticleInWorld(id, pos, velocity, alwaysSpawn=false)</code> · <code>getScoreboardScore(objective, player)</code> · <code>getWorldPlayers()</code> · <code>getCurrentWorldId()</code> · <code>getCameraMode()</code> · <code>getRedstoneLevel(pos)</code> · <code>getWorldBlockState(pos, stateName)</code>。</p>
+    <h3>VanillaText（原版富文本）</h3>
+    <p>构造聊天 / 覆盖层用的原版文本组件：<code>literal(str)</code> · <code>translatable(key, ...)</code> · <code>append(other)</code> · <code>withBold()</code> · <code>withItalic()</code> · <code>withFont(id)</code> · <code>withColor(rgb | name)</code> · <code>clickToCopyText(str)</code> · <code>clickToOpenURL(url)</code> · <code>withHoverText(str | VanillaText)</code> · <code>getString()</code>（拿本地化结果）。</p>
+    <h3>VoxelShape（方块轮廓）</h3>
+    <p>装饰物自定义碰撞 / 轮廓用：<code>empty()</code> · <code>fullCube()</code> · <code>create(minX, minY, minZ, maxX, maxY, maxZ, facing?)</code>（单位 16 = 一格）· <code>combine(other)</code>；配合 <code>ctx.setOutlineShape(...)</code> / <code>ctx.setCollisionShape(...)</code>。</p>
+    <h3>ItemStack / PlayerEntity</h3>
+    <p><code>ItemStack</code>：<code>itemId()</code> · <code>translationId()</code> · <code>empty()</code> · <code>count()</code>。<code>PlayerEntity</code>（通常来自 <code>MinecraftClient.localPlayer()</code> 或事件）：<code>uuid()</code> · <code>pos() / blockPos() / smoothPos() / velocity()</code> · <code>pitch() / yaw() / bodyYaw()</code> · <code>playerName() / displayName()</code> · <code>hasPermissionLevel(level)</code>（客户端信息，别当真）· <code>mainHandItem() / offHandItem() / activeItem() / isHoldingItem(id)</code> · <code>isSneaking() / isSprinting() / isSwimming() / isCreative() / isSpectator()</code>。</p>
+
+    <h2 id="utils">工具类</h2>
+    <h3>DataReader（统一解码）</h3>
+    <p><code>Resources.read</code> / <code>Files.read</code> / <code>Networking.fetch</code> 都返回它——字节序列的解码器：</p>
+    <p><code>asString(): String?</code>（UTF-8）· <code>asBufferedImage(): BufferedImage?</code> · <code>asFont(): Font?</code>（TTF/OTF；实现会在临时目录落文件，磁盘紧张可清 <code>+~JF</code> 开头的残留）· <code>asByteArray(): byte[]</code> · <code>openInputStream(callback)</code>（自动关流）· <code>asInputStream()</code>（要自己关）。解码失败返回 <code>null</code> 并在控制台报错。</p>
+    <h3>其余工具</h3>
+    <table>
+      <thead><tr><th>类</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td><code>Timing</code></td><td><code>elapsed()</code>（游戏运行秒数，暂停也走）· <code>delta()</code>（距上次 render 的秒差——按帧率缩放动画全靠它）· <code>currentTimeMillis()</code> · <code>nanoTime()</code></td></tr>
+        <tr><td><code>TextUtil</code></td><td>拆 MTR 的 <code>中文|English||附加</code> 命名格式：<code>getCjkParts</code> / <code>getNonCjkParts</code> / <code>getExtraParts</code> / <code>getNonExtraParts</code> / <code>getNonCjkAndExtraParts</code> / <code>isCjk</code> / <code>cycleString(src[, tick])</code></td></tr>
+        <tr><td><code>StateTracker</code></td><td>状态变迁跟踪（避免「满足条件就每帧播一次」）：<code>setState(value): boolean</code>（变化才真）· <code>stateNow()</code> / <code>stateLast()</code> / <code>stateNowDuration()</code> / <code>stateNowFirst()</code> · <code>changedTo(v)</code> / <code>changedFromTo(old, v)</code>；逐对象一份，存 <code>state</code></td></tr>
+        <tr><td><code>CycleTracker</code></td><td>按时间循环轮播：<code>new CycleTracker(["route", 5, "next", 5])</code> + <code>tick()</code> · <code>stateNow()</code> / <code>stateLast()</code> / <code>stateNowDuration()</code> / <code>stateNowFirst()</code></td></tr>
+        <tr><td><code>RateLimit</code></td><td>限频：<code>new RateLimit(intervalSec)</code> + <code>if (rl.shouldUpdate()) { ... }</code>；<code>resetCoolDown()</code> 立即到点</td></tr>
+        <tr><td><code>Java</code></td><td>Java 互操作帮手：<code>Java.newArray(class, length | dims)</code>、<code>Java.toArray(class, list)</code>——AWT 某些方法要真 Java 数组</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="features">脚本特性</h2>
+    <h3>include（脚本互相包含）</h3>
+    <pre><code class="lang-js">include(Resources.id("mtrsteamloco:scripts/display_helper.js"));  // 绝对路径
+include("./util/common.js");                                     // 相对当前脚本</code></pre>
+    <p>在<strong>解析阶段</strong>加载并执行另一个 JS 文件（可收字符串相对路径或 Identifier）。</p>
+    <h3>脚本条目互引</h3>
+    <p>同包内没有内容引用的脚本条目默认拒绝加载（防漏写 <code>scriptId</code>）；给脚本条目加 <code>"forceLoad": true</code> 可强制加载——跨包共享脚本条目、MTR 3 条目借 MTR 4 共享声明时用，注意资源包加载顺序（声明方先加载）。</p>
+    <h3>ANTE 兼容类</h3>
+    <p><code>SoundHelper</code>（ANTE 风格放音）、<code>TickableSound</code>、<code>GlobalRegister</code>、<code>ComponentUtil</code>（原版文本组件工具）与全局 <code>asJavaArray(list, class)</code> 自 v2.3 起可用，签名与 ANTE 一致，方便 ANTE 内容迁移。</p>
+
+    <hr>
+    <p>接下来：<a href="js-types.html">JS 脚本类型</a> —— 车辆 / 装饰物 / 电梯 / PIDS 的专属 API；<a href="js-yanyang.html">晏阳扩展 API</a> —— 本分支在 JS 之上增加的能力。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="js-getting-started.html">JS 脚本入门</a>
+      <a href="js-types.html">JS 脚本类型</a>
+    </div>
+    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-prerelease.2-yanyang.1 · 上游对照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>數據快照 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>數據快照 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 快照包裝器訪問器之全備覽。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,7 +64,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / API 備覽 / 數據快照</div>
       <h1>數據快照</h1>
-      <p class="page-lead">每幀一遭，宿主封送之唯讀數據也。諸訪問器所為，皆尋常記憶體之讀——零 JNI，零反射，零裝箱。</p>
+      <p class="page-lead">每幀一遭，宿主搬運之唯讀數據也。諸訪問器所為，皆尋常記憶體之讀——零 JNI，零反射，零裝箱。</p>
     </header>
 
     <div class="page-toc">
@@ -76,7 +82,7 @@
     </div>
 
     <h2 id="how">快照之機</h2>
-    <p>每幀方始，宿主以此實例之數據<strong>一舉</strong>封送，為一 POD 快照：定長之首，變長之陣列池，UTF-8 字串之池，三者具焉；連狀態塊之指針，併傳於 <code>mtrRender</code>。SDK 之具型包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）居此記憶體之上，供與 JS Wrapper <strong>同名</strong>之訪問器：</p>
+    <p>每幀方始，宿主以此實例之數據<strong>一舉</strong>搬運，為一 POD 快照：定長之首，變長之陣列池，UTF-8 字串之池，三者具焉；連狀態塊之指針，併傳於 <code>mtrRender</code>。SDK 之具型包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）居此記憶體之上，供與 JS Wrapper <strong>同名</strong>之訪問器：</p>
     <ul>
       <li>字串以 <code>mtr::StrView</code>（<code>data</code>＋<code>len</code>）而返；<code>.str()</code> 則轉為 <code>std::string</code>，<code>.empty()</code> 則判其虛實。視圖惟本次 <code>render</code> 一呼之內為效。</li>
       <li>索引越界，則擲 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 同其義也）。</li>
@@ -91,7 +97,7 @@
     <div class="admonition note">
       <span class="admonition-title">術語：MTR 三代之 train → MTR 四代之 vehicle</span>
       <p>MTR 四代之制，載具統名曰 <strong>vehicle</strong>（資源包宣告之鍵 <code>vehicleScripts</code>，Java 側則 <code>VehicleWrapper</code> 是也），故本 SDK 數據包裝之類，名之曰 <code>mtr::Vehicle</code>。前代 SDK 嘗循 MTR 三代之舊，名之曰 <code>mtr::Train</code>；今舊名猶存，為<strong>源碼相容之別名</strong>——二名並可編譯，所行全同。</p>
-    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 yanyang.7 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
+    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 2.3.0-prerelease.2-yanyang.1 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
     <p><code>mtr::Vehicle</code> 所供者，映 JS 之 <code>VehicleWrapper</code> 加 <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>訪問器</th><th>類型</th><th>釋義</th></tr></thead>
@@ -270,7 +276,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

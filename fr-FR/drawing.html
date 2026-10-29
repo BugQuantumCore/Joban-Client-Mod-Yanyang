@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Dessin et canevas — Documentation JCM Yanyang C++ Scripting</title>
+<title>Dessin et canevas — Documentation JCM Yanyang Scripting</title>
 <meta name="description" content="API en chaîne Text / Texture, Matrices, téléversement des rectangles modifiés de GraphicsTexture, rastériseur logiciel Gfx2D et système de polices.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
     <a href="getting-started.html">Démarrage rapide</a>
-    <div class="nav-group">Modèle de script</div>
+    <div class="nav-group">Scripts C++</div>
     <a href="script-model.html">Modèle de script et cycle de vie</a>
-    <div class="nav-group">Référence API</div>
     <a href="data.html">Instantanés de données</a>
     <a href="drawing.html" class="active">Dessin et canevas</a>
     <a href="java-api.html">mtr::Api et interopérabilité Java</a>
     <a href="abi.html">ABI C et services de l’hôte</a>
-    <div class="nav-group">Aller plus loin</div>
     <a href="performance.html">Performance et débogage</a>
-  </nav>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html">Extensions Yanyang</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -120,7 +124,7 @@
     <p>Couches de rendu (énumération 2D <code>MtrRenderLayer</code>, indépendante de <code>mtr::Matrices</code>) : <code>MTR_LAYER_TEXT</code> (texte), <code>MTR_LAYER_LIGHT</code> (éléments lumineux), <code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code> (extérieur / intérieur), alignées sur le <code>QueuedRenderLayer</code> de MTR.</p>
 
     <h2 id="matrices">Matrices et dessin de modèles</h2>
-    <p><code>&lt;mtr/matrices.hpp&gt;</code> est le miroir du <code>Matrices</code> global de JS : les transformations sont empilées, et <code>compile()</code> compile la pile courante en un jeu de matrices écrit dans l’arène de matrices de la frame :</p>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> est le miroir du <code>Matrices</code> global de JS : les transformations sont empilées, et <code>compile()</code> compile la pile courante en un jeu de matrices écrit dans la zone de matrices de la frame :</p>
     <pre><code class="lang-cpp">mtr::Matrices m;
 m.translate(0.5f, 1.0f, 0.0f);
 m.rotate_y_degrees(90.0f);
@@ -161,7 +165,7 @@ void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&am
         <tr><td><code>create(input, w, h)</code></td><td>alloue le tampon de pixels (BGRA8, ordre des lignes) et crée la texture GPU côté hôte ; au retour, l’intégralité est considérée comme modifiée</td></tr>
         <tr><td><code>pixels() / pixels32()</code></td><td>pointeurs pixels directs (<code>uint8_t*</code> / <code>uint32_t*</code>)</td></tr>
         <tr><td><code>set_pixel(x, y, argb)</code></td><td>écrit un pixel et cumule automatiquement la zone modifiée</td></tr>
-        <tr><td><code>upload(frame)</code></td><td>écrit le rectangle modifié courant dans l’arène de pixels de la frame (un enregistrement <code>JCM_DRAW_TEXTURE_UPLOAD</code>), puis réinitialise la zone modifiée</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>écrit le rectangle modifié courant dans la zone de pixels de la frame (un enregistrement <code>JCM_DRAW_TEXTURE_UPLOAD</code>), puis réinitialise la zone modifiée</td></tr>
         <tr><td><code>last_upload_bytes()</code></td><td>nombre d’octets du dernier téléversement — l’outil d’observation de performance par excellence</td></tr>
         <tr><td><code>close(input)</code> / destructeur</td><td>libère la texture GPU de l’hôte</td></tr>
         <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>handle de texture côté hôte et informations de dimensions</td></tr>
@@ -220,7 +224,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

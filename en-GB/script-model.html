@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Script model and lifecycle — JCM Yanyang C++ Scripting Documentation</title>
+<title>Script model and lifecycle — JCM Yanyang Scripting Documentation</title>
 <meta name="description" content="The four script base classes, State semantics, the create/render/dispose sequence, threading model and crash isolation.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>Yanyang scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
     <a href="getting-started.html">Quick start</a>
-    <div class="nav-group">Script Model</div>
+    <div class="nav-group">C++ scripting</div>
     <a href="script-model.html" class="active">Script model and lifecycle</a>
-    <div class="nav-group">API Reference</div>
     <a href="data.html">Data snapshots</a>
     <a href="drawing.html">Drawing and canvases</a>
     <a href="java-api.html">mtr::Api and Java interop</a>
     <a href="abi.html">C ABI and host services</a>
-    <div class="nav-group">Advanced</div>
     <a href="performance.html">Performance and debugging</a>
-  </nav>
+    <div class="nav-group">JavaScript scripting</div>
+    <a href="js-getting-started.html">JS getting started</a>
+    <a href="js-api.html">JS common APIs</a>
+    <a href="js-types.html">JS script types</a>
+    <a href="js-yanyang.html">Yanyang extensions</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -116,7 +120,7 @@ struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
 MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
 
     <ul>
-      <li><strong><code>ID</code></strong> is the script's namespaced id (e.g. <code>demo:vehicle</code>) and must match the <code>id</code> of its declaration entry in the resource pack's <code>minecraft_custom_resources.json</code>.</li>
+      <li><strong><code>ID</code></strong> is the script's namespaced id (e.g. <code>demo:vehicle</code>) and must match the <code>id</code> of its declaration entry in the resource pack's <code>mtr_custom_resources.json</code>.</li>
       <li>All three lifecycle functions are optional overrides (the base class provides empty implementations); the parameter signatures are fixed.</li>
       <li>One translation unit registers one script; split multiple scripts across multiple module libraries.</li>
     </ul>
@@ -195,7 +199,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ scripting documentation · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+    JCM Yanyang scripting documentation · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>
   </footer>
 </main>
 </div>

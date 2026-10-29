@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>绘制与画布 — JCM Yanyang C++ 脚本开发文档</title>
+<title>绘制与画布 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="Text / Texture 流式 API、Matrices、GraphicsTexture 脏矩形上传、Gfx2D 软件光栅器与字体体系。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html">数据快照</a>
     <a href="drawing.html" class="active">绘制与画布</a>
     <a href="java-api.html">mtr::Api 与 Java 互操作</a>
     <a href="abi.html">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -120,7 +124,7 @@
     <p>渲染层（<code>mtr::Matrices</code> 无关的 2D 层枚举 <code>MtrRenderLayer</code>）：<code>MTR_LAYER_TEXT</code>（文字）、<code>MTR_LAYER_LIGHT</code>（发光体）、<code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code>（外观 / 内饰），与 MTR 的 <code>QueuedRenderLayer</code> 一致。</p>
 
     <h2 id="matrices">Matrices 与模型绘制</h2>
-    <p><code>&lt;mtr/matrices.hpp&gt;</code> 镜像 JS 的全局 <code>Matrices</code>：变换压栈、<code>compile()</code> 把当前栈编译为一组矩阵写进帧矩阵竞技场：</p>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> 镜像 JS 的全局 <code>Matrices</code>：变换压栈、<code>compile()</code> 把当前栈编译为一组矩阵写进帧矩阵内存区：</p>
     <pre><code class="lang-cpp">mtr::Matrices m;
 m.translate(0.5f, 1.0f, 0.0f);
 m.rotate_y_degrees(90.0f);
@@ -161,7 +165,7 @@ void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&am
         <tr><td><code>create(input, w, h)</code></td><td>分配像素缓冲（BGRA8 行主序）并在宿主侧创建 GPU 纹理，返回后整体视为脏</td></tr>
         <tr><td><code>pixels() / pixels32()</code></td><td>直接像素指针（<code>uint8_t*</code> / <code>uint32_t*</code>）</td></tr>
         <tr><td><code>set_pixel(x, y, argb)</code></td><td>写单像素并自动累计脏区</td></tr>
-        <tr><td><code>upload(frame)</code></td><td>把当前脏矩形写入帧像素竞技场（一条 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 记录），随后脏区复位</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>把当前脏矩形写入帧像素内存区（一条 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 记录），随后脏区复位</td></tr>
         <tr><td><code>last_upload_bytes()</code></td><td>上次上传的字节数——性能观测利器</td></tr>
         <tr><td><code>close(input)</code> / 析构</td><td>释放宿主 GPU 纹理</td></tr>
         <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>宿主纹理句柄与尺寸信息</td></tr>
@@ -220,7 +224,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

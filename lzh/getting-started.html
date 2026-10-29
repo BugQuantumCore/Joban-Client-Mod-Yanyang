@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>入門 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>入門 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="取 SDK、立模塊工程、編譯、納諸資源包、驗於遊戲之中。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -90,7 +96,7 @@
 
     <h2 id="sdk">取 SDK</h2>
     <p>每有 Release，SDK 必刊為 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（見 GitHub Releases 之附件）；啟之，即倉庫 <code>native/</code> 目錄之源碼：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
 ├── include/mtr/          # SDK 諸頭文件盡在（script.hpp 為總門）
 │   ├── mtr_native.h      # C ABI：導出函數、快照、繪製記錄、宿主服務
 │   ├── script.hpp        # 腳本基類＋註冊宏（惟 #include 此一足矣）
@@ -208,14 +214,16 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
 │   └── ios-arm64/libmy_pids.dylib
 └── ...（貼圖、模型等其餘資源）</code></pre>
 
-    <h3>宣之於 minecraft_custom_resources.json</h3>
+    <h3>宣之於 mtr_custom_resources.json</h3>
     <p><code>language</code> 之欄，無須設之——模組視 <code>scriptLocations</code> 每條之徵，自判其語；同一條目之內，JS 與 C++ 雜用任意之數，皆無不可：</p>
-    <pre><code class="lang-json">"pidsScripts": [{
-    "id": "example:arrivals",
-    "scriptLocations": [
-        "mtr:my_pack/natives/my_pids"
-    ]
-}]</code></pre>
+    <pre><code class="lang-json">{
+    "pids_images": [{
+        "id": "example:arrivals",
+        "scriptLocations": [
+            "mtr:my_pack/natives/my_pids"
+        ]
+    }]
+}</code></pre>
     <p>條目解析之規：</p>
     <table>
       <thead><tr><th><code>scriptLocations</code> 條目</th><th>所判</th></tr></thead>
@@ -227,7 +235,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
       </tbody>
     </table>
     <ul>
-      <li><strong>四類腳本，同其規</strong>：<code>vehicleScripts</code>、<code>pidsScripts</code>（暨 PIDS 預設之 <code>scriptLocations</code>）、電梯、裝飾，皆許上述混雜之宣告。</li>
+      <li><strong>四類腳本，同其規</strong>：<code>mtr_custom_resources.json</code> 之 <code>vehicleScripts</code>、<code>objectScripts</code>、<code>liftScripts</code>，暨 <code>joban_custom_resources.json</code> 之 <code>pids_images</code> 預設（<code>scriptLocations</code>），皆許上述混雜之宣告。</li>
       <li><strong>舊格相容</strong>：<code>"language": "cpp"</code> 而加 <code>nativeLibrary</code> / <code>nativeLibraries</code> 者，舊宣告也，依然有效，亦得與 <code>.js</code> 相雜；<code>"language": "javascript"</code> 則強使整條按 JS 解之。</li>
       <li><strong>JS 之欄如常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 諸欄之義不變；C++ 側經 <code>api.input()</code> 而讀 <code>input</code>。</li>
     </ul>
@@ -258,7 +266,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

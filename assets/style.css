@@ -750,6 +750,7 @@ td code {
 .pill.ok { color: var(--accent-strong); background: var(--accent-soft); border-color: var(--accent-border); }
 .pill.warn { color: var(--warn); background: var(--warn-soft); border-color: var(--warn-border); }
 .pill.muted { color: var(--muted); background: var(--inline-code-bg); border-color: var(--border); }
+.pill.yy { color: var(--info); background: var(--info-soft); border-color: var(--info-border); font-weight: 600; }
 
 /* 步骤 */
 .steps { counter-reset: step; margin: 18px 0; }

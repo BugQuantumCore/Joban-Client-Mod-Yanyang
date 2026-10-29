@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="lzh" data-locale="lzh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JavaScript 之腳入門 — JCM Yanyang 腳本開發文檔</title>
+<meta name="description" content="以 JavaScript 撰 MTR 車輛、裝飾、電梯與 PIDS 之腳：註冊、生命週期、除錯之輔與撰寫之守則。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">肇始</div>
+    <a href="index.html">綜覽</a>
+    <a href="getting-started.html">入門</a>
+    <div class="nav-group">腳本體例</div>
+    <a href="script-model.html">腳本體例與生命週期</a>
+    <div class="nav-group">API 備覽</div>
+    <a href="data.html">數據快照</a>
+    <a href="drawing.html">繪事與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">精進</div>
+    <a href="performance.html">疾徐與除錯</a>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html" class="active">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="夜色" data-light="晝色">夜色</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="擇語"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="展開目錄">☰ 目錄</button>
+    <span class="title">JavaScript 之腳入門</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文檔</a> / JavaScript 之腳 / JS 之腳入門</div>
+      <h1>JavaScript 之腳入門</h1>
+      <p class="page-lead">JCM 自 v2 以降，許資源包以 <strong>JavaScript</strong> 司車輛、裝飾、電梯之渲染與聲音，暨 PIDS 之屏所顯之內容。本頁備載註冊、生命週期、除錯與守則；API 之細務，具於後之三篇。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁之目</b>
+      <ol>
+        <li><a href="#what">JS 之腳，何物也</a></li>
+        <li><a href="#types">四類腳本</a></li>
+        <li><a href="#register">腳本之註冊</a></li>
+        <li><a href="#lifecycle">生命週期</a></li>
+        <li><a href="#aids">開發之輔</a></li>
+        <li><a href="#rules">撰寫守則</a></li>
+        <li><a href="#compat">與 NTE / MTR 3 之淵源</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what">JS 之腳，何物也</h2>
+    <p>腳本者，隨<strong>資源包</strong>而散之 JavaScript 碼也。遊戲載資源之際為之解析，運行之期按幀而呼之，所以於原版機制之外，渲染模型、文字、貼圖，或播聲音也。</p>
+    <ul>
+      <li>其引擎曰 <a href="https://rhino.github.io/" rel="noopener">Rhino</a>——純以 Java 所成之 JavaScript 引擎也。君惟須通語言之本（變數、函數、條件之邏輯），與 <code>Date</code>、<code>Map</code> 諸內建之物；瀏覽器之境（HTML/CSS/DOM）一無所用，IDE 網頁類之補全，勿照單全收也。</li>
+      <li>Rhino 具 <strong>LiveConnect</strong> 互通之道：腳本得徑呼 Java 之類與方法。JCM 諸內建 API，多即曝予腳本之 Java 類也。</li>
+      <li>JavaScript 與 Java，二語也，非一物；諳 Java 非撰腳本之先決，然解 Java 類型之制，有助於避互通之阱（見<a href="#rules">撰寫守則</a>）。</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">與 C++ 原生腳本之關係</span>
+      <p>Yanyang 之支，於 JS 之外增<a href="getting-started.html">C++ 原生腳本</a>；二者共用同一生命週期與渲染之管線，甚且得雜處於<strong>同一宣告之條</strong>（見 <a href="js-yanyang.html">晏陽增補</a>）。簡單一次性之邏輯，以 JS 迭代為最疾；高解析逐像素之重繪、繁難之算，則付諸 C++。</p>
+    </div>
+
+    <h2 id="types">四類腳本</h2>
+    <p>每類之腳，各應一專門之景；所得用之全域物件與回呼，微有異焉：</p>
+    <table>
+      <thead><tr><th>類型</th><th>所司之物</th><th>典型之用</th></tr></thead>
+      <tbody>
+        <tr><td><a href="js-types.html#vehicle">車輛腳本</a></td><td>MTR 載具（整列）</td><td>車內之屏、終點之顯、報站之聲、電機之音</td></tr>
+        <tr><td><a href="js-types.html#eyecandy">裝飾腳本</a></td><td>MTR 裝飾之方塊</td><td>動態之識、閘機之燈、互動之器（右鍵之事件）</td></tr>
+        <tr><td><a href="js-types.html#lift">電梯腳本</a></td><td>MTR 電梯（轎廂之樣）</td><td>樓層之顯、到站之鐘</td></tr>
+        <tr><td><a href="js-types.html#pids">PIDS 腳本</a></td><td>JCM 到站之屏（預設）</td><td>自定到站顯示之版式、動態之紋理</td></tr>
+      </tbody>
+    </table>
+    <p>同一份腳本之碼，惟解析一遭；遊戲之中，一一實例（每列車也，每屏也）各持獨立之 <code>state</code>，分別受回呼焉。</p>
+
+    <h2 id="register">腳本之註冊</h2>
+    <p>腳本隨資源包而載。先保資源包為遊戲所識——於包之根目錄置 <code>pack.mcmeta</code> 一件：</p>
+    <pre><code class="lang-json">{
+    "pack_format": 13,
+    "description": "你的資源包描述"
+}</code></pre>
+    <p><code>pack_format</code> 於 JCM 腳本無所約（不必隨 MC 版本而逐一改之），然必為合法之 JSON 數。</p>
+
+    <h3>宣告之條</h3>
+    <p>車輛 / 裝飾 / 電梯之腳，宣於 <strong><code>mtr_custom_resources.json</code></strong>（置諸 <code>assets/mtr/</code> 之下）；PIDS 之腳，宣於 <strong><code>joban_custom_resources.json</code></strong>（置諸 <code>assets/jsblock/</code> 之下）之 <code>pids_images</code> 陣列。MTR 四代之式，「內容」與「腳本」分為二陣列；內容之條，經 <code>scriptId</code> 而引腳本之條——同一份腳本，得多車復用焉：</p>
+    <pre><code class="lang-json">{
+    "vehicles": [
+        { "id": "demo_sp1900", "name": "Demo SP1900", "scriptId": "demo_lcd" }
+    ],
+    "vehicleScripts": [
+        {
+            "id": "demo_lcd",
+            "scriptLocations": ["demo:js/sp1900_lcd.js"],
+            "prependExpressions": ["print('Hello world')"],
+            "input": { "era": 2004 },
+            "rateLimit": 0.75,
+            "dataFetchMode": "ALL"
+        }
+    ]
+}</code></pre>
+    <table>
+      <thead><tr><th>欄位</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>scriptLocations</code></td><td>JS 文件所在之陣列（可多條）。自 JCM v2.3 以降，多數 API 亦得徑收字串之 id。無副檔名之條，循 Yanyang 之規，或辨為 C++ 模塊——見 <a href="js-yanyang.html#mixed">相雜之條</a></td></tr>
+        <tr><td><code>prependExpressions</code></td><td>內嵌之 JS 碼，先 <code>scriptLocations</code> 而行</td></tr>
+        <tr><td><code>input</code></td><td>任意 JSON 之物件；腳本之內，經 <code>SCRIPT_INPUT</code> 唯讀而訪</td></tr>
+        <tr><td><code>rateLimit</code></td><td>腳本受呼頻率之下限（秒）。低頻之邏輯調高之，可省其費</td></tr>
+        <tr><td><code>dataFetchMode</code></td><td>惟車輛腳本有之：<code>SKIP</code>（預設，不取數據）/ <code>ALL</code> / <code>MANDATORY</code>，詳見 <a href="js-types.html#fetch">數據獲取之式</a></td></tr>
+        <tr><td><code>forceLoad</code></td><td>同包之內，無內容引此腳本者，JCM 預設拒載；置 <code>true</code> 則強載之（跨包共享腳本之條時用之）</td></tr>
+        <tr><td><code>isScriptControlled</code></td><td>裝飾 / 電梯內容條之欄：隱原模型，悉以渲染付腳本</td></tr>
+      </tbody>
+    </table>
+    <p>三類腳本陣列之名：<code>vehicleScripts</code>（車輛，內容在 <code>vehicles</code>）、<code>objectScripts</code>（裝飾，內容在 <code>objects</code>）、<code>liftScripts</code>（電梯，內容在 <code>lifts</code>）。PIDS 無 <code>scriptId</code> 一環——逕於 <code>pids_images</code> 預設之物件上書 <code>scriptFiles</code> / <code>scriptTexts</code>，即視為腳本之預設（鍵名循 JCM 之慣例，見 <a href="js-types.html#pids">PIDS 腳本</a>）。</p>
+    <div class="admonition tip">
+      <span class="admonition-title">要訣</span>
+      <p>諸欄皆可省；然腳本之條，至少具 <code>scriptLocations</code> 或 <code>prependExpressions</code> 二者之一，方蒙解析。Yanyang 亦受 NTE 文檔示例 <code>script_input</code> 之寫（與 <code>scriptInput</code> 等價）——循舊檔而抄之包，不失其效也。</p>
+    </div>
+
+    <h3 id="mtr3">MTR 3 / NTE 舊格</h3>
+    <p>MTR 三代之宣告，依然有效：車輛書於 <code>custom_trains</code>（欄名 <code>script_files</code> / <code>script_texts</code> / <code>script_input</code> / <code>script_rate_limit</code>），裝飾書於 <code>eyecandy.json</code>。舊格之車輛，預設按 <code>MANDATORY</code> 之式取數。</p>
+
+    <h2 id="lifecycle">生命週期</h2>
+    <h3>解析之期</h3>
+    <p>遊戲重載資源之時（啟也，或按 F3+T 也），每腳本<strong>於主線程行其頂層之碼一遭</strong>；既畢，JCM 錄其中 <code>create</code> / <code>render</code> / <code>dispose</code> 三函，以供運行期之呼。模型之載、紋理之讀諸一次性之事，置諸此最宜——然重操作足拖累整個資源之重載，能省則省。</p>
+    <h3>運行之期</h3>
+    <pre><code class="lang-js">let displaySpeed = 1;            // 解析之期所行
+
+function create(ctx, state, vehicle) {
+    state.speed = 0.75;           // 每實例首繪之前一遭
+}
+
+function render(ctx, state, vehicle) {
+    state.speed += Timing.delta();  // 每幀一遭（盡力而為）
+}
+
+function dispose(ctx, state, vehicle) { }   // 實例退場之際行之
+
+print(displaySpeed);             // 解析之期所行，出 1</code></pre>
+    <table>
+      <thead><tr><th>參數</th><th>其義</th></tr></thead>
+      <tbody>
+        <tr><td><code>ctx</code></td><td>上下文也：納繪製之令、播聲音之「動作」門戶也，各類各異（車輛者 <code>VehicleScriptContext</code> 也……）</td></tr>
+        <tr><td><code>state</code></td><td>尋常 JS 物件也，<strong>逐實例恆存</strong>——兩列車各執一份，互不相擾；其初為 <code>{}</code></td></tr>
+        <tr><td><code>wrapper</code></td><td>唯讀之訊源：車速也，門值也，屏之尺寸也，到站之列也……各類各異</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>非同步之行</strong>：運行期之回呼，行於專用後臺線程凡四之上（解析之期，仍在主線程）。勿以 <code>Thread.sleep</code> 或死循環佔其線程——同一腳本之條，恆繫於同一線程，他腳本或亦列於佇列之中。</li>
+      <li><strong>逐幀而不保其逐幀</strong>：<code>render</code> 以每幀一遭為則；前幀未竟，則不入焉。幀率起伏之際，勿設「每秒恆 N 遭」。須按真時而進之量，以 <code>Timing.delta()</code> 縮放之。</li>
+      <li><strong>運行之誤</strong>：日誌以 <code>[Scripting] Error executing script!</code> 起首而誌其誤，並指文件行號；既而全份腳本停四秒復試。遊戲之內，可啟<a href="#aids">除錯覆層</a>，逕於屏上觀其誤。</li>
+      <li><strong>JS 線程無所保</strong>：諸回呼函數之外，彼此局部之變數不相見——跨呼共享之數據，納諸 <code>state</code>。</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">與 C++ 生命週期之應</span>
+      <p><code>create / render / dispose</code> 加逐實例之狀態，即 C++ 原生腳本所沿之模型也（見 <a href="script-model.html">腳本體例與生命週期</a>）；二語得逐段對譯而遷焉。</p>
+    </div>
+
+    <h2 id="aids">開發之輔</h2>
+    <ul>
+      <li><strong>腳本除錯之覆層</strong>：Mod Menu（Fabric）或模組配置之界面（Forge）→ JCM → Configure → 勾 <strong>Script debug mode</strong>。屏之左上，列每腳本之條與其實例；實例按其所費，藍者（如常）也，黃者（偏遲）也，紅者（遲甚）也。一遭逾五秒，則標為無應；更候五秒，則逕止之。按 <code>[</code> / <code>]</code>，於 [MTR] 與 [JCM] 二源之間切換焉。</li>
+      <li><strong>疾速重載</strong>：除錯之式既啟，<kbd>Ctrl</kbd>+<kbd>R</kbd> 重載 MTR 側之腳（車輛 / 裝飾 / 電梯），<kbd>Shift</kbd>+<kbd>R</kbd> 重載 JCM 側之腳（PIDS 預設）——無須全然之 F3+T。三鍵所實繫者，「衝刺」「潛行」「JCM 重載」之鍵也，可於按鍵之設改之。</li>
+      <li><strong>日誌</strong>：<code>print(...)</code> 與 <code>console.log(...)</code> 出於遊戲之控制臺；解析期之誤，惟於聊天之欄示一句，其細務觀啟動器之 <code>logs/latest.log</code>。</li>
+      <li><strong>IDE 補全</strong>：VSCode 有第三方之擴 <em>MTR Scripting Tools</em>（Visual Studio Marketplace / Open VSX 可搜得之），為 JCM 腳本之類型供補全之能；有問，請告擴之作者。</li>
+    </ul>
+
+    <h2 id="rules">撰寫守則</h2>
+    <h3>語言之層</h3>
+    <ul>
+      <li><strong>嚴格之式</strong>：未宣告而賦值（<code>x = 1</code>），逕報其誤。全域用 <code>var</code> 或 <code>let</code>；函數之內，一律 <code>let</code>。</li>
+      <li><strong>const 者，函數之轄域也</strong>：Rhino 之 <code>const</code>，不若今世 JS 按塊為轄——於 <code>for</code> 循環之體中宣告者，第二番迭代必報「重複宣告」。須塊域之義者，用 <code>let</code>。</li>
+      <li><strong>JS 字串與 Java 字串</strong>：MTR/JCM 所返者，多 Java <code>String</code> 也。取其長，用 <code>str.length()</code>；欲用 JS <code>.length</code> 之欄，先拼空串以化之：<code>(""+str).length</code>。Java <code>List</code> 可用 <code>list[0]</code> 與 <code>for (x of list)</code>，然 JS 陣列之法（<code>map</code> 之屬）不可用也。</li>
+      <li><strong>可空之值</strong>：返型帶 <code>?</code> 之法，或返 <code>null</code>。以 <code>if (x != null)</code>、三元之式、可選之鏈 <code>x?.getName()</code> 與空值之併 <code>x?.length() ?? 0</code> 處之；於 <code>null</code> 取欄或呼法，立擲其誤。</li>
+      <li><strong>重載之解</strong>：Java 之法，按參數之型擇其重載；數值預設偏好 <code>double</code>。疑而未決，得以簽名之綴直呼之：<code>graphics["drawString(java.lang.String,int,int)"]("文字", 15, 60)</code>、<code>new Color["(int,int,int)"](40, 68, 130)</code>。報「method not found」之時，先疑參數之型。</li>
+      <li><strong>特性所覆</strong>：Rhino 不支持一切最新 JS 之特性，詳見 <a href="https://mozilla.github.io/rhino/compat/engines.html" rel="noopener">Mozilla 之相容表</a>。</li>
+    </ul>
+    <h3>行為之層</h3>
+    <ul>
+      <li><strong>勿阻塞、勿死循環</strong>：無「少待而復行」之寫——計其時而置諸後續之回呼以行之；耗時之事（網路也，巨檔也），付諸 <code>BackgroundWorker</code>。死循環約十秒，則遭強止，依運行之誤而處之。</li>
+      <li><strong>內部 API 之疆界</strong>：本檔未書之法 / 欄，<code>MTRClientData</code> 內部之構，<code>VehicleWrapper.getMtrVehicle()</code> 以降深層之物，悉屬內部之實，版本之間或逕變焉；公開散布之資源包，勿依賴之。</li>
+      <li><strong>類之白單</strong>：預設惟放行此諸包——<code>com.lx862.jcm.mod.scripting</code>、<code>com.lx862.mtrscripting.util</code>、<code>com.lx862.mtrscripting.wrapper</code>、<code>java.lang</code>、<code>java.awt</code>、<code>java.text</code>、<code>java.math</code>、<code>java.util</code>、<code>java.time</code>、<code>javax.imageio</code>、<code>sun.java2d</code>、<code>sun.font</code>、<code>sun.awt</code>、<code>org.mtr</code>。玩家可於設置解之；然散布之包若須解其限，務於說明之中醒目告之。</li>
+      <li><strong>state 之變數宜加前綴</strong>：多腳本得同懸一實例之上，<code>state</code> 乃共享者也——以 <code>state.myfx_ratelimit</code> 之屬為前綴，免其相撞。</li>
+      <li><strong>疾徐有預算</strong>：單幀 16 ms，視若足用；然玩家或同時行數十腳本之實例。逐幀重繪巨紋理之前，先算其總帳：一列八節，每節十屏，每幀全量 <code>upload()</code>，即紋理之搬凡八十遭——降解析度、跨門復用、降低更新之頻（<code>RateLimit</code>），皆正道也。客戶端之腳，得其「足矣」即止，勿求 1:1 之複刻。</li>
+      <li><strong>腳本非安全之界</strong>：腳本純行於客戶端，人人得於本地改寫之——凡權限之判（如 <code>hasPermissionLevel</code>），皆莫能禦有心之人；勿恃之以為訪問之制。</li>
+    </ul>
+
+    <h2 id="compat">與 NTE / MTR 3 之淵源</h2>
+    <p>JCM 腳本之體，受 <a href="https://modrinth.com/mod/mtr-nte" rel="noopener">Nemo Transit Expansion（NTE）</a>之啟，乃 NTE 腳本之能於 MTR 四代之上非官方之續也；同名等價之相容 API，存者甚夥（檔中標「已廢」者是也）。其異之要曰：</p>
+    <ul>
+      <li>舊格之註冊，行如常；MTR 三代與四代雙棲之腳本，得以 <code>Resources.getAddonVersion("mtr")</code>（舊腳本之 <code>Resources.getMTRVersion()</code>）辨其版本而後分支。</li>
+      <li>NTE 之 <code>Vector3f</code> 運算，昔返 <code>void</code> 者，今返其自身，得鏈式而呼；<code>Resources.manager()</code> 於 MTR 四代返 <code>null</code>，相關之函亦受 <code>null</code> 焉。</li>
+      <li>ANTE 風格相容之類（<code>SoundHelper</code> / <code>TickableSound</code> / <code>GlobalRegister</code> / <code>ComponentUtil</code> / 全域 <code>asJavaArray()</code>）自 v2.3 而可用，法之簽名與 ANTE 一致。</li>
+      <li>MTR 四代惟以<strong>鄰近</strong>之車站 / 線路數據同步於客戶端——腳本查不得遠處之數據，非 bug 也，乃刻意省其流也；車輛腳本數據獲取之三式，見 <a href="js-types.html#fetch">數據獲取之式</a>。</li>
+    </ul>
+
+    <hr>
+    <p>繼之：<a href="js-api.html">JS 公器</a> —— 諸腳本共用之類與函；<a href="js-types.html">JS 之腳類型</a> —— 四類腳本各自之 ctx 與 wrapper。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文檔之首</a>
+      <a href="js-api.html">JS 公器</a>
+      <a href="js-yanyang.html">晏陽增補</a>
+    </div>
+    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-prerelease.2-yanyang.1 而作 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

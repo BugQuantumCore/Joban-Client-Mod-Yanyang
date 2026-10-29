@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-locale="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JavaScript 脚本入门 — JCM Yanyang 脚本开发文档</title>
+<meta name="description" content="用 JavaScript 编写 MTR 车辆、装饰、电梯与 PIDS 脚本：注册、生命周期、调试辅助与撰写守则。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <a href="performance.html">性能与调试</a>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html" class="active">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">JavaScript 脚本入门</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / JavaScript 脚本 / JS 脚本入门</div>
+      <h1>JavaScript 脚本入门</h1>
+      <p class="page-lead">JCM 自 v2 起允许资源包用 <strong>JavaScript</strong> 控制车辆、装饰物、电梯的渲染与声音，以及 PIDS 屏幕的显示内容。本页覆盖注册、生命周期、调试与守则；API 细节见后续三页。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#what">什么是 JS 脚本</a></li>
+        <li><a href="#types">四类脚本</a></li>
+        <li><a href="#register">注册脚本</a></li>
+        <li><a href="#lifecycle">生命周期</a></li>
+        <li><a href="#aids">开发辅助</a></li>
+        <li><a href="#rules">撰写守则</a></li>
+        <li><a href="#compat">与 NTE / MTR 3 的关系</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what">什么是 JS 脚本</h2>
+    <p>脚本是一段随<strong>资源包</strong>分发的 JavaScript 代码，由游戏在加载资源时解析，并在运行期间按帧调用，用来在原版机制之外渲染模型、文字、贴图，或播放声音。</p>
+    <ul>
+      <li>引擎是 <a href="https://rhino.github.io/" rel="noopener">Rhino</a>——纯 Java 实现的 JavaScript 引擎。你只需要掌握语言本身（变量、函数、条件逻辑）与 <code>Date</code>、<code>Map</code> 等内建对象；浏览器环境（HTML/CSS/DOM）完全用不上，IDE 的网页类补全不要照单全收。</li>
+      <li>Rhino 提供 <strong>LiveConnect</strong> 互操作：脚本可以直接调用 Java 类与方法。JCM 的许多内建 API 本身就是暴露给脚本的 Java 类。</li>
+      <li>JavaScript 与 Java 是两门不同的语言；会 Java 不是写脚本的前提，但理解 Java 的类型系统有助于避免互操作陷阱（见<a href="#rules">撰写守则</a>）。</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">和 C++ 原生脚本的关系</span>
+      <p>Yanyang 分支在 JS 之外增加了 <a href="getting-started.html">C++ 原生脚本</a>，两者共用同一套生命周期与渲染管线，甚至可以在<strong>同一条声明里混用</strong>（见 <a href="js-yanyang.html">晏阳扩展 API</a>）。简单的一次性逻辑用 JS 迭代最快；高分辨率逐像素重绘、复杂计算交给 C++。</p>
+    </div>
+
+    <h2 id="types">四类脚本</h2>
+    <p>每类脚本面向一个专门场景，可用的全局对象与回调略有不同：</p>
+    <table>
+      <thead><tr><th>类型</th><th>控制对象</th><th>典型用途</th></tr></thead>
+      <tbody>
+        <tr><td><a href="js-types.html#vehicle">车辆脚本</a></td><td>MTR 载具（整列）</td><td>车内屏、目的地显示、报站声音、电机音</td></tr>
+        <tr><td><a href="js-types.html#eyecandy">装饰物脚本</a></td><td>MTR 装饰物方块</td><td>动态标识、闸机灯、互动装置（右键事件）</td></tr>
+        <tr><td><a href="js-types.html#lift">电梯脚本</a></td><td>MTR 电梯（轿厢样式）</td><td>楼层显示器、到站钟</td></tr>
+        <tr><td><a href="js-types.html#pids">PIDS 脚本</a></td><td>JCM 到站屏（预设）</td><td>自定义到站显示版式、动态纹理</td></tr>
+      </tbody>
+    </table>
+    <p>同一份脚本代码只解析一次；游戏里每个具体实例（每列车、每块屏）各自持有独立的 <code>state</code> 并分别回调。</p>
+
+    <h2 id="register">注册脚本</h2>
+    <p>脚本随资源包加载。先保证资源包能被游戏识别——在包根目录放一个 <code>pack.mcmeta</code>：</p>
+    <pre><code class="lang-json">{
+    "pack_format": 13,
+    "description": "你的资源包描述"
+}</code></pre>
+    <p><code>pack_format</code> 对 JCM 脚本不起约束作用（不必随 MC 版本逐个改），但必须是合法 JSON 数字。</p>
+
+    <h3>声明条目</h3>
+    <p>车辆 / 装饰物 / 电梯脚本声明在 <strong><code>mtr_custom_resources.json</code></strong>（放在 <code>assets/mtr/</code> 下）；PIDS 脚本声明在 <strong><code>joban_custom_resources.json</code></strong>（放在 <code>assets/jsblock/</code> 下）的 <code>pids_images</code> 数组里。MTR 4 格式把「内容」与「脚本」分成两个数组，内容条目通过 <code>scriptId</code> 引用脚本条目——同一份脚本可被多个车辆复用：</p>
+    <pre><code class="lang-json">{
+    "vehicles": [
+        { "id": "demo_sp1900", "name": "Demo SP1900", "scriptId": "demo_lcd" }
+    ],
+    "vehicleScripts": [
+        {
+            "id": "demo_lcd",
+            "scriptLocations": ["demo:js/sp1900_lcd.js"],
+            "prependExpressions": ["print('Hello world')"],
+            "input": { "era": 2004 },
+            "rateLimit": 0.75,
+            "dataFetchMode": "ALL"
+        }
+    ]
+}</code></pre>
+    <table>
+      <thead><tr><th>字段</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>scriptLocations</code></td><td>JS 文件位置数组（可多个）。自 JCM v2.3 起多数 API 也可直接收字符串 id。无扩展名的条目按 Yanyang 规则可能被识别为 C++ 模块——见 <a href="js-yanyang.html#mixed">混合条目</a></td></tr>
+        <tr><td><code>prependExpressions</code></td><td>直接内嵌的 JS 代码，在 <code>scriptLocations</code> 之前执行</td></tr>
+        <tr><td><code>input</code></td><td>任意 JSON 对象，脚本内以 <code>SCRIPT_INPUT</code> 只读访问</td></tr>
+        <tr><td><code>rateLimit</code></td><td>脚本调用频率下限（秒）。低频逻辑调高它可省性能</td></tr>
+        <tr><td><code>dataFetchMode</code></td><td>仅车辆脚本：<code>SKIP</code>（默认，不取数据）/ <code>ALL</code> / <code>MANDATORY</code>，详见 <a href="js-types.html#fetch">数据获取模式</a></td></tr>
+        <tr><td><code>forceLoad</code></td><td>同包内没有内容引用该脚本时 JCM 默认拒绝加载；置 <code>true</code> 强制加载（跨包共享脚本条目时用）</td></tr>
+        <tr><td><code>isScriptControlled</code></td><td>装饰物 / 电梯的内容条目字段：隐藏原模型，把渲染完全交给脚本</td></tr>
+      </tbody>
+    </table>
+    <p>三类脚本的数组名：<code>vehicleScripts</code>（车辆，内容在 <code>vehicles</code>）、<code>objectScripts</code>（装饰物，内容在 <code>objects</code>）、<code>liftScripts</code>（电梯，内容在 <code>lifts</code>）。PIDS 没有 <code>scriptId</code> 一环——直接在 <code>pids_images</code> 的预设对象上写 <code>scriptFiles</code> / <code>scriptTexts</code> 即被视作脚本预设（键名沿用 JCM 惯例，见 <a href="js-types.html#pids">PIDS 脚本</a>）。</p>
+    <div class="admonition tip">
+      <span class="admonition-title">提示</span>
+      <p>所有字段都可省略，但脚本条目至少要有 <code>scriptLocations</code> 或 <code>prependExpressions</code> 之一才会被解析。Yanyang 还接受 NTE 文档示例里的 <code>script_input</code> 写法（与 <code>scriptInput</code> 等价），照老文档抄的包不会失效。</p>
+    </div>
+
+    <h3 id="mtr3">MTR 3 / NTE 旧格式</h3>
+    <p>MTR 3 时代的声明继续有效：车辆写在 <code>custom_trains</code>（字段名 <code>script_files</code> / <code>script_texts</code> / <code>script_input</code> / <code>script_rate_limit</code>），装饰物写在 <code>eyecandy.json</code>。旧格式车辆默认按 <code>MANDATORY</code> 模式取数。</p>
+
+    <h2 id="lifecycle">生命周期</h2>
+    <h3>解析阶段</h3>
+    <p>游戏重载资源（启动或按 F3+T）时，每个脚本<strong>在主线程执行一遍顶层代码</strong>，随后 JCM 记录其中的 <code>create</code> / <code>render</code> / <code>dispose</code> 函数供运行期调用。模型加载、纹理读取等一次性工作放这里最合适——但重操作会直接拖慢整个资源重载，能省则省。</p>
+    <h3>运行阶段</h3>
+    <pre><code class="lang-js">let displaySpeed = 1;            // 解析阶段执行
+
+function create(ctx, state, vehicle) {
+    state.speed = 0.75;           // 每个实例第一次渲染前执行一次
+}
+
+function render(ctx, state, vehicle) {
+    state.speed += Timing.delta();  // 每帧（尽力而为）执行
+}
+
+function dispose(ctx, state, vehicle) { }   // 实例退场时执行
+
+print(displaySpeed);             // 解析阶段执行，输出 1</code></pre>
+    <table>
+      <thead><tr><th>参数</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>ctx</code></td><td>上下文：提交绘制、播放声音的「动作」入口，各类型不同（车辆是 <code>VehicleScriptContext</code>……）</td></tr>
+        <tr><td><code>state</code></td><td>普通 JS 对象，<strong>逐实例</strong>持久——两列车各有一份，互不串扰；初始为 <code>{}</code></td></tr>
+        <tr><td><code>wrapper</code></td><td>只读信息源：车速、门值、屏尺寸、到站列表……各类型不同</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>异步执行</strong>：运行期回调发生在专用的 4 条后台线程上（解析期仍在主线程）。别用 <code>Thread.sleep</code> 或死循环占住线程——同一脚本条目固定绑在同一条线程上，别的脚本可能也在排队。</li>
+      <li><strong>逐帧但不保证逐帧</strong>：<code>render</code> 以每帧一次为目标，但上一帧没跑完就不会重入；帧率波动时别假设「每秒固定 N 次」。需要按真实时间推进的量用 <code>Timing.delta()</code> 缩放。</li>
+      <li><strong>运行时错误</strong>：日志以 <code>[Scripting] Error executing script!</code> 开头报错并指明文件行号；随后整份脚本暂停 4 秒再试。游戏内可开<a href="#aids">调试覆盖层</a>直接在屏幕上看错。</li>
+      <li><strong>无 JS 线程保证</strong>：所有回调函数之外看不到彼此的局部变量——跨调用共享的数据放 <code>state</code>。</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">与 C++ 生命周期的对应</span>
+      <p><code>create / render / dispose</code> + 逐实例状态正是 C++ 原生脚本沿用的模型（见 <a href="script-model.html">脚本模型与生命周期</a>），两种语言可以逐段对译迁移。</p>
+    </div>
+
+    <h2 id="aids">开发辅助</h2>
+    <ul>
+      <li><strong>脚本调试覆盖层</strong>：Mod Menu（Fabric）或模组配置界面（Forge）→ JCM → Configure → 勾选 <strong>Script debug mode</strong>。屏幕左上角列出每个脚本条目与其实例，实例按耗时标蓝（正常）/ 黄（偏慢）/ 红（慢）。单次执行超过 5 秒会标记为无响应，再等 5 秒直接终止。按 <code>[</code> / <code>]</code> 在 [MTR] 与 [JCM] 两个来源之间切换。</li>
+      <li><strong>快速重载</strong>：调试模式开启后，<kbd>Ctrl</kbd>+<kbd>R</kbd> 重载 MTR 侧脚本（车辆 / 装饰物 / 电梯），<kbd>Shift</kbd>+<kbd>R</kbd> 重载 JCM 侧脚本（PIDS 预设）——不需要完整的 F3+T。三个键实际绑定的是「冲刺」「潜行」「JCM 重载」键，可在按键设置改。</li>
+      <li><strong>日志</strong>：<code>print(...)</code> 与 <code>console.log(...)</code> 输出到游戏控制台；解析期错误只会在聊天栏提示一句，细节看启动器的 <code>logs/latest.log</code>。</li>
+      <li><strong>IDE 补全</strong>：VSCode 有第三方扩展 <em>MTR Scripting Tools</em>（Visual Studio Marketplace / Open VSX 可搜到）为 JCM 脚本类型提供智能提示；问题请反馈给扩展作者。</li>
+    </ul>
+
+    <h2 id="rules">撰写守则</h2>
+    <h3>语言层面</h3>
+    <ul>
+      <li><strong>严格模式</strong>：不声明就赋值（<code>x = 1</code>）会直接报错。全局用 <code>var</code> 或 <code>let</code>，函数内一律 <code>let</code>。</li>
+      <li><strong>const 是函数作用域</strong>：Rhino 里的 <code>const</code> 不像现代 JS 那样按块作用域——在 <code>for</code> 循环体里声明会在第二次迭代报「重复声明」。需要块作用域语义时用 <code>let</code>。</li>
+      <li><strong>JS 字符串 vs Java 字符串</strong>：MTR/JCM 返回的多是 Java <code>String</code>。取长度用 <code>str.length()</code>；想用 JS 的 <code>.length</code> 属性，先拼一个空串转换：<code>(""+str).length</code>。Java <code>List</code> 可用 <code>list[0]</code> 与 <code>for (x of list)</code>，但 JS 数组方法（<code>map</code> 等）不可用。</li>
+      <li><strong>可空值</strong>：返回类型带 <code>?</code> 的方法可能返回 <code>null</code>。用 <code>if (x != null)</code>、三元、可选链 <code>x?.getName()</code> 与空值合并 <code>x?.length() ?? 0</code> 处理；对 <code>null</code> 取属性或调方法会立刻抛错。</li>
+      <li><strong>重载解析</strong>：Java 方法按参数类型挑重载，数字默认偏好 <code>double</code>；拿不准时可用签名后缀直呼：<code>graphics["drawString(java.lang.String,int,int)"]("文字", 15, 60)</code>、<code>new Color["(int,int,int)"](40, 68, 130)</code>。报「method not found」时先怀疑参数类型。</li>
+      <li><strong>特性范围</strong>：Rhino 不支持所有最新 JS 特性，详见 <a href="https://mozilla.github.io/rhino/compat/engines.html" rel="noopener">Mozilla 的兼容表</a>。</li>
+    </ul>
+    <h3>行为层面</h3>
+    <ul>
+      <li><strong>别阻塞、别死循环</strong>：没有「等一会儿再继续」这种写法——把动作计时后放到后续回调里做；耗时操作（网络、大文件）交给 <code>BackgroundWorker</code>。死循环约 10 秒后被强制终止并按运行时错误处理。</li>
+      <li><strong>内部 API 界线</strong>：本文档没写的方法 / 字段、<code>MTRClientData</code> 的内部结构、<code>VehicleWrapper.getMtrVehicle()</code> 以下的深层对象都属内部实现，版本间可能直接变；公开分发的资源包不要依赖它们。</li>
+      <li><strong>类访问白名单</strong>：默认只放行这些包——<code>com.lx862.jcm.mod.scripting</code>、<code>com.lx862.mtrscripting.util</code>、<code>com.lx862.mtrscripting.wrapper</code>、<code>java.lang</code>、<code>java.awt</code>、<code>java.text</code>、<code>java.math</code>、<code>java.util</code>、<code>java.time</code>、<code>javax.imageio</code>、<code>sun.java2d</code>、<code>sun.font</code>、<code>sun.awt</code>、<code>org.mtr</code>。玩家可在设置里解除，但分发的包若要求解除限制，务必在说明里醒目告知。</li>
+      <li><strong>state 变量加前缀</strong>：多个脚本可挂在同一实例上，<code>state</code> 是共享的——用 <code>state.myfx_ratelimit</code> 这类前缀避免撞名。</li>
+      <li><strong>性能有预算</strong>：单帧 16 ms 看似够用，但玩家可能同时跑几十个脚本实例。逐帧重绘大纹理前先算总账：一列 8 节、每节 10 块屏，每帧全量 <code>upload()</code> 就是 80 次纹理搬运——降分辨率、跨门复用、降低更新频率（<code>RateLimit</code>）都是正道。客户端脚本能做得「够好」即可，别追求 1:1 复刻。</li>
+      <li><strong>脚本不是安全边界</strong>：脚本纯客户端运行，任何人都能本地改写——任何权限判断（如 <code>hasPermissionLevel</code>）都挡不住有心人，不要依赖它做访问控制。</li>
+    </ul>
+
+    <h2 id="compat">与 NTE / MTR 3 的关系</h2>
+    <p>JCM 脚本体系受 <a href="https://modrinth.com/mod/mtr-nte" rel="noopener">Nemo Transit Expansion（NTE）</a>启发，是 NTE 脚本功能在 MTR 4 上的非官方延续，保留了大量同名或等价的兼容 API（文档中标「已弃用」的部分）。差异要点：</p>
+    <ul>
+      <li>旧格式注册照常工作；MTR 3 与 MTR 4 双栖的脚本可用 <code>Resources.getAddonVersion("mtr")</code>（旧脚本里的 <code>Resources.getMTRVersion()</code>）判断版本后分支。</li>
+      <li>NTE 里返回 <code>void</code> 的 <code>Vector3f</code> 运算现在返回自身，支持链式调用；<code>Resources.manager()</code> 在 MTR 4 上返回 <code>null</code>，相关函数也接受 <code>null</code>。</li>
+      <li>ANTE 风格的兼容类（<code>SoundHelper</code> / <code>TickableSound</code> / <code>GlobalRegister</code> / <code>ComponentUtil</code> / 全局 <code>asJavaArray()</code>）自 v2.3 起可用，方法签名与 ANTE 一致。</li>
+      <li>MTR 4 只把<strong>附近</strong>的车站 / 线路数据同步给客户端——脚本查不到远处数据不是 bug，是刻意省流量；车辆脚本的数据获取三模式见 <a href="js-types.html#fetch">数据获取模式</a>。</li>
+    </ul>
+
+    <hr>
+    <p>接下来：<a href="js-api.html">JS 公共 API</a> —— 所有脚本共用的类与函数；<a href="js-types.html">JS 脚本类型</a> —— 四类脚本各自的 ctx 与 wrapper。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="js-api.html">JS 公共 API</a>
+      <a href="js-yanyang.html">晏阳扩展 API</a>
+    </div>
+    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-prerelease.2-yanyang.1 · 上游对照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

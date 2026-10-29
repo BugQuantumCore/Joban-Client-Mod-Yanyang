@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>mtr::Api 与 Java 互操作 — JCM Yanyang C++ 脚本开发文档</title>
+<title>mtr::Api 与 Java 互操作 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="经 mtr::Api 调用 JavaScript 脚本能访问的全部公开 Java API：对象、字段、方法、回调与 JS↔C++ 对照表。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html">数据快照</a>
     <a href="drawing.html">绘制与画布</a>
     <a href="java-api.html" class="active">mtr::Api 与 Java 互操作</a>
     <a href="abi.html">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -204,7 +208,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

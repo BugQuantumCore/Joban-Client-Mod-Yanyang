@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Performance et débogage — Documentation JCM Yanyang C++ Scripting</title>
+<title>Performance et débogage — Documentation JCM Yanyang Scripting</title>
 <meta name="description" content="Règles d’hygiène du GC, stratégie de téléversement des rectangles modifiés, observation via latest.log, paramètres JVM et résolution des problèmes courants.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
     <a href="getting-started.html">Démarrage rapide</a>
-    <div class="nav-group">Modèle de script</div>
+    <div class="nav-group">Scripts C++</div>
     <a href="script-model.html">Modèle de script et cycle de vie</a>
-    <div class="nav-group">Référence API</div>
     <a href="data.html">Instantanés de données</a>
     <a href="drawing.html">Dessin et canevas</a>
     <a href="java-api.html">mtr::Api et interopérabilité Java</a>
     <a href="abi.html">ABI C et services de l’hôte</a>
-    <div class="nav-group">Aller plus loin</div>
     <a href="performance.html" class="active">Performance et débogage</a>
-  </nav>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html">Extensions Yanyang</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -80,7 +84,7 @@
       <tbody>
         <tr><td>Marshalling de l’instantané (hôte → module)</td><td><strong>l’unique traversée Java imposée</strong> : l’hôte écrit l’instantané POD dans les pages partagées / un tampon direct à l’aide de constructeurs réutilisés</td></tr>
         <tr><td>Lecture des données (<code>Vehicle</code> / <code>Pids</code> / …)</td><td>simples lectures mémoire, sans coût</td></tr>
-        <tr><td>Écriture des enregistrements de dessin</td><td>allocation par incrément (bump) dans l’arène, zéro allocation, zéro boxing</td></tr>
+        <tr><td>Écriture des enregistrements de dessin</td><td>allocation par incrément (bump) dans la zone, zéro allocation, zéro boxing</td></tr>
         <tr><td>Rastérisation des pixels (<code>Gfx2D</code>)</td><td>boucles C++ pures ; chemin rapide src-over pour les couleurs opaques</td></tr>
         <tr><td>Rejeu par l’hôte</td><td>le même chemin de rendu que JS ; le téléversement de textures ne déplace que les rectangles modifiés</td></tr>
         <tr><td>Appel <code>Api</code></td><td>aller-retour encodage JSON + réflexion + décodage JSON — <span class="pill warn">coûteux</span>, à réserver aux canaux basse fréquence</td></tr>
@@ -100,9 +104,9 @@
     <h2 id="memory">Mémoire et récupération différée</h2>
     <p>La discipline mémoire côté hôte (à titre d’information pour les auteurs de scripts ; le SDK en bénéficie automatiquement) :</p>
     <ul>
-      <li>Les cinq arènes de sortie sont <strong>une par module et réutilisées entre frames</strong> ; l’arène de pixels démarre à 1 Mo, croît à la demande (16 Mo au maximum) et se rétracte de façon déterministe vers son plancher après les pics — fini la résidence fixe de 16 Mo par module.</li>
+      <li>Les cinq zones de sortie sont <strong>une par module et réutilisées entre frames</strong> ; la zone de pixels démarre à 1 Mo, croît à la demande (16 Mo au maximum) et se rétracte de façon déterministe vers son plancher après les pics — fini la résidence fixe de 16 Mo par module.</li>
       <li>Une instance qui sort du frustum n’est pas détruite (elle reste chaude, ré-entrée en vue sans reconstruction) ; elle n’est retirée qu’environ 5 secondes après avoir réellement quitté la liste des véhicules du client.</li>
-      <li><strong>Les gros blocs libérés passent par <code>defer_free</code></strong> (ABI 10) : les tampons de plusieurs méga-octets morts dans <code>render</code> / <code>dispose</code> sont confiés au thread de récupération en arrière-plan de l’hôte, évitant d’imputer tout le coût du <code>free</code> à la frame courante et d’amplifier l’attente des points sûrs du GC. Contrat : le bloc doit être mort, sans destructeur, et aucun thread ne doit plus y toucher ensuite (rejeu de l’hôte compris). La rétraction de l’arène de pixels du SDK s’y conforme déjà automatiquement ; pour vos propres gros tampons, appelez <code>host-&gt;defer_free</code> selon les mêmes règles — si l’hôte est trop ancien (emplacement null), une libération synchrone suffit.</li>
+      <li><strong>Les gros blocs libérés passent par <code>defer_free</code></strong> (ABI 10) : les tampons de plusieurs méga-octets morts dans <code>render</code> / <code>dispose</code> sont confiés au thread de récupération en arrière-plan de l’hôte, évitant d’imputer tout le coût du <code>free</code> à la frame courante et d’amplifier l’attente des points sûrs du GC. Contrat : le bloc doit être mort, sans destructeur, et aucun thread ne doit plus y toucher ensuite (rejeu de l’hôte compris). La rétraction de la zone de pixels du SDK s’y conforme déjà automatiquement ; pour vos propres gros tampons, appelez <code>host-&gt;defer_free</code> selon les mêmes règles — si l’hôte est trop ancien (emplacement null), une libération synchrone suffit.</li>
     </ul>
 
     <h2 id="observe">Observation et journaux</h2>
@@ -135,7 +139,7 @@
       <li>Vérifiez que vous utilisez un <strong>jar Release ou Complete Build</strong> — les artefacts de la CI rapide ne contiennent pas les ponts natifs et le journal affiche <code>native bridge unavailable</code> (ce n’est pas un problème de votre module).</li>
       <li>Vérifiez le répertoire de plateforme : le système courant ne charge que les bibliothèques de sa plateforme ; une déclaration par racine (stem) sans extension se développe automatiquement en chemins pour chaque plateforme (voir <a href="getting-started.html#package">Intégration dans un pack de ressources</a>).</li>
       <li>Vérifiez que <code>ID</code> est identique, caractère pour caractère, au champ <code>id</code> de l’entrée déclarée.</li>
-      <li>Vérifiez l’ABI : l’hôte accepte 6–10 ; une bibliothèque ABI 8+ exige un hôte Yanyang.7 ou supérieur.</li>
+      <li>Vérifiez l’ABI : l’hôte accepte 6–11 ; une bibliothèque ABI 8+ exige un hôte 2.3.0-beta-2.yanyang.7 ou supérieur.</li>
     </ol>
     <h3>Des carrés de substitution (tofu) à l’écran ?</h3>
     <p>Les glyphes CJK se dégradent quand la police de l’hôte ne couvre pas le point de code — transmettez un id de police de ressource à <code>Text::font()</code> / au constructeur de <code>Gfx2D</code> (par ex. <code>jsblock:shanghai</code>), ou vérifiez que le jeu de polices utilisé contient bien ces caractères.</p>
@@ -158,7 +162,7 @@
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>資料快照 — JCM Yanyang C++ 腳本開發文件</title>
+<title>資料快照 — JCM Yanyang 腳本開發文件</title>
 <meta name="description" content="Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 快照包裝器的完整存取器參考。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">總覽</a>
     <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">腳本模型</div>
+    <div class="nav-group">C++ 腳本</div>
     <a href="script-model.html">腳本模型與生命週期</a>
-    <div class="nav-group">API 參考</div>
     <a href="data.html" class="active">資料快照</a>
     <a href="drawing.html">繪製與畫布</a>
     <a href="java-api.html">mtr::Api 與 Java 互通作業</a>
     <a href="abi.html">C ABI 與宿主服務</a>
-    <div class="nav-group">進階</div>
     <a href="performance.html">效能與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 腳本</div>
+    <a href="js-getting-started.html">JS 腳本入門</a>
+    <a href="js-api.html">JS 公用 API</a>
+    <a href="js-types.html">JS 腳本類型</a>
+    <a href="js-yanyang.html">晏陽擴充 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,7 +62,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文件</a> / API 參考 / 資料快照</div>
       <h1>資料快照</h1>
-      <p class="page-lead">每幀一次、由宿主封送處理的唯讀資料。全部存取器都是普通記憶體讀取——零 JNI、零反射、零裝箱。</p>
+      <p class="page-lead">每幀一次、由宿主搬運處理的唯讀資料。全部存取器都是普通記憶體讀取——零 JNI、零反射、零裝箱。</p>
     </header>
 
     <div class="page-toc">
@@ -76,7 +80,7 @@
     </div>
 
     <h2 id="how">快照機制</h2>
-    <p>每幀開始時，宿主把該實例的資料<strong>一次性</strong>封送處理成一塊 POD 快照（定長標頭 + 變長陣列集區 + UTF-8 字串集區），連同狀態區塊指標一起傳給 <code>mtrRender</code>。SDK 的型別化包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在這塊記憶體上提供與 JS Wrapper <strong>同名的存取器</strong>：</p>
+    <p>每幀開始時，宿主把該實例的資料<strong>一次性</strong>搬運處理成一塊 POD 快照（定長標頭 + 變長陣列集區 + UTF-8 字串集區），連同狀態區塊指標一起傳給 <code>mtrRender</code>。SDK 的型別化包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在這塊記憶體上提供與 JS Wrapper <strong>同名的存取器</strong>：</p>
     <ul>
       <li>字串以 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）傳回，用 <code>.str()</code> 轉 <code>std::string</code>、<code>.empty()</code> 判斷是否為空；視圖只在本次 <code>render</code> 呼叫內有效。</li>
       <li>越界索引擲出 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 語意一致）。</li>
@@ -91,7 +95,7 @@
     <div class="admonition note">
       <span class="admonition-title">術語：MTR 3 的 train → MTR 4 的 vehicle</span>
       <p>MTR 4 統一以 <strong>vehicle</strong> 稱呼載具（資源包宣告鍵 <code>vehicleScripts</code>、Java 側 <code>VehicleWrapper</code>），本 SDK 的資料包裝類別因此命名為 <code>mtr::Vehicle</code>。更早版本的 SDK 曾按 MTR 3 慣例命名為 <code>mtr::Train</code>，該名稱現保留為<strong>原始碼相容別名</strong>——兩種寫法均可編譯，行為完全一致。</p>
-    <p>注意：<code>mtr::Vehicle</code> 命名已進入儲存庫 SDK 原始碼，將隨下一版本的 zip 發布；若你的專案使用 yanyang.7 及更早的 SDK zip，請以 <code>mtr::Train</code> 參考該類別（新 SDK 中兩種寫法皆可編譯）。</p></div>
+    <p>注意：<code>mtr::Vehicle</code> 命名已進入儲存庫 SDK 原始碼，將隨下一版本的 zip 發布；若你的專案使用 2.3.0-beta-2.yanyang.7 及更早的 SDK zip，請以 <code>mtr::Train</code> 參考該類別（新 SDK 中兩種寫法皆可編譯）。</p></div>
     <p>由 <code>mtr::Vehicle</code> 提供，對應 JS 的 <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>存取器</th><th>型別</th><th>說明</th></tr></thead>
@@ -270,7 +274,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

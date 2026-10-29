@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Démarrage rapide — Documentation JCM Yanyang C++ Scripting</title>
+<title>Démarrage rapide — Documentation JCM Yanyang Scripting</title>
 <meta name="description" content="Récupérer le SDK, créer un projet de module, compiler, intégrer le résultat à un pack de ressources et le vérifier en jeu.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
     <a href="getting-started.html" class="active">Démarrage rapide</a>
-    <div class="nav-group">Modèle de script</div>
+    <div class="nav-group">Scripts C++</div>
     <a href="script-model.html">Modèle de script et cycle de vie</a>
-    <div class="nav-group">Référence API</div>
     <a href="data.html">Instantanés de données</a>
     <a href="drawing.html">Dessin et canevas</a>
     <a href="java-api.html">mtr::Api et interopérabilité Java</a>
     <a href="abi.html">ABI C et services de l’hôte</a>
-    <div class="nav-group">Aller plus loin</div>
     <a href="performance.html">Performance et débogage</a>
-  </nav>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html">Extensions Yanyang</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -90,7 +94,7 @@
 
     <h2 id="sdk">Récupérer le SDK</h2>
     <p>Le SDK est publié à chaque Release sous la forme <code>jcm-native-sdk-&lt;version&gt;.zip</code> (voir les pièces jointes des GitHub Releases) ; son contenu correspond aux sources du répertoire <code>native/</code> du dépôt :</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
 ├── include/mtr/          # tous les en-têtes du SDK (script.hpp est le point d'entrée principal)
 │   ├── mtr_native.h      # ABI C : fonctions exportées, instantanés, enregistrements de dessin, services de l'hôte
 │   ├── script.hpp        # classes de base de script + macros d'enregistrement (un seul #include suffit)
@@ -208,14 +212,16 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
 │   └── ios-arm64/libmy_pids.dylib
 └── ... (textures, modèles et autres ressources)</code></pre>
 
-    <h3>Déclaration dans minecraft_custom_resources.json</h3>
+    <h3>Déclaration dans joban_custom_resources.json (préréglage PIDS)</h3>
     <p>Aucun champ <code>language</code> n’est nécessaire — le mod détermine automatiquement la langue d’après les caractéristiques de chaque entrée de <code>scriptLocations</code> ; JS et C++ peuvent être mélangés en toute proportion au sein d’une même entrée :</p>
-    <pre><code class="lang-json">"pidsScripts": [{
-    "id": "example:arrivals",
-    "scriptLocations": [
-        "mtr:my_pack/natives/my_pids"
-    ]
-}]</code></pre>
+    <pre><code class="lang-json">{
+    "pids_images": [{
+        "id": "example:arrivals",
+        "scriptLocations": [
+            "mtr:my_pack/natives/my_pids"
+        ]
+    }]
+}</code></pre>
     <p>Règles de résolution des entrées :</p>
     <table>
       <thead><tr><th>Entrée <code>scriptLocations</code></th><th>Résultat</th></tr></thead>
@@ -227,7 +233,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
       </tbody>
     </table>
     <ul>
-      <li><strong>Mêmes règles pour les quatre catégories</strong> : <code>vehicleScripts</code> / <code>pidsScripts</code> (et les <code>scriptLocations</code> des préréglages PIDS) / ascenseurs / eyecandy prennent tous en charge les déclarations mixtes décrites ci-dessus.</li>
+      <li><strong>Mêmes règles pour les quatre catégories</strong> : <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> dans <code>mtr_custom_resources.json</code>, ainsi que les préréglages <code>pids_images</code> (via <code>scriptLocations</code>) dans <code>joban_custom_resources.json</code>, prennent tous en charge les déclarations mixtes décrites ci-dessus.</li>
       <li><strong>Compatibilité avec l’ancien format</strong> : les anciennes déclarations <code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> restent valides et peuvent également être mélangées avec du <code>.js</code> ; <code>"language": "javascript"</code> force l’analyse de l’entrée entière comme JS.</li>
       <li><strong>Champs JS inchangés</strong> : la signification des champs <code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code>, etc. ne change pas ; le côté C++ lit <code>input</code> via <code>api.input()</code>.</li>
     </ul>
@@ -258,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

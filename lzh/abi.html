@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>C ABI 與宿主服務 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>C ABI 與宿主服務 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="模塊導出函數、幀之輸入輸出、繪製記錄、宿主服務與 ABI 版本沿革。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html" class="active">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -99,9 +105,9 @@
     <p>快照內部之約：諸 <code>*_offset</code> 欄，皆自快照首位元組起算之偏移也；<code>string_pool_offset/len</code> 則述共享 UTF-8 字串池之所在。定址之勞，SDK 包裝器代君盡之。</p>
 
     <h3>JcmFrameOutput（模塊 → 宿主）</h3>
-    <p>輸出者何？<strong>扁平記錄之流，加以輸出競技場凡五</strong>也。<code>mtrRender</code> 既返，宿主即讀而收其幀（模塊間之雙緩衝，宿主為之）：</p>
+    <p>輸出者何？<strong>扁平記錄之流，加以輸出之區凡五</strong>也。之區（arena）者，預申之大塊記憶也：幀內順次而配，幀末舉而還之。<code>mtrRender</code> 既返，宿主即讀而收其幀（模塊間之雙緩衝，宿主為之）：</p>
     <table>
-      <thead><tr><th>競技場</th><th>內容</th><th>容量（SDK 預設）</th></tr></thead>
+      <thead><tr><th>之區</th><th>內容</th><th>容量（SDK 預設）</th></tr></thead>
       <tbody>
         <tr><td><code>records</code></td><td>順列之繪製記錄（變長，按 <code>record_size</code> 之步而歷）</td><td>256 條</td></tr>
         <tr><td><code>matrix_arena</code></td><td>矩陣流（列主序 4×4，每矩陣 16 float）</td><td>128 組</td></tr>
@@ -110,7 +116,7 @@
         <tr><td><code>float_arena</code></td><td>float 流（體素碰撞匣等）</td><td>1024 個</td></tr>
       </tbody>
     </table>
-    <p>ABI 9 而後，輸出併給各競技場之<strong>完備容量</strong>——宿主為每競技場惟建一 <code>ByteBuffer</code>，每幀改其 limit 而復用之，不復逐幀而配五包裝之物。</p>
+    <p>ABI 9 而後，輸出併給各區之<strong>完備容量</strong>——宿主為每區惟建一 <code>ByteBuffer</code>，每幀改其 limit 而復用之，不復逐幀而配五包裝之物。</p>
 
     <h2 id="records">繪製記錄</h2>
     <p>每記錄以 <code>JcmRecordHeader{kind, record_size}</code> 為首，變長而順列。凡八類：</p>
@@ -152,8 +158,8 @@
       <tbody>
         <tr><td>6</td><td><code>mtrInit()</code>：宿主必構狀態之物件（零填充之塊施於非平凡之型，未定義之行也）</td></tr>
         <tr><td>7</td><td>資源字體度量＋基線文字光柵入宿主服務</td></tr>
-        <tr><td>8</td><td><code>invoke_api</code>（完備 Java API 通道）、電梯快照、轉乘具型之模式；<strong>ABI 8 之庫，須 JCM Yanyang.7 及以上之宿主</strong></td></tr>
-        <tr><td>9</td><td>轉乘 / 車輛規範交通<strong>類型</strong>之 id（MAGIC MTR 所擴）；宿主則止逐幀抄其快照，競技場之容量出參焉</td></tr>
+        <tr><td>8</td><td><code>invoke_api</code>（完備 Java API 通道）、電梯快照、轉乘具型之模式；<strong>ABI 8 之庫，須 JCM 2.3.0-beta-2.yanyang.7 及以上之宿主</strong></td></tr>
+        <tr><td>9</td><td>轉乘 / 車輛規範交通<strong>類型</strong>之 id（MAGIC MTR 所擴）；宿主則止逐幀抄其快照，之區之容量出參焉</td></tr>
         <tr><td>10</td><td><code>defer_free</code> 延遲回收之鉤（腳本自有大緩衝，離 JVM 線程而釋）</td></tr>
         <tr><td>11</td><td>車輛快照之 <code>door_direction</code>（開門之向，0..3 —— 舊 <code>_pad0</code> 之位元組升格而為之，布局尺寸皆如其舊，老模塊行如故）</td></tr>
       </tbody>
@@ -176,7 +182,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

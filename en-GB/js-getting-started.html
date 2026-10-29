@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en-GB" data-locale="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Getting started with JavaScript scripting — JCM Yanyang Scripting Documentation</title>
+<meta name="description" content="Write MTR vehicle, eyecandy, lift and PIDS scripts in JavaScript: registration, the lifecycle, debugging aids and authoring guidelines.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">C++ scripting</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <a href="performance.html">Performance and debugging</a>
+    <div class="nav-group">JavaScript scripting</div>
+    <a href="js-getting-started.html" class="active">JS getting started</a>
+    <a href="js-api.html">JS common APIs</a>
+    <a href="js-types.html">JS script types</a>
+    <a href="js-yanyang.html">Yanyang extensions</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">Getting started with JavaScript scripting</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / JavaScript scripting / JS getting started</div>
+      <h1>Getting started with JavaScript scripting</h1>
+      <p class="page-lead">Since v2, JCM has let resource packs control the rendering and sounds of vehicles, eyecandy and lifts, as well as the display content of PIDS screens, with <strong>JavaScript</strong>. This page covers registration, the lifecycle, debugging and guidelines; the API details follow on the next three pages.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#what">What is a JS script?</a></li>
+        <li><a href="#types">The four script kinds</a></li>
+        <li><a href="#register">Registering scripts</a></li>
+        <li><a href="#lifecycle">Lifecycle</a></li>
+        <li><a href="#aids">Development aids</a></li>
+        <li><a href="#rules">Authoring guidelines</a></li>
+        <li><a href="#compat">Relationship to NTE / MTR 3</a></li>
+      </ol>
+    </div>
+
+    <h2 id="what">What is a JS script?</h2>
+    <p>A script is a piece of JavaScript distributed with a <strong>resource pack</strong>: the game parses it while loading resources and calls it frame by frame at runtime, using it to render models, text and textures, or play sounds, on top of the built-in mechanisms.</p>
+    <ul>
+      <li>The engine is <a href="https://rhino.github.io/" rel="noopener">Rhino</a>—a JavaScript engine implemented in pure Java. You only need the language itself (variables, functions, conditional logic) and built-in objects such as <code>Date</code> and <code>Map</code>; the browser environment (HTML/CSS/DOM) never comes into play, so don't take your IDE's web-oriented completions at face value.</li>
+      <li>Rhino provides <strong>LiveConnect</strong> interoperability: scripts can call Java classes and methods directly. Many of JCM's built-in APIs are themselves Java classes exposed to scripts.</li>
+      <li>JavaScript and Java are two different languages; knowing Java is not a prerequisite for writing scripts, but understanding Java's type system helps you avoid interop pitfalls (see the <a href="#rules">authoring guidelines</a>).</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">Relationship to C++ native scripting</span>
+      <p>The Yanyang fork adds <a href="getting-started.html">C++ native scripting</a> alongside JS; the two share the same lifecycle and rendering pipeline, and can even be <strong>mixed within the same declaration entry</strong> (see <a href="js-yanyang.html">Yanyang extensions</a>). Simple one-off logic iterates fastest in JS; high-resolution per-pixel repainting and heavy computation belong to C++.</p>
+    </div>
+
+    <h2 id="types">The four script kinds</h2>
+    <p>Each kind targets a specific scenario, and the available global objects and callbacks differ slightly:</p>
+    <table>
+      <thead><tr><th>Kind</th><th>Controls</th><th>Typical uses</th></tr></thead>
+      <tbody>
+        <tr><td><a href="js-types.html#vehicle">Vehicle scripts</a></td><td>MTR vehicles (whole trains)</td><td>In-car screens, destination displays, announcement sounds, motor sounds</td></tr>
+        <tr><td><a href="js-types.html#eyecandy">Eyecandy scripts</a></td><td>MTR eyecandy blocks</td><td>Dynamic signage, fare-gate lights, interactive installations (block-use events)</td></tr>
+        <tr><td><a href="js-types.html#lift">Lift scripts</a></td><td>MTR lifts (car styles)</td><td>Floor displays, arrival chimes</td></tr>
+        <tr><td><a href="js-types.html#pids">PIDS scripts</a></td><td>JCM arrival screens (presets)</td><td>Custom arrival display layouts, dynamic textures</td></tr>
+      </tbody>
+    </table>
+    <p>A given script is parsed only once; every concrete instance in the game (each train, each screen) holds its own independent <code>state</code> and is called back separately.</p>
+
+    <h2 id="register">Registering scripts</h2>
+    <p>Scripts load with the resource pack. First make sure the game recognises the pack—put a <code>pack.mcmeta</code> in the pack's root directory:</p>
+    <pre><code class="lang-json">{
+    "pack_format": 13,
+    "description": "你的资源包描述"
+}</code></pre>
+    <p><code>pack_format</code> imposes no constraint on JCM scripts (there is no need to change it for every MC version), but it must be a valid JSON number.</p>
+
+    <h3>Declaration entries</h3>
+    <p>Vehicle / eyecandy / lift scripts are declared in <strong><code>mtr_custom_resources.json</code></strong> (placed under <code>assets/mtr/</code>); PIDS scripts are declared in <strong><code>joban_custom_resources.json</code></strong> (placed under <code>assets/jsblock/</code>), in its <code>pids_images</code> array. The MTR 4 format splits 'content' and 'scripts' into two arrays, with content entries referencing script entries via <code>scriptId</code>—the same script can be reused by multiple vehicles:</p>
+    <pre><code class="lang-json">{
+    "vehicles": [
+        { "id": "demo_sp1900", "name": "Demo SP1900", "scriptId": "demo_lcd" }
+    ],
+    "vehicleScripts": [
+        {
+            "id": "demo_lcd",
+            "scriptLocations": ["demo:js/sp1900_lcd.js"],
+            "prependExpressions": ["print('Hello world')"],
+            "input": { "era": 2004 },
+            "rateLimit": 0.75,
+            "dataFetchMode": "ALL"
+        }
+    ]
+}</code></pre>
+    <table>
+      <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>scriptLocations</code></td><td>An array of JS file locations (any number). Since JCM v2.3, most places that accept one also take a plain string id. Entries without an extension may be recognised as C++ modules under the Yanyang rules—see <a href="js-yanyang.html#mixed">Mixed entries</a></td></tr>
+        <tr><td><code>prependExpressions</code></td><td>JS code inlined directly, executed before the files in <code>scriptLocations</code></td></tr>
+        <tr><td><code>input</code></td><td>Any JSON object, exposed to the script read-only as <code>SCRIPT_INPUT</code></td></tr>
+        <tr><td><code>rateLimit</code></td><td>The script's minimum call interval, in seconds. Raise it for low-frequency logic to save performance</td></tr>
+        <tr><td><code>dataFetchMode</code></td><td>Vehicle scripts only: <code>SKIP</code> (the default, fetches no data) / <code>ALL</code> / <code>MANDATORY</code>—see <a href="js-types.html#fetch">Data fetch modes</a></td></tr>
+        <tr><td><code>forceLoad</code></td><td>JCM refuses to load a script entry by default when no content in the same pack references it; set <code>true</code> to force loading (used when sharing script entries across packs)</td></tr>
+        <tr><td><code>isScriptControlled</code></td><td>A content-entry field of eyecandy / lifts: hides the original model and hands rendering entirely over to the script</td></tr>
+      </tbody>
+    </table>
+    <p>The array names for the three kinds: <code>vehicleScripts</code> (vehicles, content in <code>vehicles</code>), <code>objectScripts</code> (eyecandy, content in <code>objects</code>), <code>liftScripts</code> (lifts, content in <code>lifts</code>). PIDS has no <code>scriptId</code> step—writing <code>scriptFiles</code> / <code>scriptTexts</code> directly on a preset object in <code>pids_images</code> makes it a script preset (the key names follow JCM convention, see <a href="js-types.html#pids">PIDS scripts</a>).</p>
+    <div class="admonition tip">
+      <span class="admonition-title">Tip</span>
+      <p>Every field is optional, but a script entry needs at least one of <code>scriptLocations</code> or <code>prependExpressions</code> to be parsed. Yanyang also accepts the <code>script_input</code> spelling used in the NTE documentation's examples (equivalent to <code>scriptInput</code>), so packs copied from the old docs keep working.</p>
+    </div>
+
+    <h3 id="mtr3">MTR 3 / NTE legacy formats</h3>
+    <p>Declarations from the MTR 3 era remain valid: vehicles go in <code>custom_trains</code> (field names <code>script_files</code> / <code>script_texts</code> / <code>script_input</code> / <code>script_rate_limit</code>), eyecandy in <code>eyecandy.json</code>. Vehicles in the legacy format fetch data in <code>MANDATORY</code> mode by default.</p>
+
+    <h2 id="lifecycle">Lifecycle</h2>
+    <h3>The parsing stage</h3>
+    <p>When the game reloads resources (at startup or on F3+T), the top-level code of every script is executed once <strong>on the main thread</strong>; JCM then records its <code>create</code> / <code>render</code> / <code>dispose</code> functions for runtime invocation. One-off work such as loading models and reading textures belongs here—but heavy operations hold up the entire resource reload, so keep them to a minimum.</p>
+    <h3>The runtime stage</h3>
+    <pre><code class="lang-js">let displaySpeed = 1;            // Runs during the parsing stage
+
+function create(ctx, state, vehicle) {
+    state.speed = 0.75;           // Runs once per instance, before its first render
+}
+
+function render(ctx, state, vehicle) {
+    state.speed += Timing.delta();  // Runs every frame (best effort)
+}
+
+function dispose(ctx, state, vehicle) { }   // Runs when the instance retires
+
+print(displaySpeed);             // Runs during the parsing stage; prints 1</code></pre>
+    <table>
+      <thead><tr><th>Parameter</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>ctx</code></td><td>The context: the 'action' entry point for submitting draws and playing sounds; differs per kind (vehicles use <code>VehicleScriptContext</code>, …)</td></tr>
+        <tr><td><code>state</code></td><td>A plain JS object, persistent <strong>per instance</strong>—each of two trains holds its own, with no cross-talk; starts as <code>{}</code></td></tr>
+        <tr><td><code>wrapper</code></td><td>The read-only information source: speed, door values, screen dimensions, arrival lists, …; differs per kind</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Asynchronous execution</strong>: runtime callbacks happen on a dedicated pool of 4 background threads (the parsing stage still runs on the main thread). Do not hold up a thread with <code>Thread.sleep</code> or busy loops—each script entry is pinned to one fixed thread, and other scripts may be queuing on it.</li>
+      <li><strong>Per-frame, but not guaranteed per-frame</strong>: <code>render</code> aims for once per frame but is not re-entered until the previous frame has finished; when the frame rate fluctuates, don't assume 'exactly N times per second'. Scale anything that must advance in real time with <code>Timing.delta()</code>.</li>
+      <li><strong>Runtime errors</strong>: the log reports the error under a <code>[Scripting] Error executing script!</code> heading with the file and line number; the whole script then pauses for 4 seconds before retrying. In game, enable the <a href="#aids">debug overlay</a> to see the errors directly on screen.</li>
+      <li><strong>No JS thread guarantees</strong>: local variables inside one callback function are invisible to the others—data shared across calls goes in <code>state</code>.</li>
+    </ul>
+    <div class="admonition note">
+      <span class="admonition-title">Correspondence with the C++ lifecycle</span>
+      <p><code>create / render / dispose</code> plus per-instance state is precisely the model the C++ native scripts adopt (see <a href="script-model.html">Script model and lifecycle</a>); scripts can be migrated between the two languages section by section.</p>
+    </div>
+
+    <h2 id="aids">Development aids</h2>
+    <ul>
+      <li><strong>Script debug overlay</strong>: Mod Menu (Fabric) or the mod configuration screen (Forge) → JCM → Configure → tick <strong>Script debug mode</strong>. The top-left corner of the screen lists every script entry and its instances; instances are colour-coded by time cost—blue (fine), yellow (slowish), red (slow). A single execution that exceeds 5 seconds is flagged as unresponsive, and after a further 5 seconds it is terminated outright. Press <code>[</code> / <code>]</code> to switch between the [MTR] and [JCM] sources.</li>
+      <li><strong>Quick reload</strong>: with debug mode on, <kbd>Ctrl</kbd>+<kbd>R</kbd> reloads the MTR-side scripts (vehicles / eyecandy / lifts) and <kbd>Shift</kbd>+<kbd>R</kbd> the JCM-side scripts (PIDS presets)—no full F3+T needed. The three keys are actually bound to the 'sprint', 'sneak' and 'JCM reload' keys, and can be changed in the keybind settings.</li>
+      <li><strong>Logging</strong>: <code>print(...)</code> and <code>console.log(...)</code> write to the game console; parsing-stage errors produce only a one-line note in chat—see the launcher's <code>logs/latest.log</code> for the details.</li>
+      <li><strong>IDE completions</strong>: VSCode has a third-party extension, <em>MTR Scripting Tools</em> (searchable on the Visual Studio Marketplace / Open VSX), that provides smart completions for the JCM script types; report issues to the extension's author.</li>
+    </ul>
+
+    <h2 id="rules">Authoring guidelines</h2>
+    <h3>Language level</h3>
+    <ul>
+      <li><strong>Strict mode</strong>: assigning to an undeclared variable (<code>x = 1</code>) throws immediately. Use <code>var</code> or <code>let</code> for globals and always <code>let</code> inside functions.</li>
+      <li><strong>const is function-scoped</strong>: Rhino's <code>const</code> is not block-scoped like modern JS—declaring one inside a <code>for</code> loop body throws 'redeclared variable' on the second iteration. Use <code>let</code> when you need block-scoped semantics.</li>
+      <li><strong>JS strings vs Java strings</strong>: what MTR/JCM returns is mostly Java <code>String</code>. Take the length with <code>str.length()</code>; to use the JS <code>.length</code> property, convert first by concatenating an empty string: <code>(""+str).length</code>. Java <code>List</code>s support <code>list[0]</code> and <code>for (x of list)</code>, but JS array methods (<code>map</code> and friends) are unavailable.</li>
+      <li><strong>Nullable values</strong>: methods whose return type carries a <code>?</code> may return <code>null</code>. Handle them with <code>if (x != null)</code>, the ternary operator, optional chaining <code>x?.getName()</code> and nullish coalescing <code>x?.length() ?? 0</code>; taking a property of, or calling a method on, <code>null</code> throws immediately.</li>
+      <li><strong>Overload resolution</strong>: Java methods pick their overload by argument type, with numbers defaulting to <code>double</code>; when unsure, call by signature suffix: <code>graphics["drawString(java.lang.String,int,int)"]("文字", 15, 60)</code>, <code>new Color["(int,int,int)"](40, 68, 130)</code>. When you see 'method not found', suspect the argument types first.</li>
+      <li><strong>Feature range</strong>: Rhino does not support every recent JS feature—see <a href="https://mozilla.github.io/rhino/compat/engines.html" rel="noopener">Mozilla's compatibility table</a>.</li>
+    </ul>
+    <h3>Behaviour level</h3>
+    <ul>
+      <li><strong>Never block, never busy-loop</strong>: there is no 'wait a bit and continue' construct—schedule the action into a later callback instead; hand long operations (networking, large files) to the <code>BackgroundWorker</code>. A busy loop is forcibly terminated after about 10 seconds and handled as a runtime error.</li>
+      <li><strong>The internal API boundary</strong>: methods / fields not documented here, the internal structure of <code>MTRClientData</code>, and the deep objects below <code>VehicleWrapper.getMtrVehicle()</code> are all internal implementation and may change outright between versions; publicly distributed resource packs must not rely on them.</li>
+      <li><strong>The class access allowlist</strong>: by default only these packages are admitted—<code>com.lx862.jcm.mod.scripting</code>, <code>com.lx862.mtrscripting.util</code>, <code>com.lx862.mtrscripting.wrapper</code>, <code>java.lang</code>, <code>java.awt</code>, <code>java.text</code>, <code>java.math</code>, <code>java.util</code>, <code>java.time</code>, <code>javax.imageio</code>, <code>sun.java2d</code>, <code>sun.font</code>, <code>sun.awt</code>, <code>org.mtr</code>. Players can lift the restriction in the settings; if your distributed pack requires it to be lifted, say so prominently in its description.</li>
+      <li><strong>Prefix your state variables</strong>: several scripts can attach to the same instance, and <code>state</code> is shared—use prefixes like <code>state.myfx_ratelimit</code> to avoid name collisions.</li>
+      <li><strong>Performance is on a budget</strong>: 16 ms per frame looks roomy until dozens of script instances are running at once. Do the arithmetic before repainting a large texture every frame: a train of 8 cars with 10 screens each means 80 full-texture <code>upload()</code>s per frame—lowering the resolution, sharing screens across doors and reducing the update frequency (<code>RateLimit</code>) are the right ways. A client-side script only needs to be good enough; don't chase a 1:1 replica.</li>
+      <li><strong>Scripts are not a security boundary</strong>: scripts run purely client-side and anyone can rewrite them locally—no permission check (such as <code>hasPermissionLevel</code>) stops a determined user, so never rely on them for access control.</li>
+    </ul>
+
+    <h2 id="compat">Relationship to NTE / MTR 3</h2>
+    <p>The JCM scripting system is inspired by <a href="https://modrinth.com/mod/mtr-nte" rel="noopener">Nemo Transit Expansion (NTE)</a> and is an unofficial continuation of NTE's scripting features on MTR 4, retaining a large number of same-named or equivalent compatibility APIs (the parts marked 'Deprecated' in this documentation). Key differences:</p>
+    <ul>
+      <li>Legacy-format registration works as before; scripts that must run on both MTR 3 and MTR 4 can branch on the version via <code>Resources.getAddonVersion("mtr")</code> (the old scripts' <code>Resources.getMTRVersion()</code>).</li>
+      <li><code>Vector3f</code> operations that returned <code>void</code> in NTE now return the vector itself and support chaining; <code>Resources.manager()</code> returns <code>null</code> on MTR 4, and the functions that need it accept <code>null</code> as well.</li>
+      <li>ANTE-style compatibility classes (<code>SoundHelper</code> / <code>TickableSound</code> / <code>GlobalRegister</code> / <code>ComponentUtil</code> / the global <code>asJavaArray()</code>) are available since v2.3, with method signatures matching ANTE's.</li>
+      <li>MTR 4 only synchronises data for <strong>nearby</strong> stations / routes to the client—a script being unable to see far-away data is not a bug but deliberate bandwidth saving; see <a href="js-types.html#fetch">Data fetch modes</a> for the vehicle script's three modes.</li>
+    </ul>
+
+    <hr>
+    <p>Next: <a href="js-api.html">JS common APIs</a> — the classes and functions shared by every script; <a href="js-types.html">JS script types</a> — each of the four kinds' ctx and wrapper.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Documentation home</a>
+      <a href="js-api.html">JS common APIs</a>
+      <a href="js-yanyang.html">Yanyang extensions</a>
+    </div>
+    JCM Yanyang scripting documentation · JavaScript part · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

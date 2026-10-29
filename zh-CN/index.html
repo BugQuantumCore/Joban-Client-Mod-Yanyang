@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>概览 — JCM Yanyang C++ 脚本开发文档</title>
+<title>概览 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="Joban Client Mod Yanyang 分支的 C++ 原生脚本开发文档：概览、快速上手、API 参考与性能指南。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html" class="active">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html">数据快照</a>
     <a href="drawing.html">绘制与画布</a>
     <a href="java-api.html">mtr::Api 与 Java 互操作</a>
     <a href="abi.html">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,7 +62,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>C++ 原生脚本</h1>
-      <p class="lead">为 Minecraft Transit Railway 4 的资源包作者提供以 C++ 编写<strong>车辆、PIDS、电梯、装饰</strong>四类脚本的能力——与 JavaScript 脚本同生命周期、同 API 面，热路径零 JVM 穿越。</p>
+      <p class="lead">为 Minecraft Transit Railway 4 的资源包作者提供以 C++ 编写<strong>车辆、PIDS、电梯、装饰</strong>四类脚本的能力——与 JavaScript 脚本同生命周期、同 API 面，热路径零 JVM 穿越。JavaScript 脚本（原版 JCM 的脚本体系）的完整开发文档见下方「JavaScript 脚本」一节。</p>
     </header>
 
     <h2>这是什么</h2>
@@ -84,7 +88,7 @@
       <div class="card">
         <div class="card-icon">🛡️</div>
         <h3>崩溃隔离</h3>
-        <p>脚本崩溃只禁用出错模块本身并留下一行日志，游戏进程不受影响；模块内的 C++ 异常同样被围栏拦截。</p>
+        <p>脚本崩溃只禁用出错模块本身并留下一行日志，游戏进程不受影响；模块内的 C++ 异常同样被防护拦截。</p>
       </div>
     </div>
 
@@ -92,7 +96,7 @@
     <div class="arch">
       <div class="arch-row">
         <div class="arch-col">
-          <div class="arch-node"><b>资源包</b><span>minecraft_custom_resources.json 声明<br>natives/&lt;platform&gt;/ 库文件</span></div>
+          <div class="arch-node"><b>资源包</b><span>mtr_custom_resources.json 声明<br>natives/&lt;platform&gt;/ 库文件</span></div>
         </div>
         <div class="arch-col" style="justify-content:center;flex:0 0 auto;color:var(--faint)">→</div>
         <div class="arch-col">
@@ -105,7 +109,7 @@
           <div class="arch-node host"><b>回放绘制</b><span>文字 / 纹理 / 模型 / 声音<br>与 JS 脚本同一渲染路径</span></div>
         </div>
       </div>
-      <div class="arch-legend">数据向右流动：快照（POD 结构 + 字符串池）进入模块；模块把扁平的绘制记录流写进五个输出竞技场，宿主按与 JS 相同的代码路径回放。绘制、字体、像素全部留在原生侧，只有快照封送是每帧强制的唯一 Java 穿越。</div>
+      <div class="arch-legend">数据向右流动：快照（POD 结构 + 字符串池）进入模块；模块把扁平的绘制记录流写进五个输出内存区（arena），宿主按与 JS 相同的代码路径回放。绘制、字体、像素全部留在原生侧，只有快照搬运是每帧强制的唯一 Java 穿越。</div>
     </div>
 
     <h2>十五行的 PIDS 脚本</h2>
@@ -152,7 +156,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
         <tr><td>Minecraft</td><td>1.17.1 – 1.20.4（Fabric / Forge）</td></tr>
         <tr><td>前置</td><td>Minecraft Transit Railway 4.0.5+（必需）；Fabric 版另需 Fabric API</td></tr>
         <tr><td>Java</td><td>16 及以上；22+ 自动启用全程零 JNI 的 FFM 平面</td></tr>
-        <tr><td>ABI</td><td>宿主接受 ABI 6–10 模块；当前 SDK 编译产出 ABI 10</td></tr>
+        <tr><td>ABI</td><td>宿主接受 ABI 6–11 模块；当前 SDK 编译产出 ABI 11</td></tr>
         <tr><td>工具链</td><td>C++17；MSVC / GCC / Clang；CMake ≥ 3.16（推荐）</td></tr>
       </tbody>
     </table>
@@ -166,6 +170,10 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a class="toc-card" href="java-api.html"><b>mtr::Api 与 Java 互操作</b><span>调用 JS 能访问的全部公开 Java API、回调、JS ↔ C++ 对照表</span></a>
       <a class="toc-card" href="abi.html"><b>C ABI 与宿主服务</b><span>导出函数、帧输入输出、绘制记录、宿主服务、ABI 版本演进</span></a>
       <a class="toc-card" href="performance.html"><b>性能与调试</b><span>GC 卫生、脏矩形上传、latest.log 观测、常见问题排查</span></a>
+      <a class="toc-card" href="js-getting-started.html"><b>JS 脚本入门</b><span>注册、生命周期、调试辅助与撰写守则</span></a>
+      <a class="toc-card" href="js-api.html"><b>JS 公共 API</b><span>资源、渲染、模型、声音、网络、MTR 数据与工具类</span></a>
+      <a class="toc-card" href="js-types.html"><b>JS 脚本类型</b><span>车辆 / 装饰物 / 电梯 / PIDS 的专属 API 与 DisplayHelper</span></a>
+      <a class="toc-card" href="js-yanyang.html"><b>晏阳扩展 API</b><span>混合 JS + C++ 条目、开门方向记忆、交通类型细分</span></a>
     </div>
   </article>
 
@@ -175,7 +183,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

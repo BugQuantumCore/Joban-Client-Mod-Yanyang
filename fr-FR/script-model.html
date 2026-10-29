@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Modèle de script et cycle de vie — Documentation JCM Yanyang C++ Scripting</title>
+<title>Modèle de script et cycle de vie — Documentation JCM Yanyang Scripting</title>
 <meta name="description" content="Classes de base des quatre catégories de scripts, sémantique de State, ordonnancement create/render/dispose, modèle de threading et isolation des plantages.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Documentation</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
     <a href="getting-started.html">Démarrage rapide</a>
-    <div class="nav-group">Modèle de script</div>
+    <div class="nav-group">Scripts C++</div>
     <a href="script-model.html" class="active">Modèle de script et cycle de vie</a>
-    <div class="nav-group">Référence API</div>
     <a href="data.html">Instantanés de données</a>
     <a href="drawing.html">Dessin et canevas</a>
     <a href="java-api.html">mtr::Api et interopérabilité Java</a>
     <a href="abi.html">ABI C et services de l’hôte</a>
-    <div class="nav-group">Aller plus loin</div>
     <a href="performance.html">Performance et débogage</a>
-  </nav>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html">Extensions Yanyang</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -116,7 +120,7 @@ struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
 MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
 
     <ul>
-      <li><strong><code>ID</code></strong> est l’identifiant nommé du script (par ex. <code>demo:vehicle</code>) ; il doit être identique au champ <code>id</code> de l’entrée déclarée dans le <code>minecraft_custom_resources.json</code> du pack de ressources.</li>
+      <li><strong><code>ID</code></strong> est l’identifiant nommé du script (par ex. <code>demo:vehicle</code>) ; il doit être identique au champ <code>id</code> de l’entrée déclarée dans le <code>mtr_custom_resources.json</code> du pack de ressources.</li>
       <li>Les trois fonctions du cycle de vie peuvent toutes être surchargées au besoin (la classe de base fournit des implémentations vides) ; leurs signatures sont fixes.</li>
       <li>Une unité de traduction enregistre un seul script ; pour plusieurs scripts, répartissez-les dans plusieurs bibliothèques modules.</li>
     </ul>
@@ -146,7 +150,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       </div>
       <div class="step">
         <h3>render (à chaque frame)</h3>
-        <p>Lecture de l’instantané → calculs → écriture des enregistrements de dessin dans l’arène de frame. L’instantané et ses enveloppes ne sont valables que durant cet appel ; dès que <code>render</code> retourne, l’hôte lit la sortie et récupère la frame. Pendant les périodes où l’instance est invisible, <code>render</code> n’est pas appelé, mais l’état reste chaud.</p>
+        <p>Lecture de l’instantané → calculs → écriture des enregistrements de dessin dans la zone de frame. L’instantané et ses enveloppes ne sont valables que durant cet appel ; dès que <code>render</code> retourne, l’hôte lit la sortie et récupère la frame. Pendant les périodes où l’instance est invisible, <code>render</code> n’est pas appelé, mais l’état est conservé tel quel.</p>
       </div>
       <div class="step">
         <h3>dispose</h3>
@@ -195,7 +199,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang C++ Scripting · correspond au SDK ABI 11 (2.3.0-beta-2.yanyang.7) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
   </footer>
 </main>
 </div>

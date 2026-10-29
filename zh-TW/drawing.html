@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>繪製與畫布 — JCM Yanyang C++ 腳本開發文件</title>
+<title>繪製與畫布 — JCM Yanyang 腳本開發文件</title>
 <meta name="description" content="Text / Texture 串流 API、Matrices、GraphicsTexture 髒矩形上傳、Gfx2D 軟體光柵器與字型體系。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">總覽</a>
     <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">腳本模型</div>
+    <div class="nav-group">C++ 腳本</div>
     <a href="script-model.html">腳本模型與生命週期</a>
-    <div class="nav-group">API 參考</div>
     <a href="data.html">資料快照</a>
     <a href="drawing.html" class="active">繪製與畫布</a>
     <a href="java-api.html">mtr::Api 與 Java 互通作業</a>
     <a href="abi.html">C ABI 與宿主服務</a>
-    <div class="nav-group">進階</div>
     <a href="performance.html">效能與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 腳本</div>
+    <a href="js-getting-started.html">JS 腳本入門</a>
+    <a href="js-api.html">JS 公用 API</a>
+    <a href="js-types.html">JS 腳本類型</a>
+    <a href="js-yanyang.html">晏陽擴充 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -120,7 +124,7 @@
     <p>渲染層（與 <code>mtr::Matrices</code> 無關的 2D 層列舉 <code>MtrRenderLayer</code>）：<code>MTR_LAYER_TEXT</code>（文字）、<code>MTR_LAYER_LIGHT</code>（發光體）、<code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code>（外觀 / 內裝），與 MTR 的 <code>QueuedRenderLayer</code> 一致。</p>
 
     <h2 id="matrices">Matrices 與模型繪製</h2>
-    <p><code>&lt;mtr/matrices.hpp&gt;</code> 對應 JS 的全域 <code>Matrices</code>：變換推入堆疊、<code>compile()</code> 把目前堆疊編譯成一組矩陣寫進幀矩陣競技場：</p>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> 對應 JS 的全域 <code>Matrices</code>：變換推入堆疊、<code>compile()</code> 把目前堆疊編譯成一組矩陣寫進幀矩陣記憶體區：</p>
     <pre><code class="lang-cpp">mtr::Matrices m;
 m.translate(0.5f, 1.0f, 0.0f);
 m.rotate_y_degrees(90.0f);
@@ -161,7 +165,7 @@ void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&am
         <tr><td><code>create(input, w, h)</code></td><td>配置像素緩衝區（BGRA8 列主序）並在宿主側建立 GPU 紋理，傳回後整體視為髒</td></tr>
         <tr><td><code>pixels() / pixels32()</code></td><td>直接像素指標（<code>uint8_t*</code> / <code>uint32_t*</code>）</td></tr>
         <tr><td><code>set_pixel(x, y, argb)</code></td><td>寫入單一像素並自動累計髒區</td></tr>
-        <tr><td><code>upload(frame)</code></td><td>把目前髒矩形寫入幀像素競技場（一條 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄），隨後髒區重置</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>把目前髒矩形寫入幀像素記憶體區（一條 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄），隨後髒區重置</td></tr>
         <tr><td><code>last_upload_bytes()</code></td><td>上次上傳的位元組數——效能觀測利器</td></tr>
         <tr><td><code>close(input)</code> / 解構</td><td>釋放宿主 GPU 紋理</td></tr>
         <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>宿主紋理控制代碼與尺寸資訊</td></tr>
@@ -220,7 +224,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>繪事與畫布 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>繪事與畫布 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="Text / Texture 流式 API、Matrices、GraphicsTexture 髒矩形上傳、Gfx2D 軟體光柵器與字體之制。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -120,7 +126,7 @@
     <p>渲染之層（2D 層之枚舉 <code>MtrRenderLayer</code>，與 <code>mtr::Matrices</code> 無涉）：<code>MTR_LAYER_TEXT</code> 者文字，<code>MTR_LAYER_LIGHT</code> 者發光之體，<code>MTR_LAYER_EXTERIOR</code> / <code>MTR_LAYER_INTERIOR</code> 者外觀與內飾，與 MTR 之 <code>QueuedRenderLayer</code> 一致。</p>
 
     <h2 id="matrices">Matrices 與模型之繪</h2>
-    <p><code>&lt;mtr/matrices.hpp&gt;</code> 者，JS 全域 <code>Matrices</code> 之映也：變換入棧，<code>compile()</code> 編當前之棧為一組矩陣，書於幀之矩陣競技場：</p>
+    <p><code>&lt;mtr/matrices.hpp&gt;</code> 者，JS 全域 <code>Matrices</code> 之映也：變換入棧，<code>compile()</code> 編當前之棧為一組矩陣，書於幀之矩陣之區：</p>
     <pre><code class="lang-cpp">mtr::Matrices m;
 m.translate(0.5f, 1.0f, 0.0f);
 m.rotate_y_degrees(90.0f);
@@ -161,7 +167,7 @@ void render(mtr::VehicleContext&amp; ctx, LcdState&amp; s, const mtr::Vehicle&am
         <tr><td><code>create(input, w, h)</code></td><td>配像素之緩衝（BGRA8 行主序），且於宿主側建 GPU 紋理；既返，則全體視為髒</td></tr>
         <tr><td><code>pixels() / pixels32()</code></td><td>徑取像素之指針（<code>uint8_t*</code> / <code>uint32_t*</code>）</td></tr>
         <tr><td><code>set_pixel(x, y, argb)</code></td><td>書單像素而自積髒區</td></tr>
-        <tr><td><code>upload(frame)</code></td><td>書當前髒矩形於幀像素競技場（一 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄），隨即髒區復位</td></tr>
+        <tr><td><code>upload(frame)</code></td><td>書當前髒矩形於幀像素之區（一 <code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄），隨即髒區復位</td></tr>
         <tr><td><code>last_upload_bytes()</code></td><td>前次上傳位元組之數——察疾之利器也</td></tr>
         <tr><td><code>close(input)</code> / 析構</td><td>釋宿主之 GPU 紋理</td></tr>
         <tr><td><code>handle() / width() / height() / texture_bytes()</code></td><td>宿主紋理之柄與尺寸之訊</td></tr>
@@ -220,7 +226,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Performance and debugging — JCM Yanyang C++ Scripting Docs</title>
+<title>Performance and debugging — JCM Yanyang Scripting Docs</title>
 <meta name="description" content="GC hygiene rules, dirty-rectangle upload strategy, latest.log observability, JVM flags, and troubleshooting.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
     <a href="getting-started.html">Quick start</a>
-    <div class="nav-group">Script Model</div>
+    <div class="nav-group">C++ Scripting</div>
     <a href="script-model.html">Script model and lifecycle</a>
-    <div class="nav-group">API Reference</div>
     <a href="data.html">Data snapshots</a>
     <a href="drawing.html">Drawing and canvases</a>
     <a href="java-api.html">mtr::Api and Java interop</a>
     <a href="abi.html">C ABI and host services</a>
-    <div class="nav-group">Advanced</div>
     <a href="performance.html" class="active">Performance and debugging</a>
-  </nav>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html">JS Common APIs</a>
+    <a href="js-types.html">JS Script Types</a>
+    <a href="js-yanyang.html">Yanyang Extensions</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -135,7 +139,7 @@
       <li>Confirm you are using a <strong>Release or Complete Build jar</strong> — fast CI artifacts don't include the native bridge, and the log will say <code>native bridge unavailable</code> (that is not a problem with your module).</li>
       <li>Check the platform directory: the current system only loads the library for its own platform; an extension-less stem declaration expands automatically into per-platform paths (see <a href="getting-started.html#package">Packaging</a>).</li>
       <li>Check that <code>ID</code> matches the declaration entry's <code>id</code> character for character.</li>
-      <li>Check the ABI: the host accepts 6–10; ABI 8+ libraries need a Yanyang.7 or newer host.</li>
+      <li>Check the ABI: the host accepts 6–11; ABI 8+ libraries need a 2.3.0-beta-2.yanyang.7 or newer host.</li>
     </ol>
     <h3>Placeholder boxes (tofu) on the screen?</h3>
     <p>CJK glyphs degrade when the host font doesn't cover the code point — pass a resource-pack font id to <code>Text::font()</code> / the <code>Gfx2D</code> constructor (e.g. <code>jsblock:shanghai</code>), or check whether the font set you use includes those characters.</p>
@@ -158,7 +162,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ Scripting Docs · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with <code>native/README.md</code> in the repository
+    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository
   </footer>
 </main>
 </div>

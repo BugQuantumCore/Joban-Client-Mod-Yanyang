@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>C ABI 与宿主服务 — JCM Yanyang C++ 脚本开发文档</title>
+<title>C ABI 与宿主服务 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="模块导出函数、帧输入输出、绘制记录、宿主服务与 ABI 版本演进。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html">数据快照</a>
     <a href="drawing.html">绘制与画布</a>
     <a href="java-api.html">mtr::Api 与 Java 互操作</a>
     <a href="abi.html" class="active">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -99,9 +103,9 @@
     <p>快照内部约定：所有 <code>*_offset</code> 字段都是相对快照首字节的字节偏移；<code>string_pool_offset/len</code> 描述共享 UTF-8 字符串池的位置。SDK 包装器替你完成了全部寻址。</p>
 
     <h3>JcmFrameOutput（模块 → 宿主）</h3>
-    <p>输出是<strong>扁平记录流 + 五个竞技场</strong>，<code>mtrRender</code> 返回后宿主立即读取并回收帧（模块间双缓冲由宿主完成）：</p>
+    <p>输出是<strong>扁平记录流 + 五个输出内存区</strong>——「内存区」（arena）指一大块预先申请的内存，帧内按顺序分配、帧末整体交还，<code>mtrRender</code> 返回后宿主立即读取并回收帧（模块间双缓冲由宿主完成）：</p>
     <table>
-      <thead><tr><th>竞技场</th><th>内容</th><th>容量（SDK 默认）</th></tr></thead>
+      <thead><tr><th>内存区</th><th>内容</th><th>容量（SDK 默认）</th></tr></thead>
       <tbody>
         <tr><td><code>records</code></td><td>顺序排列的绘制记录（变长，按 <code>record_size</code> 步进遍历）</td><td>256 条</td></tr>
         <tr><td><code>matrix_arena</code></td><td>矩阵流（列主序 4×4，每矩阵 16 个 float）</td><td>128 组</td></tr>
@@ -110,7 +114,7 @@
         <tr><td><code>float_arena</code></td><td>float 流（体素碰撞箱等）</td><td>1024 个</td></tr>
       </tbody>
     </table>
-    <p>ABI 9 起输出同时给出各竞技场的<strong>完整容量</strong>——宿主为每个竞技场只建一个 <code>ByteBuffer</code>、每帧改 limit 复用，不再逐帧分配五个包装对象。</p>
+    <p>ABI 9 起输出同时给出各内存区的<strong>完整容量</strong>——宿主为每个内存区只建一个 <code>ByteBuffer</code>、每帧改 limit 复用，不再逐帧分配五个包装对象。</p>
 
     <h2 id="records">绘制记录</h2>
     <p>每条记录以 <code>JcmRecordHeader{kind, record_size}</code> 开头，变长顺序排列。8 种类型：</p>
@@ -152,8 +156,8 @@
       <tbody>
         <tr><td>6</td><td><code>mtrInit()</code>：宿主必须构造状态对象（零填充块对非平凡类型是未定义行为）</td></tr>
         <tr><td>7</td><td>资源字体度量 + 基线文本栅格化加入宿主服务</td></tr>
-        <tr><td>8</td><td><code>invoke_api</code>（完整 Java API 通道）、电梯快照、换乘类型化模式；<strong>ABI 8 库要求 JCM Yanyang.7 及以上宿主</strong></td></tr>
-        <tr><td>9</td><td>换乘 / 车辆的规范交通<strong>类型</strong> id（MAGIC MTR 扩展）；宿主停止逐帧复制快照、竞技场容量出参</td></tr>
+        <tr><td>8</td><td><code>invoke_api</code>（完整 Java API 通道）、电梯快照、换乘类型化模式；<strong>ABI 8 库要求 JCM 2.3.0-beta-2.yanyang.7 及以上宿主</strong></td></tr>
+        <tr><td>9</td><td>换乘 / 车辆的规范交通<strong>类型</strong> id（MAGIC MTR 扩展）；宿主停止逐帧复制快照、内存区容量出参</td></tr>
         <tr><td>10</td><td><code>defer_free</code> 延迟回收钩子（脚本自有大缓冲的离 JVM 线程释放）</td></tr>
         <tr><td>11</td><td>车辆快照 <code>door_direction</code>（开门方向 0..3 —— 由原 <code>_pad0</code> 字节就地升格，布局与尺寸不变，老模块照常工作）</td></tr>
       </tbody>
@@ -176,7 +180,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

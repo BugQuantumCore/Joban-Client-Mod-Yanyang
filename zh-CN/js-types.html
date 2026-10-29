@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-locale="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JS 脚本类型 — JCM Yanyang 脚本开发文档</title>
+<meta name="description" content="车辆、装饰物、电梯、PIDS 四类 JS 脚本的专属 API：各 ScriptContext、Wrapper、Stop、到站数据与 DisplayHelper。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <a href="performance.html">性能与调试</a>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html" class="active">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">JS 脚本类型</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / JavaScript 脚本 / JS 脚本类型</div>
+      <h1>JS 脚本类型</h1>
+      <p class="page-lead">四类脚本各自的 <code>ctx</code>、<code>wrapper</code> 与数据类型。注册方式与生命周期见 <a href="js-getting-started.html">JS 脚本入门</a>，公共类见 <a href="js-api.html">JS 公共 API</a>。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#vehicle">车辆脚本</a></li>
+        <li><a href="#fetch">车辆数据获取模式</a></li>
+        <li><a href="#eyecandy">装饰物脚本</a></li>
+        <li><a href="#lift">电梯脚本</a></li>
+        <li><a href="#pids">PIDS 脚本</a></li>
+        <li><a href="#displayhelper">DisplayHelper</a></li>
+      </ol>
+    </div>
+
+    <h2 id="vehicle">车辆脚本</h2>
+    <p>一个「车辆」在 MTR 4 里是一节车厢模型条目，玩家在侧线界面自由编组成列。脚本不绑定单节车厢也不绑定整列，而是绑定一个<strong>脚本条目</strong>：车辆条目以 <code>scriptId</code> 引用它，多个车辆可复用同一条脚本——混编、性能、NTE 兼容三全其美。</p>
+    <p>三个回调（<code>ctx</code> 是 <code>VehicleScriptContext</code>，<code>vehicle</code> 是 <code>VehicleWrapper</code>）：</p>
+    <pre><code class="lang-js">function create(ctx, state, vehicle) { /* 首次渲染前：建纹理、注册回调 */ }
+function render(ctx, state, vehicle) { /* 每帧：读状态、提交绘制与声音 */ }
+function dispose(ctx, state, vehicle) { /* 退场：释放纹理 */ }</code></pre>
+
+    <h3>VehicleScriptContext（ctx）</h3>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>getCarRenderManager(carIndex): RenderManager?</code></td><td>取第 carIndex 节车厢的渲染管理器。基准 = 车厢中心、底面上方 1 m。非本条目挂的车返回 null</td></tr>
+        <tr><td><code>getCarBogieRenderManager(carIndex, bogieIndex): RenderManager?</code></td><td>转向架渲染：基准相对第 bogieIndex 个转向架（0 前 1 后；单转向架车厢为 0）</td></tr>
+        <tr><td><code>getCarSoundManager(carIndex): SoundManager?</code></td><td>取车厢声源（基准 = 车厢中心）</td></tr>
+        <tr><td><code>playAnnSound(id, volume, pitch)</code></td><td>播报站广播——只在玩家<strong>乘坐本列</strong>时可闻，不定位</td></tr>
+        <tr><td><code>getScriptEntryId(): String</code></td><td>脚本条目 id</td></tr>
+        <tr><td><code>getMyCars(): int[]</code></td><td>挂在本条目名下的车厢索引数组</td></tr>
+        <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>调试覆盖层显示（所有类型 ctx 都有；GraphicsTexture 直接贴图显示）</td></tr>
+      </tbody>
+    </table>
+    <p><span class="pill warn">已弃用</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用，但新代码请用上面的 RenderManager / SoundManager / 声明字段。<code>drawConnModel</code>（车厢连接件）与 <code>drawConnStretchTexture</code> 尚未实现，调用会抛「未实现」。</p>
+
+    <h3>VehicleWrapper（vehicle）</h3>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>getStops()</code> / <code>getThisRouteStops()</code> / <code>getNextRouteStops()</code></td><td>全部 / 本线路 / 下一线路的 <code>Stop</code> 列表</td></tr>
+        <tr><td><code>getNextStopIndex(stopList, overrunTolerance=0.5): int</code></td><td>下一停站在列表中的索引；越界容差按米计；全部过完返回 <code>stopList.size()</code></td></tr>
+        <tr><td><code>isStopsDataFetched(): boolean</code></td><td>停站数据是否已从服务端取到（<code>SKIP</code> 模式恒 false）</td></tr>
+        <tr><td><code>isRendered()</code> / <code>isCarRendered(cars...)</code></td><td>整列 / 指定车厢是否在渲染（未被剔除）</td></tr>
+        <tr><td><code>isClientPlayerRiding(): boolean</code></td><td>本机玩家是否乘坐本列</td></tr>
+        <tr><td><code>getId(): long</code> · <code>getSiding(): Siding?</code> · <code>getTransportMode(): TransportMode</code></td><td>唯一 id / 所属侧线 / 交通模式</td></tr>
+        <tr><td><code>getVehicleId(carIndex): String?</code> · <code>getLength(carIndex)</code> · <code>getWidth(carIndex)</code> · <code>getCarCount()</code></td><td>资源包车型 id / 车厢长宽 / 车厢数</td></tr>
+        <tr><td><code>getServiceAcceleration()</code> · <code>getServiceDeceleration()</code> · <code>getMaxManualSpeed()</code> · <code>isManualAllowed()</code></td><td>侧线配置的加 / 减速度与手动驾驶上限</td></tr>
+        <tr><td><code>getSpeedMs()</code> / <code>getSpeedKmh()</code> · <code>getNotchLevel()</code> / <code>getNotchPosition()</code></td><td>速度；档位（-5..5 常规，±7 = 140%，-8 紧急制动）与归一化位置</td></tr>
+        <tr><td><code>getDoorValue(): double</code> · <code>isDoorOpenable(car, pos[, pos2])</code> · <code>isDoorOpen(car, pos[, pos2])</code></td><td>车门开度 0..1；按车厢内相对坐标查门是否可开 / 已开</td></tr>
+        <tr><td><code>getPathData()</code> · <code>getRailProgress(carIndex=0)</code> · <code>getRailIndex(progress, roundDown)</code> · <code>getRailSpeed(pathIndex)</code></td><td>路径与进度（MTR 4 只同步部分路径）</td></tr>
+        <tr><td><code>isCurrentlyManual()</code> · <code>isReversed()</code> · <code>isOnRoute()</code> · <code>getManualToAutomaticTime()</code></td><td>手动驾驶 / 反向 / 已上线 / 无人驾驶回 ATO 的时限（毫秒）</td></tr>
+        <tr><td><code>getDepartureIndex(): long</code> · <code>getTotalDwellTime()</code> / <code>getElapsedDwellTime()</code></td><td>发车序号（UTC 零点归零，-1 = 未发 / 人工）；停站总时长与已停时长（毫秒，不在站台为 -1；已停时长按服务端同步原样输出）</td></tr>
+        <tr><td><code>getMtrVehicle(): VehicleExtension</code></td><td>MTR 底层载具对象——内部 API 界线以下，慎入</td></tr>
+        <tr><td><span class="pill yy">晏阳</span> <code>getDirectionOfDoorOpening(): String</code></td><td>开门方向记忆：<code>"not" / "left" / "right" / "all"</code>，详见 <a href="js-yanyang.html#doordir">晏阳扩展</a></td></tr>
+        <tr><td><span class="pill yy">晏阳</span> <code>getTransportType(): String</code></td><td>规范交通类型 id（含 MAGIC 细分），详见 <a href="js-yanyang.html#transporttype">晏阳扩展</a></td></tr>
+      </tbody>
+    </table>
+    <p><span class="pill warn">已弃用</span>：NTE 同名旧接口（<code>getAllPlatforms</code> / <code>trainCars</code> / <code>speed</code> / <code>doorValue</code> / <code>mtrTrain</code> 等）全部保留可用，逐一等价于上表新接口。</p>
+
+    <h3>Stop（停站）</h3>
+    <table>
+      <thead><tr><th>字段 / 方法</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>route: SimplifiedRoute?</code> · <code>station: Station?</code> · <code>platform: Platform?</code></td><td>所属线路 / 车站 / 站台；数据未取到为 null（记得判空）</td></tr>
+        <tr><td><code>destinationName: String</code> · <code>customDestination: String?</code></td><td>终点显示名与自定义终点原文</td></tr>
+        <tr><td><code>routeInterchanges: List&lt;RouteInterchange&gt;</code></td><td>本站换乘线路（不含本线路、不含隐藏线路）</td></tr>
+        <tr><td><code>connectingInterchanges: Map&lt;String, List&lt;RouteInterchange&gt;&gt;</code></td><td>按「相连车站名」分组的换乘表（同名站合并）</td></tr>
+        <tr><td><code>dwellTimeMillis: long</code> · <code>distance: double</code></td><td>停站时长（未知为 -1）；停点轨道进度（<code>SKIP</code> 模式为 -1）</td></tr>
+        <tr><td><code>isRouteSwitchoverStop: boolean</code> · <code>roundUpRoute: Stop</code></td><td>是否线路交接站；是则经 <code>roundUpRoute</code> 取「下一线路视角」的同一站副本</td></tr>
+        <tr><td><code>turnbackPlatform: boolean</code></td><td>本站是否折返</td></tr>
+      </tbody>
+    </table>
+    <h3>RouteInterchange（换乘线路）</h3>
+    <p><code>color: int</code>（RGB）· <code>name: String</code>；<span class="pill yy">晏阳</span> 扩展字段 <code>getTransportMode(): TransportMode?</code>、<code>getTransportType(): String</code>（含 MAGIC 细分）、<code>getRouteId(): long</code>（来源线路 id，缺数据为 0）——见 <a href="js-yanyang.html#transporttype">晏阳扩展</a>。</p>
+    <div class="admonition tip">
+      <span class="admonition-title">隐藏原版显示牌</span>
+      <p>基于原版模型的车辆可用 <code>hideDisplayParts</code>（MTR 4）/ <code>hide_display_cube</code>（MTR 3）隐藏自带的目的地显示方块，改用脚本自绘。</p>
+    </div>
+
+    <h2 id="fetch">车辆数据获取模式</h2>
+    <p>MTR 4 只同步附近数据，而车辆脚本往往要整趟线路的车站名。JCM 的三级模式（<code>dataFetchMode</code> 字段）：</p>
+    <table>
+      <thead><tr><th>模式</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td><code>SKIP</code></td><td>MTR 4 默认。不向服务端要数据，本地尽力拼一份停站表——不保证完整。够用于「车一动就响铃」这类只看车速的脚本</td></tr>
+        <tr><td><code>ALL</code></td><td>先取整趟停站表，再按表里的 id 逐个取车站 / 线路数据。取到之前表现同 <code>SKIP</code>；即便停站表到手，<code>Stop.station</code> / <code>Stop.route</code> 仍可能为 null——判空</td></tr>
+        <tr><td><code>MANDATORY</code></td><td>同 ALL，但<strong>数据全部到手前脚本完全不启动</strong>。MTR 3 格式默认值（老脚本默认数据即到即用，受不了 null）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="eyecandy">装饰物脚本</h2>
+    <p>挂在 MTR 装饰物（Decoration Object）模型条目上：资源包里选中该模型的装饰物方块被渲染时脚本开始工作。注册用 <code>objects</code> + <code>objectScripts</code>（MTR 3 旧格式写在 <code>eyecandy.json</code>），内容条目上 <code>isScriptControlled: true</code> 可隐藏原模型把画面全交给脚本。</p>
+    <p>三个回调：<code>ctx</code> 是 <code>EyeCandyScriptContext</code>，<code>eyecandy</code> 是 <code>EyecandyWrapper</code>。</p>
+    <h3>EyeCandyScriptContext（ctx）</h3>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>getRenderManager(): RenderManager</code></td><td>基准 = 方块位置 + GUI 位移，含 GUI 旋转</td></tr>
+        <tr><td><code>getSoundManager(): SoundManager</code></td><td>基准 = 方块位置；另有便捷的 <code>ctx.playSound(id, volume, pitch)</code> 直接在方块处播放</td></tr>
+        <tr><td><code>drawModel(model, matrices?)</code></td><td>画模型（也收 <code>DynamicModelHolder</code>）——等价于 <code>getRenderManager().drawModel(...)</code></td></tr>
+        <tr><td><code>events(): EyecandyEvents</code></td><td>取事件：右键 <code>events().onBlockUse.occurred()</code> → 处理 → <code>events().handled()</code> 确认；事件详情 <code>.detail().player()</code> 给出操作者 <code>PlayerEntity</code>（手持刷子时右键不算）</td></tr>
+        <tr><td><code>setOutlineShape(shape)</code> / <code>setCollisionShape(shape)</code></td><td>自定义轮廓 / 碰撞箱（VoxelShape），玩刷子时无效</td></tr>
+        <tr><td><code>setDebugInfo(...)</code></td><td>同其他类型</td></tr>
+      </tbody>
+    </table>
+    <h3>EyecandyWrapper（eyecandy）</h3>
+    <p><code>getModelId(): String</code>（当前模型条目 id）· <code>getTranslateX/Y/Z(): float</code>（GUI 位移，米）· <code>getRotateX/Y/Z(): float</code>（GUI 旋转，弧度）· <code>pos(): Vector3f</code>（方块 + 位移）· <code>blockPos(): Vector3f</code> · <code>facing(): Direction</code> · <code>facingAngle(): double</code>（朝向角度）· <code>isCrosshairTarget(): boolean</code>（准星指着，可用来弹提示）· <code>getFullBrightness(): boolean</code> · <code>redstoneLevel(): int</code>（0–15）。</p>
+    <p><span class="pill warn">已弃用</span>：字段直读形式（<code>eyecandy.translateX</code>、<code>eyecandy.prefabId</code> 等）仍可用。</p>
+    <div class="admonition tip">
+      <span class="admonition-title">示例：随右键变暗的循环音乐</span>
+      <p>用 <code>TickableSoundInstance.create(...)</code> + <code>setLoopable(true)</code> 挂循环音乐，右键 5 秒内 <code>setSoundVolume(0.25)</code>、到时回 1.0，<code>dispose</code> 里 <code>stop</code>——完整代码见上游 <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds 文档</a>。</p>
+    </div>
+
+    <h2 id="lift">电梯脚本</h2>
+    <p>挂在电梯<strong>轿厢样式</strong>（材质）条目上，玩家用电梯刷新器选中该样式后生效。注册用 <code>lifts</code> + <code>liftScripts</code>，样式条目上 <code>isScriptControlled: true</code> 隐藏原模型。</p>
+    <p>三个回调：<code>ctx</code> 是 <code>LiftScriptContext</code>，<code>lift</code> 是 <code>LiftWrapper</code>。</p>
+    <h3>LiftScriptContext（ctx）</h3>
+    <p><code>getRenderManager(): RenderManager</code>（基准 = 电梯基础位置 + 偏移，随电梯旋转）· <code>getSoundManager(): SoundManager</code>（同基准）· <code>setDebugInfo(...)</code>。</p>
+    <h3>LiftWrapper（lift）与 Floor</h3>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>getMtrLift(): Lift</code> · <code>getId(): long</code></td><td>MTR 底层对象与唯一 id</td></tr>
+        <tr><td><code>getWidth()</code> / <code>getHeight()</code> / <code>getDepth()</code></td><td>轿厢尺寸（米，刷新器配置）</td></tr>
+        <tr><td><code>getOffset(): Vector3f</code> · <code>getPos()</code> / <code>getRawPos()</code></td><td>偏移；基础位置 + 偏移 / 基础位置</td></tr>
+        <tr><td><code>getAngleDegrees()</code> / <code>getAngleRadians()</code> · <code>isDoubleSided()</code></td><td>朝向角与双开门</td></tr>
+        <tr><td><code>getDoorValue(): float</code> · <code>getDirection(): int</code></td><td>门开度 0..1；运行方向：-1 下行 / 0 静止 / 1 上行</td></tr>
+        <tr><td><code>isDoorway1Openable()</code> / <code>isDoorway1Open()</code> / <code>isDoorway2...</code></td><td>前 / 后门可开与已开</td></tr>
+        <tr><td><code>isClientPlayerRiding(): boolean</code> · <code>shouldRender(): boolean</code></td><td>乘坐中；未被遮挡剔除</td></tr>
+        <tr><td><code>getFloors(): List&lt;Floor&gt;</code></td><td>停靠楼层，每项 <code>getIndex()</code>（0 为最底）· <code>getNumber()</code> / <code>getDescription()</code>（层轨刷子配置）· <code>getPos()</code> · <code>isCurrentFloor()</code> / <code>isTargetFloor()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="pids">PIDS 脚本</h2>
+    <div class="admonition warn">
+      <span class="admonition-title">独立体系</span>
+      <p>本系统与 PIDS Layout Editor / PIDS Modularization / PIDS JSON（EpicPuppy）及 MTR 4 早期测试版的信息屏自定义<strong>互不兼容</strong>，格式无法互导——入门门槛更高，但能做更复杂的版面。</p>
+    </div>
+    <p>在 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> 数组里，预设对象带上 <code>scriptFiles</code> 或 <code>scriptTexts</code> 即为脚本预设（<code>scriptInput</code> / <code>scriptRateLimit</code> 含义同他类；Yanyang 也接受 <code>scriptLocations</code> 混入 C++，见 <a href="js-yanyang.html#mixed">混合条目</a>）：</p>
+    <pre><code class="lang-json">{
+    "pids_images": [
+        {
+            "id": "pids_demo",
+            "name": "Demo Scripted PIDS",
+            "scriptFiles": ["jsblock:scripts/pids_demo.js"],
+            "scriptInput": { "theme": "dark" },
+            "scriptRateLimit": 0.75
+        }
+    ]
+}</code></pre>
+    <p>PIDS 上画的是<strong>世界里的多边形</strong>，不是 2D 画布——元素可以溢出屏幕边界，界内裁剪是脚本自己的责任（确需复杂裁剪 / 图像处理时用 <code>GraphicsTexture</code> 画好再贴）。<strong>绘制顺序即层次</strong>：后画的盖先画的；默认每次绘制沿 z 方向平移一小步（<code>0.0002</code>）防 z-fighting，可用 <code>ctx.setAutoZOrdering(false)</code> 关掉改手动 <code>zOrder()</code>（<code>ctx.setZOrderStep(m)</code> 调步长）。</p>
+    <h3>PIDSScriptContext（ctx）与 PIDSBlockEntity（pids）</h3>
+    <p><code>ctx.getRenderManager()</code> / <code>ctx.getSoundManager()</code>（基准 = 方块位置）· <code>ctx.setAutoZOrdering(b)</code> · <code>ctx.setZOrderStep(m)</code> · <code>ctx.setDebugInfo(...)</code>。</p>
+    <table>
+      <thead><tr><th>pids 成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>type: String</code></td><td>屏型：<code>rv_pids</code> / <code>rv_pids_sil_1</code> / <code>rv_pids_sil_2</code> / <code>lcd_pids</code> / <code>pids_projector</code> / <code>pids_1a</code></td></tr>
+        <tr><td><code>width</code> / <code>height</code> / <code>rows</code></td><td>可用屏幕宽高与到站行数</td></tr>
+        <tr><td><code>isRowHidden(i)</code> / <code>getCustomMessage(i)</code></td><td>第 i 行是否被方块配置隐藏；行自定义文案（未设为空串）</td></tr>
+        <tr><td><code>getTargetPlatformIds()</code> · <code>isPlatformAutoDetected()</code> · <code>isPlatformNumberHidden()</code></td><td>侦测到的站台 id 列表；是否自动侦测；站台号是否隐藏</td></tr>
+        <tr><td><code>blockPos()</code> · <code>isKeyBlock()</code> · <code>station(): Station?</code></td><td>方块坐标；是否双面屏的「键」块；所在车站（不在站内或客户端未知为 null）</td></tr>
+        <tr><td><code>arrivals(): ArrivalEntries</code></td><td>到站数据，见下</td></tr>
+      </tbody>
+    </table>
+    <h3>ArrivalEntries 与 ArrivalEntry</h3>
+    <p><code>ArrivalEntries</code>：<code>get(i): ArrivalEntry?</code>（每站台最多取 10 条到站）· <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code>（逐条遍历，免手动判空）。</p>
+    <p><code>ArrivalEntry</code>：<code>destination(): String</code> · <code>arrivalTime()</code> / <code>departureTime()</code>（Unix 毫秒，<code>new Date(v)</code> 转 JS 日期）· <code>arrived()</code> / <code>departed()</code> · <code>deviation(): long</code>（相对图定：正晚点 / 负早点）· <code>realtime(): boolean</code>（图定 or 实时推算）· <code>departureIndex(): long</code> · <code>terminating(): boolean</code>（本站终到）· <code>route(): SimplifiedRoute?</code> / <code>routeId()</code> / <code>routeName()</code> / <code>routeNumber()</code> / <code>routeColor()</code> / <code>circularState()</code> · <code>platform(): Platform?</code> / <code>platformId()</code> / <code>platformName()</code> · <code>carCount()</code> / <code>cars(): List&lt;CarDetails&gt;</code>。</p>
+    <h3>Text / Texture / Rect（绘制三件套）</h3>
+    <p>三者都是「创建 → 链式配置 → <code>draw(ctx)</code>」的流式对象；<code>Rect</code> 等于贴图硬编码为纯白 PNG 的 <code>Texture</code>：</p>
+    <table>
+      <thead><tr><th>通用</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>create()</code> / <code>create(comment)</code></td><td>新建（注释仅便于阅读代码）</td></tr>
+        <tr><td><code>pos(x, y)</code> · <code>size(w, h)</code></td><td>位置与尺寸（屏幕像素单位）</td></tr>
+        <tr><td><code>color(rgb)</code></td><td>染色（RGB 整数）</td></tr>
+        <tr><td><code>naturalLight()</code> · <code>renderType(str)</code> · <code>matrices(m)</code> · <code>zOrder(n)</code> · <code>draw(ctx)</code></td><td>按世界光照取亮度（默认全亮）；渲染类型（同 <a href="js-api.html#render">QuadDrawCall</a>）；附加变换；手动 z 序（关自动 z 后生效）；提交绘制</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Text 专属</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>text(str)</code> · <code>scale(i)</code> · <code>fontMC()</code> / <code>font(id)</code></td><td>内容；整体缩放（默认 1，配合 size 要自行换算）；原生字体 / 资源字体（默认 <code>mtr:mtr</code>，MTR 设置「自定义字体」关闭时无效）</td></tr>
+        <tr><td><code>leftAlign()</code> / <code>centerAlign()</code> / <code>rightAlign()</code></td><td>对齐（默认左）</td></tr>
+        <tr><td><code>shadowed()</code> · <code>italic()</code> · <code>bold()</code> · <code>lineHeight(factor)</code></td><td>阴影 / 斜体 / 粗体；行距因子（换行用，默认 1 = 9 单位）</td></tr>
+        <tr><td><code>stretchXY()</code> / <code>scaleXY()</code> / <code>wrapText()</code> / <code>marquee()</code> / <code>marquee(durationTick)</code> / <code>withMarqueeProgress(p)</code></td><td>溢出策略四选一：溢出轴拉伸 / 等比缩放 / 换行 / 跑马灯（可指定周期或直接给进度 0..1）</td></tr>
+        <tr><td><code>measureWidth(): int</code></td><td>按当前配置量宽——返回 int，链式到此为止</td></tr>
+      </tbody>
+    </table>
+    <p><code>Texture</code> 专属：<code>texture(id)</code>（PNG 或 mcmeta）、<code>uv(u1, v1, u2, v2)</code>（0–1）。</p>
+    <div class="admonition tip">
+      <span class="admonition-title">动态纹理上 PIDS</span>
+      <p>PIDS 也能贴 <code>GraphicsTexture</code>：<code>create</code> 里 <code>new GraphicsTexture(pids.width, pids.height)</code>，<code>render</code> 里画完 <code>upload()</code> 再 <code>Texture.create().texture(state.tex.identifier).size(pids.width, pids.height).draw(ctx)</code>，<code>dispose</code> 里 <code>close()</code>——对文字排版无能为力时的兜底方案，代价是性能与内存。</p>
+    </div>
+    <p>不需要脚本？<code>pids_images</code> 里只写 <code>background</code> / <code>color</code> / <code>fonts</code> / <code>showWeather</code> / <code>showClock</code> / <code>hidePlatform</code> / <code>hideRow</code> / <code>topPadding</code> / <code>textOverflowMode</code> 等 JSON 字段即为「JSON 预设」——简单改脸够用，且与脚本预设二选一不可混写。</p>
+
+    <h2 id="displayhelper">DisplayHelper（内置多屏助手）</h2>
+    <p>车载多屏的现成方案：<code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> 后——</p>
+    <pre><code class="lang-js">let slotCfg = {
+    "version": 1,
+    "texSize": [2048, 1024],
+    "slots": [
+        { "name": "lcd_north", "texArea": [0, 0, 2048, 274],
+          "pos": [[[-0.59, 2.125, -1.75], [-0.755, 2.03, -1.75],
+                   [-0.755, 2.03, -3.25], [-0.59, 2.125, -3.25]]],
+          "offsets": [[0, 0, -5], [0, 0, 0], [0, 0, 5], [0, 0, 10]] }
+    ]
+};
+let dhBase = new DisplayHelper(slotCfg);
+
+function create(ctx, state, vehicle) {
+    state.rl = new RateLimit(0.05);
+    state.dh = dhBase.create();          // 实例化并绑定纹理
+}
+function render(ctx, state, vehicle) {
+    if (state.rl.shouldUpdate()) {
+        let g = state.dh.graphicsFor("lcd_north");  // 槽位画布（自动平移）
+        // ... AWT 绘制 ...
+        state.dh.upload();
+    }
+    for (let car of ctx.getMyCars())
+        ctx.getCarRenderManager(car).drawModel(state.dh.model, null);  // 每帧都要画
+}
+function dispose(ctx, state, vehicle) {
+    state.dh.close();
+}</code></pre>
+    <ul>
+      <li>所有槽位共享一张 <code>texSize</code> 大纹理；<code>texArea</code> 指定槽位用哪块区域（x, y, w, h）。</li>
+      <li><code>pos</code> 是三维数组：每屏四角坐标（左上 → 左下 → 右下 → 右上），单位<strong>米</strong>（Blockbench 的 1/16 单位要除 16），原点在列车中心、地板高度，+X 左 / +Y 上 / +Z 后。</li>
+      <li><code>offsets</code> 复制同内容屏幕（门上小屏连排时省纹理）；<code>graphicsFor(name)</code> 拿自动平移好的画布，<code>graphics()</code> 拿整张。</li>
+      <li>上传放 <code>RateLimit</code> 里、画模型放外面——模型必须每帧提交。</li>
+    </ul>
+
+    <hr>
+    <p>接下来：<a href="js-yanyang.html">晏阳扩展 API</a> —— 混合 JS+C++ 条目、开门方向记忆、交通类型细分与直写像素上传。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="js-api.html">JS 公共 API</a>
+      <a href="js-yanyang.html">晏阳扩展 API</a>
+    </div>
+    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-prerelease.2-yanyang.1 · 上游对照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

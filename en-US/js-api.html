@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en-US" data-locale="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JS Common APIs — JCM Yanyang Scripting Docs</title>
+<meta name="description" content="API reference shared by the four JS script types: resources, files, math, rendering, models, dynamic textures, sounds, networking, the console, MTR data, the Minecraft environment, and utilities.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">C++ Scripting</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <a href="performance.html">Performance and debugging</a>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html" class="active">JS Common APIs</a>
+    <a href="js-types.html">JS Script Types</a>
+    <a href="js-yanyang.html">Yanyang Extensions</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">JS Common APIs</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / JavaScript Scripting / JS Common APIs</div>
+      <h1>JS Common APIs</h1>
+      <p class="page-lead">The global classes and functions all four script types can use. Tables are grouped by topic; for the per-type <code>ctx</code> / <code>wrapper</code> see <a href="js-types.html">JS Script Types</a>, and for this fork's own extensions see <a href="js-yanyang.html">Yanyang Extensions</a>.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#notation">Notation</a></li>
+        <li><a href="#resources">Resources and files</a></li>
+        <li><a href="#math">Math and transforms</a></li>
+        <li><a href="#render">Rendering</a></li>
+        <li><a href="#model">Models</a></li>
+        <li><a href="#gtexture">Dynamic textures</a></li>
+        <li><a href="#sound">Sound</a></li>
+        <li><a href="#net">Networking and background work</a></li>
+        <li><a href="#console">Console</a></li>
+        <li><a href="#mtrdata">MTR data</a></li>
+        <li><a href="#mc">The Minecraft environment</a></li>
+        <li><a href="#utils">Utilities</a></li>
+        <li><a href="#features">Script features</a></li>
+      </ol>
+    </div>
+
+    <h2 id="notation">Notation</h2>
+    <ul>
+      <li>A <code>static</code> prefix = call it straight off the class name (<code>Resources.id(...)</code>); without it you first need an instance (usually obtained from another function's return value).</li>
+      <li>Type annotations follow Java notation: <code>str: String</code> takes a Java string (JS strings convert automatically); a <code>String?</code> return may be <code>null</code>; <code>String...</code> means a variable number of string arguments.</li>
+      <li>Items marked <span class="pill warn">Deprecated</span> are NTE-era compatibility interfaces — don't use them in new scripts; items marked <span class="pill yy">Yanyang</span> are this fork's own extensions.</li>
+    </ul>
+
+    <h2 id="resources">Resources and files</h2>
+    <h3>Identifier (resource paths)</h3>
+    <p>Minecraft locates resources with <strong>Identifiers</strong> of the form <code>namespace:path</code>. Since JCM v2.3, most places that take an Identifier also accept a plain string: the full form <code>"mtr:asd.png"</code>, or a path relative to the current script's directory with a <code>./</code> prefix (equivalent to <code>idr()</code>).</p>
+    <table>
+      <thead><tr><th>Function</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Resources.id(idStr: String): Identifier</code></td><td>Creates an Identifier from a string</td></tr>
+        <tr><td><code>static Resources.idr(relPath: String): Identifier</code></td><td>Resolves relative to the directory of the <strong>current script</strong>; usable only at parse time (at runtime there is no notion of a "current script")</td></tr>
+        <tr><td><code>static Resources.id(id: Identifier, suffix: String): Identifier</code></td><td>Appends a suffix to an existing Identifier — record the base with <code>idr()</code> at parse time, then assemble the path at runtime</td></tr>
+      </tbody>
+    </table>
+    <h3>Resources (resource pack reads)</h3>
+    <p>Reading resources from disk is far slower than in-memory work: whatever can be read at parse time shouldn't be re-read inside <code>render()</code> every frame.</p>
+    <table>
+      <thead><tr><th>Function</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Resources.read(id): DataReader?</code></td><td>Reads a resource pack file, returning a <a href="#utils">DataReader</a>; returns <code>null</code> if the file doesn't exist</td></tr>
+        <tr><td><code>static Resources.exist(id): boolean</code></td><td>Whether the file exists</td></tr>
+        <tr><td><code>static Resources.getSystemFont(name: String): Font</code></td><td>Fetches an AWT font. Built-ins: <code>Noto Serif</code> (a CJK serif), <code>Noto Sans SemiBold</code>, <code>Noto Sans CJK TC Medium</code>; also accepts <code>Serif</code> / <code>SansSerif</code> / <code>Monospaced</code> (depending on the fonts installed on the player's machine)</td></tr>
+        <tr><td><code>static Resources.hasSystemFont(name: String): boolean</code></td><td>Whether the machine has that font family (no special-casing of the built-ins)</td></tr>
+        <tr><td><code>static Resources.getFontRenderContext(): FontRenderContext</code></td><td>The context used for AWT text metrics</td></tr>
+        <tr><td><code>static Resources.ensureStrFonts(text, primaryFont, fallbackFonts...): AttributedString</code></td><td>Assembles text with a primary font plus a fallback font chain, falling back automatically when the primary font lacks a glyph — the tool for multilingual mixed text without tofu boxes</td></tr>
+        <tr><td><code>static Resources.getAddonVersion(modId: String): String</code></td><td>Gets a mod's version: <code>"mtr"</code> / <code>"jcm"</code> / <code>"mtrscripting"</code> (vehicle / decoration object / lift scripts query <code>mtrscripting</code>; PIDS queries <code>jcm</code>)</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th><span class="pill warn">Deprecated</span></th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Resources.readString(id)</code> / <code>readBufferedImage(id)</code> / <code>readFont(id)</code></td><td>Replace uniformly with <code>read()</code> + <a href="#utils">DataReader</a></td></tr>
+        <tr><td><code>Resources.manager()</code> / <code>Resources.mgr()</code></td><td>Not exposed by MTR 4's cross-version framework; always returns <code>null</code> — and the functions that need it accept <code>null</code> too</td></tr>
+        <tr><td><code>Resources.getMTRVersion()</code> and the other NTE version functions</td><td>Use <code>getAddonVersion()</code> instead; the NTE family keeps returning the old values purely for compatibility</td></tr>
+      </tbody>
+    </table>
+    <h3>Files (local files)</h3>
+    <p>Confined to <code>.minecraft</code>: <strong>read + write + delete</strong> are limited to <code>.minecraft/data/mtrscripting</code> (the script data directory), while <strong>read</strong> is open to all of <code>.minecraft</code>. Pass paths as multiple arguments, with no slashes: <code>Files.read("config", "mtr.json")</code>.</p>
+    <table>
+      <thead><tr><th>Function</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>static Files.read(path: String...): DataReader?</code></td><td>Reads a file under <code>.minecraft</code>; returns <code>null</code> if it doesn't exist</td></tr>
+        <tr><td><code>static Files.readData(path: String...): DataReader?</code></td><td>Same as above, but relative to <code>data/mtrscripting</code></td></tr>
+        <tr><td><code>static Files.saveData(content: String | BufferedImage, path: String...): void</code></td><td>Saves text or an image; parent directories are created automatically</td></tr>
+        <tr><td><code>static Files.deleteData(path: String...): void</code></td><td>Deletes a file</td></tr>
+        <tr><td><code>static Files.hasData(path: String...): boolean</code></td><td>Whether a file / directory exists</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="math">Math and transforms</h2>
+    <h3>Vector3f (3D vectors)</h3>
+    <p>Coordinates (x, y, z). The JCM implementation stores doubles internally while taking and giving floats externally, and every operation method returns the vector itself for chaining:</p>
+    <p><code>new Vector3f(x, y, z)</code> (can also be constructed from TSC's <code>Vector</code> / <code>Position</code>) · <code>x() y() z()</code> · <code>copy()</code> · <code>normalize()</code> · <code>add(x,y,z)</code> / <code>add(v)</code> · <code>sub(v)</code> · <code>mul(x,y,z)</code> / <code>mul(n)</code> · <code>rotX(rad)</code> / <code>rotY(rad)</code> / <code>rotZ(rad)</code> (radians) · <code>cross(v)</code> · <code>distance(v)</code> · <code>distanceSq(v)</code> · <code>rawBlockPos()</code>. The constants <code>Vector3f.ZERO</code> / <code>XP</code> / <code>YP</code> / <code>ZP</code> are <strong>read-only — don't modify them</strong>.</p>
+    <h3>Matrices (transform stacks)</h3>
+    <p>Rendering often needs "finish this stretch, then go back to the previous transform". Matrices is a transform stack; use <code>push</code> and <code>pop</code> in pairs:</p>
+    <p><code>new Matrices()</code> (starts as the identity matrix) · <code>translate(x,y,z)</code> · <code>rotateX/Y/Z(rad)</code> (radians) · <code>rotateX/Y/ZDegrees(deg)</code> (degrees) · <code>pushPose()</code> (saves the current state) · <code>popPose()</code> (restores the last save) · <code>popPushPose()</code> (pops, then pushes).</p>
+
+    <h2 id="render">Rendering</h2>
+    <p>Scripts run on a background thread while rendering happens on the main thread — hence drawing follows the <strong>draw call</strong> model: inside <code>render()</code> you submit <em>what to draw</em> to the <code>RenderManager</code>, and JCM remembers that batch of draw calls and keeps drawing from it until your next execution. The old draw calls are cleared after each script execution, so <strong>anything that should stay visible must be re-submitted every round</strong>; but if slow execution makes you miss frames, don't worry — JCM keeps replaying the previous batch until you hand over a new one.</p>
+    <h3>RenderManager</h3>
+    <p>Obtained from each type's <code>ctx.getRenderManager()</code>; it carries a <em>base transform</em> (decoration objects = block position + GUI offset and rotation; vehicles = per car… — each type is covered on the <a href="js-types.html">script types</a> page), and every submission draws relative to it:</p>
+    <table>
+      <thead><tr><th>Function</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>drawModel(model: Model, matrices?: Matrices)</code></td><td>Submits a model; an optional extra transform</td></tr>
+        <tr><td><code>drawModel(model, matrices?, light: int)</code></td><td>Same as above, with custom lighting (values from <code>MinecraftClient.lightAt</code>)</td></tr>
+        <tr><td><code>drawModel(holder: DynamicModelHolder, matrices?: Matrices)</code></td><td>Submits a dynamic model holder directly — internally bridges the "uploaded a frame later" gap, avoiding flicker</td></tr>
+        <tr><td><code>draw(call: DrawCall)</code></td><td>Submits a raw draw call (<code>QuadDrawCall</code> and friends)</td></tr>
+      </tbody>
+    </table>
+    <h3>QuadDrawCall (quads)</h3>
+    <p>Draws a quad face with optional texture, UVs, tint, and lighting — often used to blit a dynamic texture as a screen:</p>
+    <p><code>static QuadDrawCall.create()</code> (optionally takes a comment argument) · <code>quad(c1, c2, c3, c4)</code> or <code>corner1..4(pos)</code> (four <code>Vector3f</code>s) · <code>renderType(str)</code> · <code>color(rgb)</code> · <code>texture(id)</code> · <code>uv(u1,v1,u2,v2)</code> (0–1) · <code>matrices(m)</code>.</p>
+    <p><strong>renderType values</strong>: <code>EXTERIOR</code> (the exterior paintwork, affected by positional lighting; the default), <code>EXTERIOR_TRANSLUCENT</code>, <code>INTERIOR</code> (the car interior, full-bright with face tinting), <code>INTERIOR_TRANSLUCENT</code>, <code>LIGHT</code> (full-bright with no shading — suited to LCDs), <code>LIGHT_TRANSLUCENT</code>. The model side additionally has <code>ALWAYS_ON_LIGHT</code>.</p>
+
+    <h2 id="model">Models</h2>
+    <p>Supports <strong>WaveFront OBJ</strong> and <strong>Metasequoia (.mqo)</strong>; Blockbench's <code>.bbmodel</code> is <strong>not</strong> supported. OBJ exported from Blender / Blockbench needs the V axis flipped (<code>flipV = true</code>, the default), while Metasequoia exports need <code>false</code> passed explicitly.</p>
+    <table>
+      <thead><tr><th>Class</th><th>Key points</th></tr></thead>
+      <tbody>
+        <tr><td><code>ModelManager</code></td><td><code>loadModel(id, flipV=true): RawModel</code>, <code>loadModelParts(id, flipV=true): Map&lt;String, RawModel&gt;</code> (splits by object group), <code>upload(rawModel): Model</code> (uploads to the GPU; <strong>parse stage only</strong> — at runtime use DynamicModelHolder)</td></tr>
+        <tr><td><code>RawModel</code></td><td>Vertex-data container: <code>append(mesh|model)</code>, <code>applyTranslation(x,y,z)</code>, <code>applyRotation(dir, angleDeg)</code>, <code>applyScale(x,y,z)</code>, <code>applyMirror(x,y,z)</code>, <code>applyUVMirror(u,v)</code>, <code>setAllRenderType(str)</code>, <code>copy()</code>, <code>replaceTexture(fileName, id)</code>, <code>replaceAllTexture(id)</code></td></tr>
+        <tr><td><code>Model</code></td><td>Already on the GPU: vertices can no longer be edited, but <code>replaceTexture(...)</code> / <code>replaceAllTexture(...)</code> / <code>copyForMaterialChanges()</code> / <code>close()</code> still work</td></tr>
+        <tr><td><code>RawMeshBuilder</code></td><td>Build models in code: after <code>new RawMeshBuilder(faceSize, renderType, textureId)</code>, go <code>vertex(pos)</code> → <code>normal(x,y,z)</code> → <code>uv(u,v)</code> → <code>endVertex()</code> (optionally add <code>color(r,g,b,a)</code>), then finish with <code>getMesh()</code> or <code>asRawModel()</code></td></tr>
+        <tr><td><code>DynamicModelHolder</code></td><td>Runtime uploads: <code>uploadLater(rawModel)</code> (uploads on the render thread next frame), <code>getUploadedModel()</code> (may be the old model or null — prefer handing the holder straight to <code>drawModel</code>), <code>close()</code></td></tr>
+      </tbody>
+    </table>
+    <div class="admonition tip">
+      <span class="admonition-title">Tip</span>
+      <p>For runtime transforms (translate / rotate / scale), pass a <code>Matrices</code> to <code>drawModel</code> instead of editing vertices and re-uploading every frame — the latter is orders of magnitude slower.</p>
+    </div>
+
+    <h2 id="gtexture">Dynamic textures</h2>
+    <h3>GraphicsTexture</h3>
+    <p>A fixed-resolution virtual texture plus a Java AWT canvas, uploaded for the game to display once you're done drawing — in-car and exterior screens and LED signs all rely on it:</p>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>new GraphicsTexture(width, height)</code></td><td>Creates one. Per-screen / per-train content should be created in <code>create</code> and stored in <code>state</code></td></tr>
+        <tr><td><code>.identifier</code></td><td>The texture's Identifier — hand it to <code>QuadDrawCall.texture()</code> or use it to swap a model's texture</td></tr>
+        <tr><td><code>.bufferedImage</code> / <code>.graphics</code></td><td>The AWT <code>BufferedImage</code> canvas and its <code>Graphics2D</code> (text antialiasing on by default, nothing else)</td></tr>
+        <tr><td><code>.fullAA()</code> / <code>.noAA()</code></td><td>All antialiasing / none (dot-matrix screens usually want noAA)</td></tr>
+        <tr><td><code>.upload()</code></td><td>Uploads the whole image to VRAM. Not cheap — throttle with <code>RateLimit</code> (e.g. 10 Hz) and skip updates when far away</td></tr>
+        <tr><td><code>.upload(x, y, width, height)</code></td><td>Uploads only a sub-region, keeping the old content. Second parameter form: <code>upload(dstX, dstY, srcX, srcY, w, h)</code>; you can also pass an external <code>BufferedImage</code> directly: <code>upload(img, dstX, dstY, srcX, srcY, w, h)</code></td></tr>
+        <tr><td><code>.close()</code></td><td>Frees VRAM. What you create in <code>create</code> you must close in <code>dispose</code>, or it leaks</td></tr>
+        <tr><td><span class="pill yy">Yanyang</span> <code>.uploadRawABGR(bytes, dstX, dstY, w, h, lut)</code></td><td>Writes a BGRA-ordered array of byte rows straight into the texture and uploads only that rectangle — a bandwidth-saving channel for high-frequency per-pixel updates; see <a href="js-yanyang.html#rawupload">Yanyang extensions</a></td></tr>
+      </tbody>
+    </table>
+    <p>Common on the AWT side: <code>Color.decode</code> / <code>new Color</code>, <code>graphics.setColor / setFont / setStroke</code>, <code>drawRect / fillRect / drawRoundRect / fillRoundRect</code>, <code>drawImage / drawString</code>, <code>Font.deriveFont</code>, <code>GradientPaint</code>, <code>AffineTransform</code>, <code>setClip</code>, <code>AlphaComposite</code>; bring them in with Rhino's <code>importPackage(java.awt)</code>. For a tutorial, see the <a href="https://docs.oracle.com/javase/8/docs/api/java/awt/Graphics2D.html" rel="noopener">Graphics2D JavaDoc</a>.</p>
+    <div class="admonition warn">
+      <span class="admonition-title">Note</span>
+      <p>A freshly created texture's contents aren't guaranteed clean (reused memory may show garbage) — call <code>upload()</code> once after creation to flush in your own content.</p>
+    </div>
+    <p>For vehicles needing many screens, switch to the built-in <strong>DisplayHelper</strong> (<code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code>): one big texture sliced into slots, with the model generated automatically from the config — see the <a href="js-types.html#displayhelper">script types</a> page.</p>
+
+    <h2 id="sound">Sound</h2>
+    <h3>SoundManager</h3>
+    <p>Obtained from each type's <code>ctx.getSoundManager()</code>; the base position depends on the type:</p>
+    <p><code>playLocalSound(id, volume, pitch, category="MASTER")</code> (no spatialization; announcements and the like) · <code>playSound(id, pos, volume, pitch, category="MASTER")</code> (positioned in the world, relative to the base position) · <code>play(soundInstance)</code> / <code>stop(soundInstance)</code> (controllable instances).</p>
+    <h3>TickableSoundInstance</h3>
+    <p>One-shot sounds can't be managed once they start playing; use controllable instances when you need to adjust the volume or interrupt mid-play (complex on-board announcements, motor sounds, looping music):</p>
+    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code> (1.0 is the baseline) · <code>setLoopable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code> (follows the player at constant volume) · <code>setPos(v)</code> (looping sounds must update their own position every frame) · <code>isPlaying()</code>. Always <code>stop</code> looping instances in <code>dispose</code>.</p>
+    <p><strong>Sound categories</strong>: <code>MASTER</code> <code>BLOCKS</code> <code>MUSIC</code> <code>RECORDS</code> <code>WEATHER</code> <code>HOSTILE</code> <code>NEUTRAL</code> <code>PLAYERS</code> <code>AMBIENT</code> <code>VOICE</code>.</p>
+
+    <h2 id="net">Networking and background work</h2>
+    <h3>Networking</h3>
+    <p><code>static Networking.fetch(url, requestOption?): NetworkResponse&lt;DataReader&gt;</code>. <code>RequestOption</code> is a plain JS object: <code>method</code> (GET by default), <code>connectTimeout</code> / <code>readTimeout</code> (milliseconds), <code>headers</code> (an object), <code>body</code> (a string; Content-Length is added automatically).</p>
+    <p><code>NetworkResponse</code>: <code>getResponseCode()</code> · <code>success()</code> (true once any response has arrived — to check business success use <code>ok()</code>, i.e. 200–299) · <code>getData()</code> (null on failure) · <code>exception()</code> · <code>getHeaders()</code>.</p>
+    <p>Requests carry <code>User-Agent: Joban Client Mod (https://jcm.joban.org)</code> by default, and there's no regular way to change that (unless the player disables the script restrictions). Do network requests on a background thread (see below).</p>
+    <h3>BackgroundWorker</h3>
+    <p><code>static BackgroundWorker.submit(task)</code> hands a lambda task to a single-threaded background executor — don't lean on it too hard, other scripts need it too; catch exceptions inside your task yourself. On resource pack reloads the queue is emptied and running tasks are interrupted, and it self-heals if it deadlocks.</p>
+    <pre><code class="lang-js">BackgroundWorker.submit(() =&gt; {
+    let resp = Networking.fetch("https://example.com/data.json");
+    if (resp.ok()) {
+        let str = resp.getData().asString();
+        // Process it, store it in state, and read it from render
+    }
+});</code></pre>
+
+    <h2 id="console">Console</h2>
+    <p><code>print(...)</code> and <code>console.log(...)</code> are equivalent (an NTE legacy — use either freely). The Console API mirrors web conventions but omits the table / profile methods:</p>
+    <p><code>console.log / warn / error / debug(...)</code> (debug only prints in debug mode) · <code>console.count(label="default")</code> / <code>countReset(label)</code> (counters are independent per label) · <code>console.time(label)</code> / <code>timeLog(label)</code> / <code>timeEnd(label)</code> (timers are independent per label). Placeholder interpolation isn't supported; template strings are enough.</p>
+
+    <h2 id="mtrdata">MTR data</h2>
+    <h3>MTR.ClientConfig (player preferences)</h3>
+    <p><code>isChatAnnouncementEnabled()</code> · <code>isTtsAnnouncementEnabled()</code> · <code>shouldHideTranslucentParts()</code> · <code>getLanguageDisplay()</code> (<code>NORMAL</code> / <code>CJK_ONLY</code> / <code>NON_CJK_ONLY</code>) · <code>getDynamicTextureResolution()</code> (0–8) · <code>getVehicleOscillationMultiplier()</code> (×10 for a percentage) · <code>getDefaultRail3D()</code> · <code>isCustomFontEnabled()</code>.</p>
+    <h3>MTR.Data (data known to the client)</h3>
+    <p>MTR 4 only syncs <strong>nearby</strong> data — it's normal not to find far-away data, and many functions return <code>null</code>:</p>
+    <table>
+      <thead><tr><th>Group</th><th>Functions</th></tr></thead>
+      <tbody>
+        <tr><td>Stations / depots</td><td><code>findStation(pos)</code> · <code>getStation(id)</code> · <code>getKnownStations()</code>; <code>findDepot(pos)</code> · <code>getDepot(id)</code> · <code>getKnownDepots()</code></td></tr>
+        <tr><td>Routes</td><td><code>getRoute(id)</code> · <code>getKnownRoutes()</code> · <code>getKnownRoutesPassingPlatform(platformId)</code></td></tr>
+        <tr><td>Vehicles</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code></td></tr>
+        <tr><td>Lifts</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code></td></tr>
+        <tr><td>Rails</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code></td></tr>
+        <tr><td>Platforms / sidings</td><td><code>getPlatform(id)</code> · <code>getKnownPlatforms()</code> · <code>findNearbyPlatforms(pos, radius)</code>; <code>getSiding(id)</code> · <code>getKnownSidings()</code> · <code>findNearbySidings(pos, radius)</code></td></tr>
+        <tr><td>Arrivals</td><td><code>getArrivals(platformId | platformIds[]): ArrivalEntries</code> — the same object as <code>pids.arrivals()</code> in PIDS scripts</td></tr>
+      </tbody>
+    </table>
+    <p><code>MTRClientData</code> is a direct pass-through reference to MTR's internal data class; treat it as a last resort — it carries no stability promise and may change across versions.</p>
+
+    <h2 id="mc">The Minecraft environment</h2>
+    <h3>MinecraftClient</h3>
+    <p><code>worldIsRaining()</code> · <code>worldIsThundering()</code> · <code>worldIsRainingAt(pos)</code> · <code>worldDayTime()</code> · <code>blockLightAt(pos)</code> · <code>skyLightAt(pos)</code> · <code>lightAt(pos)</code> (the packed value used for rendering) · <code>lightLevelAt(pos)</code> · <code>renderDistance()</code> · <code>localPlayer()</code> · <code>gamePaused()</code> (TSC simulation keeps running through pauses!) · <code>narrate(msg)</code> · <code>displayMessage(msg, actionBar)</code> (also accepts <code>VanillaText</code>) · <code>spawnParticleInWorld(id, pos, velocity, alwaysSpawn=false)</code> · <code>getScoreboardScore(objective, player)</code> · <code>getWorldPlayers()</code> · <code>getCurrentWorldId()</code> · <code>getCameraMode()</code> · <code>getRedstoneLevel(pos)</code> · <code>getWorldBlockState(pos, stateName)</code>.</p>
+    <h3>VanillaText (vanilla rich text)</h3>
+    <p>Builds the vanilla text components used in chat / overlays: <code>literal(str)</code> · <code>translatable(key, ...)</code> · <code>append(other)</code> · <code>withBold()</code> · <code>withItalic()</code> · <code>withFont(id)</code> · <code>withColor(rgb | name)</code> · <code>clickToCopyText(str)</code> · <code>clickToOpenURL(url)</code> · <code>withHoverText(str | VanillaText)</code> · <code>getString()</code> (returns the localized result).</p>
+    <h3>VoxelShape (block outlines)</h3>
+    <p>For custom decoration object collision / outlines: <code>empty()</code> · <code>fullCube()</code> · <code>create(minX, minY, minZ, maxX, maxY, maxZ, facing?)</code> (16 units = one block) · <code>combine(other)</code>; pair with <code>ctx.setOutlineShape(...)</code> / <code>ctx.setCollisionShape(...)</code>.</p>
+    <h3>ItemStack / PlayerEntity</h3>
+    <p><code>ItemStack</code>: <code>itemId()</code> · <code>translationId()</code> · <code>empty()</code> · <code>count()</code>. <code>PlayerEntity</code> (usually from <code>MinecraftClient.localPlayer()</code> or events): <code>uuid()</code> · <code>pos() / blockPos() / smoothPos() / velocity()</code> · <code>pitch() / yaw() / bodyYaw()</code> · <code>playerName() / displayName()</code> · <code>hasPermissionLevel(level)</code> (client-side info — take it with a grain of salt) · <code>mainHandItem() / offHandItem() / activeItem() / isHoldingItem(id)</code> · <code>isSneaking() / isSprinting() / isSwimming() / isCreative() / isSpectator()</code>.</p>
+
+    <h2 id="utils">Utilities</h2>
+    <h3>DataReader (unified decoding)</h3>
+    <p>Returned by <code>Resources.read</code> / <code>Files.read</code> / <code>Networking.fetch</code> — a decoder for byte sequences:</p>
+    <p><code>asString(): String?</code> (UTF-8) · <code>asBufferedImage(): BufferedImage?</code> · <code>asFont(): Font?</code> (TTF/OTF; the implementation drops files in the temp directory — clear the leftovers starting with <code>+~JF</code> if disk space is tight) · <code>asByteArray(): byte[]</code> · <code>openInputStream(callback)</code> (closes the stream automatically) · <code>asInputStream()</code> (you close it yourself). Failed decodes return <code>null</code> and log an error to the console.</p>
+    <h3>Other utilities</h3>
+    <table>
+      <thead><tr><th>Class</th><th>Key points</th></tr></thead>
+      <tbody>
+        <tr><td><code>Timing</code></td><td><code>elapsed()</code> (seconds of game runtime, keeps counting while paused) · <code>delta()</code> (seconds since the last render — the tool for scaling animation to frame rate) · <code>currentTimeMillis()</code> · <code>nanoTime()</code></td></tr>
+        <tr><td><code>TextUtil</code></td><td>Splits MTR's <code>中文|English||附加</code> naming format (CJK | English || extra): <code>getCjkParts</code> / <code>getNonCjkParts</code> / <code>getExtraParts</code> / <code>getNonExtraParts</code> / <code>getNonCjkAndExtraParts</code> / <code>isCjk</code> / <code>cycleString(src[, tick])</code></td></tr>
+        <tr><td><code>StateTracker</code></td><td>State transition tracking (avoids "fire every frame while the condition holds"): <code>setState(value): boolean</code> (true only on change) · <code>stateNow()</code> / <code>stateLast()</code> / <code>stateNowDuration()</code> / <code>stateNowFirst()</code> · <code>changedTo(v)</code> / <code>changedFromTo(old, v)</code>; one per object, stored in <code>state</code></td></tr>
+        <tr><td><code>CycleTracker</code></td><td>Timed carousel rotation: <code>new CycleTracker(["route", 5, "next", 5])</code> + <code>tick()</code> · <code>stateNow()</code> / <code>stateLast()</code> / <code>stateNowDuration()</code> / <code>stateNowFirst()</code></td></tr>
+        <tr><td><code>RateLimit</code></td><td>Rate limiting: <code>new RateLimit(intervalSec)</code> + <code>if (rl.shouldUpdate()) { ... }</code>; <code>resetCoolDown()</code> makes it due immediately</td></tr>
+        <tr><td><code>Java</code></td><td>Java interop helpers: <code>Java.newArray(class, length | dims)</code>, <code>Java.toArray(class, list)</code> — some AWT methods want real Java arrays</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="features">Script features</h2>
+    <h3>include (scripts including scripts)</h3>
+    <pre><code class="lang-js">include(Resources.id("mtrsteamloco:scripts/display_helper.js"));  // Absolute path
+include("./util/common.js");                                     // Relative to the current script</code></pre>
+    <p>Loads and executes another JS file at <strong>parse time</strong> (accepts a relative path string or an Identifier).</p>
+    <h3>Script entries referencing script entries</h3>
+    <p>A script entry that no content entry in the same pack references is refused by default (guards against a forgotten <code>scriptId</code>); adding <code>"forceLoad": true</code> to the script entry forces it to load — used when sharing script entries across packs, or when an MTR 3 entry borrows an MTR 4 shared declaration; mind resource pack load order (the declaring pack loads first).</p>
+    <h3>ANTE compatibility classes</h3>
+    <p><code>SoundHelper</code> (ANTE-style sound playback), <code>TickableSound</code>, <code>GlobalRegister</code>, <code>ComponentUtil</code> (vanilla text component utilities), and the global <code>asJavaArray(list, class)</code> are available since v2.3, with signatures matching ANTE to ease migrating ANTE content.</p>
+
+    <hr>
+    <p>Next up: <a href="js-types.html">JS Script Types</a> — the dedicated APIs for vehicle / decoration object / lift / PIDS; <a href="js-yanyang.html">Yanyang Extensions</a> — what this fork adds on top of JS.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Docs home</a>
+      <a href="js-getting-started.html">JS Getting Started</a>
+      <a href="js-types.html">JS Script Types</a>
+    </div>
+    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

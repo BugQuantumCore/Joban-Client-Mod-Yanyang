@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-locale="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>晏阳扩展 API — JCM Yanyang 脚本开发文档</title>
+<meta name="description" content="晏阳技术组修改版 JCM 在 JavaScript 脚本之上增加的能力：混合 JS+C++ 条目、服务端开门方向记忆、交通类型细分与直写像素上传。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">开始</div>
+    <a href="index.html">概览</a>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
+    <a href="script-model.html">脚本模型与生命周期</a>
+    <a href="data.html">数据快照</a>
+    <a href="drawing.html">绘制与画布</a>
+    <a href="java-api.html">mtr::Api 与 Java 互操作</a>
+    <a href="abi.html">C ABI 与宿主服务</a>
+    <a href="performance.html">性能与调试</a>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html" class="active">晏阳扩展 API</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="浅色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切换语言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="打开导航菜单">☰ 目录</button>
+    <span class="title">晏阳扩展 API</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文档</a> / JavaScript 脚本 / 晏阳扩展 API</div>
+      <h1>晏阳扩展 API</h1>
+      <p class="page-lead">本分支（晏阳技术组修改版）在上游 JCM 2.3.0-prerelease.2 的 JS API 之上增加的能力。上游已有的一切照旧可用；本页只写增量。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本页内容</b>
+      <ol>
+        <li><a href="#overview">扩展一览</a></li>
+        <li><a href="#mixed">混合 JS + C++ 条目</a></li>
+        <li><a href="#doordir">开门方向记忆</a></li>
+        <li><a href="#transporttype">交通类型细分</a></li>
+        <li><a href="#rawupload">直写像素上传</a></li>
+        <li><a href="#parity">JS 与 C++ 的词汇一致</a></li>
+      </ol>
+    </div>
+
+    <h2 id="overview">扩展一览</h2>
+    <table>
+      <thead><tr><th>扩展</th><th>入口</th><th>一句话</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#mixed">混合 JS + C++ 条目</a></td><td>声明条目</td><td>一个条目里 JS 与 C++ 模块随意混搭，双引擎同时渲染</td></tr>
+        <tr><td><a href="#doordir">开门方向记忆</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>到站开哪侧门——站台期、正线预测、跨视距由服务端记忆</td></tr>
+        <tr><td><a href="#transporttype">交通类型细分</a></td><td><code>VehicleWrapper.getTransportType()</code> 等</td><td>线路细分类型 id（与 MAGIC MTR 联动）与换乘扩展字段</td></tr>
+        <tr><td><a href="#rawupload">直写像素上传</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>字节行阵直写 + 只上传脏区，高频逐像素更新的省带宽通道</td></tr>
+        <tr><td>兼容别名</td><td>声明条目</td><td>接受 NTE 文档示例的 <code>script_input</code> 键名；<code>nativeLibrary</code> / <code>nativeLibraries</code> 与 <code>.js</code> 混用</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="mixed">混合 JS + C++ 条目</h2>
+    <p>上游格式里一条脚本要么全 JS。晏阳把<strong>判定权交给文件特征</strong>：<code>scriptLocations</code> 的每个条目单独看——<code>*.js</code>（不区分大小写）走 JavaScript，其余按 C++ 模块解析。一条里两种随便混、数量不限：</p>
+    <pre><code class="lang-json">"vehicleScripts": [
+    {
+        "id": "demo:sp1900",
+        "scriptLocations": [
+            "demo:js/sp1900_ui.js",
+            "demo:natives/sp1900_motor",
+            {"windows": "demo:natives/win-x64/libmotor.dll",
+             "linux":   "demo:natives/linux-x64/libmotor.so",
+             "macos":   "demo:natives/macos-arm64/libmotor.dylib"}
+        ],
+        "prependExpressions": ["print('JS 侧照常执行')"],
+        "input": { "era": 2004 }
+    }
+]</code></pre>
+    <p>C++ 声明有三种形式：</p>
+    <table>
+      <thead><tr><th>形式</th><th>写法</th><th>解析</th></tr></thead>
+      <tbody>
+        <tr><td>平台无关 stem</td><td><code>"demo:natives/sp1900_motor"</code></td><td>每个平台各自展开：<code>natives/linux-x64/libsp1900_motor.so</code>、<code>natives/windows-x64/sp1900_motor.dll</code>、<code>natives/macos-arm64/libsp1900_motor.dylib</code>……（目录布局详见 <a href="getting-started.html#package">C++ 快速上手</a>）</td></tr>
+        <tr><td>完整库路径</td><td><code>"demo:natives/linux-x64/libfoo.so"</code></td><td>按扩展名绑定对应系统，其他系统跳过该条</td></tr>
+        <tr><td>按平台映射</td><td><code>{"windows": ..., "linux": ..., "macos": ...}</code></td><td>键可精确到架构（<code>macos-arm64</code>、<code>linux-x64</code>……），精确键优先于通用键；值本身又是 stem 或完整路径</td></tr>
+      </tbody>
+    </table>
+    <p><strong>两个引擎各画各的</strong>：JS 部分（连同 <code>prependExpressions</code> 与 <code>input</code>）拼成一份脚本解析；C++ 部分全部挂到同一脚本 id 下由原生管理器加载。渲染时两侧各自捕获、各自回放，绘制指令互不串线；一侧缺失或加载失败只是该侧不画，不会拖垮另一侧。</p>
+    <h3>language 字段（兜底开关）</h3>
+    <table>
+      <thead><tr><th>值</th><th>效果</th></tr></thead>
+      <tbody>
+        <tr><td>不写（推荐）</td><td>按文件特征自动判定——绝大多数场景零配置</td></tr>
+        <tr><td><code>"cpp"</code></td><td>纯原生条目（老语义）：<code>scriptLocations</code> 里的 <code>.js</code> 会被忽略并留日志提示；配合 <code>nativeLibrary</code> / <code>nativeLibraries</code> 使用</td></tr>
+        <tr><td><code>"javascript"</code> / <code>"js"</code></td><td>强制全部按 JS 解析——无扩展名 JS 文件名的逃生通道</td></tr>
+      </tbody>
+    </table>
+    <p>字段名按格式：MTR 4 键是 <code>language</code>，旧格式是 <code>scriptLang</code>（驼峰）/ <code>script_lang</code>（下划线）。<code>nativeLibrary</code> / <code>nativeLibraries</code>（后者让一条 id 挂多库）任何时候都按 C++ 处理，也能与 <code>.js</code> 同条目共存。</p>
+    <div class="admonition note">
+      <span class="admonition-title">与纯 JS 条目的关系</span>
+      <p><code>prependExpressions</code> / <code>input</code> / <code>rateLimit</code> / <code>dataFetchMode</code> 等 JS 字段含义不变；纯 JS 条目（全是 <code>.js</code>）行为与上游完全一致。C++ 侧读 <code>input</code> 的方式见 <a href="getting-started.html">C++ 文档</a>。</p>
+    </div>
+
+    <h2 id="doordir">开门方向记忆</h2>
+    <p><code>VehicleWrapper.getDirectionOfDoorOpening(): String</code> 回答「这列车<strong>会</strong>开哪侧门」，取值 <code>"not"</code>（哪侧都不开）/ <code>"left"</code>（车头左侧）/ <code>"right"</code>（车头右侧）/ <code>"all"</code>（两侧）：</p>
+    <ul>
+      <li><strong>停靠站台时</strong>：不论车门处于未开 / 半开 / 关闭中 / 已关，答案都与完全打开时一致——平台方块（或已解锁的 PSD / APG 门）在哪侧，哪侧就算「会开」。门值 &gt; 0 时直接读本帧的逐厢判定。</li>
+      <li><strong>正线运行时</strong>：预测<strong>下一站</strong>的开门侧——把列车按停点摆到自己的路径上，用 MTR 同款 <code>canOpenDoors</code> 方块扫描。停点区块已加载时立即可用；<strong>超出视距</strong>时改由<strong>服务端</strong>作答：服务端全图扫描过一次并持久化（站台方块增删改会自动增量重扫），按线路缓存两侧答案应答请求——中途上车、重启游戏、首次造访都照常工作。</li>
+      <li><strong>服务端未装本模组或未应答</strong>：回退为客户端自己的视距内扫描，此时远处站台的预测可能拿不到。</li>
+      <li><strong>聚合规则</strong>：一侧只要有一节车厢的门旁有平台方块，整侧即记为可开（按侧聚合，不按单门）。左右相对<strong>车头</strong>（转向架 1 端）：每节车厢在自己的坐标系里评估（-X = 车头左侧，MTR 模型惯例），行进方向与折返不改变读数。</li>
+      <li><strong>纯查询</strong>：只服务显示逻辑（开门侧指示、车内屏箭头），不干预 MTR 实际开门。</li>
+    </ul>
+    <div class="admonition tip">
+      <span class="admonition-title">示例：门侧指示灯</span>
+      <pre><code class="lang-js">function render(ctx, state, vehicle) {
+    let dir = vehicle.getDirectionOfDoorOpening();   // "not"/"left"/"right"/"all"
+    if (dir == "left" || dir == "all") drawLamp(ctx, state, "left", 0x00FF00);
+    if (dir == "right" || dir == "all") drawLamp(ctx, state, "right", 0x00FF00);
+}</code></pre>
+    </div>
+
+    <h2 id="transporttype">交通类型细分</h2>
+    <p>MTR 的 <code>TransportMode</code> 只有四种基模式（train / boat / cable_car / airplane），不够显示用。<a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> 附加模组允许玩家给「列车」再细分显示类型（存于其 <code>route_types.json</code>，按线路 id 键控）。本分支把这些类型贯通到脚本：</p>
+    <ul>
+      <li><code>VehicleWrapper.getTransportType(): String</code> —— 当前线路的<strong>规范类型 id</strong>：MAGIC 指派了细分（<code>train_normal</code> / <code>train_light_rail</code> / <code>train_high_speed</code> / <code>train_metro</code> / <code>train_bus</code> / <code>train_tram</code> / <code>train_sbahn</code>）就用之，否则回落基模式 id（<code>train</code> / <code>boat</code> / <code>cable_car</code> / <code>airplane</code>），未知为 <code>unknown</code>，<strong>永不为 null</strong>。</li>
+      <li><code>Stop.routeInterchanges[i]</code>（<code>RouteInterchange</code>）新增：<code>getTransportMode(): TransportMode?</code>（换乘线路的交通模式，老数据可能为 null）、<code>getTransportType(): String</code>（同上规范 id）、<code>getRouteId(): long</code>（来源线路 id，服务端数据缺省为 0）——换乘指示牌按类型选图标 / 配色时不再只能读颜色。</li>
+      <li>MAGIC 未安装或该线路没有指派时一切照旧回落基模式——脚本无需探测附加模组在不在。类型查询结果按线路短时缓存（约 1 秒），MTR 里改类型很快就能看到。</li>
+    </ul>
+
+    <h2 id="rawupload">直写像素上传</h2>
+    <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>
+    <p>把一段 <code>width × height × 4</code> 字节、行优先、<strong>BGRA</strong> 顺序的像素行阵直写进纹理缓冲，并只把这块矩形上传显存：</p>
+    <ul>
+      <li><strong>定位</strong>：高频逐像素更新的省带宽通道。普通 AWT 路线的 <code>upload()</code> 搬整张图；一块 4 Mpx 的屏幕每帧整传就是十几 MB 的搬运量，而逐点动画（进度条、跳字）通常只改一小条——本方法几百 KB 就够。</li>
+      <li><code>ppm</code> 是 4 × 256 项的<strong>预乘查找表</strong>（依次 B / G / R / A 四段各 256 项），调用方持有；字节按表展开写入，避免逐像素做乘法。</li>
+      <li>写入后自动只上传该矩形，纹理其余部分保持原样——比 <code>upload(x, y, w, h)</code> 省掉「先在 AWT 画布上改」的一步。</li>
+      <li>JS 里可用（配合 <code>Java.newArray</code> 组字节数组），但设计初衷是服务 C++ 桥的帧像素回传；纯 JS 作者用 AWT + 子区域上传即可。</li>
+    </ul>
+
+    <h2 id="parity">JS 与 C++ 的词汇一致</h2>
+    <p>同一数据在两种语言里叫同一个名字——混编条目两侧画同一个东西时不会精神分裂：</p>
+    <table>
+      <thead><tr><th>JS</th><th>C++（SDK）</th><th>引入</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
+        <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> 等</td><td><code>mtr::Stop::interchange(i)</code> 的类型字段</td><td>ABI 9</td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+      </tbody>
+    </table>
+    <p>纯 JS 读者记住一件事即可：<strong>本页的扩展在 C++ 侧同样可用</strong>（快照字段直读，零搬运成本），见 <a href="data.html">数据快照</a>。</p>
+
+    <hr>
+    <p>回到：<a href="js-types.html">JS 脚本类型</a> · <a href="js-api.html">JS 公共 API</a>；想要零 JVM 开销的同类数据？看 <a href="getting-started.html">C++ 原生脚本</a>。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文档首页</a>
+      <a href="js-types.html">JS 脚本类型</a>
+      <a href="js-api.html">JS 公共 API</a>
+    </div>
+    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-prerelease.2-yanyang.1 · 晏阳技术组扩展
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

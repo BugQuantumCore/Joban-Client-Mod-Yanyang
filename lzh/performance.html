@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>疾徐與除錯 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>疾徐與除錯 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="GC 衛生之守則，髒矩形上傳之策，latest.log 之觀測，暨 JVM 參數、常見之問之診。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html" class="active">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -78,9 +84,9 @@
     <table>
       <thead><tr><th>環節</th><th>所費</th></tr></thead>
       <tbody>
-        <tr><td>快照封送（宿主 → 模塊）</td><td><strong>唯一所迫之 Java 穿越</strong>：宿主以復用之建構器，書 POD 快照於共享頁 / 直接緩衝</td></tr>
+        <tr><td>快照搬運（宿主 → 模塊）</td><td><strong>唯一所迫之 Java 穿越</strong>：宿主以復用之建構器，書 POD 快照於共享頁 / 直接緩衝</td></tr>
         <tr><td>數據之讀（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>尋常記憶體之讀，零費</td></tr>
-        <tr><td>繪製記錄之書</td><td>競技場內 bump 分配，零分配零裝箱</td></tr>
+        <tr><td>繪製記錄之書</td><td>之區內 bump 分配，零分配零裝箱</td></tr>
         <tr><td>像素光柵（<code>Gfx2D</code>）</td><td>純 C++ 之環；src-over 不透明有快捷之途</td></tr>
         <tr><td>宿主回放</td><td>與 JS 同一渲染之途；紋理上傳惟搬髒矩形</td></tr>
         <tr><td><code>Api</code> 之呼</td><td>JSON 編碼＋反射＋JSON 解碼之往返——<span class="pill warn">費巨</span> 惟作低頻之通道</td></tr>
@@ -100,9 +106,9 @@
     <h2 id="memory">記憶體與延遲回收</h2>
     <p>宿主側記憶體之紀（腳本作者知之可也；其利則 SDK 自蒙之）：</p>
     <ul>
-      <li>五輸出競技場者，<strong>每模塊一份，幀間復用</strong>；像素競技場初 1 MB，按需而增（其上 16 MB），尖峰既過，則確定收縮而復歸下限——每模塊 16 MB 固定駐留之弊，不復有焉。</li>
-      <li>實例去視錐而不毀（保其暖態；重入於鏡，則零重建）；誠去乎客戶端車輛之列者，約五秒乃退休。</li>
-      <li><strong>大塊之釋，行乎 <code>defer_free</code></strong>（ABI 10）：<code>render</code> / <code>dispose</code> 之內既死之兆級緩衝，付諸宿主後臺回收之線程——免 <code>free</code> 之全費累乎當前之幀，且免大 GC 安全點之待。其約曰：塊必既死，必無析構，此後必無線程（宿主回放亦在數焉）復觸之。SDK 像素競技場之收縮，已自遵之；君自有之大緩衝，循同規而呼 <code>host-&gt;defer_free</code> 可也；宿主過舊（其槽為 null）者，同步 free 亦可。</li>
+      <li>五輸出之區者，<strong>每模塊一份，幀間復用</strong>；像素之區初 1 MB，按需而增（其上 16 MB），尖峰既過，則確定收縮而復歸下限——每模塊 16 MB 固定駐留之弊，不復有焉。</li>
+      <li>實例去視錐而不毀（保其暖態；重入於鏡，則零重建）；誠去乎客戶端車輛之列者，約五秒乃除役。</li>
+      <li><strong>大塊之釋，行乎 <code>defer_free</code></strong>（ABI 10）：<code>render</code> / <code>dispose</code> 之內既死之兆級緩衝，付諸宿主後臺回收之線程——免 <code>free</code> 之全費累乎當前之幀，且免大 GC 安全點之待。其約曰：塊必既死，必無析構，此後必無線程（宿主回放亦在數焉）復觸之。SDK 像素之區之收縮，已自遵之；君自有之大緩衝，循同規而呼 <code>host-&gt;defer_free</code> 可也；宿主過舊（其槽為 null）者，同步 free 亦可。</li>
     </ul>
 
     <h2 id="observe">觀測與日誌</h2>
@@ -111,7 +117,7 @@
       <tbody>
         <tr><td>模塊 census</td><td><code>logs/latest.log</code> 啟動之段</td><td>已載模塊之數與其類；傳輸通道摘要之行（含 <code>transport:</code> 之樣：shared-memory / panama-ffm 之屬）——所以證 shm / FFM 誠已生效、有無靜默降級也</td></tr>
         <tr><td>載失之由</td><td>census 行＋除錯之模</td><td>一側（JS 或 C++）缺焉 / 載敗焉，則惟略彼側而留其示；餘側行如常</td></tr>
-        <tr><td>崩潰圍欄</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模塊見禁之確由</td></tr>
+        <tr><td>崩潰防護</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模塊見禁之確由</td></tr>
         <tr><td>清掃之流</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏之彙錄，實例壽命之行，得以徑觀焉</td></tr>
         <tr><td>上傳位元組之數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>於君之碼中誌之——髒矩形之策效否，一覽而知</td></tr>
       </tbody>
@@ -127,7 +133,7 @@
         <tr><td><code>-Djcm.ffm.disable</code></td><td>關</td><td>除錯之關：禁 Panama FFM 載入之途</td></tr>
       </tbody>
     </table>
-    <p>實例之退休與銷毀，別有每 tick 之預算焉（預設二，舊者先出）；世界既卸，維度既遷，或連接既斷，則一舉沖刷之。</p>
+    <p>實例之除役與銷毀，別有每 tick 之預算焉（預設二，舊者先出）；世界既卸，維度既遷，或連接既斷，則一舉沖刷之。</p>
 
     <h2 id="faq">常見之問</h2>
     <h3>模塊全然不載，何也？</h3>
@@ -135,7 +141,7 @@
       <li>先察所用者，<strong>Release 之 jar 抑 Complete Build 之 jar</strong>——速成 CI 之產物，不含原生橋，日誌必書 <code>native bridge unavailable</code>（非君模塊之咎也）。</li>
       <li>次察平臺之目：當前系統，惟載所應平臺之庫；無副檔名之 stem 宣告，自展為諸平臺之路（見<a href="getting-started.html#package">打包</a>）。</li>
       <li>復察 <code>ID</code> 與宣告條目之 <code>id</code>，逐字相合否。</li>
-      <li>終察 ABI：宿主所受，6 至 10 也；ABI 8+ 之庫，須 Yanyang.7 及以上之宿主。</li>
+      <li>終察 ABI：宿主所受，6 至 11 也；ABI 8+ 之庫，須 2.3.0-beta-2.yanyang.7 及以上之宿主。</li>
     </ol>
     <h3>屏現占位之框（tofu），何也？</h3>
     <p>CJK 字形，宿主字體不覆其碼位，則退為占位之框——以資源字體之 id，傳於 <code>Text::font()</code> 與 <code>Gfx2D</code> 之構造（如 <code>jsblock:shanghai</code>），或察所用字體之集，果含此諸字否。</p>
@@ -158,7 +164,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

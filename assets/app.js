@@ -347,11 +347,21 @@
   var JS_KW = new Set(("var let const function return if else for while new class extends true "
     + "false null undefined this typeof instanceof of in break continue").split(/\s+/));
 
+  /* lang-js：复用 C++ 词法器的保守着色，换用 JS 关键字表；
+     额外把 API 常用全局类名（Text、Texture、Resources……）也染成类型色。 */
+  var JS_TYPES = new Set(("Text Texture Rect Resources Files Networking Java console BackgroundWorker "
+    + "DataReader Math Timing TextUtil StateTracker CycleTracker RateLimit Vector3f Matrices VoxelShape "
+    + "VanillaText MinecraftClient TickableSoundInstance QuadDrawCall ModelManager RawModel RawMeshBuilder "
+    + "DynamicModelHolder Model GraphicsTexture SoundManager MTR DisplayHelper ScriptInput SCRIPT_INPUT "
+    + "VehicleScriptContext EyeCandyScriptContext LiftScriptContext PIDSScriptContext VehicleWrapper "
+    + "EyecandyWrapper LiftWrapper PIDSBlockEntity ArrivalEntries ArrivalEntry Stop RouteInterchange Floor "
+    + "PlayerEntity ItemStack SoundHelper TickableSound GlobalRegister ComponentUtil").split(/\s+/));
+
   function esc(s) {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
-  function highlightCpp(src, kw) {
+  function highlightCpp(src, kw, types) {
     var out = "";
     var i = 0, n = src.length;
     while (i < n) {
@@ -401,7 +411,7 @@
         var after = src.slice(m3).match(/^\s*\(/);
         if (kw.has(word)) {
           out += '<span class="tok-k">' + word + "</span>";
-        } else if (/^(mtr|MTR|Jcm)[_A-Z]/.test(word) || /^[A-Z][A-Za-z0-9_]*$/.test(word)) {
+        } else if (/^(mtr|MTR|Jcm)[_A-Z]/.test(word) || /^[A-Z][A-Za-z0-9_]*$/.test(word) || (types && types.has(word))) {
           out += '<span class="tok-t">' + word + "</span>";
         } else if (after) {
           out += '<span class="tok-f">' + word + "</span>";
@@ -474,6 +484,7 @@
     else if (cls.indexOf("json") >= 0) lang = "json";
     else if (cls.indexOf("bash") >= 0 || cls.indexOf("sh") >= 0) lang = "bash";
     else if (cls.indexOf("cmake") >= 0) lang = "cmake";
+    else if (cls.indexOf("js") >= 0) lang = "js";
     if (!lang) return;
     try {
       var src = block.textContent;
@@ -481,6 +492,8 @@
         block.innerHTML = highlightCpp(src, lang === "cmake" ? new Set(["if", "else", "endif", "set", "function", "endfunction", "foreach", "endforeach", "include", "option", "add_library", "target_link_libraries", "add_executable"]) : CPP_KW);
       } else if (lang === "json") {
         block.innerHTML = highlightJson(src);
+      } else if (lang === "js") {
+        block.innerHTML = highlightCpp(src, JS_KW, JS_TYPES);
       } else {
         block.innerHTML = highlightBash(src);
       }

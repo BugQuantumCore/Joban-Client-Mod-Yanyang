@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Data snapshots — JCM Yanyang C++ Scripting Documentation</title>
+<title>Data snapshots — JCM Yanyang Scripting Documentation</title>
 <meta name="description" content="The complete accessor reference for the Vehicle / Stop / Arrival / Pids / Lift / EyeCandy snapshot wrappers.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ Scripting</b><small>Docs</small></span>
+    <span class="brand-text"><b>Yanyang scripting</b><small>Docs</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
     <a href="getting-started.html">Quick start</a>
-    <div class="nav-group">Script Model</div>
+    <div class="nav-group">C++ scripting</div>
     <a href="script-model.html">Script model and lifecycle</a>
-    <div class="nav-group">API Reference</div>
     <a href="data.html" class="active">Data snapshots</a>
     <a href="drawing.html">Drawing and canvases</a>
     <a href="java-api.html">mtr::Api and Java interop</a>
     <a href="abi.html">C ABI and host services</a>
-    <div class="nav-group">Advanced</div>
     <a href="performance.html">Performance and debugging</a>
-  </nav>
+    <div class="nav-group">JavaScript scripting</div>
+    <a href="js-getting-started.html">JS getting started</a>
+    <a href="js-api.html">JS common APIs</a>
+    <a href="js-types.html">JS script types</a>
+    <a href="js-yanyang.html">Yanyang extensions</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -91,7 +95,7 @@
     <div class="admonition note">
       <span class="admonition-title">Terminology: MTR 3's train → MTR 4's vehicle</span>
       <p>MTR 4 uniformly uses <strong>vehicle</strong> as its term (the resource pack declaration key <code>vehicleScripts</code>, the Java-side <code>VehicleWrapper</code>), so this SDK's data wrapper class is named <code>mtr::Vehicle</code>. Earlier SDK versions followed the MTR 3 convention and named it <code>mtr::Train</code>; that name is now retained as a <strong>source-compatible alias</strong>—either name compiles, and the behaviour is completely identical.</p>
-    <p>Note: the <code>mtr::Vehicle</code> name is in the repository's SDK sources and ships with the next release's zip; if your project uses the yanyang.7 (or earlier) SDK zip, refer to this class as <code>mtr::Train</code> (both spellings compile against the new SDK).</p></div>
+    <p>Note: the <code>mtr::Vehicle</code> name is in the repository's SDK sources and ships with the next release's zip; if your project uses the 2.3.0-beta-2.yanyang.7 (or earlier) SDK zip, refer to this class as <code>mtr::Train</code> (both spellings compile against the new SDK).</p></div>
     <p>Provided by <code>mtr::Vehicle</code>, mirroring the JS <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>:</p>
     <table>
       <thead><tr><th>Accessor</th><th>Type</th><th>Description</th></tr></thead>
@@ -270,7 +274,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang C++ scripting documentation · Matches SDK ABI 11 (2.3.0-beta-2.yanyang.7) · Maintained in sync with the repository's <code>native/README.md</code>
+    JCM Yanyang scripting documentation · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>
   </footer>
 </main>
 </div>

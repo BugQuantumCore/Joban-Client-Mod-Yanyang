@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>腳本體例與生命週期 — JCM Yanyang C++ 腳本開發文檔</title>
+<title>腳本體例與生命週期 — JCM Yanyang 腳本開發文檔</title>
 <meta name="description" content="四類腳本基類、State 之義、create/render/dispose 之序、線程模型與崩潰隔離。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,7 +15,7 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文檔</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
@@ -30,7 +30,13 @@
     <a href="abi.html">C ABI 與宿主服務</a>
     <div class="nav-group">精進</div>
     <a href="performance.html">疾徐與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html">晏陽增補</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -116,7 +122,7 @@ struct MyVehicleScript : mtr::VehicleScript&lt;MyVehicleState&gt; {
 MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
 
     <ul>
-      <li><strong><code>ID</code></strong> 者，腳本命名空間之 id 也（如 <code>demo:vehicle</code>），必與資源包 <code>minecraft_custom_resources.json</code> 中宣告條目之 <code>id</code> 相合。</li>
+      <li><strong><code>ID</code></strong> 者，腳本命名空間之 id 也（如 <code>demo:vehicle</code>），必與資源包 <code>mtr_custom_resources.json</code> 中宣告條目之 <code>id</code> 相合。</li>
       <li>三生命週期函數，override 皆可省（基類固有虛而空之實現），惟參數之簽名不可易。</li>
       <li>一翻譯單元，惟註一腳本；腳本之眾者，分為數模塊之庫。</li>
     </ul>
@@ -127,7 +133,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <li>宿主按 <code>mtrStateSize()</code> 之數（註冊宏自 <code>sizeof(State)</code> 生之）而配其塊；首用之前，經 <code>mtrInit()</code> 以 placement-new 構之——<strong>慎勿</strong>視零填充之記憶體為可用（<code>std::string</code> 諸非平凡之型，施於零記憶體，未定義之行也）。</li>
       <li>塊中之物，<strong>跨幀恆存</strong>：紋理之柄、模型之柄、回呼、緩存，悉置諸此。</li>
       <li>至若<strong>腳本類之成員</strong>（君於 <code>MyVehicleScript</code> 所書之欄），則該模塊<strong>諸實例所共</strong>——宜惟置唯讀之常數與全域之配置。</li>
-      <li><code>dispose</code> 既返，狀態隨即而析；實例自客戶端之列而沒者，約五秒乃退休；資源包重載（F3+T）之時，則盡毀之。</li>
+      <li><code>dispose</code> 既返，狀態隨即而析；實例自客戶端之列而沒者，約五秒乃除役；資源包重載（F3+T）之時，則盡毀之。</li>
     </ul>
     <div class="admonition tip">
       <span class="admonition-title">要訣</span>
@@ -146,11 +152,11 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       </div>
       <div class="step">
         <h3>render（每幀）</h3>
-        <p>讀快照而運算，錄繪製記錄於幀之競技場。快照與包裝器，惟本次一呼之內為效；宿主於 <code>render</code> 既返，即讀其輸出而收其幀。實例不可見，則 <code>render</code> 不呼，而狀態恆暖焉。</p>
+        <p>讀快照而運算，錄繪製記錄於幀之之區。快照與包裝器，惟本次一呼之內為效；宿主於 <code>render</code> 既返，即讀其輸出而收其幀。實例不可見，則 <code>render</code> 不呼，而狀態恆存焉。</p>
       </div>
       <div class="step">
         <h3>dispose</h3>
-        <p>實例退休或重載之時，乃呼之。於此閉其所持紋理、模型諸資源；<code>State</code> 之析構隨之。縱 <code>dispose</code> 擲異常，狀態亦必安然就析。</p>
+        <p>實例除役或重載之時，乃呼之。於此閉其所持紋理、模型諸資源；<code>State</code> 之析構隨之。縱 <code>dispose</code> 擲異常，狀態亦必安然就析。</p>
       </div>
     </div>
     <div class="admonition note">
@@ -166,10 +172,10 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
     </ul>
 
     <h2 id="crash">崩潰隔離</h2>
-    <p>註冊宏者，裹每一導出函數於崩潰之圍欄（<code>crash_guard.hpp</code>）：</p>
+    <p>註冊宏者，裹每一導出函數於崩潰之防護（<code>crash_guard.hpp</code>）：</p>
     <ul>
       <li>段錯誤（segmentation fault）諸硬體之疾，<strong>惟禁該模塊</strong>而已，遊戲行程行如故；<code>latest.log</code> 留 <code>native script faulted … module disabled</code> 一行。</li>
-      <li>未獲之 C++ 異常，亦為圍欄所截——然請自為 try/catch，以保其語義之明。</li>
+      <li>未獲之 C++ 異常，亦為防護所截——然請自為 try/catch，以保其語義之明。</li>
       <li>POSIX 之訊號，<strong>不</strong>以 longjmp 之式「復」之：越訊號處理器而跳，其危甚於崩潰本身；故模塊逕下線者，蓋刻意之設也。</li>
     </ul>
 
@@ -195,7 +201,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文檔 · 對 SDK ABI 11（2.3.0-beta-2.yanyang.7）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
   </footer>
 </main>
 </div>

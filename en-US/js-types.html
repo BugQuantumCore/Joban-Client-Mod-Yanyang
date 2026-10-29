@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en-US" data-locale="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JS Script Types — JCM Yanyang Scripting Docs</title>
+<meta name="description" content="The dedicated APIs for the four JS script types — vehicle, decoration object, lift, and PIDS: each ScriptContext, Wrapper, Stop, arrival data, and DisplayHelper.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">C++ Scripting</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <a href="performance.html">Performance and debugging</a>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html">JS Common APIs</a>
+    <a href="js-types.html" class="active">JS Script Types</a>
+    <a href="js-yanyang.html">Yanyang Extensions</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">JS Script Types</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / JavaScript Scripting / JS Script Types</div>
+      <h1>JS Script Types</h1>
+      <p class="page-lead">The per-type <code>ctx</code>, <code>wrapper</code>, and data types for each of the four script kinds. For registration and the lifecycle see <a href="js-getting-started.html">JS Getting Started</a>; for the shared classes see <a href="js-api.html">JS Common APIs</a>.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#vehicle">Vehicle scripts</a></li>
+        <li><a href="#fetch">Vehicle data fetch modes</a></li>
+        <li><a href="#eyecandy">Decoration object scripts</a></li>
+        <li><a href="#lift">Lift scripts</a></li>
+        <li><a href="#pids">PIDS scripts</a></li>
+        <li><a href="#displayhelper">DisplayHelper</a></li>
+      </ol>
+    </div>
+
+    <h2 id="vehicle">Vehicle scripts</h2>
+    <p>A "vehicle" in MTR 4 is a single car model entry; players freely combine cars into trains in the siding screen. A script binds to neither a single car nor a whole train, but to a <strong>script entry</strong>: vehicle entries reference it via <code>scriptId</code>, and multiple vehicles can reuse the same script — mixed consists, performance, and NTE compatibility all at once.</p>
+    <p>The three callbacks (<code>ctx</code> is a <code>VehicleScriptContext</code>, <code>vehicle</code> is a <code>VehicleWrapper</code>):</p>
+    <pre><code class="lang-js">function create(ctx, state, vehicle) { /* Before the first render: set up textures, register callbacks */ }
+function render(ctx, state, vehicle) { /* Every frame: read state, submit draws and sounds */ }
+function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code></pre>
+
+    <h3>VehicleScriptContext (ctx)</h3>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getCarRenderManager(carIndex): RenderManager?</code></td><td>The render manager for car number carIndex. The base is the car's center, 1 m above the floor. Returns null for cars not registered under this entry</td></tr>
+        <tr><td><code>getCarBogieRenderManager(carIndex, bogieIndex): RenderManager?</code></td><td>Bogie rendering: the base is relative to bogie number bogieIndex (0 front, 1 rear; 0 for single-bogie cars)</td></tr>
+        <tr><td><code>getCarSoundManager(carIndex): SoundManager?</code></td><td>The car's sound source (base = the car's center)</td></tr>
+        <tr><td><code>playAnnSound(id, volume, pitch)</code></td><td>Plays an announcement — audible only when the player is <strong>riding this train</strong>, without spatialization</td></tr>
+        <tr><td><code>getScriptEntryId(): String</code></td><td>The script entry's id</td></tr>
+        <tr><td><code>getMyCars(): int[]</code></td><td>The array of car indices registered under this entry</td></tr>
+        <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>Shown on the debug overlay (every type's ctx has it; a GraphicsTexture value is shown as the image itself)</td></tr>
+      </tbody>
+    </table>
+    <p><span class="pill warn">Deprecated</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> still work, but new code should use the RenderManagers / SoundManagers / declaration fields above. <code>drawConnModel</code> (car connectors) and <code>drawConnStretchTexture</code> are not yet implemented and throw "not implemented" when called.</p>
+
+    <h3>VehicleWrapper (vehicle)</h3>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getStops()</code> / <code>getThisRouteStops()</code> / <code>getNextRouteStops()</code></td><td>The <code>Stop</code> list for the whole run / this route / the next route</td></tr>
+        <tr><td><code>getNextStopIndex(stopList, overrunTolerance=0.5): int</code></td><td>The index of the next stop in the list; the overrun tolerance is in meters; returns <code>stopList.size()</code> once all are passed</td></tr>
+        <tr><td><code>isStopsDataFetched(): boolean</code></td><td>Whether stop data has been fetched from the server (always false in <code>SKIP</code> mode)</td></tr>
+        <tr><td><code>isRendered()</code> / <code>isCarRendered(cars...)</code></td><td>Whether the whole train / the given cars are being rendered (not culled)</td></tr>
+        <tr><td><code>isClientPlayerRiding(): boolean</code></td><td>Whether the local player is riding this train</td></tr>
+        <tr><td><code>getId(): long</code> · <code>getSiding(): Siding?</code> · <code>getTransportMode(): TransportMode</code></td><td>Unique id / owning siding / transport mode</td></tr>
+        <tr><td><code>getVehicleId(carIndex): String?</code> · <code>getLength(carIndex)</code> · <code>getWidth(carIndex)</code> · <code>getCarCount()</code></td><td>The resource pack car model id / car length and width / car count</td></tr>
+        <tr><td><code>getServiceAcceleration()</code> · <code>getServiceDeceleration()</code> · <code>getMaxManualSpeed()</code> · <code>isManualAllowed()</code></td><td>The siding-configured acceleration / deceleration and manual driving speed cap</td></tr>
+        <tr><td><code>getSpeedMs()</code> / <code>getSpeedKmh()</code> · <code>getNotchLevel()</code> / <code>getNotchPosition()</code></td><td>Speed; the notch (-5..5 regular, ±7 = 140%, -8 emergency brake) and its normalized position</td></tr>
+        <tr><td><code>getDoorValue(): double</code> · <code>isDoorOpenable(car, pos[, pos2])</code> · <code>isDoorOpen(car, pos[, pos2])</code></td><td>Door openness 0..1; queries by in-car relative coordinates whether a door can open / is open</td></tr>
+        <tr><td><code>getPathData()</code> · <code>getRailProgress(carIndex=0)</code> · <code>getRailIndex(progress, roundDown)</code> · <code>getRailSpeed(pathIndex)</code></td><td>Path and progress (MTR 4 only syncs part of the path)</td></tr>
+        <tr><td><code>isCurrentlyManual()</code> · <code>isReversed()</code> · <code>isOnRoute()</code> · <code>getManualToAutomaticTime()</code></td><td>Manual driving / reversed / on a route / the time limit (milliseconds) before driverless manual running returns to ATO</td></tr>
+        <tr><td><code>getDepartureIndex(): long</code> · <code>getTotalDwellTime()</code> / <code>getElapsedDwellTime()</code></td><td>The departure index (resets at UTC midnight; -1 = not departed / manual); total and elapsed dwell time (in milliseconds; -1 when not at a platform; elapsed time is output exactly as synced by the server)</td></tr>
+        <tr><td><code>getMtrVehicle(): VehicleExtension</code></td><td>MTR's underlying vehicle object — below the internal API boundary; enter at your own risk</td></tr>
+        <tr><td><span class="pill yy">Yanyang</span> <code>getDirectionOfDoorOpening(): String</code></td><td>The remembered door-opening direction: <code>"not" / "left" / "right" / "all"</code> — see <a href="js-yanyang.html#doordir">Yanyang extensions</a></td></tr>
+        <tr><td><span class="pill yy">Yanyang</span> <code>getTransportType(): String</code></td><td>The canonical transport type id (including MAGIC subdivisions) — see <a href="js-yanyang.html#transporttype">Yanyang extensions</a></td></tr>
+      </tbody>
+    </table>
+    <p><span class="pill warn">Deprecated</span>: the same-named NTE-era interfaces (<code>getAllPlatforms</code> / <code>trainCars</code> / <code>speed</code> / <code>doorValue</code> / <code>mtrTrain</code>, and so on) are all kept working, each equivalent to a newer interface in the table above.</p>
+
+    <h3>Stop (scheduled stops)</h3>
+    <table>
+      <thead><tr><th>Field / method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>route: SimplifiedRoute?</code> · <code>station: Station?</code> · <code>platform: Platform?</code></td><td>The route / station / platform it belongs to; null when the data hasn't been fetched (remember to null-check)</td></tr>
+        <tr><td><code>destinationName: String</code> · <code>customDestination: String?</code></td><td>The destination's display name and the raw custom destination text</td></tr>
+        <tr><td><code>routeInterchanges: List&lt;RouteInterchange&gt;</code></td><td>The routes you can interchange to at this stop (excluding the current route and hidden routes)</td></tr>
+        <tr><td><code>connectingInterchanges: Map&lt;String, List&lt;RouteInterchange&gt;&gt;</code></td><td>An interchange table grouped by <em>connected station name</em> (same-named stations are merged)</td></tr>
+        <tr><td><code>dwellTimeMillis: long</code> · <code>distance: double</code></td><td>Dwell time (unknown = -1); rail progress at the stop point (-1 in <code>SKIP</code> mode)</td></tr>
+        <tr><td><code>isRouteSwitchoverStop: boolean</code> · <code>roundUpRoute: Stop</code></td><td>Whether this is a route switchover stop; if so, <code>roundUpRoute</code> gives the same stop as seen from the <em>next route's</em> perspective</td></tr>
+        <tr><td><code>turnbackPlatform: boolean</code></td><td>Whether the train turns back at this stop</td></tr>
+      </tbody>
+    </table>
+    <h3>RouteInterchange (interchange routes)</h3>
+    <p><code>color: int</code> (RGB) · <code>name: String</code>; <span class="pill yy">Yanyang</span> adds the fields <code>getTransportMode(): TransportMode?</code>, <code>getTransportType(): String</code> (including MAGIC subdivisions), and <code>getRouteId(): long</code> (the source route's id; 0 when data is missing) — see <a href="js-yanyang.html#transporttype">Yanyang extensions</a>.</p>
+    <div class="admonition tip">
+      <span class="admonition-title">Hiding the stock destination display</span>
+      <p>Vehicles built on the stock models can set <code>hideDisplayParts</code> (MTR 4) / <code>hide_display_cube</code> (MTR 3) to hide the built-in destination display blocks and draw their own in the script instead.</p>
+    </div>
+
+    <h2 id="fetch">Vehicle data fetch modes</h2>
+    <p>MTR 4 only syncs nearby data, while vehicle scripts often want station names for the whole route. JCM's three-tier model (the <code>dataFetchMode</code> field):</p>
+    <table>
+      <thead><tr><th>Mode</th><th>Behavior</th></tr></thead>
+      <tbody>
+        <tr><td><code>SKIP</code></td><td>The MTR 4 default. Requests nothing from the server and pieces together a best-effort stop list locally — completeness not guaranteed. Enough for scripts that only look at speed, like "ding as soon as the train moves"</td></tr>
+        <tr><td><code>ALL</code></td><td>Fetches the full stop list first, then fetches the station / route data for each id in it. Behaves like <code>SKIP</code> until that arrives; even with the stop list in hand, <code>Stop.station</code> / <code>Stop.route</code> can still be null — null-check</td></tr>
+        <tr><td><code>MANDATORY</code></td><td>Like ALL, but the script doesn't start at all until all data has arrived. The default for the MTR 3 format (old scripts assume data is ready on arrival and can't tolerate null)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="eyecandy">Decoration object scripts</h2>
+    <p>Attaches to an MTR decoration object model entry: the script starts working when a decoration object block using that model from the resource pack is rendered. Register with <code>objects</code> + <code>objectScripts</code> (the MTR 3 legacy format writes these in <code>eyecandy.json</code>); setting <code>isScriptControlled: true</code> on the content entry hides the original model and hands the visuals entirely to the script.</p>
+    <p>The three callbacks: <code>ctx</code> is an <code>EyeCandyScriptContext</code>, <code>eyecandy</code> is an <code>EyecandyWrapper</code>.</p>
+    <h3>EyeCandyScriptContext (ctx)</h3>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getRenderManager(): RenderManager</code></td><td>The base is the block position + the GUI offset, including the GUI rotation</td></tr>
+        <tr><td><code>getSoundManager(): SoundManager</code></td><td>The base is the block position; there's also the convenience <code>ctx.playSound(id, volume, pitch)</code> to play right at the block</td></tr>
+        <tr><td><code>drawModel(model, matrices?)</code></td><td>Draws a model (accepts a <code>DynamicModelHolder</code> too) — equivalent to <code>getRenderManager().drawModel(...)</code></td></tr>
+        <tr><td><code>events(): EyecandyEvents</code></td><td>Event access: right-click <code>events().onBlockUse.occurred()</code> → handle it → confirm with <code>events().handled()</code>; the event detail <code>.detail().player()</code> gives the acting <code>PlayerEntity</code> (right-clicks while holding a brush don't count)</td></tr>
+        <tr><td><code>setOutlineShape(shape)</code> / <code>setCollisionShape(shape)</code></td><td>Custom outline / collision box (VoxelShape); no effect while wielding the brush</td></tr>
+        <tr><td><code>setDebugInfo(...)</code></td><td>Same as the other types</td></tr>
+      </tbody>
+    </table>
+    <h3>EyecandyWrapper (eyecandy)</h3>
+    <p><code>getModelId(): String</code> (the current model entry's id) · <code>getTranslateX/Y/Z(): float</code> (the GUI offset, in meters) · <code>getRotateX/Y/Z(): float</code> (the GUI rotation, in radians) · <code>pos(): Vector3f</code> (block + offset) · <code>blockPos(): Vector3f</code> · <code>facing(): Direction</code> · <code>facingAngle(): double</code> (the facing angle) · <code>isCrosshairTarget(): boolean</code> (the crosshair is on it — handy for tooltips) · <code>getFullBrightness(): boolean</code> · <code>redstoneLevel(): int</code> (0–15).</p>
+    <p><span class="pill warn">Deprecated</span>: the direct field-reading forms (<code>eyecandy.translateX</code>, <code>eyecandy.prefabId</code>, and so on) still work.</p>
+    <div class="admonition tip">
+      <span class="admonition-title">Example: looping music that dims on right-click</span>
+      <p>Attach looping music with <code>TickableSoundInstance.create(...)</code> + <code>setLoopable(true)</code>, drop to <code>setSoundVolume(0.25)</code> within 5 seconds of a right-click, restore 1.0 when time is up, and <code>stop</code> in <code>dispose</code> — full code in the upstream <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds documentation</a>.</p>
+    </div>
+
+    <h2 id="lift">Lift scripts</h2>
+    <p>Attaches to a lift <strong>car style</strong> (texture) entry and takes effect once the player selects that style with the lift refresher. Register with <code>lifts</code> + <code>liftScripts</code>; <code>isScriptControlled: true</code> on the style entry hides the original model.</p>
+    <p>The three callbacks: <code>ctx</code> is a <code>LiftScriptContext</code>, <code>lift</code> is a <code>LiftWrapper</code>.</p>
+    <h3>LiftScriptContext (ctx)</h3>
+    <p><code>getRenderManager(): RenderManager</code> (the base is the lift's base position + offset, following the lift's rotation) · <code>getSoundManager(): SoundManager</code> (same base) · <code>setDebugInfo(...)</code>.</p>
+    <h3>LiftWrapper (lift) and Floor</h3>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>getMtrLift(): Lift</code> · <code>getId(): long</code></td><td>MTR's underlying object and the unique id</td></tr>
+        <tr><td><code>getWidth()</code> / <code>getHeight()</code> / <code>getDepth()</code></td><td>Car dimensions (meters, configured with the refresher)</td></tr>
+        <tr><td><code>getOffset(): Vector3f</code> · <code>getPos()</code> / <code>getRawPos()</code></td><td>The offset; base position + offset / base position</td></tr>
+        <tr><td><code>getAngleDegrees()</code> / <code>getAngleRadians()</code> · <code>isDoubleSided()</code></td><td>The facing angle and doors on both sides</td></tr>
+        <tr><td><code>getDoorValue(): float</code> · <code>getDirection(): int</code></td><td>Door openness 0..1; travel direction: -1 down / 0 stationary / 1 up</td></tr>
+        <tr><td><code>isDoorway1Openable()</code> / <code>isDoorway1Open()</code> / <code>isDoorway2...</code></td><td>Whether the front / rear doorway can open and is open</td></tr>
+        <tr><td><code>isClientPlayerRiding(): boolean</code> · <code>shouldRender(): boolean</code></td><td>Whether the local player is riding; not occlusion-culled</td></tr>
+        <tr><td><code>getFloors(): List&lt;Floor&gt;</code></td><td>The floors served; each provides <code>getIndex()</code> (0 = the lowest) · <code>getNumber()</code> / <code>getDescription()</code> (configured with the floor rail brush) · <code>getPos()</code> · <code>isCurrentFloor()</code> / <code>isTargetFloor()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="pids">PIDS scripts</h2>
+    <div class="admonition warn">
+      <span class="admonition-title">A separate system</span>
+      <p>This system is <strong>mutually incompatible</strong> with PIDS Layout Editor / PIDS Modularization / PIDS JSON (EpicPuppy) and the early MTR 4 beta's info screen customization; the formats cannot be converted between each other — the barrier to entry is higher, but it can build more complex layouts.</p>
+    </div>
+    <p>In the <code>pids_images</code> array of <code>joban_custom_resources.json</code>, a preset object carrying <code>scriptFiles</code> or <code>scriptTexts</code> becomes a scripted preset (<code>scriptInput</code> / <code>scriptRateLimit</code> mean the same as for the other kinds; Yanyang also accepts <code>scriptLocations</code> to mix in C++, see <a href="js-yanyang.html#mixed">mixed entries</a>):</p>
+    <pre><code class="lang-json">{
+    "pids_images": [
+        {
+            "id": "pids_demo",
+            "name": "Demo Scripted PIDS",
+            "scriptFiles": ["jsblock:scripts/pids_demo.js"],
+            "scriptInput": { "theme": "dark" },
+            "scriptRateLimit": 0.75
+        }
+    ]
+}</code></pre>
+    <p>What you draw on a PIDS is <strong>polygons in the world</strong>, not a 2D canvas — elements can spill past the screen's bounds, and clipping to the screen is the script's own responsibility (when you truly need complex clipping / image processing, draw into a <code>GraphicsTexture</code> and blit it). <strong>Draw order is z-order</strong>: later draws cover earlier ones; by default each draw steps a tiny amount (<code>0.0002</code>) along z to prevent z-fighting, which you can disable with <code>ctx.setAutoZOrdering(false)</code> and manage manually via <code>zOrder()</code> (<code>ctx.setZOrderStep(m)</code> adjusts the step).</p>
+    <h3>PIDSScriptContext (ctx) and PIDSBlockEntity (pids)</h3>
+    <p><code>ctx.getRenderManager()</code> / <code>ctx.getSoundManager()</code> (base = the block position) · <code>ctx.setAutoZOrdering(b)</code> · <code>ctx.setZOrderStep(m)</code> · <code>ctx.setDebugInfo(...)</code>.</p>
+    <table>
+      <thead><tr><th>pids member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>type: String</code></td><td>The screen model: <code>rv_pids</code> / <code>rv_pids_sil_1</code> / <code>rv_pids_sil_2</code> / <code>lcd_pids</code> / <code>pids_projector</code> / <code>pids_1a</code></td></tr>
+        <tr><td><code>width</code> / <code>height</code> / <code>rows</code></td><td>The usable screen width/height and the number of arrival rows</td></tr>
+        <tr><td><code>isRowHidden(i)</code> / <code>getCustomMessage(i)</code></td><td>Whether row i is hidden in the block's config; the row's custom message (empty string when unset)</td></tr>
+        <tr><td><code>getTargetPlatformIds()</code> · <code>isPlatformAutoDetected()</code> · <code>isPlatformNumberHidden()</code></td><td>The detected platform ids; whether the platform is auto-detected; whether the platform number is hidden</td></tr>
+        <tr><td><code>blockPos()</code> · <code>isKeyBlock()</code> · <code>station(): Station?</code></td><td>The block position; whether this is the "key" block of a double-sided screen; the station (null when off-station or unknown to the client)</td></tr>
+        <tr><td><code>arrivals(): ArrivalEntries</code></td><td>Arrival data — see below</td></tr>
+      </tbody>
+    </table>
+    <h3>ArrivalEntries and ArrivalEntry</h3>
+    <p><code>ArrivalEntries</code>: <code>get(i): ArrivalEntry?</code> (at most 10 arrivals per platform) · <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code> (iterates entry by entry, sparing you manual null checks).</p>
+    <p><code>ArrivalEntry</code>: <code>destination(): String</code> · <code>arrivalTime()</code> / <code>departureTime()</code> (Unix milliseconds; <code>new Date(v)</code> makes a JS date) · <code>arrived()</code> / <code>departed()</code> · <code>deviation(): long</code> (relative to schedule: positive = late, negative = early) · <code>realtime(): boolean</code> (scheduled or extrapolated in real time) · <code>departureIndex(): long</code> · <code>terminating(): boolean</code> (terminates here) · <code>route(): SimplifiedRoute?</code> / <code>routeId()</code> / <code>routeName()</code> / <code>routeNumber()</code> / <code>routeColor()</code> / <code>circularState()</code> · <code>platform(): Platform?</code> / <code>platformId()</code> / <code>platformName()</code> · <code>carCount()</code> / <code>cars(): List&lt;CarDetails&gt;</code>.</p>
+    <h3>Text / Texture / Rect (the drawing trio)</h3>
+    <p>All three are fluent objects — <em>create → configure via chaining → <code>draw(ctx)</code></em>; <code>Rect</code> is a <code>Texture</code> with the texture hardcoded to a plain white PNG:</p>
+    <table>
+      <thead><tr><th>Common</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>create()</code> / <code>create(comment)</code></td><td>Creates a new instance (the comment is just for code readability)</td></tr>
+        <tr><td><code>pos(x, y)</code> · <code>size(w, h)</code></td><td>Position and size (in screen pixel units)</td></tr>
+        <tr><td><code>color(rgb)</code></td><td>Tint (an RGB integer)</td></tr>
+        <tr><td><code>naturalLight()</code> · <code>renderType(str)</code> · <code>matrices(m)</code> · <code>zOrder(n)</code> · <code>draw(ctx)</code></td><td>Samples brightness from the world lighting (full-bright by default); the render type (same as <a href="js-api.html#render">QuadDrawCall</a>); an extra transform; the manual z-order (effective once auto-z is off); submits the draw</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Text-specific</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>text(str)</code> · <code>scale(i)</code> · <code>fontMC()</code> / <code>font(id)</code></td><td>The content; the overall scale (1 by default; you handle the conversion against size yourself); the native font / a resource pack font (defaults to <code>mtr:mtr</code>; no effect when MTR's "custom font" setting is off)</td></tr>
+        <tr><td><code>leftAlign()</code> / <code>centerAlign()</code> / <code>rightAlign()</code></td><td>Alignment (left by default)</td></tr>
+        <tr><td><code>shadowed()</code> · <code>italic()</code> · <code>bold()</code> · <code>lineHeight(factor)</code></td><td>Shadow / italic / bold; the line-height factor (for line wrapping; the default 1 = 9 units)</td></tr>
+        <tr><td><code>stretchXY()</code> / <code>scaleXY()</code> / <code>wrapText()</code> / <code>marquee()</code> / <code>marquee(durationTick)</code> / <code>withMarqueeProgress(p)</code></td><td>Pick one of four overflow strategies: stretch along the overflowing axis / scale proportionally / wrap lines / marquee (specify a period, or supply the progress 0..1 directly)</td></tr>
+        <tr><td><code>measureWidth(): int</code></td><td>Measures the width under the current configuration — returns an int, so the chain ends here</td></tr>
+      </tbody>
+    </table>
+    <p><code>Texture</code>-specific: <code>texture(id)</code> (PNG or mcmeta), <code>uv(u1, v1, u2, v2)</code> (0–1).</p>
+    <div class="admonition tip">
+      <span class="admonition-title">Dynamic textures on PIDS</span>
+      <p>PIDS can blit <code>GraphicsTexture</code>s too: <code>new GraphicsTexture(pids.width, pids.height)</code> in <code>create</code>, then in <code>render</code> draw, <code>upload()</code>, and <code>Texture.create().texture(state.tex.identifier).size(pids.width, pids.height).draw(ctx)</code>, and <code>close()</code> in <code>dispose</code> — the fallback when text layout can't cut it, at a cost in performance and memory.</p>
+    </div>
+    <p>Don't need a script? Writing only JSON fields such as <code>background</code> / <code>color</code> / <code>fonts</code> / <code>showWeather</code> / <code>showClock</code> / <code>hidePlatform</code> / <code>hideRow</code> / <code>topPadding</code> / <code>textOverflowMode</code> in a <code>pids_images</code> entry makes it a "JSON preset" — enough for simple reskins, and it's strictly one or the other with a scripted preset; the two can't be mixed.</p>
+
+    <h2 id="displayhelper">DisplayHelper (the built-in multi-screen helper)</h2>
+    <p>A ready-made solution for trains with many screens: after <code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> —</p>
+    <pre><code class="lang-js">let slotCfg = {
+    "version": 1,
+    "texSize": [2048, 1024],
+    "slots": [
+        { "name": "lcd_north", "texArea": [0, 0, 2048, 274],
+          "pos": [[[-0.59, 2.125, -1.75], [-0.755, 2.03, -1.75],
+                   [-0.755, 2.03, -3.25], [-0.59, 2.125, -3.25]]],
+          "offsets": [[0, 0, -5], [0, 0, 0], [0, 0, 5], [0, 0, 10]] }
+    ]
+};
+let dhBase = new DisplayHelper(slotCfg);
+
+function create(ctx, state, vehicle) {
+    state.rl = new RateLimit(0.05);
+    state.dh = dhBase.create();          // Instantiates and binds the texture
+}
+function render(ctx, state, vehicle) {
+    if (state.rl.shouldUpdate()) {
+        let g = state.dh.graphicsFor("lcd_north");  // The slot's canvas (offset applied automatically)
+        // ... AWT drawing ...
+        state.dh.upload();
+    }
+    for (let car of ctx.getMyCars())
+        ctx.getCarRenderManager(car).drawModel(state.dh.model, null);  // Must be drawn every frame
+}
+function dispose(ctx, state, vehicle) {
+    state.dh.close();
+}</code></pre>
+    <ul>
+      <li>All slots share one big <code>texSize</code> texture; <code>texArea</code> picks the region a slot uses (x, y, w, h).</li>
+      <li><code>pos</code> is a three-dimensional array: each screen's four corner coordinates (top-left → bottom-left → bottom-right → top-right), in <strong>meters</strong> (divide Blockbench's 1/16 units by 16), with the origin at the train's center at floor height and +X left / +Y up / +Z backward.</li>
+      <li><code>offsets</code> clones screens with identical content (saves texture when a row of small door screens repeats); <code>graphicsFor(name)</code> returns the canvas pre-shifted to the slot, <code>graphics()</code> the whole sheet.</li>
+      <li>Put the upload inside the <code>RateLimit</code> and the model drawing outside it — the model must be submitted every frame.</li>
+    </ul>
+
+    <hr>
+    <p>Next up: <a href="js-yanyang.html">Yanyang Extensions</a> — mixed JS+C++ entries, door-opening direction memory, transport type subdivisions, and raw pixel uploads.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Docs home</a>
+      <a href="js-api.html">JS Common APIs</a>
+      <a href="js-yanyang.html">Yanyang Extensions</a>
+    </div>
+    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

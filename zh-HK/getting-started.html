@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>快速上手 — JCM Yanyang C++ 腳本開發文件</title>
+<title>快速上手 — JCM Yanyang 腳本開發文件</title>
 <meta name="description" content="取得 SDK、建立模組專案、編譯、打包進資源包並在遊戲內驗證。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 腳本</b><small>開發文件</small></span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文件</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">概覽</a>
-    <a href="getting-started.html" class="active">快速上手</a>
-    <div class="nav-group">腳本模型</div>
+    <a href="getting-started.html" class="active">C++ 快速上手</a>
+    <div class="nav-group">C++ 腳本</div>
     <a href="script-model.html">腳本模型與生命週期</a>
-    <div class="nav-group">API 參考</div>
     <a href="data.html">資料快照</a>
     <a href="drawing.html">繪製與畫布</a>
     <a href="java-api.html">mtr::Api 與 Java 互通</a>
     <a href="abi.html">C ABI 與宿主服務</a>
-    <div class="nav-group">進階</div>
     <a href="performance.html">效能與除錯</a>
-  </nav>
+    <div class="nav-group">JavaScript 腳本</div>
+    <a href="js-getting-started.html">JS 腳本入門</a>
+    <a href="js-api.html">JS 公用 API</a>
+    <a href="js-types.html">JS 腳本類型</a>
+    <a href="js-yanyang.html">晏陽擴展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -90,7 +94,7 @@
 
     <h2 id="sdk">取得 SDK</h2>
     <p>SDK 隨每個 Release 發佈為 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（見 GitHub Releases 附件），內容即儲存庫 <code>native/</code> 目錄原始碼：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-beta-2.yanyang.7/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
 ├── include/mtr/          # 全部 SDK 標頭檔（script.hpp 是總入口）
 │   ├── mtr_native.h      # C ABI：匯出函式、快照、繪製記錄、宿主服務
 │   ├── script.hpp        # 腳本基類 + 註冊巨集（#include 這一個就夠）
@@ -208,14 +212,16 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可選：跑 SD
 │   └── ios-arm64/libmy_pids.dylib
 └── ...（貼圖、模型等其餘資源）</code></pre>
 
-    <h3>在 minecraft_custom_resources.json 中宣告</h3>
+    <h3>在 joban_custom_resources.json 中宣告（PIDS 預設）</h3>
     <p>不需要 <code>language</code> 欄位——模組按 <code>scriptLocations</code> 裏每個項目的特徵自動判定語言，JS 與 C++ 可以在同一項目混用任何數量：</p>
-    <pre><code class="lang-json">"pidsScripts": [{
-    "id": "example:arrivals",
-    "scriptLocations": [
-        "mtr:my_pack/natives/my_pids"
-    ]
-}]</code></pre>
+    <pre><code class="lang-json">{
+    "pids_images": [{
+        "id": "example:arrivals",
+        "scriptLocations": [
+            "mtr:my_pack/natives/my_pids"
+        ]
+    }]
+}</code></pre>
     <p>項目解析規則：</p>
     <table>
       <thead><tr><th><code>scriptLocations</code> 項目</th><th>判定結果</th></tr></thead>
@@ -227,7 +233,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可選：跑 SD
       </tbody>
     </table>
     <ul>
-      <li><strong>四類腳本同規則</strong>：<code>vehicleScripts</code> / <code>pidsScripts</code>（及 PIDS 預設的 <code>scriptLocations</code>）/ 電梯 / 裝飾全部支援上述混合宣告。</li>
+      <li><strong>四類腳本同規則</strong>：<code>mtr_custom_resources.json</code> 的 <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> 與 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> 預設（<code>scriptLocations</code>）全部支援上述混合宣告。</li>
       <li><strong>舊格式相容</strong>：<code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> 的舊宣告繼續有效，也可與 <code>.js</code> 混用；<code>"language": "javascript"</code> 可強制整條按 JS 解析。</li>
       <li><strong>JS 欄位照常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等欄位含義不變，C++ 側經 <code>api.input()</code> 讀取 <code>input</code>。</li>
     </ul>
@@ -258,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可選：跑 SD
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang C++ 腳本文件 · 對應 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 與儲存庫 <code>native/README.md</code> 同步維護
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
   </footer>
 </main>
 </div>

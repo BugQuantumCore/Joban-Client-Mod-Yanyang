@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>性能与调试 — JCM Yanyang C++ 脚本开发文档</title>
+<title>性能与调试 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="GC 卫生守则、脏矩形上传策略、latest.log 观测、JVM 参数与常见问题排查。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html">数据快照</a>
     <a href="drawing.html">绘制与画布</a>
     <a href="java-api.html">mtr::Api 与 Java 互操作</a>
     <a href="abi.html">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html" class="active">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -78,9 +82,9 @@
     <table>
       <thead><tr><th>环节</th><th>成本</th></tr></thead>
       <tbody>
-        <tr><td>快照封送（宿主 → 模块）</td><td><strong>唯一强制的 Java 穿越</strong>：宿主用复用构建器把 POD 快照写进共享页 / 直接缓冲</td></tr>
+        <tr><td>快照搬运（宿主 → 模块）</td><td><strong>唯一强制的 Java 穿越</strong>：宿主用复用构建器把 POD 快照写进共享页 / 直接缓冲</td></tr>
         <tr><td>数据读取（<code>Vehicle</code> / <code>Pids</code> / …）</td><td>普通内存读，零成本</td></tr>
-        <tr><td>绘制记录写入</td><td>竞技场内 bump 分配，零分配零装箱</td></tr>
+        <tr><td>绘制记录写入</td><td>内存区内 bump 分配，零分配零装箱</td></tr>
         <tr><td>像素光栅（<code>Gfx2D</code>）</td><td>纯 C++ 循环；src-over 不透明快速路径</td></tr>
         <tr><td>宿主回放</td><td>与 JS 相同的渲染路径；纹理上传只搬运脏矩形</td></tr>
         <tr><td><code>Api</code> 调用</td><td>JSON 编码 + 反射 + JSON 解码往返——<span class="pill warn">昂贵</span> 只作低频通道</td></tr>
@@ -100,9 +104,9 @@
     <h2 id="memory">内存与延迟回收</h2>
     <p>宿主侧的内存纪律（脚本作者了解即可，SDK 自动受益）：</p>
     <ul>
-      <li>五个输出竞技场<strong>每模块一份、帧间复用</strong>；像素竞技场初始 1 MB、按需增长（上限 16 MB）、尖峰过后确定性收缩回下限——不再有每模块 16 MB 的固定驻留。</li>
-      <li>实例离开视锥不销毁（保持热态、重入镜零重建）；真正离开客户端车辆列表约 5 秒后才退休。</li>
-      <li><strong>大块释放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 里死掉的兆级缓冲交给宿主后台回收线程，避免把 <code>free</code> 的全部成本记到当前帧、并放大 GC 安全点等待。契约：块必须已死、无析构、此后无线程（含宿主回放）再触碰。SDK 的像素竞技场收缩已自动遵守；你自己的大缓冲按同样规则调用 <code>host-&gt;defer_free</code>，宿主过旧（槽位为 null）时同步 free 即可。</li>
+      <li>五个输出内存区<strong>每模块一份、帧间复用</strong>；像素内存区初始 1 MB、按需增长（上限 16 MB）、尖峰过后确定性收缩回下限——不再有每模块 16 MB 的固定驻留。</li>
+      <li>实例离开视锥不销毁（状态原样保留、重入镜零重建）；真正离开客户端车辆列表约 5 秒后才回收。</li>
+      <li><strong>大块释放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 里死掉的兆级缓冲交给宿主后台回收线程，避免把 <code>free</code> 的全部成本记到当前帧、并放大 GC 安全点等待。契约：块必须已死、无析构、此后无线程（含宿主回放）再触碰。SDK 的像素内存区收缩已自动遵守；你自己的大缓冲按同样规则调用 <code>host-&gt;defer_free</code>，宿主过旧（槽位为 null）时同步 free 即可。</li>
     </ul>
 
     <h2 id="observe">观测与日志</h2>
@@ -111,7 +115,7 @@
       <tbody>
         <tr><td>模块 census</td><td><code>logs/latest.log</code> 启动段</td><td>已加载模块数与类型；传输通道摘要行（含 <code>transport:</code> 字样：shared-memory / panama-ffm 等）——确认 shm / FFM 真正生效、是否静默降级</td></tr>
         <tr><td>加载失败原因</td><td>census 行 + 调试模式</td><td>某侧（JS 或 C++）缺失 / 加载失败只跳过该侧并留提示，另一侧照常工作</td></tr>
-        <tr><td>崩溃围栏</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模块被禁用的精确原因</td></tr>
+        <tr><td>崩溃防护</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模块被禁用的精确原因</td></tr>
         <tr><td>清扫流量</td><td>latest.log（每分钟一行）</td><td>实例销毁节奏的聚合日志，可直接观测实例寿命行为</td></tr>
         <tr><td>上传字节数</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>你的代码里打点：脏矩形策略是否奏效一目了然</td></tr>
       </tbody>
@@ -127,7 +131,7 @@
         <tr><td><code>-Djcm.ffm.disable</code></td><td>关</td><td>调试开关：禁用 Panama FFM 加载路径</td></tr>
       </tbody>
     </table>
-    <p>实例退休与销毁还有每 tick 预算（默认 2 个、旧者先出）与世界卸载 / 切维度 / 断线时的一次性冲刷。</p>
+    <p>实例回收与销毁还有每 tick 预算（默认 2 个、旧者先出）与世界卸载 / 切维度 / 断线时的一次性冲刷。</p>
 
     <h2 id="faq">常见问题</h2>
     <h3>模块完全不加载？</h3>
@@ -135,7 +139,7 @@
       <li>确认用的是 <strong>Release 或 Complete Build jar</strong>——快速 CI 产物不含原生桥，日志会写 <code>native bridge unavailable</code>（这不是你的模块的问题）。</li>
       <li>查平台目录：当前系统只会加载对应平台的库；无扩展名 stem 声明会自动展开为各平台路径（见<a href="getting-started.html#package">打包</a>）。</li>
       <li>查 <code>ID</code> 与声明条目的 <code>id</code> 是否逐字一致。</li>
-      <li>查 ABI：宿主接受 6–10；ABI 8+ 库需要 Yanyang.7 及以上宿主。</li>
+      <li>查 ABI：宿主接受 6–11；ABI 8+ 库需要 2.3.0-beta-2.yanyang.7 及以上宿主。</li>
     </ol>
     <h3>屏幕出现占位方框（tofu）？</h3>
     <p>CJK 字形在宿主字体不覆盖该码点时退化——给 <code>Text::font()</code> / <code>Gfx2D</code> 构造传资源字体 id（如 <code>jsblock:shanghai</code>），或检查所用字体集是否包含这些字符。</p>
@@ -158,7 +162,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

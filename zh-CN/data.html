@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>数据快照 — JCM Yanyang C++ 脚本开发文档</title>
+<title>数据快照 — JCM Yanyang 脚本开发文档</title>
 <meta name="description" content="Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 快照包装器的完整访问器参考。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
@@ -15,22 +15,26 @@
 <aside class="sidebar">
   <a class="brand" href="index.html">
     <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang C++ 脚本</b><small>开发文档</small></span>
+    <span class="brand-text"><b>Yanyang 脚本</b><small>开发文档</small></span>
   </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
-    <a href="getting-started.html">快速上手</a>
-    <div class="nav-group">脚本模型</div>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 脚本</div>
     <a href="script-model.html">脚本模型与生命周期</a>
-    <div class="nav-group">API 参考</div>
     <a href="data.html" class="active">数据快照</a>
     <a href="drawing.html">绘制与画布</a>
     <a href="java-api.html">mtr::Api 与 Java 互操作</a>
     <a href="abi.html">C ABI 与宿主服务</a>
-    <div class="nav-group">进阶</div>
     <a href="performance.html">性能与调试</a>
-  </nav>
+    <div class="nav-group">JavaScript 脚本</div>
+    <a href="js-getting-started.html">JS 脚本入门</a>
+    <a href="js-api.html">JS 公共 API</a>
+    <a href="js-types.html">JS 脚本类型</a>
+    <a href="js-yanyang.html">晏阳扩展 API</a>
+  
+    </nav>
   <div class="sidebar-settings">
     <button type="button" class="theme-toggle">
       <span class="theme-icon" aria-hidden="true">🌙</span>
@@ -43,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 11<br>
-    JCM 2.3.0-beta-2.yanyang.7<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -58,7 +62,7 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文档</a> / API 参考 / 数据快照</div>
       <h1>数据快照</h1>
-      <p class="page-lead">每帧一次、由宿主封送的只读数据。全部访问器都是普通内存读取——零 JNI、零反射、零装箱。</p>
+      <p class="page-lead">每帧一次、由宿主打包搬运的只读数据。全部访问器都是普通内存读取——零 JNI、零反射、零装箱。</p>
     </header>
 
     <div class="page-toc">
@@ -91,7 +95,7 @@
     <div class="admonition note">
       <span class="admonition-title">术语：MTR 3 的 train → MTR 4 的 vehicle</span>
       <p>MTR 4 统一以 <strong>vehicle</strong> 称呼载具（资源包声明键 <code>vehicleScripts</code>、Java 侧 <code>VehicleWrapper</code>），本 SDK 的数据包装类因此命名为 <code>mtr::Vehicle</code>。更早版本的 SDK 曾按 MTR 3 习惯命名为 <code>mtr::Train</code>，该名称现保留为<strong>源码兼容别名</strong>——两种写法均可编译，行为完全一致。</p>
-    <p>注意：<code>mtr::Vehicle</code> 命名已进入仓库 SDK 源码，将随下一版本的 zip 发布；若你的工程使用 yanyang.7 及更早的 SDK zip，请以 <code>mtr::Train</code> 引用该类（新 SDK 中两种写法均可编译）。</p></div>
+    <p>注意：<code>mtr::Vehicle</code> 命名已进入仓库 SDK 源码，将随下一版本的 zip 发布；若你的工程使用 2.3.0-beta-2.yanyang.7 及更早的 SDK zip，请以 <code>mtr::Train</code> 引用该类（新 SDK 中两种写法均可编译）。</p></div>
     <p>由 <code>mtr::Vehicle</code> 提供，镜像 JS 的 <code>VehicleWrapper</code> + <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>访问器</th><th>类型</th><th>说明</th></tr></thead>
@@ -270,7 +274,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang C++ 脚本文档 · 对应 SDK ABI 11（2.3.0-beta-2.yanyang.7）· 与仓库 <code>native/README.md</code> 同步维护
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护
   </footer>
 </main>
 </div>

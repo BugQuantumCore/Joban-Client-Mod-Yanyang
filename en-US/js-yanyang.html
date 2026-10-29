@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en-US" data-locale="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Yanyang Extensions — JCM Yanyang Scripting Docs</title>
+<meta name="description" content="What the Yanyang Tech Team's modified JCM adds on top of JavaScript scripting: mixed JS+C++ entries, server-side door-opening direction memory, transport type subdivisions, and raw pixel uploads.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang Scripting</b><small>Docs</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Getting Started</div>
+    <a href="index.html">Overview</a>
+    <a href="getting-started.html">Quick start</a>
+    <div class="nav-group">C++ Scripting</div>
+    <a href="script-model.html">Script model and lifecycle</a>
+    <a href="data.html">Data snapshots</a>
+    <a href="drawing.html">Drawing and canvases</a>
+    <a href="java-api.html">mtr::Api and Java interop</a>
+    <a href="abi.html">C ABI and host services</a>
+    <a href="performance.html">Performance and debugging</a>
+    <div class="nav-group">JavaScript Scripting</div>
+    <a href="js-getting-started.html">JS Getting Started</a>
+    <a href="js-api.html">JS Common APIs</a>
+    <a href="js-types.html">JS Script Types</a>
+    <a href="js-yanyang.html" class="active">Yanyang Extensions</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Dark mode" data-light="Light mode">Dark mode</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Change language"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Open navigation menu">☰ Contents</button>
+    <span class="title">Yanyang Extensions</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Docs</a> / JavaScript Scripting / Yanyang Extensions</div>
+      <h1>Yanyang Extensions</h1>
+      <p class="page-lead">What this fork (the Yanyang Tech Team's modified build) adds on top of upstream JCM 2.3.0-prerelease.2's JS API. Everything upstream already provides keeps working as usual; this page covers only the additions.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>On this page</b>
+      <ol>
+        <li><a href="#overview">Extensions at a glance</a></li>
+        <li><a href="#mixed">Mixed JS + C++ entries</a></li>
+        <li><a href="#doordir">Door-opening direction memory</a></li>
+        <li><a href="#transporttype">Transport type subdivisions</a></li>
+        <li><a href="#rawupload">Raw pixel uploads</a></li>
+        <li><a href="#parity">JS and C++ vocabulary parity</a></li>
+      </ol>
+    </div>
+
+    <h2 id="overview">Extensions at a glance</h2>
+    <table>
+      <thead><tr><th>Extension</th><th>Entry point</th><th>In one sentence</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#mixed">Mixed JS + C++ entries</a></td><td>Declaration entries</td><td>Freely mix JS and C++ modules within one entry; both engines render side by side</td></tr>
+        <tr><td><a href="#doordir">Door-opening direction memory</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>Which side the doors will open on — during platform stops, predicted on the main line, and remembered server-side beyond view distance</td></tr>
+        <tr><td><a href="#transporttype">Transport type subdivisions</a></td><td><code>VehicleWrapper.getTransportType()</code> and friends</td><td>Fine-grained route type ids (interworking with MAGIC MTR) plus interchange extension fields</td></tr>
+        <tr><td><a href="#rawupload">Raw pixel uploads</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>Raw byte-row writes + dirty-region-only uploads — the bandwidth-saving channel for high-frequency per-pixel updates</td></tr>
+        <tr><td>Compatibility aliases</td><td>Declaration entries</td><td>Accepts the <code>script_input</code> key name used in the NTE docs' examples; <code>nativeLibrary</code> / <code>nativeLibraries</code> mixed with <code>.js</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="mixed">Mixed JS + C++ entries</h2>
+    <p>In the upstream format, a script entry is all JS. Yanyang <strong>delegates the decision to file characteristics</strong>: each <code>scriptLocations</code> entry is judged on its own — <code>*.js</code> (case-insensitive) goes to JavaScript, everything else is parsed as a C++ module. Mix the two freely within one entry, in any quantity:</p>
+    <pre><code class="lang-json">"vehicleScripts": [
+    {
+        "id": "demo:sp1900",
+        "scriptLocations": [
+            "demo:js/sp1900_ui.js",
+            "demo:natives/sp1900_motor",
+            {"windows": "demo:natives/win-x64/libmotor.dll",
+             "linux":   "demo:natives/linux-x64/libmotor.so",
+             "macos":   "demo:natives/macos-arm64/libmotor.dylib"}
+        ],
+        "prependExpressions": ["print('The JS side still runs')"],
+        "input": { "era": 2004 }
+    }
+]</code></pre>
+    <p>C++ declarations come in three forms:</p>
+    <table>
+      <thead><tr><th>Form</th><th>Spelling</th><th>Resolution</th></tr></thead>
+      <tbody>
+        <tr><td>Platform-agnostic stem</td><td><code>"demo:natives/sp1900_motor"</code></td><td>Expands per platform: <code>natives/linux-x64/libsp1900_motor.so</code>, <code>natives/windows-x64/sp1900_motor.dll</code>, <code>natives/macos-arm64/libsp1900_motor.dylib</code>, and so on (see <a href="getting-started.html#package">C++ quick start</a> for the directory layout)</td></tr>
+        <tr><td>Full library path</td><td><code>"demo:natives/linux-x64/libfoo.so"</code></td><td>Binds to the system that extension maps to; other systems skip the entry</td></tr>
+        <tr><td>Per-platform mapping</td><td><code>{"windows": ..., "linux": ..., "macos": ...}</code></td><td>Keys can be architecture-precise (<code>macos-arm64</code>, <code>linux-x64</code>, …), with precise keys beating generic ones; each value is itself a stem or a full path</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Each engine draws its own thing</strong>: the JS side (together with <code>prependExpressions</code> and <code>input</code>) is assembled into one script and parsed; all the C++ parts hang under the same script id and are loaded by the native manager. At render time each side captures and replays its own draw calls without crossing wires; one side missing or failing to load just means that side doesn't draw — it never drags the other side down.</p>
+    <h3>The language field (a fallback switch)</h3>
+    <table>
+      <thead><tr><th>Value</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td>Omitted (recommended)</td><td>Auto-detected from file characteristics — zero configuration for the vast majority of cases</td></tr>
+        <tr><td><code>"cpp"</code></td><td>A pure native entry (the old semantics): <code>.js</code> files inside <code>scriptLocations</code> are ignored with a log note; used together with <code>nativeLibrary</code> / <code>nativeLibraries</code></td></tr>
+        <tr><td><code>"javascript"</code> / <code>"js"</code></td><td>Forces everything to be parsed as JS — the escape hatch for extension-less JS file names</td></tr>
+      </tbody>
+    </table>
+    <p>The field name depends on the format: the MTR 4 key is <code>language</code>; the legacy formats use <code>scriptLang</code> (camelCase) / <code>script_lang</code> (snake_case). <code>nativeLibrary</code> / <code>nativeLibraries</code> (the latter lets one id carry several libraries) are always treated as C++, and they can coexist with <code>.js</code> in the same entry.</p>
+    <div class="admonition note">
+      <span class="admonition-title">Relation to pure JS entries</span>
+      <p>The JS fields — <code>prependExpressions</code> / <code>input</code> / <code>rateLimit</code> / <code>dataFetchMode</code> and friends — keep their meanings; pure JS entries (all <code>.js</code>) behave exactly like upstream. For how the C++ side reads <code>input</code>, see the <a href="getting-started.html">C++ docs</a>.</p>
+    </div>
+
+    <h2 id="doordir">Door-opening direction memory</h2>
+    <p><code>VehicleWrapper.getDirectionOfDoorOpening(): String</code> answers "which side <strong>will</strong> this train's doors open on", with values <code>"not"</code> (neither side) / <code>"left"</code> (left of the front of the train) / <code>"right"</code> (right of the front) / <code>"all"</code> (both sides):</p>
+    <ul>
+      <li><strong>While stopped at a platform</strong>: whether the doors are still closed, half open, closing, or fully closed again, the answer matches the fully open state — whichever side has platform blocks (or unlocked PSD / APG doors) counts as the side that "will open". When the door value is &gt; 0, the per-car verdict for the current frame is read directly.</li>
+      <li><strong>While running on the main line</strong>: predicts the door side at the <strong>next stop</strong> — the train is placed at its stop point on its own path and scanned with the same <code>canOpenDoors</code> block check MTR uses. Available immediately when the stop point's chunks are loaded; <strong>beyond view distance</strong>, the <strong>server</strong> answers instead: it has scanned the whole map once and persisted the results (adding, removing, or editing platform blocks triggers an automatic incremental rescan) and answers requests from a per-route cache of both sides' answers — joining mid-route, restarting the game, or visiting for the first time all work as usual.</li>
+      <li><strong>Server without this mod, or no answer</strong>: falls back to the client's own within-view-distance scan; predictions for far-away platforms may then be unavailable.</li>
+      <li><strong>Aggregation rule</strong>: if any single car has a platform block beside a door on one side, that whole side counts as opening (aggregated per side, not per door). Left/right are relative to the <strong>front of the train</strong> (the bogie 1 end): each car is evaluated in its own coordinate system (-X = left of the car front, the MTR model convention), and travel direction and turnbacks never change the reading.</li>
+      <li><strong>Purely a query</strong>: it serves display logic only (door-side indicators, in-car screen arrows) and never interferes with MTR actually opening the doors.</li>
+    </ul>
+    <div class="admonition tip">
+      <span class="admonition-title">Example: door-side indicator lamps</span>
+      <pre><code class="lang-js">function render(ctx, state, vehicle) {
+    let dir = vehicle.getDirectionOfDoorOpening();   // "not"/"left"/"right"/"all"
+    if (dir == "left" || dir == "all") drawLamp(ctx, state, "left", 0x00FF00);
+    if (dir == "right" || dir == "all") drawLamp(ctx, state, "right", 0x00FF00);
+}</code></pre>
+    </div>
+
+    <h2 id="transporttype">Transport type subdivisions</h2>
+    <p>MTR's <code>TransportMode</code> has only four base modes (train / boat / cable_car / airplane), which isn't enough for display purposes. The <a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> add-on lets players subdivide the "train" mode into display types (stored in its <code>route_types.json</code>, keyed by route id). This fork threads those types through to scripts:</p>
+    <ul>
+      <li><code>VehicleWrapper.getTransportType(): String</code> — the current route's <strong>canonical type id</strong>: uses the MAGIC subdivision (<code>train_normal</code> / <code>train_light_rail</code> / <code>train_high_speed</code> / <code>train_metro</code> / <code>train_bus</code> / <code>train_tram</code> / <code>train_sbahn</code>) when one is assigned, otherwise falls back to the base mode id (<code>train</code> / <code>boat</code> / <code>cable_car</code> / <code>airplane</code>); <code>unknown</code> when unknown, and <strong>never null</strong>.</li>
+      <li><code>Stop.routeInterchanges[i]</code> (<code>RouteInterchange</code>) gains: <code>getTransportMode(): TransportMode?</code> (the interchange route's transport mode; null for old data), <code>getTransportType(): String</code> (the canonical id as above), and <code>getRouteId(): long</code> (the source route's id; 0 when the server data is missing) — interchange signs picking icons / color schemes by type no longer have to rely on color alone.</li>
+      <li>Without MAGIC installed, or for routes without an assignment, everything falls back to the base mode as before — scripts need not probe for the add-on. Type lookups are cached briefly per route (about 1 second), so changing a type in MTR shows up quickly.</li>
+    </ul>
+
+    <h2 id="rawupload">Raw pixel uploads</h2>
+    <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>
+    <p>Writes a <code>width × height × 4</code>-byte, row-major, <strong>BGRA</strong>-ordered array of pixel rows straight into the texture buffer and uploads only that rectangle to VRAM:</p>
+    <ul>
+      <li><strong>Where it fits</strong>: the bandwidth-saving channel for high-frequency per-pixel updates. The regular AWT route's <code>upload()</code> moves the whole image; a 4 Mpx screen fully uploaded every frame is a ten-plus-megabyte transfer, while point-wise animation (progress bars, ticking digits) usually changes only a thin strip — a few hundred KB suffice with this method.</li>
+      <li><code>ppm</code> is a 4 × 256-entry <strong>premultiplied lookup table</strong> (four runs of 256 entries — B / G / R / A in order), held by the caller; bytes are expanded through the table on write, avoiding a multiply per pixel.</li>
+      <li>After the write, only that rectangle is uploaded and the rest of the texture is left alone — it saves the "first edit it on the AWT canvas" step that <code>upload(x, y, w, h)</code> still needs.</li>
+      <li>Usable from JS (assemble the byte array with <code>Java.newArray</code>), but it was designed for the C++ bridge's frame-pixel return path; pure JS authors can stick with AWT + sub-region uploads.</li>
+    </ul>
+
+    <h2 id="parity">JS and C++ vocabulary parity</h2>
+    <p>The same data goes by the same name in both languages — no split-brain when the two sides of a mixed entry draw the same thing:</p>
+    <table>
+      <thead><tr><th>JS</th><th>C++ (SDK)</th><th>Introduced</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
+        <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> and friends</td><td><code>mtr::Stop::interchange(i)</code>'s type fields</td><td>ABI 9</td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+      </tbody>
+    </table>
+    <p>Pure JS readers only need to remember one thing: <strong>every extension on this page is available on the C++ side too</strong> (as direct snapshot field reads, with zero marshaling cost) — see <a href="data.html">Data snapshots</a>.</p>
+
+    <hr>
+    <p>Back to: <a href="js-types.html">JS Script Types</a> · <a href="js-api.html">JS Common APIs</a>; want the same data with zero JVM overhead? See <a href="getting-started.html">C++ native scripting</a>.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Docs home</a>
+      <a href="js-types.html">JS Script Types</a>
+      <a href="js-api.html">JS Common APIs</a>
+    </div>
+    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Yanyang Tech Team extensions
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="lzh" data-locale="lzh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>晏陽增補 — JCM Yanyang 腳本開發文檔</title>
+<meta name="description" content="晏陽技術組所修之 JCM，於 JavaScript 腳本之上所增之能：JS 與 C++ 相雜之條、服端開門方向之記、交通類型之細分，與直寫像素之上傳。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">肇始</div>
+    <a href="index.html">綜覽</a>
+    <a href="getting-started.html">入門</a>
+    <div class="nav-group">腳本體例</div>
+    <a href="script-model.html">腳本體例與生命週期</a>
+    <div class="nav-group">API 備覽</div>
+    <a href="data.html">數據快照</a>
+    <a href="drawing.html">繪事與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互通</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <div class="nav-group">精進</div>
+    <a href="performance.html">疾徐與除錯</a>
+    <div class="nav-group">JavaScript 之腳</div>
+    <a href="js-getting-started.html">JS 之腳入門</a>
+    <a href="js-api.html">JS 公器</a>
+    <a href="js-types.html">JS 之腳類型</a>
+    <a href="js-yanyang.html" class="active">晏陽增補</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="夜色" data-light="晝色">夜色</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="擇語"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 11<br>
+    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="展開目錄">☰ 目錄</button>
+    <span class="title">晏陽增補</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文檔</a> / JavaScript 之腳 / 晏陽增補</div>
+      <h1>晏陽增補</h1>
+      <p class="page-lead">本支（晏陽技術組所修之版）於上游 JCM 2.3.0-prerelease.2 JS 之 API 上所增之能也。上游既有者，照舊可用；本頁惟書其增。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁之目</b>
+      <ol>
+        <li><a href="#overview">增補一覽</a></li>
+        <li><a href="#mixed">JS 與 C++ 相雜之條</a></li>
+        <li><a href="#doordir">開門方向之記</a></li>
+        <li><a href="#transporttype">交通類型之細分</a></li>
+        <li><a href="#rawupload">直寫像素之上傳</a></li>
+        <li><a href="#parity">JS 與 C++ 詞彙之一致</a></li>
+      </ol>
+    </div>
+
+    <h2 id="overview">增補一覽</h2>
+    <table>
+      <thead><tr><th>增補</th><th>門戶</th><th>一言</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#mixed">JS 與 C++ 相雜之條</a></td><td>宣告之條</td><td>一條之內，JS 與 C++ 模塊隨意相雜，雙引擎並時而繪</td></tr>
+        <tr><td><a href="#doordir">開門方向之記</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>到站何側啟門——站台之期、正線之測，跨視距者服端為記</td></tr>
+        <tr><td><a href="#transporttype">交通類型之細分</a></td><td><code>VehicleWrapper.getTransportType()</code> 之屬</td><td>線路細分類型之 id（與 MAGIC MTR 相連）與轉乘增益之欄</td></tr>
+        <tr><td><a href="#rawupload">直寫像素之上傳</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>字節行陣直書，惟上傳髒區——逐像素高頻更新省頻寬之途</td></tr>
+        <tr><td>相容之別名</td><td>宣告之條</td><td>受 NTE 文檔示例 <code>script_input</code> 之鍵名；<code>nativeLibrary</code> / <code>nativeLibraries</code> 得與 <code>.js</code> 相雜而用</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="mixed">JS 與 C++ 相雜之條</h2>
+    <p>上游之式，一條腳本，其語惟一。晏陽以<strong>判定之權付諸文件之徵</strong>：<code>scriptLocations</code> 每條各自觀之——<code>*.js</code>（不辨大小寫）者歸 JavaScript，餘者悉按 C++ 模塊解之。一條之內，二種隨意相雜，其數無限：</p>
+    <pre><code class="lang-json">"vehicleScripts": [
+    {
+        "id": "demo:sp1900",
+        "scriptLocations": [
+            "demo:js/sp1900_ui.js",
+            "demo:natives/sp1900_motor",
+            {"windows": "demo:natives/win-x64/libmotor.dll",
+             "linux":   "demo:natives/linux-x64/libmotor.so",
+             "macos":   "demo:natives/macos-arm64/libmotor.dylib"}
+        ],
+        "prependExpressions": ["print('JS 側照常執行')"],
+        "input": { "era": 2004 }
+    }
+]</code></pre>
+    <p>C++ 之宣告，其式有三：</p>
+    <table>
+      <thead><tr><th>式</th><th>書法</th><th>所解</th></tr></thead>
+      <tbody>
+        <tr><td>平臺無關之 stem</td><td><code>"demo:natives/sp1900_motor"</code></td><td>每平臺各自展之：<code>natives/linux-x64/libsp1900_motor.so</code>、<code>natives/windows-x64/sp1900_motor.dll</code>、<code>natives/macos-arm64/libsp1900_motor.dylib</code>……（目錄之布局，詳見 <a href="getting-started.html#package">入門</a>）</td></tr>
+        <tr><td>完整庫之徑</td><td><code>"demo:natives/linux-x64/libfoo.so"</code></td><td>按副檔名而繫其系統；他系則略此條</td></tr>
+        <tr><td>按平臺而映之表</td><td><code>{"windows": ..., "linux": ..., "macos": ...}</code></td><td>鍵得精至架構（<code>macos-arm64</code>、<code>linux-x64</code>……），精確之鍵先於通用之鍵；值之本身，又為 stem 或完整之徑</td></tr>
+      </tbody>
+    </table>
+    <p><strong>二引擎各繪其所</strong>：JS 之部（連 <code>prependExpressions</code> 與 <code>input</code> 併之）拼為一份腳本而解析；C++ 之部悉懸於同一腳本 id 之下，由原生管理器載之。渲染之時，兩側各自捕、各自回放，繪製之令互不相犯；一側缺焉或載敗焉，惟彼側不畫而已，不至累及他側。</p>
+    <h3>language 欄（兜底之關）</h3>
+    <table>
+      <thead><tr><th>值</th><th>其效</th></tr></thead>
+      <tbody>
+        <tr><td>不書（薦）</td><td>按文件之徵自判——諸景之眾，一無配置</td></tr>
+        <tr><td><code>"cpp"</code></td><td>純原生之條（舊義也）：<code>scriptLocations</code> 中之 <code>.js</code> 見略，日誌留示；配 <code>nativeLibrary</code> / <code>nativeLibraries</code> 而用</td></tr>
+        <tr><td><code>"javascript"</code> / <code>"js"</code></td><td>強使全按 JS 而解——無副檔名 JS 文件名之生路也</td></tr>
+      </tbody>
+    </table>
+    <p>欄名依格式而定：MTR 四代之鍵曰 <code>language</code>，舊式則 <code>scriptLang</code>（駝峰）/ <code>script_lang</code>（下劃線）。<code>nativeLibrary</code> / <code>nativeLibraries</code>（後者使一 id 懸多庫）無論何時，皆按 C++ 處之，亦得與 <code>.js</code> 同條共存。</p>
+    <div class="admonition note">
+      <span class="admonition-title">與純 JS 條之關係</span>
+      <p><code>prependExpressions</code> / <code>input</code> / <code>rateLimit</code> / <code>dataFetchMode</code> 諸 JS 之欄，其義不變；純 JS 之條（悉為 <code>.js</code>），所行與上游全同。C++ 側讀 <code>input</code> 之法，見 <a href="getting-started.html">C++ 之檔</a>。</p>
+    </div>
+
+    <h2 id="doordir">開門方向之記</h2>
+    <p><code>VehicleWrapper.getDirectionOfDoorOpening(): String</code> 所以答「此列<strong>將</strong>啟何側之門」；其值：<code>"not"</code>（兩側皆弗啟）/ <code>"left"</code>（車頭之左）/ <code>"right"</code>（車頭之右）/ <code>"all"</code>（兩側）：</p>
+    <ul>
+      <li><strong>泊於站台之時</strong>：門未啟、半啟、方闔、既闔，所答皆與全啟無異——站台之塊（或既解鎖之 PSD / APG 門）在何側，何側即謂「將啟」。門值 &gt; 0，則逕讀本幀逐廂之判。</li>
+      <li><strong>行於正線之時</strong>：測下一站啟門之側——置列車於當泊之點於自家路徑之上，循 MTR 同款 <code>canOpenDoors</code> 察塊之法。停點之區既載，立即可用；<strong>逾視距</strong>則改由<strong>服端</strong>作答：服端全圖既掃一遭而恆存之（站台之塊有增刪改，自為增補重掃），按線路緩其兩側之答以應所請——中途登車、重啟遊戲、初至之站，皆行如常。</li>
+      <li><strong>服端未具本模組，或未之應</strong>：則退為客端自家視距內之掃；此時遠處站台之測，或不可得。</li>
+      <li><strong>聚之規</strong>：一側苟有一廂之門旁具站台之塊，舉側悉記可啟（按側而聚，不按單門）。左右以<strong>車頭</strong>（轉向架 1 端）為準：每廂於自家坐標系中評之（-X 者，車頭之左，MTR 模型之慣例）；行向與折返，皆弗易其讀。</li>
+      <li><strong>純詢而已</strong>：惟佐顯示之邏輯（啟門側之指示、車內屏之箭矢），門實啟閉，仍司於 MTR。</li>
+    </ul>
+    <div class="admonition tip">
+      <span class="admonition-title">例：門側之示燈</span>
+      <pre><code class="lang-js">function render(ctx, state, vehicle) {
+    let dir = vehicle.getDirectionOfDoorOpening();   // "not"/"left"/"right"/"all"
+    if (dir == "left" || dir == "all") drawLamp(ctx, state, "left", 0x00FF00);
+    if (dir == "right" || dir == "all") drawLamp(ctx, state, "right", 0x00FF00);
+}</code></pre>
+    </div>
+
+    <h2 id="transporttype">交通類型之細分</h2>
+    <p>MTR 之 <code>TransportMode</code>，惟基礎之式凡四（train / boat / cable_car / airplane），於顯示有所不贍。<a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> 附加之模組，許玩家於「列車」復細分顯示之類（存於其 <code>route_types.json</code>，以線路 id 為鍵）。本支使此諸類貫通乎腳本：</p>
+    <ul>
+      <li><code>VehicleWrapper.getTransportType(): String</code> —— 當前線路規範類型之 id：MAGIC 既指其細分（<code>train_normal</code> / <code>train_light_rail</code> / <code>train_high_speed</code> / <code>train_metro</code> / <code>train_bus</code> / <code>train_tram</code> / <code>train_sbahn</code>）則用之；否則回落基礎模式之 id（<code>train</code> / <code>boat</code> / <code>cable_car</code> / <code>airplane</code>）；不可解者為 <code>unknown</code>，<strong>永不為 null</strong>。</li>
+      <li><code>Stop.routeInterchanges[i]</code>（<code>RouteInterchange</code>）所增：<code>getTransportMode(): TransportMode?</code>（轉乘線路交通之模式，舊數據或為 null）、<code>getTransportType(): String</code>（同上規範之 id）、<code>getRouteId(): long</code>（來源線路之 id，服端數據缺者為 0）——轉乘之牌按類擇圖 / 配色之時，不復惟色可讀。</li>
+      <li>MAGIC 未裝，或該線路未蒙指派，則一切照舊回落基礎之式——腳本無須探附加模組之存亡。類型所詢之果，按線路為之短緩存（約一秒）；MTR 之中改其類，俄頃可見。</li>
+    </ul>
+
+    <h2 id="rawupload">直寫像素之上傳</h2>
+    <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>
+    <p>以 <code>width × height × 4</code> 字節、行先、<strong>BGRA</strong> 之序之像素行陣，直書於紋理之緩衝，且惟以此矩形上諸顯存：</p>
+    <ul>
+      <li><strong>其位</strong>：逐像素高頻更新省頻寬之途也。尋常 AWT 之 <code>upload()</code> 搬全圖；4 Mpx 之屏每幀整傳，即十數 MB 之搬運；而逐點之動（進度之條、跳字之屬），尋常惟改一小條——以此法，數百 KB 足矣。</li>
+      <li><code>ppm</code> 者，4 × 256 項<strong>預乘之查表</strong>（依次 B / G / R / A 四段，各 256 項），呼者執之；字節按表展開而書，免逐像素為乘。</li>
+      <li>既書，自惟上傳該矩形，紋理之餘仍其故——較 <code>upload(x, y, w, h)</code>，省「先於 AWT 畫布改之」之一步。</li>
+      <li>JS 之中亦得用之（配 <code>Java.newArray</code> 以組字節之陣列）；然其設計之初衷，乃為 C++ 橋幀像素之回傳；純 JS 之作者，用 AWT 加子域上傳即可。</li>
+    </ul>
+
+    <h2 id="parity">JS 與 C++ 詞彙之一致</h2>
+    <p>同一數據，二語同名——相雜之條，兩側共繪一物，不致迷亂也：</p>
+    <table>
+      <thead><tr><th>JS</th><th>C++（SDK）</th><th>所引入</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
+        <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> 等</td><td><code>mtr::Stop::interchange(i)</code> 之類型欄</td><td>ABI 9</td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+      </tbody>
+    </table>
+    <p>純 JS 之讀者，記一事足矣：<strong>本頁之增補，C++ 側同樣可用</strong>（快照之欄直讀，零搬運之費），見 <a href="data.html">數據快照</a>。</p>
+
+    <hr>
+    <p>返：<a href="js-types.html">JS 之腳類型</a> · <a href="js-api.html">JS 公器</a>；欲同類之數據而無 JVM 之費乎？觀 <a href="getting-started.html">C++ 原生腳本</a>。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文檔之首</a>
+      <a href="js-types.html">JS 之腳類型</a>
+      <a href="js-api.html">JS 公器</a>
+    </div>
+    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-prerelease.2-yanyang.1 而作 · 晏陽技術組之所增
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>
