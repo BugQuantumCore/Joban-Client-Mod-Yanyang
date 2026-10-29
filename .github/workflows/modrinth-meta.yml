@@ -1,0 +1,91 @@
+name: Modrinth Meta (one-shot)
+
+on:
+  push:
+    branches: [ci/modrinth-upload]
+    paths: ['.github/workflows/modrinth-meta.yml', '.github/modrinth-description.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-description:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout description file
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            .github/modrinth-description.md
+
+      - name: Dump project state and patch metadata
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, urllib.error, urllib.request
+
+          TOK = os.environ["MODRINTH_TOKEN"]
+          UA = "jcm-yanyang-meta/1.1 (BugQuantumCore)"
+
+          def req(url, data=None, method="GET"):
+              r = urllib.request.Request(url, data=data, method=method, headers={
+                  "User-Agent": UA, "Authorization": TOK, "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(r, timeout=120) as resp:
+                      body = resp.read()
+                      return json.loads(body.decode()) if body else None
+              except urllib.error.HTTPError as e:
+                  detail = ""
+                  try:
+                      detail = e.read().decode(errors="replace")[:1000]
+                  except Exception:
+                      pass
+                  raise RuntimeError(f"HTTP {e.code} for {method} {url}: {detail}")
+
+          proj = req("https://api.modrinth.com/v2/project/kMMJcRqY")
+          print("PROJECT STATE:")
+          for k in ("id", "slug", "title", "status", "description", "license",
+                    "issues_url", "source_url", "wiki_url", "discord_url",
+                    "client_side", "server_side", "project_type", "published",
+                    "approved", "queued", "moderator_message"):
+              print(f"  {k}: {proj.get(k)!r}")
+          print(f"  body length: {len(proj.get('body') or '')}")
+
+          new = open(".github/modrinth-description.md", encoding="utf-8").read()
+          short = ("Joban Client Mod 晏阳技术组分支：MTR 4.0 的 JS + C++ 混合脚本、"
+                   "零 JNI 原生运行时、8 平台原生桥与服务端开门方向记忆。")
+          print(f"patching: description {len(short)} chars, body {len(new)} chars + license/urls")
+
+          def patch(payload, tag):
+              try:
+                  out = req(f"https://api.modrinth.com/v2/project/{proj['id']}",
+                            data=json.dumps(payload).encode("utf-8"), method="PATCH")
+                  print(f"{tag}: PATCH OK")
+                  print(f"  description now: {out.get('description')!r}")
+                  print(f"  body length now: {len(out.get('body') or '')}")
+                  print("META_UPDATE_OK")
+                  return True
+              except RuntimeError as e:
+                  print(f"{tag}: PATCH FAILED: {e}")
+                  return False
+
+          # Comprehensive patch first — filling missing license/source/issues may
+          # itself clear the validation nags that blocked earlier attempts.
+          ok = patch({
+              "description": short,
+              "body": new,
+              "license": {"id": "MIT"},
+              "issues_url": "https://github.com/BugQuantumCore/Joban-Client-Mod-Yanyang/issues",
+              "source_url": "https://github.com/BugQuantumCore/Joban-Client-Mod-Yanyang",
+          }, "comprehensive")
+          if not ok:
+              ok = patch({"description": short, "body": new}, "minimal")
+          if not ok:
+              print("META_UPDATE_BLOCKED — manual dashboard action required")
+              raise SystemExit(1)
+          PYEOF
