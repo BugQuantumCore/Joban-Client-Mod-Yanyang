@@ -20,6 +20,25 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             .github/modrinth-description.md
+            assets/JCM_logo.png
+
+      - name: Upload project icon (clear the required validation nag)
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          code="$(curl -sS -o /tmp/icon-resp.txt -w '%{http_code}' \
+            -X PATCH 'https://api.modrinth.com/v2/project/kMMJcRqY/icon' \
+            -H "Authorization: ${MODRINTH_TOKEN}" \
+            -H 'User-Agent: jcm-yanyang-meta/1.2 (BugQuantumCore)' \
+            -F 'icon=@assets/JCM_logo.png' || echo curl-failed)"
+          echo "icon upload HTTP ${code}"
+          head -c 500 /tmp/icon-resp.txt 2>/dev/null || true
+          echo
+          if [ "${code}" = "204" ] || [ "${code}" = "200" ]; then
+            echo "ICON_UPLOAD_OK"
+          else
+            echo "ICON_UPLOAD_FAILED (continuing — the PATCH step reports the remaining nags)"
+          fi
 
       - name: Dump project state and patch metadata
         env:
@@ -52,7 +71,7 @@ jobs:
           for k in ("id", "slug", "title", "status", "description", "license",
                     "issues_url", "source_url", "wiki_url", "discord_url",
                     "client_side", "server_side", "project_type", "published",
-                    "approved", "queued", "moderator_message"):
+                    "approved", "queued", "moderator_message", "icon_url"):
               print(f"  {k}: {proj.get(k)!r}")
           print(f"  body length: {len(proj.get('body') or '')}")
 

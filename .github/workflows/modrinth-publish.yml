@@ -84,7 +84,7 @@ jobs:
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           files: dist/JCM-${{ matrix.loader }}-2.3.0-prerelease.2-yanyang.1+${{ matrix.minecraft }}.jar
           name: '[${{ matrix.loader }} ${{ matrix.minecraft }}] v2.3.0-prerelease.2-yanyang.1'
-          version: prerelease.2-yanyang.1+${{ matrix.minecraft }}-${{ matrix.loader }}
+          version: pre.2-yanyang.1+${{ matrix.minecraft }}-${{ matrix.loader }}
           version-type: beta
           loaders: ${{ matrix.loader }}
           game-versions: ${{ matrix.minecraft }}
@@ -134,7 +134,7 @@ jobs:
           print(f"total versions visible on project: {len(versions)}")
 
           MC = ["1.17.1", "1.18.2", "1.19.2", "1.19.4", "1.20.1", "1.20.4"]
-          expect = {f"prerelease.2-yanyang.1+{mc}-{ld}" for mc in MC for ld in ("fabric", "forge")}
+          expect = {f"pre.2-yanyang.1+{mc}-{ld}" for mc in MC for ld in ("fabric", "forge")}
           by_num = {v["version_number"]: v for v in versions}
           missing = sorted(expect - set(by_num))
           if missing:
@@ -165,7 +165,7 @@ jobs:
                   problems.append(f"{n}: jcm incompatible dependency missing ({deps})")
 
           featured = sorted(n for n in expect if by_num[n].get("featured"))
-          if featured != ["prerelease.2-yanyang.1+1.20.4-fabric"]:
+          if featured != ["pre.2-yanyang.1+1.20.4-fabric"]:
               problems.append(f"featured among new versions wrong: {featured}")
 
           # Keep only the newest release's pick featured project-wide.
