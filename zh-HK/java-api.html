@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文件</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文件</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">概覽</a>
@@ -163,7 +162,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>include(...)</code></td><td>C++ 編譯期 <code>#include</code></td></tr>
       </tbody>
     </table>
-    <p>AWT 類別用完整限定名稱：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 的公開欄位 <code>graphics</code> / <code>bufferedImage</code> 暴露真實 Java2D 物件。資源路徑解析：<code>Resources.idr</code> 按本模組的宣告路徑解析（多程式庫宣告時各用各的）；<code>Resources.manager()</code> 與 JS 在 MTR 4 上一樣為 null。上游文件標註為未實作的能力（車輛連接件的 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>）本模組同樣不虛構行為。</p>
+    <p>AWT 類別用完整限定名稱：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 的公開欄位 <code>graphics</code> / <code>bufferedImage</code> 暴露真實 Java2D 物件。資源路徑解析：<code>Resources.idr</code> 按本模組的宣告路徑解析（多程式庫宣告時各用各的）；<code>Resources.manager()</code> 與 JS 在 MTR 4 上一樣為 null。上游 v2.3.0-prerelease.2 新增的成員——<code>Resources.id(id, suffix)</code> 拼接形式、<code>Resources.mgr()</code> 別名（ANTE 資源包相容）、<code>VanillaText.withFont(String)</code> 等字串參數變體——經同一 JSON-RPC 通道開箱可用。上游文件標註為未實作的能力（車輛連接件的 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>）本模組同樣不虛構行為。</p>
 
     <h2 id="callback">背景回呼</h2>
     <p><code>Api::Callback</code> 把 C++ 函式包裝成 Java 函數式介面（<code>Runnable</code> / <code>Consumer</code> / <code>Function</code>…）。<strong>回呼物件必須存活到 Java 不再可能呼叫為止</strong>——放進 <code>State</code>：</p>
@@ -208,8 +207,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護
-  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文檔</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
     <a href="index.html">綜覽</a>
@@ -233,6 +232,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>model_id()</code></td><td>當前模型之 id</td></tr>
         <tr><td><code>translate_x() / _y() / _z()</code> / <code>rotate_x() / _y() / _z()</code></td><td>用戶所配之平移 / 旋轉</td></tr>
         <tr><td><code>facing()</code></td><td>朝向（MC <code>Direction.ordinal()</code>，0..5）</td></tr>
+        <tr><td><code>facing_angle()</code></td><td>朝向之角（<code>Direction.asRotation()</code> 之度數：南 0 / 西 90 / 北 180 / 東 270）——與 JS <code>facingAngle()</code> 同</td></tr>
         <tr><td><code>full_brightness()</code></td><td>全亮渲染</td></tr>
         <tr><td><code>redstone_level()</code></td><td>紅石之訊 0..15</td></tr>
         <tr><td><code>is_crosshair_target()</code></td><td>準星所指否</td></tr>
@@ -252,7 +252,7 @@ if (event.call("occurred").as&lt;bool&gt;()) {
     <p>裝飾繪製之上下文 <code>EyeCandyContext</code>，所供者四：<code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code> 是也（每匣 6 float；碰撞匣之高，沿 Java 端 1.5 格之限，踰之者宿主校而誌於日誌）。電梯復用同一上下文之型（<code>LiftContext = EyeCandyContext</code>）。</p>
 
     <h2 id="helpers">器用之型</h2>
-    <p><code>&lt;mtr/util.hpp&gt;</code> 供輪播之器具，於熱路徑甚友善（零分配）：</p>
+    <p><code>&lt;mtr/util.hpp&gt;</code> 供輪播與狀態追跡之器具，於熱路徑甚友善（零分配）：</p>
     <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 更迭一段，切視圖惟算偏移
 mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
 StrView current = dest.value(vehicle.in_game_time());</code></pre>
@@ -263,6 +263,26 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
         <tr><td><code>value(game_tick)</code> / <code>value_str(game_tick)</code></td><td>當前活躍之段（視圖 / 字串）</td></tr>
         <tr><td><code>interval()</code> / <code>part_count()</code></td><td>更迭之隔與段數</td></tr>
         <tr><td><code>StrView</code></td><td><code>{data, len}</code> 字串之視圖：<code>.str()</code>、<code>.empty()</code>，可比之以 <code>==</code></td></tr>
+      </tbody>
+    </table>
+    <p>狀態機之追跡，則有 <code>mtr::StateTracker&lt;T&gt;</code> 焉（映上游 <code>StateTrackerJS</code>；時鐘顯傳——快照之 <code>game_time_millis()</code>，天然之準也）：以其欄納諸 <code>State</code>，render 之際，一斷其遷而已：</p>
+    <pre><code class="lang-cpp">struct State {
+    mtr::StateTracker&lt;Phase&gt; phase;   // 跨幀常存
+};
+
+// render 之中：
+if (s.phase.set_state(next, vehicle.game_time_millis())) {
+    // 得 true —— 初入此態之幀也（上游 prerelease.2 新義）
+}
+double staying = s.phase.state_now_duration(vehicle.game_time_millis());
+if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 演進場之動畫 */ }</code></pre>
+    <table>
+      <thead><tr><th>成員</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>set_state(value, now_ms)</code></td><td>更其狀態；<strong>所返者，初入此態之幀否</strong>（上游 v2.3.0-prerelease.2 起 <code>setState</code> 返布林）</td></tr>
+        <tr><td><code>state_now() / state_last() / state_now_first()</code></td><td>今態 / 前態；初幀否</td></tr>
+        <tr><td><code>state_now_duration(now_ms)</code></td><td>今態所歷之毫秒</td></tr>
+        <tr><td><code>changed_to(state) / changed_from_to(old, new)</code></td><td>此幀入某態否 / 自某態而遷否</td></tr>
       </tbody>
     </table>
 
@@ -276,8 +296,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
-  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

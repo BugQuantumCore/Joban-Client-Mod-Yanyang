@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Scripts C++ / JS</b><small>Documentation</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
@@ -117,7 +116,7 @@
     <p>Depuis ABI 9, la sortie donne aussi la <strong>capacité complète</strong> de chaque zone — l’hôte ne crée qu’un seul <code>ByteBuffer</code> par zone, dont seul le limit change à chaque frame ; plus aucune allocation de cinq objets d’emballage par frame.</p>
 
     <h2 id="records">Enregistrements de dessin</h2>
-    <p>Chaque enregistrement commence par un <code>JcmRecordHeader{kind, record_size}</code>, en ordre séquentiel à longueur variable. 8 types :</p>
+    <p>Chaque enregistrement commence par un <code>JcmRecordHeader{kind, flags, record_size}</code>, en ordre séquentiel à longueur variable. <code>flags</code> porte des commutateurs au niveau de l’enregistrement : actuellement, seul <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code> est défini (l’option <code>natural_light()</code> de Text / Texture / Rect — prend la lumière du monde au lieu de la luminosité maximale de rendu). Cet octet a été promu sur place depuis un octet de padding : les modules compilés avec d’anciens SDK écrivent toujours 0 et les anciens hôtes l’ignorent — <strong>compatibilité binaire dans les deux sens, sans saut de version d’ABI</strong>. 8 types :</p>
     <table>
       <thead><tr><th>kind</th><th>Structure</th><th>Usage / appel JS reflété</th></tr></thead>
       <tbody>
@@ -180,8 +179,7 @@
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
-  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

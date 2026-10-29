@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang scripting</b><small>Docs</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>C++ / JS scripting</b><small>Docs</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
@@ -231,6 +230,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>model_id()</code></td><td>Current model id</td></tr>
         <tr><td><code>translate_x() / _y() / _z()</code> / <code>rotate_x() / _y() / _z()</code></td><td>User-configured translation / rotation</td></tr>
         <tr><td><code>facing()</code></td><td>Facing (MC <code>Direction.ordinal()</code>, 0..5)</td></tr>
+        <tr><td><code>facing_angle()</code></td><td>Facing angle in degrees (<code>Direction.asRotation()</code>: S 0 / W 90 / N 180 / E 270) — same as the JS <code>facingAngle()</code></td></tr>
         <tr><td><code>full_brightness()</code></td><td>Full-brightness rendering</td></tr>
         <tr><td><code>redstone_level()</code></td><td>Redstone level 0..15</td></tr>
         <tr><td><code>is_crosshair_target()</code></td><td>Whether targeted by the crosshair</td></tr>
@@ -250,7 +250,7 @@ if (event.call("occurred").as&lt;bool&gt;()) {
     <p>The eyecandy drawing context <code>EyeCandyContext</code> provides <code>draw_model(model, matrices)</code>, <code>play_sound(sound, volume, pitch)</code>, <code>set_outline_shape(boxes, count)</code> and <code>set_collision_shape(boxes, count)</code> (6 floats per box; collision boxes keep the Java-side 1.5-block height limit, and anything beyond is validated and logged by the host). Lifts reuse the same context type (<code>LiftContext = EyeCandyContext</code>).</p>
 
     <h2 id="helpers">Helper types</h2>
-    <p><code>&lt;mtr/util.hpp&gt;</code> provides hot-path-friendly cycling helpers (zero allocation):</p>
+    <p><code>&lt;mtr/util.hpp&gt;</code> provides hot-path-friendly cycling and state-tracking utilities (zero allocation):</p>
     <pre><code class="lang-cpp">// "A|B|C" rotates one segment every 40 ticks; switching views is just an offset computation
 mtr::CycleTracker dest{"KOWLOON|TSUEN WAN"};
 StrView current = dest.value(vehicle.in_game_time());</code></pre>
@@ -261,6 +261,26 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
         <tr><td><code>value(game_tick)</code> / <code>value_str(game_tick)</code></td><td>The currently active segment (view / string)</td></tr>
         <tr><td><code>interval()</code> / <code>part_count()</code></td><td>Rotation interval and segment count</td></tr>
         <tr><td><code>StrView</code></td><td>A <code>{data, len}</code> string view: <code>.str()</code>, <code>.empty()</code>, comparable with <code>==</code></td></tr>
+      </tbody>
+    </table>
+    <p>State-machine tracking <code>mtr::StateTracker&lt;T&gt;</code> (mirrors the upstream <code>StateTrackerJS</code>; the clock is passed explicitly — the snapshot's <code>game_time_millis()</code> is the natural equivalent): keep the tracker field in <code>State</code> and perform a single transition check per render:</p>
+    <pre><code class="lang-cpp">struct State {
+    mtr::StateTracker&lt;Phase&gt; phase;   // persists across frames
+};
+
+// in render():
+if (s.phase.set_state(next, vehicle.game_time_millis())) {
+    // returned true — first frame in this state (new upstream prerelease.2 semantics)
+}
+double staying = s.phase.state_now_duration(vehicle.game_time_millis());
+if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* play arrival animation */ }</code></pre>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>set_state(value, now_ms)</code></td><td>Update the state; <strong>returns whether this is the first frame in the state</strong> (<code>setState</code> returns a boolean since upstream v2.3.0-prerelease.2)</td></tr>
+        <tr><td><code>state_now() / state_last() / state_now_first()</code></td><td>Current / previous state; first-frame flag</td></tr>
+        <tr><td><code>state_now_duration(now_ms)</code></td><td>How long the current state has been active (milliseconds)</td></tr>
+        <tr><td><code>changed_to(state) / changed_from_to(old, new)</code></td><td>Whether this frame entered the given state / transitioned from one given state to another</td></tr>
       </tbody>
     </table>
 
@@ -274,8 +294,7 @@ StrView current = dest.value(vehicle.in_game_time());</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>
-  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

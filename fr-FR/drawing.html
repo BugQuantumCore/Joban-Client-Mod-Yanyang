@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang Scripting</b><small>Documentation</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Scripts C++ / JS</b><small>Documentation</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
@@ -62,13 +61,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">Documentation</a> / Référence API / Dessin et canevas</div>
       <h1>Dessin et canevas</h1>
-      <p class="page-lead">Deux voies : les écrans PIDS passent par l’API en chaîne <code>Text</code> / <code>Texture</code> ; le contenu au niveau pixel (LCD, écrans à matrice de points) passe par la rastérisation native <code>GraphicsTexture</code> + <code>Gfx2D</code>.</p>
+      <p class="page-lead">Deux voies : les écrans PIDS passent par l’API en chaîne <code>Text</code> / <code>Texture</code> / <code>Rect</code> ; le contenu au niveau pixel (LCD, écrans à matrice de points) passe par la rastérisation native <code>GraphicsTexture</code> + <code>Gfx2D</code>.</p>
     </header>
 
     <div class="page-toc">
       <b>Sur cette page</b>
       <ol>
-        <li><a href="#text">Text et Texture (PIDS)</a></li>
+        <li><a href="#text">Text / Texture / Rect (PIDS)</a></li>
         <li><a href="#matrices">Matrices et dessin de modèles</a></li>
         <li><a href="#texture2d">GraphicsTexture (canevas de pixels)</a></li>
         <li><a href="#gfx2d">Rastériseur logiciel Gfx2D</a></li>
@@ -81,8 +80,8 @@
       <p>Contenu en <strong>coordonnées écran</strong> (lignes de texte PIDS, blocs de texture) → <code>Text</code>/<code>Texture</code> : un enregistrement de dessin, rejoué par l’hôte via exactement le même chemin de code que JS. Contenu <strong>au niveau pixel</strong> (LCD de véhicule, écrans à matrice de points dynamiques, graphiques) → <code>GraphicsTexture</code> pour dessiner vous-mêmes les pixels, rastérisés via les primitives de <code>Gfx2D</code>, seuls les rectangles modifiés étant téléversés vers le GPU.</p>
     </div>
 
-    <h2 id="text">Text et Texture (PIDS)</h2>
-    <p><code>&lt;mtr/text.hpp&gt;</code> est le portage 1:1 de l’API en chaîne <code>TextWrapper</code> / <code>TextureWrapper</code> de JS — les noms de méthodes suivent la convention snake_case du C++, avec appels chaînés :</p>
+    <h2 id="text">Text / Texture / Rect (PIDS)</h2>
+    <p><code>&lt;mtr/text.hpp&gt;</code> est le portage 1:1 de l’API en chaîne <code>TextWrapper</code> / <code>TextureWrapper</code> / <code>Rect</code> de JS — les noms de méthodes suivent la convention snake_case du C++, avec appels chaînés :</p>
     <pre><code class="lang-cpp">mtr::Text::create()
     .text("Tsim Sha Tsui")
     .scale(1.725)
@@ -104,6 +103,8 @@
         <tr><td><code>.color(argb)</code></td><td>homonyme</td><td>couleur (ARGB)</td></tr>
         <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>homonyme</td><td>coordonnées écran et boîte englobante</td></tr>
         <tr><td><code>.z_order(z) / .layer(l)</code></td><td>homonyme</td><td>hiérarchie de couches ; avec <code>z=-1</code>, l’attribution est faite automatiquement par le contexte</td></tr>
+        <tr><td><code>.render_type("LIGHT_1")</code></td><td><code>.renderType()</code></td><td>couche de rendu par nom (équivalent de <code>QueuedRenderLayer.valueOf</code> ; un nom inconnu lève une exception)</td></tr>
+        <tr><td><code>.natural_light()</code></td><td><code>.naturalLight()</code></td><td>prend la lumière du monde au lieu de la luminosité maximale de rendu</td></tr>
       </tbody>
     </table>
     <table>
@@ -114,6 +115,23 @@
         <tr><td><code>.color(argb)</code></td><td>teinte</td></tr>
         <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>position et taille</td></tr>
         <tr><td><code>.z_order(z) / .layer(l)</code></td><td>hiérarchie de couches</td></tr>
+        <tr><td><code>.render_type("LIGHT_1")</code> / <code>.natural_light()</code></td><td>couche de rendu par nom / lumière du monde (comme Text)</td></tr>
+      </tbody>
+    </table>
+    <h3>Rect (rectangles pleins)</h3>
+    <p><code>mtr::Rect</code> est le miroir de la classe <code>Rect</code> du JS amont (nommée <code>Rectangle</code> avant l’amont v2.3.0-prerelease.2 ; le nom de la classe Java est inchangé) — elle dessine une facette <code>mtr:white.png</code> aux UV complets, teintée d’une couleur : le moyen le plus léger de construire des blocs de fond, des barres de séparation et des bandes de couleur d’état :</p>
+    <pre><code class="lang-cpp">mtr::Rect::create()
+    .color(0xFF00539F)          // teinte opaque (ARGB_WHITE par défaut)
+    .pos(2, rowY + 18)
+    .size(pids.width() - 4, 1)  // 20×20 par défaut
+    .draw(ctx);</code></pre>
+    <table>
+      <thead><tr><th>Méthode Rect</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>.color(argb)</code></td><td>teinte (blanc <code>ARGB_WHITE</code> par défaut)</td></tr>
+        <tr><td><code>.pos(x, y) / .size(w, h)</code></td><td>position et taille (20×20 par défaut)</td></tr>
+        <tr><td><code>.render_type("LIGHT_2")</code></td><td>couche de rendu par nom (<code>LIGHT_2</code> par défaut)</td></tr>
+        <tr><td><code>.natural_light() / .z_order(z)</code></td><td>lumière du monde / ordre z (<code>z=-1</code> attribué automatiquement)</td></tr>
       </tbody>
     </table>
     <p>Méthodes associées du contexte (<code>PidsContext</code>) :</p>
@@ -198,6 +216,7 @@ g.pop_clip();</code></pre>
         <tr><td><code>push_clip / pop_clip</code></td><td>pile de rectangles de clipping ; toutes les primitives sont clippées avant rastérisation, la zone modifiée est contrainte de la même façon</td></tr>
         <tr><td><code>draw_text / draw_text_centered / draw_text_compressed / draw_mixed_text</code></td><td>texte (voir la section polices ci-dessous)</td></tr>
         <tr><td><code>draw_logo_badge(x, y, w, h, bg, fg)</code></td><td>fond de badge à angles arrondis</td></tr>
+        <tr><td><code>full_aa() / no_aa()</code></td><td>commutateur d’anticrénelage à couverture d’un pixel (désactivé par défaut, en miroir de l’amont <code>fullAA()</code> / <code>noAA()</code>) : les bords des remplissages ovale / rectangle arrondi / contour / polygone reçoivent un mélange src-over entier ; le texte reste, lui, toujours anticrénelé par la police TTF de l’hôte</td></tr>
       </tbody>
     </table>
     <p>Aides couleurs : <code>mtr::clr(r, g, b)</code> / <code>mtr::clra(r, g, b, a)</code> (opaque / avec alpha), homonymes des fonctions du <code>config.js</code> de JS. Les couleurs semi-transparentes passent par une composition src-over ; les couleurs opaques bénéficient d’un chemin rapide.</p>
@@ -224,8 +243,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt
-  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

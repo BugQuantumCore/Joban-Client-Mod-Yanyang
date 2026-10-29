@@ -13,10 +13,9 @@
 <div class="layout">
 
 <aside class="sidebar">
-  <a class="brand" href="index.html">
-    <span class="brand-mark">JCM</span>
-    <span class="brand-text"><b>Yanyang 腳本</b><small>開發文檔</small></span>
-  </a>
+      <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文檔</small></span>
+    </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
     <a href="index.html">綜覽</a>
@@ -119,7 +118,7 @@
     <p>ABI 9 而後，輸出併給各區之<strong>完備容量</strong>——宿主為每區惟建一 <code>ByteBuffer</code>，每幀改其 limit 而復用之，不復逐幀而配五包裝之物。</p>
 
     <h2 id="records">繪製記錄</h2>
-    <p>每記錄以 <code>JcmRecordHeader{kind, record_size}</code> 為首，變長而順列。凡八類：</p>
+    <p>每記錄以 <code>JcmRecordHeader{kind, flags, record_size}</code> 為首，變長而順列。<code>flags</code> 載記錄級之開關：今所定者，惟 <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code>（Text / Texture / Rect 之 <code>natural_light()</code>——取世間之光照，不用至亮之渲染光）。斯位元組者，舊 padding 就地升格而為之：舊 SDK 所編之模塊恆書 0，舊宿主置之不問——<strong>雙向二進制相容，不升 ABI 之版</strong>。凡八類：</p>
     <table>
       <thead><tr><th>kind</th><th>結構</th><th>所用 / 所映之 JS 呼</th></tr></thead>
       <tbody>
@@ -182,8 +181,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂
-  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>
