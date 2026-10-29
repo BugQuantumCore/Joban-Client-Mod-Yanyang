@@ -156,6 +156,17 @@
       <li><code>Stop.routeInterchanges[i]</code>（<code>RouteInterchange</code>）所增：<code>getTransportMode(): TransportMode?</code>（轉乘線路交通之模式，舊數據或為 null）、<code>getTransportType(): String</code>（同上規範之 id）、<code>getRouteId(): long</code>（來源線路之 id，服端數據缺者為 0）——轉乘之牌按類擇圖 / 配色之時，不復惟色可讀。</li>
       <li>MAGIC 未裝，或該線路未蒙指派，則一切照舊回落基礎之式——腳本無須探附加模組之存亡。類型所詢之果，按線路為之短緩存（約一秒）；MTR 之中改其類，俄頃可見。</li>
     </ul>
+    <h3>用之諸處</h3>
+    <p>規範類型之 id，非惟 <code>vehicle.getTransportType()</code> 一處用之——宿主之內、兩側之腳本，凡所用之處，具列於下：</p>
+    <table>
+      <thead><tr><th>用之之處</th><th>所在之側</th><th>釋之</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td>JS · 車輛腳本</td><td>本節之主門；車若掛 C++ 之腳本，宿主築快照亦呼之（每車每幀一遭），以其字串書入快照字串之池</td></tr>
+        <tr><td><code>stop.routeInterchanges[i].getTransportType()</code><br><code>stop.connectingInterchanges[相連車站之名][i].getTransportType()</code></td><td>JS · 車輛腳本</td><td>轉乘諸條，逐條同一 id；類型由服端預解，隨轉乘之數據同下（以服端所指為準，客端 MAGIC 有無皆得之）；舊版數據缺此字段，客端方按 <code>getRouteId()</code> 自查以補</td></tr>
+        <tr><td><code>mtr::Vehicle::getTransportType()</code>（舊名 <code>mtr::Train</code>）<br><code>mtr::Stop::interchange(i).getTransportType()</code></td><td>C++ 快照 · ABI 9 起</td><td>直讀快照字串之池中宿主預書之串，與 JS 所得全然一致；詳見 <a href="data.html#transport">數據快照</a></td></tr>
+      </tbody>
+    </table>
+    <p>以上諸處所讀，同出一源——一處所得之 id，諸處必同。</p>
 
     <h2 id="rawupload">直寫像素之上傳</h2>
     <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>

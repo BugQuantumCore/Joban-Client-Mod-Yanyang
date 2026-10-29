@@ -154,6 +154,17 @@
       <li><code>Stop.routeInterchanges[i]</code> (<code>RouteInterchange</code>) s’enrichit : <code>getTransportMode(): TransportMode?</code> (mode de transport de la ligne de correspondance, <code>null</code> possible avec d’anciennes données), <code>getTransportType(): String</code> (le même id canonique), <code>getRouteId(): long</code> (id de la ligne d’origine, 0 si la donnée manque côté serveur) — les panneaux de correspondance peuvent enfin choisir icône / couleur selon le type, au lieu de ne lire que la couleur.</li>
       <li>Sans MAGIC installé, ou sans subdivision attribuée à la ligne, tout retombe comme avant sur le mode de base — le script n’a pas à détecter la présence de l’addon. Le résultat des requêtes de type est mis en cache brièvement par ligne (environ 1 seconde) : un type modifié dans MTR est visible très vite.</li>
     </ul>
+    <h3>Autres points d’appel</h3>
+    <p>L’id de type canonique n’est pas l’apanage de <code>vehicle.getTransportType()</code> — l’hôte l’appelle aussi en interne, et les scripts disposent d’entrées sœurs :</p>
+    <table>
+      <thead><tr><th>Point d’appel</th><th>Côté</th><th>Détails</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td>JS · scripts de véhicule</td><td>L’entrée principale ci-dessus ; le constructeur d’instantanés de l’hôte l’appelle aussi — une fois par véhicule et par frame — dès que le véhicule embarque un script C++, et place la chaîne dans le pool de chaînes de l’instantané</td></tr>
+        <tr><td><code>stop.routeInterchanges[i].getTransportType()</code><br><code>stop.connectingInterchanges[nomDeStationConnectée][i].getTransportType()</code></td><td>JS · scripts de véhicule</td><td>Le même id pour chaque correspondance ; en ligne, le type arrive pré-résolu avec les données de correspondance synchronisées (l’affectation du serveur prime — reçu que le client ait MAGIC ou non), la requête client via <code>getRouteId()</code> ne servant de repli qu’aux anciennes données</td></tr>
+        <tr><td><code>mtr::Vehicle::getTransportType()</code> (ancien nom <code>mtr::Train</code>)<br><code>mtr::Stop::interchange(i).getTransportType()</code></td><td>Instantané C++ · ABI 9 et plus</td><td>Lisent la chaîne que l’hôte a préalablement placée dans le pool de l’instantané — identique au résultat JS ; voir <a href="data.html#transport">Instantanés de données</a></td></tr>
+      </tbody>
+    </table>
+    <p>Tous ces points d’appel lisent la même résolution par ligne — l’id vu à un endroit est exactement celui vu aux autres.</p>
 
     <h2 id="rawupload">Téléversement de pixels par écriture directe</h2>
     <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>

@@ -154,6 +154,17 @@
       <li><code>Stop.routeInterchanges[i]</code>（<code>RouteInterchange</code>）新增：<code>getTransportMode(): TransportMode?</code>（换乘线路的交通模式，老数据可能为 null）、<code>getTransportType(): String</code>（同上规范 id）、<code>getRouteId(): long</code>（来源线路 id，服务端数据缺省为 0）——换乘指示牌按类型选图标 / 配色时不再只能读颜色。</li>
       <li>MAGIC 未安装或该线路没有指派时一切照旧回落基模式——脚本无需探测附加模组在不在。类型查询结果按线路短时缓存（约 1 秒），MTR 里改类型很快就能看到。</li>
     </ul>
+    <h3>其他调用位置</h3>
+    <p>「规范类型 id」不止 <code>vehicle.getTransportType()</code> 一处在用——宿主内部与两侧脚本的全部调用位置：</p>
+    <table>
+      <thead><tr><th>调用位置</th><th>侧</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td>JS · 车辆脚本</td><td>本节主入口；车辆挂有 C++ 脚本时，宿主构建快照也会调它（每车每帧一次），把字符串写进快照的字符串池</td></tr>
+        <tr><td><code>stop.routeInterchanges[i].getTransportType()</code><br><code>stop.connectingInterchanges[相连车站名][i].getTransportType()</code></td><td>JS · 车辆脚本</td><td>换乘条目逐项同款 id；类型由服务端预先解析、随换乘数据同步下发（服务端为准，客户端装没装 MAGIC 都能收到），旧版数据缺字段时才由客户端按 <code>getRouteId()</code> 现查补齐</td></tr>
+        <tr><td><code>mtr::Vehicle::getTransportType()</code>（旧名 <code>mtr::Train</code>）<br><code>mtr::Stop::interchange(i).getTransportType()</code></td><td>C++ 快照 · ABI 9 起</td><td>直读快照字符串池里预写的那份字符串，与 JS 完全一致；详见 <a href="data.html#transport">数据快照</a></td></tr>
+      </tbody>
+    </table>
+    <p>以上所有位置读的是同一份按线路解析的结果——一处看到的 id，其余各处必然一致。</p>
 
     <h2 id="rawupload">直写像素上传</h2>
     <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>

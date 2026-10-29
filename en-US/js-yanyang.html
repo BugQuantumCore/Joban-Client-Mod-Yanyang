@@ -154,6 +154,17 @@
       <li><code>Stop.routeInterchanges[i]</code> (<code>RouteInterchange</code>) gains: <code>getTransportMode(): TransportMode?</code> (the interchange route's transport mode; null for old data), <code>getTransportType(): String</code> (the canonical id as above), and <code>getRouteId(): long</code> (the source route's id; 0 when the server data is missing) — interchange signs picking icons / color schemes by type no longer have to rely on color alone.</li>
       <li>Without MAGIC installed, or for routes without an assignment, everything falls back to the base mode as before — scripts need not probe for the add-on. Type lookups are cached briefly per route (about 1 second), so changing a type in MTR shows up quickly.</li>
     </ul>
+    <h3>Other call sites</h3>
+    <p>The canonical type id isn't consumed by <code>vehicle.getTransportType()</code> alone — the host itself calls it, and scripts have sibling entry points:</p>
+    <table>
+      <thead><tr><th>Call site</th><th>Side</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td>JS · vehicle scripts</td><td>The primary entry point above; the host's snapshot builder also calls it — once per vehicle per frame — whenever the vehicle carries a C++ script, pooling the string into the snapshot's string pool</td></tr>
+        <tr><td><code>stop.routeInterchanges[i].getTransportType()</code><br><code>stop.connectingInterchanges[connectedStationName][i].getTransportType()</code></td><td>JS · vehicle scripts</td><td>Per-interchange copies of the same id; the type arrives pre-resolved with the synced interchange data (the server's assignment wins — received whether or not the client runs MAGIC), with a client-side <code>getRouteId()</code> lookup only as the fallback for older data</td></tr>
+        <tr><td><code>mtr::Vehicle::getTransportType()</code> (legacy name <code>mtr::Train</code>)<br><code>mtr::Stop::interchange(i).getTransportType()</code></td><td>C++ snapshot · ABI 9+</td><td>Read the string the host pre-pooled into the snapshot — identical to the JS result; see <a href="data.html#transport">Data snapshots</a></td></tr>
+      </tbody>
+    </table>
+    <p>Every site above reads the same per-route resolution — the id seen at one call site is exactly the id seen at the others.</p>
 
     <h2 id="rawupload">Raw pixel uploads</h2>
     <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>

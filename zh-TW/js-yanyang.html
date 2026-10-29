@@ -154,6 +154,17 @@
       <li><code>Stop.routeInterchanges[i]</code>（<code>RouteInterchange</code>）新增：<code>getTransportMode(): TransportMode?</code>（轉乘線路的交通模式，老資料可能為 null）、<code>getTransportType(): String</code>（同上規範 id）、<code>getRouteId(): long</code>（來源線路 id，伺服端資料缺少時為 0）——轉乘指示牌按類型選圖示 / 配色時不再只能讀顏色。</li>
       <li>MAGIC 未安裝或該線路沒有指派時一切照舊回落基礎模式——腳本無需探測附加模組在不在。類型查詢結果按線路短時快取（約 1 秒），MTR 裡改類型很快就能看到。</li>
     </ul>
+    <h3>其他呼叫位置</h3>
+    <p>「規範類型 id」不止 <code>vehicle.getTransportType()</code> 一處在用——宿主內部與兩側腳本的全部呼叫位置：</p>
+    <table>
+      <thead><tr><th>呼叫位置</th><th>側</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.getTransportType()</code></td><td>JS · 車輛腳本</td><td>本節主入口；車輛掛有 C++ 腳本時，宿主建構快照也會呼叫它（每車每幀一次），把字串寫進快照的字串集區</td></tr>
+        <tr><td><code>stop.routeInterchanges[i].getTransportType()</code><br><code>stop.connectingInterchanges[相連車站名][i].getTransportType()</code></td><td>JS · 車輛腳本</td><td>轉乘條目逐項同款 id；類型由伺服端預先解析、隨轉乘資料同步下發（伺服端為準，用戶端裝沒裝 MAGIC 都能收到），舊版資料缺欄位時才由用戶端按 <code>getRouteId()</code> 現查補齊</td></tr>
+        <tr><td><code>mtr::Vehicle::getTransportType()</code>（舊名 <code>mtr::Train</code>）<br><code>mtr::Stop::interchange(i).getTransportType()</code></td><td>C++ 快照 · ABI 9 起</td><td>直讀快照字串集區裡預寫的那份字串，與 JS 完全一致；詳見 <a href="data.html#transport">資料快照</a></td></tr>
+      </tbody>
+    </table>
+    <p>以上所有位置讀的是同一份按線路解析的結果——一處看到的 id，其餘各處必然一致。</p>
 
     <h2 id="rawupload">直寫像素上傳</h2>
     <p><code>GraphicsTexture.uploadRawABGR(source: byte[], dstOffsetX: int, dstOffsetY: int, width: int, height: int, ppm: int[]): void</code></p>
