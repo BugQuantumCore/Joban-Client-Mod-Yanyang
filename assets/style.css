@@ -1199,3 +1199,517 @@ td code {
   .content { max-width: none; padding: 0; }
   pre { border: 1px solid var(--border); }
 }
+
+/* ================================================================
+   文言（lzh）· 仿古縱排式
+   僅作用於 html[data-locale="lzh"]，其他語言版面一仍其舊：
+   豎排右起（vertical-rl）、句讀悉去（app.js 剝除標點）、
+   仿宋字體、宣紙墨色、上下界框、題籤朱印、着重圓點；
+   代碼 / 表格 / 架構圖仍作橫排「插圖之島」以保可用。
+   ================================================================ */
+
+/* —— 色彩：宣紙 · 墨 · 朱（晝） —— */
+html[data-locale="lzh"] {
+  --bg: #efe7d3;
+  --paper: #f9f3e3;
+  --text: #3a3226;
+  --heading: #272013;
+  --muted: #7c6f58;
+  --faint: #a99a7f;
+  --border: #e0d4b8;
+  --border-strong: #c9b995;
+  --accent: #b03a2e;            /* 朱 */
+  --accent-strong: #8c2c22;
+  --accent-soft: #f6e7e0;
+  --accent-border: #dfb3a6;
+  --warn: #92600a;
+  --warn-soft: #f7eed7;
+  --warn-border: #e4d1a0;
+  --warn-strong: #b45309;
+  --danger: #a02c21;
+  --danger-soft: #f8e8e3;
+  --danger-border: #e3b6ab;
+  --info: #4c5a66;
+  --info-soft: #eceadf;
+  --info-border: #c8c1a8;
+  --sidebar-bg: #211a11;
+  --sidebar-text: #d3c5a6;
+  --sidebar-muted: #8a7c63;
+  --sidebar-strong: #f4ecd8;
+  --sidebar-border: #35291a;
+  --sidebar-hover: #2f2415;
+  --sidebar-active: #e0876b;
+  --sidebar-scrollbar: #4d3f2b;
+  --code-bg: #181410;
+  --code-text: #e8dfc6;
+  --inline-code-bg: #eee4c9;
+  --inline-code-text: #5c4526;
+  --th-bg: #eee5cc;
+  --th-text: #4a3d28;
+  --row-alt: #f4ecd8;
+  --node-bg: #f9f3e3;
+  /* 縱排行長（一欄之高）：桌面 44em，行長隨視口收斂 */
+  --lzh-line: min(44em, calc(100dvh - 104px));
+}
+
+/* —— 色彩：玄夜 · 墨 · 朱（夜） —— */
+html[data-locale="lzh"][data-theme="dark"] {
+  --bg: #13100a;
+  --paper: #1c1710;
+  --text: #e2d6b9;
+  --heading: #f1e8d2;
+  --muted: #a2937a;
+  --faint: #75684e;
+  --border: #2f2617;
+  --border-strong: #4b3c26;
+  --accent: #d2725c;
+  --accent-strong: #e39a83;
+  --accent-soft: rgba(210, 114, 92, 0.13);
+  --accent-border: rgba(210, 114, 92, 0.4);
+  --warn: #d3a24a;
+  --warn-soft: rgba(211, 162, 74, 0.12);
+  --warn-border: rgba(211, 162, 74, 0.4);
+  --warn-strong: #e3b45f;
+  --danger: #d96b5b;
+  --danger-soft: rgba(217, 107, 91, 0.12);
+  --danger-border: rgba(217, 107, 91, 0.4);
+  --info: #9db4c0;
+  --info-soft: rgba(157, 180, 192, 0.1);
+  --info-border: rgba(157, 180, 192, 0.35);
+  --sidebar-bg: #0f0c07;
+  --sidebar-text: #c9bb9d;
+  --sidebar-muted: #7c6e56;
+  --sidebar-strong: #efe6cf;
+  --sidebar-border: #241c0f;
+  --sidebar-hover: #241c0f;
+  --sidebar-active: #d98a6d;
+  --sidebar-scrollbar: #3f3320;
+  --code-bg: #0c0a06;
+  --code-text: #ddd2b5;
+  --inline-code-bg: #262014;
+  --inline-code-text: #cdbd96;
+  --th-bg: #241d11;
+  --th-text: #cfc09f;
+  --row-alt: #1e1810;
+  --node-bg: #1c1710;
+}
+
+/* —— 字體：仿宋刻本 —— */
+html[data-locale="lzh"] body {
+  font-family: "Songti SC", "Songti TC", "STSong", "Noto Serif CJK SC",
+    "Noto Serif CJK TC", "Source Han Serif SC", "Source Han Serif TC",
+    "SimSun", "NSimSun", "PMingLiU", "MingLiU", serif;
+  letter-spacing: 0.06em;
+}
+
+html[data-locale="lzh"] ::selection { background: rgba(176, 58, 46, 0.22); }
+
+/* —— 版面：卷首在右，自右而左 —— */
+html[data-locale="lzh"] .layout { flex-direction: row-reverse; }
+
+/* 側欄標記：朱印底色 */
+html[data-locale="lzh"] .brand-mark {
+  background: linear-gradient(135deg, #8c2c22, #c4553f);
+}
+
+/* —— 側欄目錄：豎排界行（欄目自右而左，滿行復起於下） —— */
+html[data-locale="lzh"] .nav {
+  display: flex;
+  flex-direction: row-reverse;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 12px 8px;
+  padding: 18px 16px 22px;
+}
+
+html[data-locale="lzh"] .nav a {
+  writing-mode: vertical-rl;
+  height: 12em;
+  padding: 9px 6px;
+  font-size: 13.5px;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+html[data-locale="lzh"] .nav a.active {
+  background: rgba(207, 122, 78, 0.16);
+  color: var(--sidebar-active);
+}
+
+html[data-locale="lzh"] .nav a.active:active {
+  background: rgba(207, 122, 78, 0.26);
+  color: var(--sidebar-active);
+}
+
+html[data-locale="lzh"] .nav-group {
+  writing-mode: vertical-rl;
+  height: auto;
+  padding: 0 3px;
+  margin: 0 7px 0 1px;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  white-space: nowrap;
+}
+
+/* —— 正文卷面：豎排右起，橫向展卷 —— */
+html[data-locale="lzh"] .content {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  width: auto;
+  max-width: none;
+  height: var(--lzh-line);
+  min-height: 21em;
+  margin: 0;
+  padding: 26px 30px 34px 44px;
+  background: var(--paper);
+  border-inline: 3px double var(--border-strong);   /* 上下界框 */
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  line-height: 2.05;
+}
+
+html[data-locale="lzh"] .content::-webkit-scrollbar { height: 8px; }
+html[data-locale="lzh"] .content::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+/* —— 標題與段落：間距皆沿行軸（block 軸） —— */
+html[data-locale="lzh"] .content h1 {
+  margin: 0;
+  letter-spacing: 0.12em;
+}
+
+html[data-locale="lzh"] .content h2 {
+  margin: 0;
+  margin-block-start: 2.1em;
+  padding: 0 0 0.4em;
+  border: none;
+  border-inline-end: 3px solid var(--accent);   /* 欄底朱槓 */
+  font-size: 21px;
+}
+
+html[data-locale="lzh"] .content h3 {
+  margin: 0;
+  margin-block-start: 1.6em;
+}
+
+html[data-locale="lzh"] .content h4 {
+  margin: 0;
+  margin-block-start: 1.3em;
+}
+
+html[data-locale="lzh"] .content h2,
+html[data-locale="lzh"] .content h3,
+html[data-locale="lzh"] .content h4 {
+  scroll-margin-block-start: 26px;
+  scroll-margin-inline-start: 10px;
+}
+
+html[data-locale="lzh"] .content p {
+  margin: 0;
+  margin-block-start: 1em;
+}
+
+html[data-locale="lzh"] .content .page-lead {
+  margin: 0;
+  margin-block-start: 0.9em;
+}
+
+html[data-locale="lzh"] .content ul,
+html[data-locale="lzh"] .content ol {
+  margin: 0;
+  margin-block-start: 1em;
+  padding: 0;
+  padding-block-start: 1.5em;   /* 縮進於右（首欄之側） */
+}
+
+html[data-locale="lzh"] .content li {
+  margin: 0;
+  margin-block-start: 0.4em;
+}
+
+/* 着重：朱點於字側（古人批點之法） */
+html[data-locale="lzh"] .content strong {
+  font-weight: 600;
+  color: var(--heading);
+  -webkit-text-emphasis: filled dot var(--accent);
+  text-emphasis: filled dot var(--accent);
+  text-emphasis-position: over right;
+}
+
+html[data-locale="lzh"] .content hr {
+  border: none;
+  border-inline-start: 2px solid var(--border-strong);
+  inline-size: 42%;
+  margin: 0;
+  margin-block-start: 1.8em;
+}
+
+html[data-locale="lzh"] .content :not(pre) > code {
+  padding: 0.06em 0.32em;
+  letter-spacing: 0;
+}
+
+/* —— 頁首：題籤與朱印 —— */
+html[data-locale="lzh"] .content .page-header {
+  margin: 0;
+  margin-block-end: 1.4em;
+  padding: 0;
+}
+
+html[data-locale="lzh"] .content .page-header h1 {
+  display: inline-block;
+  font-size: 29px;
+  line-height: 1.45;
+  padding: 0.5em 0.42em;
+  margin: 0;
+  margin-block-end: 0.5em;
+  border: 1.5px solid var(--accent-border);
+  background: var(--accent-soft);
+  border-radius: 4px;
+}
+
+/* 「晏陽之印」：右行先讀，白文朱底 */
+html[data-locale="lzh"] .content .page-header h1::after {
+  content: "晏陽\A之印";
+  white-space: pre;
+  display: inline-block;
+  background: #a2372b;
+  color: #f6efdd;
+  font-size: 0.34em;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0.14em;
+  padding: 0.4em 0.34em;
+  margin-inline-start: 0.7em;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(246, 239, 221, 0.4);
+  vertical-align: middle;
+}
+
+html[data-locale="lzh"] .content .hero { padding: 0.3em 0; }
+
+html[data-locale="lzh"] .content .hero .eyebrow { margin: 0; }
+
+html[data-locale="lzh"] .content .hero h1 { margin: 0; margin-block-start: 1em; }
+
+html[data-locale="lzh"] .content .hero .lead {
+  max-width: none;
+  margin: 0;
+  margin-block-start: 0.7em;
+}
+
+html[data-locale="lzh"] .content .breadcrumb {
+  margin: 0;
+  margin-block-end: 0.9em;
+}
+
+/* —— 提示框：豎排，界角收方 —— */
+html[data-locale="lzh"] .content .admonition {
+  margin: 0;
+  margin-block-start: 1.2em;
+  padding: 12px 14px;
+  border-radius: 4px;
+}
+
+html[data-locale="lzh"] .content .admonition .admonition-title {
+  margin: 0;
+  margin-block-end: 0.45em;
+}
+
+html[data-locale="lzh"] .content .admonition p {
+  margin: 0;
+  margin-block-start: 0.55em;
+}
+
+html[data-locale="lzh"] .content .admonition p:first-child { margin-block-start: 0; }
+
+/* —— 首頁特色卡：豎排界行一列（自右而左魚貫） —— */
+html[data-locale="lzh"] .content .cards {
+  display: flex;
+  flex-direction: column;        /* 行軸即 block 軸：右起左行 */
+  flex-wrap: nowrap;
+  gap: 12px;
+  margin: 0;
+  margin-block-start: 1.3em;
+}
+
+html[data-locale="lzh"] .content .card {
+  padding: 14px 12px;
+}
+
+html[data-locale="lzh"] .content .card .card-icon {
+  margin: 0;
+  margin-block-end: 0.5em;
+}
+
+html[data-locale="lzh"] .content .card h3 {
+  margin: 0;
+  margin-block-end: 0.45em;
+}
+
+html[data-locale="lzh"] .content .card p {
+  margin: 0;
+  line-height: 1.95;
+}
+
+/* —— 頁內目錄：豎排（條目自右而左，一如界行） —— */
+html[data-locale="lzh"] .content .page-toc {
+  margin: 0;
+  margin-block-start: 1.4em;
+  padding: 12px 16px;
+}
+
+html[data-locale="lzh"] .content .page-toc b {
+  margin: 0;
+  margin-block-end: 0.5em;
+}
+
+html[data-locale="lzh"] .content .page-toc ol {
+  padding: 0;
+  padding-block-start: 1.3em;
+}
+
+html[data-locale="lzh"] .content .page-toc li {
+  margin: 0;
+  margin-block-start: 0.35em;
+}
+
+/* —— 目錄卡、步驟、徽章 —— */
+html[data-locale="lzh"] .content .steps {
+  margin: 0;
+  margin-block-start: 1.2em;
+}
+
+html[data-locale="lzh"] .content .step {
+  border: none;
+  border-block-start: 2px solid var(--border-strong);
+  padding: 0;
+  padding-block-start: 2.4em;
+  margin: 0;
+  margin-block-start: 1.1em;
+}
+
+html[data-locale="lzh"] .content .step:last-child {
+  padding-block-start: 0.5em;
+  border-block-start-color: transparent;
+}
+
+html[data-locale="lzh"] .content .step::before {
+  left: auto;
+  top: 0;
+  right: -17px;
+  border: 4px solid var(--paper);
+}
+
+html[data-locale="lzh"] .content .step h3 {
+  margin: 0;
+  margin-block-end: 0.4em;
+}
+
+/* —— 橫排之島：代碼 / 表格 / 架構圖 / 目錄卡陣 —— */
+html[data-locale="lzh"] .content pre,
+html[data-locale="lzh"] .content .code-block-wrap,
+html[data-locale="lzh"] .content .table-wrap,
+html[data-locale="lzh"] .content .arch,
+html[data-locale="lzh"] .content .code-caption,
+html[data-locale="lzh"] .content .toc-cards {
+  writing-mode: horizontal-tb;
+}
+
+html[data-locale="lzh"] .content .code-caption {
+  margin: 0;
+  margin-block-start: 1.2em;
+  margin-block-end: -0.45em;
+}
+
+html[data-locale="lzh"] .content .code-block-wrap,
+html[data-locale="lzh"] .content pre {
+  margin: 0;
+}
+
+html[data-locale="lzh"] .content pre {
+  max-height: calc(var(--lzh-line) - 72px);
+  overflow: auto;
+}
+
+html[data-locale="lzh"] .content .table-wrap {
+  margin: 0;
+  margin-block-start: 1.2em;
+  max-height: calc(var(--lzh-line) - 72px);
+  overflow: auto;
+}
+
+html[data-locale="lzh"] .content .arch {
+  margin: 0;
+  margin-block-start: 1.3em;
+  max-height: calc(var(--lzh-line) - 72px);
+  overflow: auto;
+}
+
+html[data-locale="lzh"] .content .arch-legend {
+  margin-top: 14px;
+}
+
+html[data-locale="lzh"] .content .toc-cards {
+  margin: 0;
+  margin-block-start: 1.3em;
+}
+
+/* —— 響應式 —— */
+@media (max-width: 960px) {
+  html[data-locale="lzh"] {
+    --lzh-line: min(34em, calc(100dvh - 176px));
+  }
+
+  /* 抽屜自右而啟 */
+  html[data-locale="lzh"] .sidebar {
+    left: auto;
+    right: 0;
+    transform: translateX(102%);
+  }
+
+  html[data-locale="lzh"] .sidebar.open { transform: translateX(0); }
+
+  html[data-locale="lzh"] .content {
+    padding: 20px 18px 26px 36px;
+  }
+
+  html[data-locale="lzh"] .nav a { padding: 9px 7px; }
+}
+
+@media (max-width: 560px) {
+  html[data-locale="lzh"] {
+    --lzh-line: min(27em, calc(100dvh - 176px));
+  }
+
+  html[data-locale="lzh"] .content .page-header h1 { font-size: 25px; }
+}
+
+/* —— 打印：退回橫排常式 —— */
+@media print {
+  html[data-locale="lzh"] .content {
+    writing-mode: horizontal-tb;
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    border: none;
+    padding: 0;
+    background: none;
+  }
+
+  html[data-locale="lzh"] .content pre,
+  html[data-locale="lzh"] .content .table-wrap,
+  html[data-locale="lzh"] .content .arch {
+    max-height: none;
+    overflow: visible;
+  }
+}

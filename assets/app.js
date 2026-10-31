@@ -90,6 +90,80 @@
     try { localStorage.setItem("jcm-lang", locale); } catch (e) { /* 忽略 */ }
   }
 
+  /* ---- 文言（lzh）仿古版式：去句读 ----
+     古籍本无标点，句读之学在读者。此处将正文（除代码、控件等）中的
+     现代标点剥除：两侧皆汉字（或行端）则径去；涉及拉丁字串处以空格代之，
+     免生粘连（如「ABI 11（2.3.0…）」不致并作「112.3.0」）。
+     破折号成对（——）先行处置；孤字破折号「—」者乃表中「无」之记号，易以「無」。 */
+  if (locale === "lzh") {
+    (function () {
+      var SKIP_TAGS = { PRE: 1, CODE: 1, KBD: 1, SCRIPT: 1, STYLE: 1, TEXTAREA: 1, SELECT: 1, OPTION: 1, BUTTON: 1, SVG: 1 };
+      var PUNCT_TEST = /[\u3001\u3002\uFF01\uFF0C\uFF1A\uFF1B\uFF1F\u300C\u300D\u300E\u300F\uFF08\uFF09\u2014\u2026\u00B7]/;
+      var PUNCT_ALL = /[\u3001\u3002\uFF01\uFF0C\uFF1A\uFF1B\uFF1F\u300C\u300D\u300E\u300F\uFF08\uFF09\u2026\u00B7]/g;
+      var CJK = /[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF\u3005]/;
+      var CJK_GAP = /([\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF]) +(?=[\u3400-\u4DBF\u4E00-\u9FFF\uF900-\uFAFF])/g;
+
+      function isCjk(c) { return !!c && CJK.test(c); }
+      function edgeOrCjk(c) { return c === "" || isCjk(c); }
+
+      /* 依原文邻字断去留：两側皆汉字或行端则径去，否则以空格代之 */
+      function repl(orig, off, len) {
+        var p = orig.charAt(off - 1);
+        var n = orig.charAt(off + len);
+        return (edgeOrCjk(p) && edgeOrCjk(n)) ? "" : " ";
+      }
+
+      function stripPunct(s) {
+        if (!PUNCT_TEST.test(s)) return s;
+        if (s.replace(/^\s+|\s+$/g, "") === "\u2014") return "\u7121";  /* 孤「—」者，无之记也 */
+        s = s.replace(/\u2014\u2014/g, function (m, off, orig) { return repl(orig, off, 2); });
+        s = s.replace(/\u2014/g, function (m, off, orig) { return repl(orig, off, 1); });
+        s = s.replace(PUNCT_ALL, function (m, off, orig) { return repl(orig, off, 1); });
+        s = s.replace(/\s+/g, " ");
+        s = s.replace(CJK_GAP, "$1");
+        return s;
+      }
+
+      function skipped(node) {
+        for (var p = node.parentNode; p && p !== document.body; p = p.parentNode) {
+          if (SKIP_TAGS[p.nodeName]) return true;
+        }
+        return false;
+      }
+
+      if (document.body && document.createTreeWalker) {
+        var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        while ((node = walker.nextNode())) {
+          var val = node.nodeValue;
+          if (!val || !val.trim() || skipped(node) || !PUNCT_TEST.test(val)) continue;
+          var out = stripPunct(val);
+          if (out !== val) node.nodeValue = out;
+        }
+      }
+    })();
+  }
+
+  /* ---- 文言（lzh）仿古版式：卷面横滚 ----
+     正文既为竖排右起之卷面，纵向滚轮转译为向左展卷（阅读方向）；
+     触控板原生横滚（deltaX）不受干扰。 */
+  if (locale === "lzh") {
+    var lzhSurf = document.querySelector(".content");
+    var lzhMain = document.querySelector(".main");
+    if (lzhSurf && lzhMain && lzhSurf.addEventListener) {
+      lzhMain.addEventListener("wheel", function (e) {
+        if (e.deltaMode !== 0 && e.deltaMode !== 1) return;
+        var dy = e.deltaY * (e.deltaMode === 1 ? 34 : 1);
+        var dx = e.deltaX;
+        if (!dy || Math.abs(dx) >= Math.abs(dy)) return;
+        if (lzhSurf.scrollWidth - lzhSurf.clientWidth <= 1) return;
+        var before = lzhSurf.scrollLeft;
+        lzhSurf.scrollLeft = before - dy;
+        if (lzhSurf.scrollLeft !== before) e.preventDefault();
+      }, { passive: false });
+    }
+  }
+
   var select = document.querySelector(".lang-select");
   if (select) {
     LOCALES.forEach(function (l) {
@@ -178,7 +252,9 @@
       }
     });
 
-    /* 触屏：向左滑动关闭抽屉（跟手位移，超过 70px 关闭，纵向滚动不干扰） */
+    /* 触屏：向抽屉外侧滑动关闭（跟手位移，超过 70px 关闭，纵向滚动不干扰）。
+       文言（lzh）抽屉居右，改为右滑关闭 */
+    var rtlDrawer = locale === "lzh";
     var sx = null, sy = 0, dx = 0, dragging = false;
 
     sidebar.addEventListener("touchstart", function (e) {
@@ -203,7 +279,7 @@
         }
       }
       if (dragging) {
-        dx = Math.min(0, mx);
+        dx = rtlDrawer ? Math.max(0, mx) : Math.min(0, mx);
         sidebar.style.transform = "translateX(" + dx + "px)";
       }
     }, { passive: true });
@@ -214,7 +290,7 @@
       sidebar.style.transform = "";
       dragging = false;
       sx = null;
-      if (dx < -70) closeDrawer();
+      if (rtlDrawer ? dx > 70 : dx < -70) closeDrawer();
     }
 
     sidebar.addEventListener("touchend", endSwipe, { passive: true });
