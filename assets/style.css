@@ -1205,7 +1205,9 @@ td code {
    僅作用於 html[data-locale="lzh"]，其他語言版面一仍其舊：
    豎排右起（vertical-rl）、句讀悉去（app.js 剝除標點）、
    仿宋字體、宣紙墨色、上下界框、題籤朱印、着重圓點；
-   代碼 / 表格 / 架構圖仍作橫排「插圖之島」以保可用。
+   表格／架構圖化為「箋條」（app.js 轉說文體例），
+   全卷文字皆豎；惟代碼之「箋」（符號非文字，豎排即毀）
+   仍作橫排插頁，以保可用。
    ================================================================ */
 
 /* —— 色彩：宣紙 · 墨 · 朱（晝） —— */
@@ -1615,22 +1617,146 @@ html[data-locale="lzh"] .content .step h3 {
   margin-block-end: 0.4em;
 }
 
-/* —— 橫排之島：代碼 / 表格 / 架構圖 / 目錄卡陣 —— */
-html[data-locale="lzh"] .content pre,
-html[data-locale="lzh"] .content .code-block-wrap,
-html[data-locale="lzh"] .content .table-wrap,
-html[data-locale="lzh"] .content .arch,
-html[data-locale="lzh"] .content .code-caption,
+/* —— 箋條（表之古式）：連續豎排條目，右起左行，滿欄復起於左 ——
+   由 app.js 就每表生成：表目（欄名小字）＋條目（天干朱印＋朱文頭詞＋釋義） */
+html[data-locale="lzh"] .content .lzh-tlist {
+  display: block;
+  height: calc(var(--lzh-line) - 68px);
+  margin: 0;
+  margin-block-start: 1.2em;
+  line-height: 1.9;
+}
+
+/* 表目：欄名小字一行，朱點相隔（偽元素作點，去句讀所不能剝） */
+html[data-locale="lzh"] .content .lzh-thead {
+  font-size: 0.68em;
+  color: var(--faint);
+  letter-spacing: 0.12em;
+  margin-inline-end: 1em;
+}
+
+html[data-locale="lzh"] .content .lzh-thd-sep {
+  color: var(--accent);
+  padding-inline: 0.3em;
+}
+
+html[data-locale="lzh"] .content .lzh-thd-sep::before { content: "·"; }
+
+html[data-locale="lzh"] .content .lzh-trow {
+  margin-inline-start: 0.55em;   /* 與前條之隙（居其上端） */
+}
+
+/* 天干朱印：甲乙丙丁……周而復始 */
+html[data-locale="lzh"] .content .lzh-tmark {
+  display: inline-block;
+  background: #a2372b;
+  color: #f6efdd;
+  font-size: 0.62em;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.08em;
+  padding: 0.34em 0.16em;
+  border-radius: 2px;
+  margin-inline-end: 0.4em;
+  box-shadow: inset 0 0 0 1px rgba(246, 239, 221, 0.35);
+  vertical-align: middle;
+}
+
+/* 頭詞：朱文（字典之體） */
+html[data-locale="lzh"] .content .lzh-thw {
+  color: var(--accent-strong);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+html[data-locale="lzh"] .content .lzh-thw code,
+html[data-locale="lzh"] .content .lzh-tval code,
+html[data-locale="lzh"] .content .lzh-tdef code { letter-spacing: 0; }
+
+/* 欄目標：批註小籤（三欄以上之表中間欄用之） */
+html[data-locale="lzh"] .content .lzh-tlabel {
+  display: inline-block;
+  font-size: 0.6em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  border-radius: 2px;
+  padding: 0.22em 0.1em;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  margin-inline: 0.32em;
+  vertical-align: middle;
+}
+
+html[data-locale="lzh"] .content .lzh-tdef { margin-inline-start: 0.3em; }
+
+/* 脈絡條列：架構圖之古式，頭詞依節點而設色 */
+html[data-locale="lzh"] .content .lzh-trow.lzh-transport .lzh-thw { color: var(--info); }
+html[data-locale="lzh"] .content .lzh-trow.lzh-native .lzh-thw { color: var(--warn-strong); }
+
+/* 按語：圖例之古式 */
+html[data-locale="lzh"] .content .lzh-anno {
+  display: block;
+  margin: 0;
+  margin-block-start: 0.9em;
+  font-size: 0.82em;
+  color: var(--muted);
+  line-height: 2;
+}
+
+html[data-locale="lzh"] .content .lzh-anno::before {
+  content: "按";
+  display: inline-block;
+  background: #a2372b;
+  color: #f6efdd;
+  font-size: 0.8em;
+  font-weight: 600;
+  line-height: 1.35;
+  padding: 0.32em 0.14em;
+  border-radius: 2px;
+  margin-inline-end: 0.45em;
+  box-shadow: inset 0 0 0 1px rgba(246, 239, 221, 0.35);
+  vertical-align: middle;
+}
+
+/* —— 目錄卡：豎排界行，卡作全欄之籤，自右而左魚貫 —— */
 html[data-locale="lzh"] .content .toc-cards {
+  display: block;
+  height: calc(var(--lzh-line) - 68px);
+  margin: 0;
+  margin-block-start: 1.3em;
+}
+
+html[data-locale="lzh"] .content .toc-card {
+  display: inline-block;
+  height: 100%;
+  margin-inline-end: 0.9em;
+  padding: 10px 12px;
+}
+
+html[data-locale="lzh"] .content .toc-card b {
+  margin: 0;
+  margin-block-end: 0.4em;
+  color: var(--accent-strong);
+}
+
+/* —— 代碼題註：豎排題籤，居「箋」之右 —— */
+html[data-locale="lzh"] .content .code-caption {
+  display: block;
+  margin: 0;
+  margin-block-start: 1.2em;
+  margin-block-end: -0.4em;
+  font-size: 0.82em;
+  color: var(--muted);
+}
+
+/* —— 橫排之「箋」：惟代碼一物（符號非文字，豎排即毀）——
+   雙線界框如夾頁之狀；上限行高，內滥 */
+html[data-locale="lzh"] .content pre,
+html[data-locale="lzh"] .content .code-block-wrap {
   writing-mode: horizontal-tb;
 }
 
-html[data-locale="lzh"] .content .code-caption {
-  margin: 0;
-  margin-block-start: 1.2em;
-  margin-block-end: -0.45em;
-}
-
 html[data-locale="lzh"] .content .code-block-wrap,
 html[data-locale="lzh"] .content pre {
   margin: 0;
@@ -1639,29 +1765,49 @@ html[data-locale="lzh"] .content pre {
 html[data-locale="lzh"] .content pre {
   max-height: calc(var(--lzh-line) - 72px);
   overflow: auto;
+  border: 1px solid var(--border-strong);
+  outline: 1px solid var(--border);
+  outline-offset: 3px;
 }
 
-html[data-locale="lzh"] .content .table-wrap {
+/* —— 步驟：漢字朱印序數（一二三……），仿古印之方 —— */
+html[data-locale="lzh"] .content .step::before {
+  left: auto;
+  top: 0;
+  right: -17px;
+  border: 4px solid var(--paper);
+  content: counter(step, cjk-ideographic);
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+html[data-locale="lzh"] .content .step h3 {
   margin: 0;
-  margin-block-start: 1.2em;
-  max-height: calc(var(--lzh-line) - 72px);
-  overflow: auto;
+  margin-block-end: 0.4em;
 }
 
-html[data-locale="lzh"] .content .arch {
-  margin: 0;
-  margin-block-start: 1.3em;
-  max-height: calc(var(--lzh-line) - 72px);
-  overflow: auto;
+/* —— 徽章：圓角改方，以合古式 —— */
+html[data-locale="lzh"] .content .pill {
+  border-radius: 3px;
+  padding: 0.05em 0.28em;
+  letter-spacing: 0.08em;
 }
 
-html[data-locale="lzh"] .content .arch-legend {
-  margin-top: 14px;
+/* —— 側欄主題之鈕：文字豎排 —— */
+html[data-locale="lzh"] .sidebar-settings .theme-label {
+  writing-mode: vertical-rl;
+  letter-spacing: 0.1em;
 }
 
-html[data-locale="lzh"] .content .toc-cards {
-  margin: 0;
-  margin-block-start: 1.3em;
+/* —— 頁腳牌記：豎排右起 —— */
+html[data-locale="lzh"] .footer {
+  writing-mode: vertical-rl;
+  height: 8.6em;
+  padding: 16px 38px 14px 46px;
+  line-height: 2;
 }
 
 /* —— 響應式 —— */
@@ -1684,6 +1830,20 @@ html[data-locale="lzh"] .content .toc-cards {
   }
 
   html[data-locale="lzh"] .nav a { padding: 9px 7px; }
+
+  /* 頂欄：題目與目錄之鈕豎排，如題籤 */
+  html[data-locale="lzh"] .topbar .title {
+    writing-mode: vertical-rl;
+    white-space: normal;
+    max-height: 3.1em;
+    line-height: 1.3;
+  }
+
+  html[data-locale="lzh"] .topbar .menu-btn {
+    writing-mode: vertical-rl;
+    padding: 5px 8px;
+    line-height: 1.3;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1707,9 +1867,21 @@ html[data-locale="lzh"] .content .toc-cards {
   }
 
   html[data-locale="lzh"] .content pre,
-  html[data-locale="lzh"] .content .table-wrap,
-  html[data-locale="lzh"] .content .arch {
+  html[data-locale="lzh"] .content .lzh-tlist,
+  html[data-locale="lzh"] .content .toc-cards,
+  html[data-locale="lzh"] .footer,
+  html[data-locale="lzh"] .topbar .title,
+  html[data-locale="lzh"] .topbar .menu-btn,
+  html[data-locale="lzh"] .sidebar-settings .theme-label {
+    writing-mode: horizontal-tb;
+    height: auto;
     max-height: none;
     overflow: visible;
   }
+
+  html[data-locale="lzh"] .content pre { overflow: auto; }
+
+  html[data-locale="lzh"] .content .lzh-trow { display: block; margin: 4px 0; }
+  html[data-locale="lzh"] .content .lzh-thead { display: block; margin: 0 0 4px; }
+  html[data-locale="lzh"] .content .toc-card { display: block; margin: 6px 0; }
 }

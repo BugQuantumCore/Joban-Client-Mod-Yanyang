@@ -90,6 +90,101 @@
     try { localStorage.setItem("jcm-lang", locale); } catch (e) { /* 忽略 */ }
   }
 
+  /* ---- 文言（lzh）仿古版式：表格 / 架构图 → 笺条 ----
+     古籍无表，故以「说文体例」代之：每表化作连续竖排之条目流——
+     卷首小字列其栏名（表目），每行先之以天干朱印（甲乙丙…周而复始），
+     继以朱文头词（字典之体），再缀释义；三栏以上者，中间各栏
+     前置小字朱框之标签（批注小签），两栏者循字典体例直承释义。
+     架构图亦化为条列，箭头弃之（天干序数自明先后），图例作「按语」。
+     代码块内之 <br> 易以空格，免生突兀之断栏。 */
+  if (locale === "lzh") {
+    (function () {
+      var STEM = "甲乙丙丁戊己庚辛壬癸";
+
+      function el(tag, cls, text) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text != null) n.textContent = text;
+        return n;
+      }
+
+      /* 单元格内容 → run：保留 code / 链接 / 徽章；softBr 则 <br> 易以空格 */
+      function cellRun(cell, cls, softBr) {
+        var run = el("span", cls);
+        Array.prototype.slice.call(cell.childNodes).forEach(function (n) {
+          run.appendChild(softBr && n.nodeName === "BR"
+            ? document.createTextNode(" ")
+            : n.cloneNode(true));
+        });
+        return run;
+      }
+
+      /* 表目：栏名小签一行，朱点相隔（伪元素作点，不为去句读所剥） */
+      function headRun(labels) {
+        var run = el("span", "lzh-thead");
+        labels.forEach(function (lb, i) {
+          if (i) run.appendChild(el("span", "lzh-thd-sep"));
+          var item = el("span", "lzh-thd-item");
+          item.textContent = lb;
+          run.appendChild(item);
+        });
+        return run;
+      }
+
+      document.querySelectorAll(".content table").forEach(function (table) {
+        var head = [];
+        table.querySelectorAll("thead th").forEach(function (th) {
+          head.push((th.textContent || "").replace(/\s+/g, ""));
+        });
+        var rows = table.querySelectorAll("tbody tr");
+        if (!rows.length) return;
+
+        var list = el("div", "lzh-tlist");
+        if (head.length) list.appendChild(headRun(head));
+        var multi = head.length >= 3;
+
+        rows.forEach(function (tr, idx) {
+          var cells = tr.querySelectorAll("td");
+          if (!cells.length) return;
+          var row = el("span", "lzh-trow");
+          row.appendChild(el("b", "lzh-tmark", STEM.charAt(idx % 10)));
+          row.appendChild(cellRun(cells[0], "lzh-thw"));
+          for (var i = 1; i < cells.length; i++) {
+            if (multi && head[i]) row.appendChild(el("span", "lzh-tlabel", head[i]));
+            row.appendChild(cellRun(cells[i], multi ? "lzh-tval" : "lzh-tdef"));
+          }
+          list.appendChild(row);
+        });
+
+        table.parentNode.replaceChild(list, table);
+      });
+
+      document.querySelectorAll(".content .arch").forEach(function (arch) {
+        var list = el("div", "lzh-tlist");
+        var legend = arch.querySelector(".arch-legend");
+        var idx = 0;
+        arch.querySelectorAll(".arch-node").forEach(function (node) {
+          var row = el("span", "lzh-trow");
+          if (node.classList.contains("host")) row.className += " lzh-host";
+          else if (node.classList.contains("transport")) row.className += " lzh-transport";
+          else if (node.classList.contains("native")) row.className += " lzh-native";
+          row.appendChild(el("b", "lzh-tmark", STEM.charAt(idx++ % 10)));
+          var h = node.querySelector("b");
+          var d = node.querySelector("span");
+          if (h) row.appendChild(cellRun(h, "lzh-thw", true));
+          if (d) row.appendChild(cellRun(d, "lzh-tdef", true));
+          list.appendChild(row);
+        });
+        if (legend) {
+          var anno = el("span", "lzh-anno");
+          while (legend.firstChild) anno.appendChild(legend.firstChild);
+          list.appendChild(anno);
+        }
+        arch.parentNode.replaceChild(list, arch);
+      });
+    })();
+  }
+
   /* ---- 文言（lzh）仿古版式：去句读 ----
      古籍本无标点，句读之学在读者。此处将正文（除代码、控件等）中的
      现代标点剥除：两侧皆汉字（或行端）则径去；涉及拉丁字串处以空格代之，
