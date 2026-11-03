@@ -1,6 +1,5 @@
 package com.lx862.jcm.mod.render.block;
 
-import com.lx862.jcm.mod.block.entity.LCDPIDSBlockEntity;
 import com.lx862.jcm.mod.block.entity.PIDS1ABlockEntity;
 import com.lx862.jcm.mod.data.pids.PIDSManager;
 import com.lx862.jcm.mod.data.pids.preset.PIDSPresetBase;

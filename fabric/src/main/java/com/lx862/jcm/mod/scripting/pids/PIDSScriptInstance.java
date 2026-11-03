@@ -1,7 +1,6 @@
 package com.lx862.jcm.mod.scripting.pids;
 
 import com.lx862.jcm.mod.block.entity.PIDSBlockEntity;
-import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.integration.MinecraftClientWrapper;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
