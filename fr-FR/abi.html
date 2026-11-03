@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -80,7 +80,7 @@
     <table>
       <thead><tr><th>Exportation</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>retourne la version d’ABI de compilation (actuellement 12) ; l’hôte refuse les versions incompatibles — même politique de rechargement sur différence de version que JCM applique aux scripts JS</td></tr>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>retourne la version d’ABI de compilation (actuellement 13) ; l’hôte refuse les versions incompatibles — même politique de rechargement sur différence de version que JCM applique aux scripts JS</td></tr>
         <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code></td></tr>
         <tr><td><code>const char* mtrScriptId()</code></td><td>id du script (doit correspondre à la déclaration du pack de ressources)</td></tr>
         <tr><td><code>size_t mtrStateSize()</code></td><td>taille du bloc d’état par instance ; l’hôte en alloue un par instance</td></tr>
@@ -149,7 +149,7 @@
     </table>
 
     <h2 id="history">Évolution des versions d’ABI</h2>
-    <p>L’hôte accepte les modules <strong>ABI 6–12</strong> (chacun est alimenté selon la disposition de son époque et rapporte son propre numéro d’ABI). Compiler avec le SDK actuel produit des modules ABI 12 :</p>
+    <p>L’hôte accepte les modules <strong>ABI 6–13</strong> (chacun est alimenté selon la disposition de son époque et rapporte son propre numéro d’ABI). Compiler avec le SDK actuel produit des modules ABI 13 :</p>
     <table>
       <thead><tr><th>ABI</th><th>Apports</th></tr></thead>
       <tbody>
@@ -160,6 +160,7 @@
         <tr><td>10</td><td>crochet de récupération différée <code>defer_free</code> (libération hors des threads JVM des gros tampons appartenant au script)</td></tr>
         <tr><td>11</td><td><code>door_direction</code> sur l’instantané véhicule (sens d’ouverture des portes 0..3 — l’ancien octet <code>_pad0</code> promu sur place ; disposition et taille inchangées, les anciens modules continuent de fonctionner)</td></tr>
         <tr><td>12</td><td><code>MTR_RESOURCE_PSD</code> (le 5ᵉ type de script) et les instantanés <code>JcmPsdSnapshot</code> / <code>JcmPsdArrival</code> / <code>JcmPsdRoute</code> / <code>JcmPsdDoor</code> — purement additif, aucune structure existante modifiée ; <strong>les modules ABI 12 exigent un hôte Yanyang hotfix.2+</strong></td></tr>
+        <tr><td>13</td><td><code>JcmPsdSnapshot.station_offset</code> (décalage d’octet 124 ; <code>-1</code> = aucun — le champ était du remplissage en ABI 12) et l’enregistrement de 96 octets <code>JcmPsdStation</code> derrière <code>psd.stop()</code> / <code>mtr::Psd::stop()</code> : nom de la gare, couleur (ARGB + hexadécimal), zones tarifaires 1–3, toutes les lignes desservant la gare, groupes de lignes des gares de correspondance, noms des gares physiquement connectées, sorties avec destinations, numéros de quai — purement additif, aucune structure existante modifiée ; <strong>les modules ABI 6–12 continuent de se charger</strong></td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -180,7 +181,7 @@
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-prerelease.3-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -174,7 +174,7 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
     <p><span class="pill warn">Deprecated</span>: the direct field-reading forms (<code>eyecandy.translateX</code>, <code>eyecandy.prefabId</code>, and so on) still work.</p>
     <div class="admonition tip">
       <span class="admonition-title">Example: looping music that dims on right-click</span>
-      <p>Attach looping music with <code>TickableSoundInstance.create(...)</code> + <code>setLoopable(true)</code>, drop to <code>setSoundVolume(0.25)</code> within 5 seconds of a right-click, restore 1.0 when time is up, and <code>stop</code> in <code>dispose</code> — full code in the upstream <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds documentation</a>.</p>
+      <p>Attach looping music with <code>TickableSoundInstance.create(...)</code> + <code>setRepeatable(true)</code> + <code>play()</code>, drop to <code>setSoundVolume(0.25)</code> within 5 seconds of a right-click, restore 1.0 when time is up, and <code>stop</code> in <code>dispose</code> — full code in the upstream <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds documentation</a>.</p>
     </div>
 
     <h2 id="lift">Lift scripts</h2>
@@ -214,6 +214,7 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
         }
     ]
 }</code></pre>
+    <p>The preset field <code>outOfBound: boolean</code> (upstream v2.3.0-prerelease.3) keeps the preset rendering when the screen leaves the camera's bounds — needed for projector presets (<code>pids_projector</code>) that must keep running constantly.</p>
     <p>What you draw on a PIDS is <strong>polygons in the world</strong>, not a 2D canvas — elements can spill past the screen's bounds, and clipping to the screen is the script's own responsibility (when you truly need complex clipping / image processing, draw into a <code>GraphicsTexture</code> and blit it). <strong>Draw order is z-order</strong>: later draws cover earlier ones; by default each draw steps a tiny amount (<code>0.0002</code>) along z to prevent z-fighting, which you can disable with <code>ctx.setAutoZOrdering(false)</code> and manage manually via <code>zOrder()</code> (<code>ctx.setZOrderStep(m)</code> adjusts the step).</p>
     <h3>PIDSScriptContext (ctx) and PIDSBlockEntity (pids)</h3>
     <p><code>ctx.getRenderManager()</code> / <code>ctx.getSoundManager()</code> (base = the block position) · <code>ctx.setAutoZOrdering(b)</code> · <code>ctx.setZOrderStep(m)</code> · <code>ctx.setDebugInfo(...)</code>.</p>
@@ -229,7 +230,7 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
       </tbody>
     </table>
     <h3>ArrivalEntries and ArrivalEntry</h3>
-    <p><code>ArrivalEntries</code>: <code>get(i): ArrivalEntry?</code> (at most 10 arrivals per platform) · <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code> (iterates entry by entry, sparing you manual null checks).</p>
+    <p><code>ArrivalEntries</code>: <code>get(i): ArrivalEntry?</code> (at most 10 arrivals per platform) · <code>length(): int</code> (the total arrivals count, upstream v2.3.0-prerelease.3) · <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code> (iterates entry by entry, sparing you manual null checks).</p>
     <p><code>ArrivalEntry</code>: <code>destination(): String</code> · <code>arrivalTime()</code> / <code>departureTime()</code> (Unix milliseconds; <code>new Date(v)</code> makes a JS date) · <code>arrived()</code> / <code>departed()</code> · <code>deviation(): long</code> (relative to schedule: positive = late, negative = early) · <code>realtime(): boolean</code> (scheduled or extrapolated in real time) · <code>departureIndex(): long</code> · <code>terminating(): boolean</code> (terminates here) · <code>route(): SimplifiedRoute?</code> / <code>routeId()</code> / <code>routeName()</code> / <code>routeNumber()</code> / <code>routeColor()</code> / <code>circularState()</code> · <code>platform(): Platform?</code> / <code>platformId()</code> / <code>platformName()</code> · <code>carCount()</code> / <code>cars(): List&lt;CarDetails&gt;</code>.</p>
     <h3>Text / Texture / Rect (the drawing trio)</h3>
     <p>All three are fluent objects — <em>create → configure via chaining → <code>draw(ctx)</code></em>; <code>Rect</code> is a <code>Texture</code> with the texture hardcoded to a plain white PNG:</p>
@@ -274,7 +275,7 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
 ]</code></pre>
     <p>In game, use the new <strong>PSD Script Editor</strong> item (in the same creative tab as MTR's brush): right-click any PSD glass (including glass ends and half-height APG gates — MTR, Tianjin Metro and every addon building on MTR's PSD classes) or psd_top block and pick either an entry of the matching type <strong>or any scripted PIDS preset</strong> (PIDS scripts run unchanged; the canvas adapts to the PSD surface). "No script" removes the binding. Bindings live on the server and sync to every player in the dimension.</p>
     <ul>
-      <li><strong>Glass</strong> becomes opaque white with the script's dynamic texture on top (both faces, track side mirrored; APG upper halves adapt to the 9-px gate height). Canvas 96×96 (APG upper 96×54).</li>
+      <li><strong>Glass</strong> becomes opaque white with the script's dynamic texture on top — the dynamic texture shows on the <strong>platform side only</strong>; the track side (what riders see from inside a train) stays plain white (APG upper halves adapt to the 9-px gate height). Canvas 96×96 (APG upper 96×54).</li>
       <li><strong>Top panels</strong> stop showing the built-in arrow / route strip — the script fully controls the content. Canvas 78×42.</li>
     </ul>
     <p>Drawing is identical to PIDS scripts (<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>; the canvas origin is the top-left of the visible face). The data API (JS <code>psd</code> argument / C++ <code>mtr::Psd</code>; full accessors in <a href="data.html#psd">Data snapshots · Psd</a>):</p>
@@ -285,10 +286,11 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
         <tr><td><code>psd.platform()</code></td><td>Platform: number / name (<code>number()</code> / <code>name()</code>), station, dwell time</td></tr>
         <tr><td><code>psd.routes()</code></td><td>Every route calling at the platform; with <code>dataFetchMode: "ALL"</code> each carries its full stop list (interchanges / exits)</td></tr>
         <tr><td><code>psd.arrivals()</code></td><td>Upcoming trains: destination, route, car count, countdown (<code>arrivalCountdown()</code>), the <strong>door numbers that will open</strong> (<code>doorNumbers()</code>), realtime / terminating / circular state</td></tr>
+        <tr><td><code>psd.stop()</code></td><td>Complete station info (ABI 13): name, color (ARGB + hex), fare zones 1–3, every route calling at the station, connecting-station routes (grouped by station name), physically connected station names, exits with destinations, platform numbers + count — <code>null</code> when there is no platform / station. C++ counterpart: <code>has_station()</code> + the <code>mtr::PsdStation</code> accessors (see <a href="data.html#psd">Data snapshots · Psd</a>)</td></tr>
         <tr><td><code>psd.doors()</code> / <code>psd.doorValue()</code> / <code>psd.isDoorOpen()</code></td><td>Door unit list (1-based, live open / locked states) and the wall-wide open amount</td></tr>
       </tbody>
     </table>
-    <p>On the C++ side this is the fifth script base class <code>mtr::PsdScript&lt;State&gt;</code> (<code>MTR_REGISTER_PSD_SCRIPT</code>) with the <code>JcmPsdSnapshot</code> snapshot (ABI 12); see <code>native/examples/psd_glass.cpp</code>.</p>
+    <p>On the C++ side this is the fifth script base class <code>mtr::PsdScript&lt;State&gt;</code> (<code>MTR_REGISTER_PSD_SCRIPT</code>) with the <code>JcmPsdSnapshot</code> snapshot (ABI 12; station entries since ABI 13); see <code>native/examples/psd_glass.cpp</code>.</p>
 
     <h2 id="displayhelper">DisplayHelper (the built-in multi-screen helper)</h2>
     <p>A ready-made solution for trains with many screens: after <code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> —</p>
@@ -337,7 +339,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">JS Common APIs</a>
       <a href="js-yanyang.html">Yanyang Extensions</a>
     </div>
-    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-prerelease.3-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

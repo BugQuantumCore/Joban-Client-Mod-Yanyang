@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -80,7 +80,7 @@
     <table>
       <thead><tr><th>Export</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>Returns the ABI version it was compiled against (currently 12); the host rejects incompatible versions — the same version-mismatch reload policy JCM applies to JS scripts</td></tr>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>Returns the ABI version it was compiled against (currently 13); the host rejects incompatible versions — the same version-mismatch reload policy JCM applies to JS scripts</td></tr>
         <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code></td></tr>
         <tr><td><code>const char* mtrScriptId()</code></td><td>The script id (must match the resource pack declaration)</td></tr>
         <tr><td><code>size_t mtrStateSize()</code></td><td>Per-instance state block size; the host allocates one block per instance</td></tr>
@@ -149,7 +149,7 @@
     </table>
 
     <h2 id="history">ABI version history</h2>
-    <p>The host accepts <strong>ABI 6–12</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 12:</p>
+    <p>The host accepts <strong>ABI 6–13</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 13:</p>
     <table>
       <thead><tr><th>ABI</th><th>What it introduced</th></tr></thead>
       <tbody>
@@ -160,6 +160,7 @@
         <tr><td>10</td><td>The <code>defer_free</code> deferred-reclamation hook (freeing the script's own large buffers off the JVM threads)</td></tr>
         <tr><td>11</td><td><code>door_direction</code> on the vehicle snapshot (door-opening side 0..3 — the former <code>_pad0</code> byte promoted in place; layout and size unchanged, older modules keep working)</td></tr>
         <tr><td>12</td><td><code>MTR_RESOURCE_PSD</code> (the 5th script kind) and the <code>JcmPsdSnapshot</code> / <code>JcmPsdArrival</code> / <code>JcmPsdRoute</code> / <code>JcmPsdDoor</code> snapshots — purely additive, every pre-existing struct unchanged; <strong>ABI 12 modules need a Yanyang hotfix.2+ host</strong></td></tr>
+        <tr><td>13</td><td><code>JcmPsdSnapshot.station_offset</code> (byte offset 124; <code>-1</code> = none — the field was padding in ABI 12) and the 96-byte <code>JcmPsdStation</code> record behind <code>psd.stop()</code> / <code>mtr::Psd::stop()</code>: station name, color (ARGB + hex), fare zones 1–3, every route calling at the station, connecting-station route groups, physically connected station names, exits with destinations, platform numbers — purely additive, every pre-existing struct unchanged; <strong>ABI 6–12 modules keep loading</strong></td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -180,7 +181,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 13 (2.3.0-prerelease.3-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -47,8 +47,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -157,7 +157,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
         <tr><td>Minecraft</td><td>1.17.1 – 1.20.4（Fabric / Forge）</td></tr>
         <tr><td>前置</td><td>Minecraft Transit Railway 4.0.5+（必需）；Fabric 版另需 Fabric API</td></tr>
         <tr><td>Java</td><td>16 及其上；22+ 則自啟全程零 JNI 之 FFM 平面</td></tr>
-        <tr><td>ABI</td><td>宿主所受，ABI 6–11 之模塊；今 SDK 所編出者，ABI 11 也</td></tr>
+        <tr><td>ABI</td><td>宿主所受，ABI 6–13 之模塊；今 SDK 所編出者，ABI 13 也</td></tr>
         <tr><td>工具鏈</td><td>C++17；MSVC / GCC / Clang；CMake ≥ 3.16（薦）</td></tr>
       </tbody>
     </table>
@@ -166,7 +166,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
     <div class="toc-cards">
       <a class="toc-card" href="getting-started.html"><b>入門</b><span>取 SDK、立工程、編首模塊、納諸資源包</span></a>
       <a class="toc-card" href="script-model.html"><b>腳本體例與生命週期</b><span>五類腳本之基類、State 之義、create / render / dispose 之序，暨線程與崩潰隔離</span></a>
-      <a class="toc-card" href="data.html"><b>數據快照</b><span>Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 諸訪問器之全備覽</span></a>
+      <a class="toc-card" href="data.html"><b>數據快照</b><span>Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy 諸訪問器之全備覽</span></a>
       <a class="toc-card" href="drawing.html"><b>繪事與畫布</b><span>Text / Texture 之流式 API、Matrices、GraphicsTexture、Gfx2D 光柵器與字體之制</span></a>
       <a class="toc-card" href="java-api.html"><b>mtr::Api 與 Java 互通</b><span>JS 所得訪之公開 Java API，C++ 皆得呼之；回呼與 JS ↔ C++ 對照之表</span></a>
       <a class="toc-card" href="abi.html"><b>C ABI 與宿主服務</b><span>導出之函數、幀之出入、繪製記錄、宿主服務、ABI 版本之沿革</span></a>
@@ -184,7 +184,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

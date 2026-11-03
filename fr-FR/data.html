@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -95,7 +95,7 @@
     <div class="admonition note">
       <span class="admonition-title">Terminologie : train (MTR 3) → vehicle (MTR 4)</span>
       <p>MTR 4 désigne uniformément les véhicules par <strong>vehicle</strong> (clé de déclaration <code>vehicleScripts</code> côté pack de ressources, <code>VehicleWrapper</code> côté Java) ; la classe d’enveloppe de données de ce SDK est donc nommée <code>mtr::Vehicle</code>. Les versions antérieures du SDK la nommaient <code>mtr::Train</code>, selon l’usage de MTR 3 ; ce nom est aujourd’hui conservé comme <strong>alias de compatibilité source</strong> — les deux écritures compilent et se comportent strictement de la même façon.</p>
-    <p>Remarque : le nom <code>mtr::Vehicle</code> est présent dans les sources du SDK du dépôt et sera livré avec le zip de la prochaine version ; si votre projet utilise le zip du SDK 2.3.0-prerelease.2-yanyang.1 (ou antérieur), référencez cette classe par <code>mtr::Train</code> (les deux graphies compilent avec le nouveau SDK).</p></div>
+    <p>Remarque : le nom <code>mtr::Vehicle</code> est présent dans les sources du SDK du dépôt et sera livré avec le zip de la prochaine version ; si votre projet utilise le zip du SDK 2.3.0-prerelease.3-yanyang.1 (ou antérieur), référencez cette classe par <code>mtr::Train</code> (les deux graphies compilent avec le nouveau SDK).</p></div>
     <p>Fourni par <code>mtr::Vehicle</code>, miroir des <code>VehicleWrapper</code> + <code>NTETrainWrapper</code> de JS :</p>
     <table>
       <thead><tr><th>Accesseur</th><th>Type</th><th>Description</th></tr></thead>
@@ -219,6 +219,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code> : les unités de porte (voir ci-dessous)</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code> : les trains à venir (voir ci-dessous)</td></tr>
         <tr><td><code>routes()</code></td><td><code>PsdRouteList</code> : les lignes desservant le quai (voir ci-dessous ; listes de stations uniquement avec <code>dataFetchMode: "ALL"</code>)</td></tr>
+        <tr><td><code>stop()</code> / <code>has_station()</code></td><td>Renseignements complets sur la gare desservie (ABI 13) : accesseurs <code>mtr::PsdStation</code> ci-dessous ; <code>has_station()</code> vaut faux (et <code>stop()</code> est vide) quand le mur n’a ni quai ni gare</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>Horloges (décalage serveur corrigé)</td></tr>
       </tbody>
     </table>
@@ -250,6 +251,23 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code> : les arrêts dans l’ordre, avec la même disposition que le <code>Stop</code> véhicule (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — voir <a href="#stop">Stop / correspondances / sorties</a>)</td></tr>
       </tbody>
     </table>
+
+    <h3>PsdStation (l’enregistrement de gare, ABI 13)</h3>
+    <p><code>JcmPsdSnapshot.station_offset</code> (décalage d’octet 124 ; <code>-1</code> = pas de gare — le champ était du remplissage en ABI 12) pointe l’enregistrement <code>JcmPsdStation</code> de 96 octets — les mêmes données que l’objet JS <code>psd.stop()</code> :</p>
+    <table>
+      <thead><tr><th>Champ</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>station_id</code> / <code>name</code></td><td>Id et nom de la gare</td></tr>
+        <tr><td><code>color</code> / <code>color_hex</code></td><td>Couleur de la gare — entier ARGB et chaîne <code>#RRGGBB</code></td></tr>
+        <tr><td><code>zone1</code> / <code>zone2</code> / <code>zone3</code></td><td>Zones tarifaires 1–3</td></tr>
+        <tr><td><code>interchanges</code></td><td>Lignes de correspondance : route_id / color / name / transport_mode / type</td></tr>
+        <tr><td><code>connecting_groups</code></td><td>Lignes des gares de correspondance regroupées par nom de gare (chaque groupe = le nom de la gare + ses lignes)</td></tr>
+        <tr><td><code>connected_station_names</code></td><td>Noms des gares physiquement connectées</td></tr>
+        <tr><td><code>exits</code></td><td>Sorties : nom + destinations</td></tr>
+        <tr><td><code>platform_numbers</code></td><td>Les numéros de quai de la gare (le côté JS ajoute le nombre)</td></tr>
+      </tbody>
+    </table>
+    <p>ABI 12 → 13 est purement additif (un champ de remplissage promu en place, aucune structure existante modifiée) : <strong>les modules ABI 6–12 continuent de se charger</strong>.</p>
 
     <h2 id="lift">Lift (ascenseur)</h2>
     <p><code>mtr::Lift</code> (combinaison instantané + enveloppe Java ; partie instantané) :</p>
@@ -340,7 +358,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* animation d’arri
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-prerelease.3-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

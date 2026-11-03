@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -174,7 +174,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
     <p><span class="pill warn">已棄用</span>：欄位直讀形式（<code>eyecandy.translateX</code>、<code>eyecandy.prefabId</code> 等）仍可用。</p>
     <div class="admonition tip">
       <span class="admonition-title">範例：隨右鍵變暗的循環音樂</span>
-      <p>用 <code>TickableSoundInstance.create(...)</code> + <code>setLoopable(true)</code> 掛循環音樂，右鍵 5 秒內 <code>setSoundVolume(0.25)</code>、到時回 1.0，<code>dispose</code> 裏 <code>stop</code>——完整程式碼見上游 <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds 文件</a>。</p>
+      <p>用 <code>TickableSoundInstance.create(...)</code> + <code>setRepeatable(true)</code> + <code>play()</code> 掛循環音樂，右鍵 5 秒內 <code>setSoundVolume(0.25)</code>、到時回 1.0，<code>dispose</code> 裏 <code>stop</code>——完整程式碼見上游 <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds 文件</a>。</p>
     </div>
 
     <h2 id="lift">電梯腳本</h2>
@@ -214,6 +214,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
         }
     ]
 }</code></pre>
+    <p>預設欄位 <code>outOfBound: boolean</code>（上游 v2.3.0-prerelease.3）：螢幕移出相機視界時仍繼續渲染——投影機預設（<code>pids_projector</code>）須臾不可停者所必需。</p>
     <p>PIDS 上畫的是<strong>世界裏的多邊形</strong>，不是 2D 畫布——元素可以溢出螢幕邊界，界內裁剪是腳本自己的責任（確需複雜裁剪 / 影像處理時用 <code>GraphicsTexture</code> 畫好再貼）。<strong>繪製順序即層次</strong>：後畫的蓋先畫的；預設每次繪製沿 z 方向平移一小步（<code>0.0002</code>）防 z-fighting，可用 <code>ctx.setAutoZOrdering(false)</code> 關掉改手動 <code>zOrder()</code>（<code>ctx.setZOrderStep(m)</code> 調步長）。</p>
     <h3>PIDSScriptContext（ctx）與 PIDSBlockEntity（pids）</h3>
     <p><code>ctx.getRenderManager()</code> / <code>ctx.getSoundManager()</code>（基準 = 方塊位置）· <code>ctx.setAutoZOrdering(b)</code> · <code>ctx.setZOrderStep(m)</code> · <code>ctx.setDebugInfo(...)</code>。</p>
@@ -229,7 +230,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
       </tbody>
     </table>
     <h3>ArrivalEntries 與 ArrivalEntry</h3>
-    <p><code>ArrivalEntries</code>：<code>get(i): ArrivalEntry?</code>（每月台最多取 10 條到站）· <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code>（逐條遍歷，免手動判空）。</p>
+    <p><code>ArrivalEntries</code>：<code>get(i): ArrivalEntry?</code>（每月台最多取 10 條到站）· <code>length(): int</code>（到站總條數，上游 v2.3.0-prerelease.3）· <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code>（逐條遍歷，免手動判空）。</p>
     <p><code>ArrivalEntry</code>：<code>destination(): String</code> · <code>arrivalTime()</code> / <code>departureTime()</code>（Unix 毫秒，<code>new Date(v)</code> 轉 JS 日期）· <code>arrived()</code> / <code>departed()</code> · <code>deviation(): long</code>（相對圖定：正晚點 / 負早點）· <code>realtime(): boolean</code>（圖定 or 實時推算）· <code>departureIndex(): long</code> · <code>terminating(): boolean</code>（本站終到）· <code>route(): SimplifiedRoute?</code> / <code>routeId()</code> / <code>routeName()</code> / <code>routeNumber()</code> / <code>routeColor()</code> / <code>circularState()</code> · <code>platform(): Platform?</code> / <code>platformId()</code> / <code>platformName()</code> · <code>carCount()</code> / <code>cars(): List&lt;CarDetails&gt;</code>。</p>
     <h3>Text / Texture / Rect（繪製三件套）</h3>
     <p>三者都是「建立 → 鏈式配置 → <code>draw(ctx)</code>」的流式物件；<code>Rect</code> 等於貼圖硬編碼為純白 PNG 的 <code>Texture</code>：</p>
@@ -274,7 +275,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
 ]</code></pre>
     <p>遊戲内用新物品<strong>「屏蔽門腳本編輯器」</strong>（與 MTR 的「刷」在同一創造分類）对任意屏蔽門玻璃（含端部玻璃、半高閘門 APG 玻璃；MTR、天津地铁等一切基於 MTR PSD 類的模組）或屏蔽門頂部面板右鍵，在彈出介面中選擇該類型的條目<strong>或任一腳本化 PIDS 預設</strong>（PIDS 腳本原樣執行，畫布自動適配 PSD 表面）；「無腳本」解除綁定。綁定保存在伺服器并同步給同维度所有玩家。</p>
     <ul>
-      <li><strong>玻璃</strong>：變為不透明白色，腳本控制的動態貼圖疊加其上（正反兩面，背面鏡像；APG 上半按 9px 高度適配）。畫布 96×96（APG 上半 96×54）。</li>
+      <li><strong>玻璃</strong>：變為不透明白色，腳本控制的動態貼圖疊加其上——動態貼圖<strong>只顯示在月台側</strong>；軌道側（車內乘客所見嘅嗰一面）保持純白（APG 上半按 9px 高度適配）。畫布 96×96（APG 上半 96×54）。</li>
       <li><strong>頂部面板</strong>：不再顯示原有箭头 / 線路圖，顯示內容完全由腳本控制。畫布 78×42。</li>
     </ul>
     <p>繪製 API 與 PIDS 完全一致（<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>，畫布原点為可见面左上角）。資料 API（JS 的 <code>psd</code> 参数 / C++ 的 <code>mtr::Psd</code>，完整訪問器见 <a href="data.html#psd">資料快照 · Psd</a>）：</p>
@@ -285,10 +286,11 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
         <tr><td><code>psd.platform()</code></td><td>站台：編號 / 名稱（<code>number()</code> / <code>name()</code>）、車站、停站時間</td></tr>
         <tr><td><code>psd.routes()</code></td><td>经停線路全量信息；<code>dataFetchMode: "ALL"</code> 時每条線路含完整車站列表（轉乘 / 出口）</td></tr>
         <tr><td><code>psd.arrivals()</code></td><td>到站列車：终点站、線路、車厢数、倒计時（<code>arrivalCountdown()</code>）、<strong>將開啟的門編號 <code>doorNumbers()</code></strong>、即時 / 终到 / 環線狀態</td></tr>
+        <tr><td><code>psd.stop()</code></td><td>完整車站資訊（ABI 13）：名稱、顏色（ARGB + 十六進位）、票價區 1–3、停靠本站嘅全部線路、鄰站線路（按站名分組）、實體連通嘅站名、出口同去向、月台編號同總數——無月台 / 車站時回傳 <code>null</code>。C++ 側：<code>has_station()</code> + <code>mtr::PsdStation</code> 存取器（見 <a href="data.html#psd">資料快照 · Psd</a>）</td></tr>
         <tr><td><code>psd.doors()</code> / <code>psd.doorValue()</code> / <code>psd.isDoorOpen()</code></td><td>門單元列表（1 起編號、即時開門 / 上鎖）與整牆開門量</td></tr>
       </tbody>
     </table>
-    <p>C++ 側為第五類基類 <code>mtr::PsdScript&lt;State&gt;</code>（<code>MTR_REGISTER_PSD_SCRIPT</code>），資料快照 <code>JcmPsdSnapshot</code>（ABI 12），见 <code>native/examples/psd_glass.cpp</code>。</p>
+    <p>C++ 側為第五類基類 <code>mtr::PsdScript&lt;State&gt;</code>（<code>MTR_REGISTER_PSD_SCRIPT</code>），資料快照 <code>JcmPsdSnapshot</code>（ABI 12；車站條目自 ABI 13 起），见 <code>native/examples/psd_glass.cpp</code>。</p>
 
     <h2 id="displayhelper">DisplayHelper（內置多螢幕助手）</h2>
     <p>車載多螢幕的現成方案：<code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> 後——</p>
@@ -337,7 +339,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">JS 公用 API</a>
       <a href="js-yanyang.html">晏陽擴展 API</a>
     </div>
-    JCM Yanyang 腳本文件 · JavaScript 篇 · 對應 JCM 2.3.0-prerelease.2-yanyang.1 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang 腳本文件 · JavaScript 篇 · 對應 JCM 2.3.0-prerelease.3-yanyang.1 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

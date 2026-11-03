@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -93,7 +93,7 @@
 
     <h2 id="sdk">取得 SDK</h2>
     <p>SDK 隨每個 Release 發布為 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（見 GitHub Releases 附件），內容即儲存庫 <code>native/</code> 目錄的原始碼：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.3-yanyang.1/
 ├── include/mtr/          # 全部 SDK 標頭檔（script.hpp 是總入口）
 │   ├── mtr_native.h      # C ABI：匯出函式、快照、繪製記錄、宿主服務
 │   ├── script.hpp        # 腳本基類 + 註冊巨集（#include 這一個就夠）
@@ -235,6 +235,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可選：跑 SD
       <li><strong>四類腳本同規則</strong>：<code>mtr_custom_resources.json</code> 的 <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> 與 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> 預設（<code>scriptLocations</code>）全部支援上述混合宣告。</li>
       <li><strong>舊格式相容</strong>：<code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> 的舊宣告繼續有效，也可與 <code>.js</code> 混用；<code>"language": "javascript"</code> 可強制整條按 JS 解析。</li>
       <li><strong>JS 欄位照常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等欄位含義不變，C++ 側經 <code>api.input()</code> 讀取 <code>input</code>。</li>
+      <li><strong>視界外繼續渲染</strong>：PIDS 預設欄位 <code>outOfBound: true</code>（上游 v2.3.0-prerelease.3）讓螢幕移出相機視界時仍繼續渲染——須臾不可停的投影機預設所必需。</li>
     </ul>
     <div class="admonition warn">
       <span class="admonition-title">注意</span>
@@ -263,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可選：跑 SD
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

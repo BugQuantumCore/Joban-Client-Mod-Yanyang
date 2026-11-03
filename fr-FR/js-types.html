@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -174,7 +174,7 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
     <p><span class="pill warn">Obsolète</span> : la lecture directe des champs (<code>eyecandy.translateX</code>, <code>eyecandy.prefabId</code>, etc.) reste utilisable.</p>
     <div class="admonition tip">
       <span class="admonition-title">Exemple : musique en boucle qui s’atténue au clic droit</span>
-      <p>Accrochez une musique en boucle avec <code>TickableSoundInstance.create(...)</code> + <code>setLoopable(true)</code> ; dans les 5 secondes qui suivent un clic droit, <code>setSoundVolume(0.25)</code>, puis retour à 1.0 au terme des 5 secondes ; <code>stop</code> dans <code>dispose</code> — code complet dans la documentation amont <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds</a>.</p>
+      <p>Accrochez une musique en boucle avec <code>TickableSoundInstance.create(...)</code> + <code>setRepeatable(true)</code> + <code>play()</code> ; dans les 5 secondes qui suivent un clic droit, <code>setSoundVolume(0.25)</code>, puis retour à 1.0 au terme des 5 secondes ; <code>stop</code> dans <code>dispose</code> — code complet dans la documentation amont <a href="https://jcm.joban.org/v2.3/dev/scripting/sounds/" rel="noopener">sounds</a>.</p>
     </div>
 
     <h2 id="lift">Scripts d’ascenseur</h2>
@@ -214,6 +214,7 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
         }
     ]
 }</code></pre>
+    <p>Le champ de preset <code>outOfBound: boolean</code> (amont v2.3.0-prerelease.3) maintient le rendu du preset lorsque l’écran sort du cadre de la caméra — indispensable aux presets projecteur (<code>pids_projector</code>) qui doivent tourner sans interruption.</p>
     <p>Ce qui se dessine sur un PIDS, ce sont des <strong>polygones dans le monde</strong>, pas un canevas 2D — les éléments peuvent déborder de l’écran, et le clipping aux bornes de l’écran est à la charge du script (pour un clipping ou un traitement d’image vraiment complexes, dessinez dans une <code>GraphicsTexture</code> puis plaquez-la). <strong>L’ordre de dessin fait la hiérarchie</strong> : le dernier dessiné recouvre les précédents ; par défaut, chaque dessin est translaté d’un petit pas le long de z (<code>0.0002</code>) pour éviter le z-fighting — désactivable via <code>ctx.setAutoZOrdering(false)</code> pour passer à un <code>zOrder()</code> manuel (le pas se règle avec <code>ctx.setZOrderStep(m)</code>).</p>
     <h3>PIDSScriptContext (ctx) et PIDSBlockEntity (pids)</h3>
     <p><code>ctx.getRenderManager()</code> / <code>ctx.getSoundManager()</code> (référentiel = position du bloc) · <code>ctx.setAutoZOrdering(b)</code> · <code>ctx.setZOrderStep(m)</code> · <code>ctx.setDebugInfo(...)</code>.</p>
@@ -229,7 +230,7 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
       </tbody>
     </table>
     <h3>ArrivalEntries et ArrivalEntry</h3>
-    <p><code>ArrivalEntries</code> : <code>get(i): ArrivalEntry?</code> (au plus 10 arrivées par quai) · <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code> (parcours entrée par entrée, dispense des tests de vacuité manuels).</p>
+    <p><code>ArrivalEntries</code> : <code>get(i): ArrivalEntry?</code> (au plus 10 arrivées par quai) · <code>length(): int</code> (nombre total d’arrivées, amont v2.3.0-prerelease.3) · <code>mixedCarLength(): boolean</code> · <code>platforms(): List&lt;Platform&gt;</code> · <code>forEach(consumer)</code> / <code>forEach(platformId, consumer)</code> (parcours entrée par entrée, dispense des tests de vacuité manuels).</p>
     <p><code>ArrivalEntry</code> : <code>destination(): String</code> · <code>arrivalTime()</code> / <code>departureTime()</code> (millisecondes Unix, convertissez en date JS avec <code>new Date(v)</code>) · <code>arrived()</code> / <code>departed()</code> · <code>deviation(): long</code> (par rapport à l’horaire théorique : positif = retard, négatif = avance) · <code>realtime(): boolean</code> (horaire théorique ou extrapolation temps réel) · <code>departureIndex(): long</code> · <code>terminating(): boolean</code> (terminus à cette station) · <code>route(): SimplifiedRoute?</code> / <code>routeId()</code> / <code>routeName()</code> / <code>routeNumber()</code> / <code>routeColor()</code> / <code>circularState()</code> · <code>platform(): Platform?</code> / <code>platformId()</code> / <code>platformName()</code> · <code>carCount()</code> / <code>cars(): List&lt;CarDetails&gt;</code>.</p>
     <h3>Text / Texture / Rect (le trio de dessin)</h3>
     <p>Tous trois sont des objets fluent « création → configuration en chaîne → <code>draw(ctx)</code> » ; <code>Rect</code> est un <code>Texture</code> dont la texture est codée en dur en PNG blanc pur :</p>
@@ -274,7 +275,7 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
 ]</code></pre>
     <p>En jeu, utilisez le nouvel objet <strong>Éditeur de scripts PSD</strong> (même onglet créatif que le pinceau de MTR) : clic droit sur une vitre de porte palière (y compris vitres d’extrémité et portillons APG à mi-hauteur — MTR, Tianjin Metro et tout addon bâti sur les classes PSD de MTR) ou un bloc psd_top, puis choisissez une entrée du type correspondant <strong>ou n’importe quel preset PIDS scripté</strong> (les scripts PIDS tournent tels quels ; le canevas s’adapte à la surface PSD). « Aucun script » supprime la liaison. Les liaisons sont stockées côté serveur et synchronisées à tous les joueurs de la dimension.</p>
     <ul>
-      <li><strong>Vitre</strong> : devient blanc opaque avec la texture dynamique du script par-dessus (deux faces, côté voies en miroir ; les demi-portillons APG s’adaptent à la hauteur de 9 px). Canevas 96×96 (APG supérieur 96×54).</li>
+      <li><strong>Vitre</strong> : devient blanc opaque avec la texture dynamique du script par-dessus — la texture dynamique n’apparaît que du <strong>côté quai</strong> ; le côté voies (celui que voient les passagers depuis l’intérieur d’un train) reste blanc uni (les demi-portillons APG s’adaptent à la hauteur de 9 px). Canevas 96×96 (APG supérieur 96×54).</li>
       <li><strong>Bandeau supérieur</strong> : n’affiche plus la flèche / la bande de ligne intégrée — le script contrôle entièrement le contenu. Canevas 78×42.</li>
     </ul>
     <p>Le dessin est identique aux scripts PIDS (<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code> ; l’origine du canevas est le coin supérieur gauche de la face visible). L’API de données (argument JS <code>psd</code> / C++ <code>mtr::Psd</code> ; accesseurs complets dans <a href="data.html#psd">Instantanés de données · Psd</a>) :</p>
@@ -285,10 +286,11 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
         <tr><td><code>psd.platform()</code></td><td>Quai : numéro / nom (<code>number()</code> / <code>name()</code>), station, temps d’arrêt</td></tr>
         <tr><td><code>psd.routes()</code></td><td>Toutes les lignes desservant le quai ; avec <code>dataFetchMode: "ALL"</code>, chacune porte sa liste de stations complète (correspondances / sorties)</td></tr>
         <tr><td><code>psd.arrivals()</code></td><td>Trains à venir : terminus, ligne, nombre de voitures, décompte (<code>arrivalCountdown()</code>), les <strong>numéros de portes qui s’ouvriront</strong> (<code>doorNumbers()</code>), état temps réel / terminus / circulaire</td></tr>
+        <tr><td><code>psd.stop()</code></td><td>Renseignements complets sur la gare (ABI 13) : nom, couleur (ARGB + hexadécimal), zones tarifaires 1–3, toutes les lignes desservant la gare, lignes des gares de correspondance (regroupées par nom de gare), noms des gares physiquement connectées, sorties avec destinations, numéros de quai + nombre — <code>null</code> en l’absence de quai / de gare. Contrepartie C++ : <code>has_station()</code> + les accesseurs <code>mtr::PsdStation</code> (voir <a href="data.html#psd">Instantanés de données · Psd</a>)</td></tr>
         <tr><td><code>psd.doors()</code> / <code>psd.doorValue()</code> / <code>psd.isDoorOpen()</code></td><td>Liste des unités de porte (numérotées à partir de 1, états ouverture / verrouillage en direct) et ouverture globale du mur</td></tr>
       </tbody>
     </table>
-    <p>Côté C++, c’est la cinquième classe de base <code>mtr::PsdScript&lt;State&gt;</code> (<code>MTR_REGISTER_PSD_SCRIPT</code>) avec l’instantané <code>JcmPsdSnapshot</code> (ABI 12) ; voir <code>native/examples/psd_glass.cpp</code>.</p>
+    <p>Côté C++, c’est la cinquième classe de base <code>mtr::PsdScript&lt;State&gt;</code> (<code>MTR_REGISTER_PSD_SCRIPT</code>) avec l’instantané <code>JcmPsdSnapshot</code> (ABI 12 ; entrées de gare depuis l’ABI 13) ; voir <code>native/examples/psd_glass.cpp</code>.</p>
 
     <h2 id="displayhelper">DisplayHelper (l’assistant multi-écrans intégré)</h2>
     <p>La solution clé en main pour les écrans multiples embarqués : après <code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> —</p>
@@ -337,7 +339,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">API communes JS</a>
       <a href="js-yanyang.html">Extensions Yanyang</a>
     </div>
-    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.2-yanyang.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.3-yanyang.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

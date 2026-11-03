@@ -47,8 +47,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -210,7 +210,8 @@
     <p><code>playLocalSound(id, volume, pitch, category="MASTER")</code>（無定位，報站之屬）· <code>playSound(id, pos, volume, pitch, category="MASTER")</code>（定位於世界，相對基準之位）· <code>play(soundInstance)</code> / <code>stop(soundInstance)</code>（可控之實例）。</p>
     <h3>TickableSoundInstance</h3>
     <p>一次性之音效，既播則莫能復制之；須中途調音量 / 打斷之景，用可控之實例（車載繁難之報站、電機之音、循環之樂）：</p>
-    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code>（以 1.0 為基準）· <code>setLoopable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code>（隨玩家而恆其音量）· <code>setPos(v)</code>（循環之聲，必自逐幀更其位）· <code>isPlaying()</code>。循環之實例，務於 <code>dispose</code> 中 <code>stop</code> 之。</p>
+    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code>（以 1.0 為基準）· <code>setRepeatable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code>（隨玩家而恆其音量）· <code>setPos(v)</code>（循環之聲，必自逐幀更其位）· <code>isPlaying()</code>。播放由 <code>play()</code> / <code>play(delayTick)</code> / <code>play(ctx)</code> 所驅，<code>abort()</code> 可中道斷之（上游 v2.3.0-prerelease.3 所改）。循環之實例，務於 <code>dispose</code> 中 <code>stop</code> 之。</p>
+    <p><span class="pill warn">已廢</span>：<code>setLoopable(b)</code>——v2.3.0-prerelease.3 之改，以 <code>setRepeatable(b)</code> 代之；舊腳照行如故。</p>
     <p><strong>聲音之別</strong>：<code>MASTER</code> <code>BLOCKS</code> <code>MUSIC</code> <code>RECORDS</code> <code>WEATHER</code> <code>HOSTILE</code> <code>NEUTRAL</code> <code>PLAYERS</code> <code>AMBIENT</code> <code>VOICE</code>。</p>
 
     <h2 id="net">網路與後臺</h2>
@@ -242,9 +243,9 @@
       <tbody>
         <tr><td>車站 / 車廠</td><td><code>findStation(pos)</code> · <code>getStation(id)</code> · <code>getKnownStations()</code>；<code>findDepot(pos)</code> · <code>getDepot(id)</code> · <code>getKnownDepots()</code></td></tr>
         <tr><td>線路</td><td><code>getRoute(id)</code> · <code>getKnownRoutes()</code> · <code>getKnownRoutesPassingPlatform(platformId)</code></td></tr>
-        <tr><td>載具</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code></td></tr>
-        <tr><td>電梯</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code></td></tr>
-        <tr><td>軌道</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code></td></tr>
+        <tr><td>載具</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code> · <code>getVehicleMountDetail(): MountDetail</code>（<code>ridingCarIndex(): int</code>、<code>pos(): Vector3f</code> 相對車廂之中心，上游 v2.3.0-prerelease.3）</td></tr>
+        <tr><td>電梯</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code> · <code>getLiftFloors(tscLift): List&lt;Floor&gt;</code>（TSC 電梯諸層之表，上游 v2.3.0-prerelease.3）</td></tr>
+        <tr><td>軌道</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code> · <code>getConnectedRails(pathData, front, back, excludeSelf = false)</code> / <code>getConnectedRails(pos)</code>（與路徑之端 / 軌節點之位相連諸軌，上游 v2.3.0-prerelease.3）</td></tr>
         <tr><td>站台 / 側線</td><td><code>getPlatform(id)</code> · <code>getKnownPlatforms()</code> · <code>findNearbyPlatforms(pos, radius)</code>；<code>getSiding(id)</code> · <code>getKnownSidings()</code> · <code>findNearbySidings(pos, radius)</code></td></tr>
         <tr><td>到站</td><td><code>getArrivals(platformId | platformIds[]): ArrivalEntries</code>——與 PIDS 腳本中 <code>pids.arrivals()</code> 同物</td></tr>
       </tbody>
@@ -298,7 +299,7 @@ include("./util/common.js");                                     // 相對當前
       <a href="js-getting-started.html">JS 之腳入門</a>
       <a href="js-types.html">JS 之腳類型</a>
     </div>
-    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-prerelease.2-yanyang.1 而作 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-prerelease.3-yanyang.1 而作 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

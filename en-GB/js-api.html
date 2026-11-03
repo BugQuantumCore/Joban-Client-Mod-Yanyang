@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -208,7 +208,8 @@
     <p><code>playLocalSound(id, volume, pitch, category="MASTER")</code> (unpositioned—announcement-style) · <code>playSound(id, pos, volume, pitch, category="MASTER")</code> (positioned in the world, relative to the base position) · <code>play(soundInstance)</code> / <code>stop(soundInstance)</code> (controllable instances).</p>
     <h3>TickableSoundInstance</h3>
     <p>A one-shot sound effect cannot be managed once it has played; use controllable instances for cases that need mid-flight volume changes or interruption (complex in-car announcements, motor sounds, looped music):</p>
-    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code> (1.0 is the baseline) · <code>setLoopable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code> (follows the player at a constant volume) · <code>setPos(v)</code> (looping sounds must update their own position every frame) · <code>isPlaying()</code>. Always <code>stop</code> looping instances in <code>dispose</code>.</p>
+    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code> (1.0 is the baseline) · <code>setRepeatable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code> (follows the player at a constant volume) · <code>setPos(v)</code> (looping sounds must update their own position every frame) · <code>isPlaying()</code>. Playback is driven by <code>play()</code> / <code>play(delayTick)</code> / <code>play(ctx)</code>, with <code>abort()</code> to cut a playing instance short (reworked in upstream v2.3.0-prerelease.3). Always <code>stop</code> looping instances in <code>dispose</code>.</p>
+    <p><span class="pill warn">Deprecated</span>: <code>setLoopable(b)</code> — superseded by <code>setRepeatable(b)</code> in the v2.3.0-prerelease.3 rework; existing scripts keep working.</p>
     <p><strong>Sound categories</strong>: <code>MASTER</code> <code>BLOCKS</code> <code>MUSIC</code> <code>RECORDS</code> <code>WEATHER</code> <code>HOSTILE</code> <code>NEUTRAL</code> <code>PLAYERS</code> <code>AMBIENT</code> <code>VOICE</code>.</p>
 
     <h2 id="net">Networking and background work</h2>
@@ -240,9 +241,9 @@
       <tbody>
         <tr><td>Stations / depots</td><td><code>findStation(pos)</code> · <code>getStation(id)</code> · <code>getKnownStations()</code>; <code>findDepot(pos)</code> · <code>getDepot(id)</code> · <code>getKnownDepots()</code></td></tr>
         <tr><td>Routes</td><td><code>getRoute(id)</code> · <code>getKnownRoutes()</code> · <code>getKnownRoutesPassingPlatform(platformId)</code></td></tr>
-        <tr><td>Vehicles</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code></td></tr>
-        <tr><td>Lifts</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code></td></tr>
-        <tr><td>Rails</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code></td></tr>
+        <tr><td>Vehicles</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code> · <code>getVehicleMountDetail(): MountDetail</code> (<code>ridingCarIndex(): int</code>, <code>pos(): Vector3f</code> relative to the car centre — upstream v2.3.0-prerelease.3)</td></tr>
+        <tr><td>Lifts</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code> · <code>getLiftFloors(tscLift): List&lt;Floor&gt;</code> (the floors of a TSC lift — upstream v2.3.0-prerelease.3)</td></tr>
+        <tr><td>Rails</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code> · <code>getConnectedRails(pathData, front, back, excludeSelf = false)</code> / <code>getConnectedRails(pos)</code> (the rails connected to a path end / to a rail node position — upstream v2.3.0-prerelease.3)</td></tr>
         <tr><td>Platforms / sidings</td><td><code>getPlatform(id)</code> · <code>getKnownPlatforms()</code> · <code>findNearbyPlatforms(pos, radius)</code>; <code>getSiding(id)</code> · <code>getKnownSidings()</code> · <code>findNearbySidings(pos, radius)</code></td></tr>
         <tr><td>Arrivals</td><td><code>getArrivals(platformId | platformIds[]): ArrivalEntries</code>—the same object as <code>pids.arrivals()</code> in PIDS scripts</td></tr>
       </tbody>
@@ -296,7 +297,7 @@ include("./util/common.js");                                     // Relative to 
       <a href="js-getting-started.html">JS getting started</a>
       <a href="js-types.html">JS script types</a>
     </div>
-    JCM Yanyang scripting documentation · JavaScript part · Matches JCM 2.3.0-prerelease.2-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang scripting documentation · JavaScript part · Matches JCM 2.3.0-prerelease.3-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

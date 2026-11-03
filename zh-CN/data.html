@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -219,6 +219,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：门单元列表（见下）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：到站列车（见下）</td></tr>
         <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>：经停线路（见下；<code>dataFetchMode: "ALL"</code> 才含车站列表）</td></tr>
+        <tr><td><code>stop()</code> / <code>has_station()</code></td><td>所服务车站的完整信息（ABI 13）：<code>mtr::PsdStation</code> 访问器见下；整墙无站台 / 车站时 <code>has_station()</code> 为假（<code>stop()</code> 为空）</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>时钟（已做服务器偏移校正）</td></tr>
       </tbody>
     </table>
@@ -250,6 +251,23 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code>：按序车站，布局同车辆 <code>Stop</code>（name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code>，见 <a href="#stop">Stop / 换乘 / 出口</a>）</td></tr>
       </tbody>
     </table>
+
+    <h3>PsdStation（车站记录，ABI 13）</h3>
+    <p><code>JcmPsdSnapshot.station_offset</code>（字节偏移 124；<code>-1</code> = 无车站——该字段在 ABI 12 中是填充位）指向 96 字节的 <code>JcmPsdStation</code> 记录——与 JS <code>psd.stop()</code> 对象同一数据：</p>
+    <table>
+      <thead><tr><th>字段</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>station_id</code> / <code>name</code></td><td>车站 id 与名称</td></tr>
+        <tr><td><code>color</code> / <code>color_hex</code></td><td>车站颜色——ARGB 整数与 <code>#RRGGBB</code> 字符串</td></tr>
+        <tr><td><code>zone1</code> / <code>zone2</code> / <code>zone3</code></td><td>票价区 1–3</td></tr>
+        <tr><td><code>interchanges</code></td><td>换乘线路：route_id / color / name / transport_mode / type</td></tr>
+        <tr><td><code>connecting_groups</code></td><td>邻站线路，按站名分组（每组 = 站名 + 该站线路）</td></tr>
+        <tr><td><code>connected_station_names</code></td><td>物理连通的站名</td></tr>
+        <tr><td><code>exits</code></td><td>出口：名称 + 去向</td></tr>
+        <tr><td><code>platform_numbers</code></td><td>本站站台编号（JS 侧另加总数）</td></tr>
+      </tbody>
+    </table>
+    <p>ABI 12 → 13 纯增量（填充位原地升格，既有结构零变化），<strong>ABI 6–12 模块照常加载</strong>。</p>
 
     <h2 id="lift">Lift（电梯）</h2>
     <p><code>mtr::Lift</code>（快照 + Java 包装器结合；快照部分）：</p>
@@ -340,7 +358,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 播进场动画 */
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

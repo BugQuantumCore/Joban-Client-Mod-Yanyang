@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -219,6 +219,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>: the door units (below)</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>: upcoming trains (below)</td></tr>
         <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>: routes calling at the platform (below; stop lists only with <code>dataFetchMode: "ALL"</code>)</td></tr>
+        <tr><td><code>stop()</code> / <code>has_station()</code></td><td>Complete station info of the served station (ABI 13): the <code>mtr::PsdStation</code> accessors below; <code>has_station()</code> is false (and <code>stop()</code> empty) when the wall has no platform / station</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>Clocks (server-offset corrected)</td></tr>
       </tbody>
     </table>
@@ -250,6 +251,23 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code>: the ordered stops, laid out like the vehicle <code>Stop</code> (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — see <a href="#stop">Stop / interchanges / exits</a>)</td></tr>
       </tbody>
     </table>
+
+    <h3>PsdStation (the station record, ABI 13)</h3>
+    <p><code>JcmPsdSnapshot.station_offset</code> (byte offset 124; <code>-1</code> = no station — the field was padding in ABI 12) points at the 96-byte <code>JcmPsdStation</code> record — the same data the JS <code>psd.stop()</code> object exposes:</p>
+    <table>
+      <thead><tr><th>Field</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>station_id</code> / <code>name</code></td><td>Station id and name</td></tr>
+        <tr><td><code>color</code> / <code>color_hex</code></td><td>Station color — ARGB integer and <code>#RRGGBB</code> string</td></tr>
+        <tr><td><code>zone1</code> / <code>zone2</code> / <code>zone3</code></td><td>Fare zones 1–3</td></tr>
+        <tr><td><code>interchanges</code></td><td>Interchange routes: route_id / color / name / transport_mode / type</td></tr>
+        <tr><td><code>connecting_groups</code></td><td>Connecting-station routes grouped by station name (each group = the station name + its routes)</td></tr>
+        <tr><td><code>connected_station_names</code></td><td>Physically connected station names</td></tr>
+        <tr><td><code>exits</code></td><td>Exits: name + destinations</td></tr>
+        <tr><td><code>platform_numbers</code></td><td>The station's platform numbers (the JS side adds the count)</td></tr>
+      </tbody>
+    </table>
+    <p>ABI 12 → 13 is purely additive (a padding field promoted in place, every pre-existing struct unchanged), so <strong>ABI 6–12 modules keep loading</strong>.</p>
 
     <h2 id="lift">Lift</h2>
     <p><code>mtr::Lift</code> (a snapshot + Java wrapper combination; the snapshot part):</p>
@@ -340,7 +358,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* play arrival anima
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 13 (2.3.0-prerelease.3-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

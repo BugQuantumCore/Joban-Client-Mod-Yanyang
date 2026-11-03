@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -93,7 +93,7 @@
 
     <h2 id="sdk">获取 SDK</h2>
     <p>SDK 随每个 Release 发布为 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（见 GitHub Releases 附件），内容即仓库 <code>native/</code> 目录源码：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.2-yanyang.1/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-prerelease.3-yanyang.1/
 ├── include/mtr/          # 全部 SDK 头文件（script.hpp 是总入口）
 │   ├── mtr_native.h      # C ABI：导出函数、快照、绘制记录、宿主服务
 │   ├── script.hpp        # 脚本基类 + 注册宏（#include 这一个就够）
@@ -235,6 +235,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
       <li><strong>四类脚本同规则</strong>：<code>mtr_custom_resources.json</code> 的 <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> 与 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> 预设（<code>scriptLocations</code>）全部支持上述混合声明。</li>
       <li><strong>老格式兼容</strong>：<code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> 的旧声明继续有效，也可与 <code>.js</code> 混用；<code>"language": "javascript"</code> 可强制整条按 JS 解析。</li>
       <li><strong>JS 字段照常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等字段含义不变，C++ 侧经 <code>api.input()</code> 读取 <code>input</code>。</li>
+      <li><strong>视界外继续渲染</strong>：PIDS 预设字段 <code>outOfBound: true</code>（上游 v2.3.0-prerelease.3）让屏幕移出相机视界时仍继续渲染——须臾不可停的投影仪预设所必需。</li>
     </ul>
     <div class="admonition warn">
       <span class="admonition-title">注意</span>
@@ -263,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

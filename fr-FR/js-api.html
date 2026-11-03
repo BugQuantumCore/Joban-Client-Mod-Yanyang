@@ -45,8 +45,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -208,7 +208,8 @@
     <p><code>playLocalSound(id, volume, pitch, category="MASTER")</code> (sans spatialisation, pour les annonces) · <code>playSound(id, pos, volume, pitch, category="MASTER")</code> (positionnée dans le monde, relativement à la position de référence) · <code>play(soundInstance)</code> / <code>stop(soundInstance)</code> (instances contrôlables).</p>
     <h3>TickableSoundInstance</h3>
     <p>Un effet sonore ponctuel, une fois joué, ne se contrôle plus ; pour régler le volume en cours de lecture ou interrompre, employez des instances contrôlables (annonces embarquées complexes, sons de moteur, musiques en boucle) :</p>
-    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code> (1.0 est la référence) · <code>setLoopable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code> (volume constant en suivant le joueur) · <code>setPos(v)</code> (une boucle doit mettre à jour sa position frame par frame elle-même) · <code>isPlaying()</code>. Une instance en boucle doit impérativement être arrêtée (<code>stop</code>) dans <code>dispose</code>.</p>
+    <p><code>static create(id, category)</code> · <code>setSoundVolume(v)</code> / <code>setSoundPitch(v)</code> (1.0 est la référence) · <code>setRepeatable(b)</code> · <code>setLoopDelay(tick)</code> · <code>setRelative(b)</code> (volume constant en suivant le joueur) · <code>setPos(v)</code> (une boucle doit mettre à jour sa position frame par frame elle-même) · <code>isPlaying()</code>. La lecture passe par <code>play()</code> / <code>play(delayTick)</code> / <code>play(ctx)</code>, avec <code>abort()</code> pour couper une instance en cours (retravaillé dans l’amont v2.3.0-prerelease.3). Une instance en boucle doit impérativement être arrêtée (<code>stop</code>) dans <code>dispose</code>.</p>
+    <p><span class="pill warn">Déprécié</span> : <code>setLoopable(b)</code> — remplacé par <code>setRepeatable(b)</code> dans la refonte v2.3.0-prerelease.3 ; les scripts existants continuent de fonctionner.</p>
     <p><strong>Catégories de sons</strong> : <code>MASTER</code> <code>BLOCKS</code> <code>MUSIC</code> <code>RECORDS</code> <code>WEATHER</code> <code>HOSTILE</code> <code>NEUTRAL</code> <code>PLAYERS</code> <code>AMBIENT</code> <code>VOICE</code>.</p>
 
     <h2 id="net">Réseau et arrière-plan</h2>
@@ -240,9 +241,9 @@
       <tbody>
         <tr><td>Stations / dépôts</td><td><code>findStation(pos)</code> · <code>getStation(id)</code> · <code>getKnownStations()</code> ; <code>findDepot(pos)</code> · <code>getDepot(id)</code> · <code>getKnownDepots()</code></td></tr>
         <tr><td>Lignes</td><td><code>getRoute(id)</code> · <code>getKnownRoutes()</code> · <code>getKnownRoutesPassingPlatform(platformId)</code></td></tr>
-        <tr><td>Véhicules</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code></td></tr>
-        <tr><td>Ascenseurs</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code></td></tr>
-        <tr><td>Rails</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code></td></tr>
+        <tr><td>Véhicules</td><td><code>getVehicle(vehicleId)</code> · <code>getPlayerMountedVehicle()</code> · <code>getKnownVehicles()</code> · <code>isPlayerMounted(id)</code> · <code>getVehicleMountDetail(): MountDetail</code> (<code>ridingCarIndex(): int</code>, <code>pos(): Vector3f</code> relative au centre de la voiture — amont v2.3.0-prerelease.3)</td></tr>
+        <tr><td>Ascenseurs</td><td><code>getLift(id)</code> · <code>getPlayerMountedLift()</code> · <code>getKnownLifts()</code> · <code>getLiftFloors(tscLift): List&lt;Floor&gt;</code> (les étages d’un ascenseur TSC — amont v2.3.0-prerelease.3)</td></tr>
+        <tr><td>Rails</td><td><code>getRailFromPath(pathData)</code> · <code>getKnownRails()</code> · <code>isRailBlocked(hexId)</code> · <code>getKnownBlockedRails()</code> · <code>getBlockedSignalColors(hexId)</code> · <code>getConnectedRails(pathData, front, back, excludeSelf = false)</code> / <code>getConnectedRails(pos)</code> (les rails connectés à une extrémité de chemin / à la position d’un nœud de rail — amont v2.3.0-prerelease.3)</td></tr>
         <tr><td>Quais / voies de garage</td><td><code>getPlatform(id)</code> · <code>getKnownPlatforms()</code> · <code>findNearbyPlatforms(pos, radius)</code> ; <code>getSiding(id)</code> · <code>getKnownSidings()</code> · <code>findNearbySidings(pos, radius)</code></td></tr>
         <tr><td>Arrivées</td><td><code>getArrivals(platformId | platformIds[]): ArrivalEntries</code> — le même objet que <code>pids.arrivals()</code> des scripts PIDS</td></tr>
       </tbody>
@@ -296,7 +297,7 @@ include("./util/common.js");                                     // relatif au s
       <a href="js-getting-started.html">Premiers pas en JS</a>
       <a href="js-types.html">Types de scripts JS</a>
     </div>
-    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.2-yanyang.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.3-yanyang.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

@@ -47,8 +47,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 12<br>
-    JCM 2.3.0-prerelease.2-yanyang.1<br>
+    SDK ABI 13<br>
+    JCM 2.3.0-prerelease.3-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -97,7 +97,7 @@
     <div class="admonition note">
       <span class="admonition-title">術語：MTR 三代之 train → MTR 四代之 vehicle</span>
       <p>MTR 四代之制，載具統名曰 <strong>vehicle</strong>（資源包宣告之鍵 <code>vehicleScripts</code>，Java 側則 <code>VehicleWrapper</code> 是也），故本 SDK 數據包裝之類，名之曰 <code>mtr::Vehicle</code>。前代 SDK 嘗循 MTR 三代之舊，名之曰 <code>mtr::Train</code>；今舊名猶存，為<strong>源碼相容之別名</strong>——二名並可編譯，所行全同。</p>
-    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 2.3.0-prerelease.2-yanyang.1 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
+    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 2.3.0-prerelease.3-yanyang.1 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
     <p><code>mtr::Vehicle</code> 所供者，映 JS 之 <code>VehicleWrapper</code> 加 <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>訪問器</th><th>類型</th><th>釋義</th></tr></thead>
@@ -221,6 +221,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：門單元之列（見下）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：將至之車（見下）</td></tr>
         <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>：經此站台之線（見下；惟 dataFetchMode 為 ALL 方載諸站）</td></tr>
+        <tr><td><code>stop()</code> / <code>has_station()</code></td><td>所事車站全備之訊（ABI 13）：<code>mtr::PsdStation</code> 諸訪問器見下；全牆無站台 / 車站，則 <code>has_station()</code> 為偽（<code>stop()</code> 虛空）</td></tr>
         <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>時鐘（已正伺服器之偏）</td></tr>
       </tbody>
     </table>
@@ -252,6 +253,23 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code>：諸站有序，佈局同車輛之 <code>Stop</code>（name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code>，見 <a href="#stop">Stop / 轉乘 / 出口</a>）</td></tr>
       </tbody>
     </table>
+
+    <h3>PsdStation（車站之記，ABI 13）</h3>
+    <p><code>JcmPsdSnapshot.station_offset</code>（位元組之偏 124；<code>-1</code> 者無車站也——此欄於 ABI 12 猶填補之位）所指者，九十六位元組 <code>JcmPsdStation</code> 之記也——與 JS <code>psd.stop()</code> 之物件同其數據：</p>
+    <table>
+      <thead><tr><th>欄</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>station_id</code> / <code>name</code></td><td>車站之 id 與名</td></tr>
+        <tr><td><code>color</code> / <code>color_hex</code></td><td>車站之色——ARGB 之整與 <code>#RRGGBB</code> 之文</td></tr>
+        <tr><td><code>zone1</code> / <code>zone2</code> / <code>zone3</code></td><td>價區一至三</td></tr>
+        <tr><td><code>interchanges</code></td><td>轉乘之線：route_id / color / name / transport_mode / type</td></tr>
+        <tr><td><code>connecting_groups</code></td><td>鄰站之線，以站名為群（每群者，站名與其線也）</td></tr>
+        <tr><td><code>connected_station_names</code></td><td>實體相通之站名</td></tr>
+        <tr><td><code>exits</code></td><td>出口：其名與所往</td></tr>
+        <tr><td><code>platform_numbers</code></td><td>本站站台之號（JS 之側另計其總）</td></tr>
+      </tbody>
+    </table>
+    <p>ABI 12 至 13，純為增補（填補之位原地升格，舊構一無所改），故 <strong>ABI 6–12 之模塊，照常載之</strong>。</p>
 
     <h2 id="lift">Lift（電梯）</h2>
     <p><code>mtr::Lift</code> 者，快照與 Java 包裝器相合之制；此其快照之部也：</p>
@@ -342,7 +360,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 演進場之動畫
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>
