@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>腳本體例與生命週期 — JCM Yanyang 腳本開發文檔</title>
-<meta name="description" content="四類腳本基類、State 之義、create/render/dispose 之序、線程模型與崩潰隔離。">
+<meta name="description" content="五類腳本基類、State 之義、create/render/dispose 之序、線程模型與崩潰隔離。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -47,7 +47,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -63,13 +63,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / 腳本體例與生命週期</div>
       <h1>腳本體例與生命週期</h1>
-      <p class="page-lead">四類腳本之基類，逐實例之狀態，生命週期之時序，暨線程與崩潰隔離之義，備於此篇。</p>
+      <p class="page-lead">五類腳本之基類，逐實例之狀態，生命週期之時序，暨線程與崩潰隔離之義，備於此篇。</p>
     </header>
 
     <div class="page-toc">
       <b>本頁之目</b>
       <ol>
-        <li><a href="#kinds">四類腳本</a></li>
+        <li><a href="#kinds">五類腳本</a></li>
         <li><a href="#state">State：逐實例之狀態</a></li>
         <li><a href="#lifecycle">生命週期之時序</a></li>
         <li><a href="#threading">線程模型</a></li>
@@ -78,13 +78,14 @@
       </ol>
     </div>
 
-    <h2 id="kinds">四類腳本</h2>
+    <h2 id="kinds">五類腳本</h2>
     <p>納 <code>&lt;mtr/script.hpp&gt;</code>，承其所應之基類，以註冊宏而導出之。基類模板之參，即<strong>逐實例狀態之型</strong>：</p>
     <table>
       <thead><tr><th>資源</th><th>基類</th><th>註冊宏</th><th>數據包裝器</th></tr></thead>
       <tbody>
         <tr><td>車輛</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Vehicle</code></td></tr>
         <tr><td>PIDS</td><td><code>mtr::PidsScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PIDS_SCRIPT</code></td><td><code>mtr::Pids</code></td></tr>
+        <tr><td>屏蔽之門</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>電梯</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>裝飾</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
       </tbody>
@@ -200,7 +201,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

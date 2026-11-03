@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -72,6 +72,7 @@
         <li><a href="#stop">Stop / 换乘 / 出口</a></li>
         <li><a href="#transport">交通模式与类型</a></li>
         <li><a href="#pids">Pids（到站屏）</a></li>
+        <li><a href="#psd">Psd（屏蔽门）</a></li>
         <li><a href="#lift">Lift（电梯）</a></li>
         <li><a href="#eyecandy">EyeCandy（装饰）</a></li>
         <li><a href="#helpers">工具类型</a></li>
@@ -205,6 +206,51 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       </tbody>
     </table>
 
+    <h2 id="psd">Psd（屏蔽门）</h2>
+    <p><code>mtr::Psd</code> 镜像 JS 的 <code>PSDWrapper</code>（<code>psdScripts</code> 条目，见 <a href="js-types.html#psd">JS 脚本类型 · PSD 脚本</a>）：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>绑定表面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（顶部面板）</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>画布尺寸（PIDS 像素）：玻璃每半块 96×96、APG 上半 96×54、面板 78×42</td></tr>
+        <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所服务的站台与车站（无站台时 id 为 0）</td></tr>
+        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台编号（如 "1"）与站台名（车站名）</td></tr>
+        <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>整墙当前开门量（0..1）与是否有门在开</td></tr>
+        <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：门单元列表（见下）</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：到站列车（见下）</td></tr>
+        <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>：经停线路（见下；<code>dataFetchMode: "ALL"</code> 才含车站列表）</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>时钟（已做服务器偏移校正）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdDoor（门单元）</h3>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>number()</code></td><td>门单元编号（1 起，沿墙方向计）——一面连续墙内的滑动门组（2 块 LEFT+RIGHT 或 3 块奇数门为一单元）</td></tr>
+        <tr><td><code>is_open()</code> / <code>is_locked()</code></td><td>实时开门 / 上锁状态（逐帧直读门方块实体）</td></tr>
+        <tr><td><code>x()</code> / <code>y()</code> / <code>z()</code></td><td>单元首门方块的坐标</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdArrival（到站列车）</h3>
+    <p>具备 Pids Arrival 的全部访问器（destination / route_name / route_number / platform_name / arrival_time / departure_time / deviation / realtime / terminating / circular_state / route_id / platform_id / route_color / car_count / departure_index，见 <a href="#pids">Pids</a>），另有：</p>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>door_count()</code> / <code>door_number(i)</code></td><td>该列车<strong>将开启的门单元编号</strong>：停站中的列车读实际开门状态（门动画间隙回退预测）；未到站按「列车停于站台中点 + 按车辆资源逐卡累加车长」近似预测</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdRoute / PsdStop（线路与车站）</h3>
+    <table>
+      <thead><tr><th>访问器</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>线路 id / 名称 / 编号 / 颜色 ARGB / 环线状态 / 规范交通类型 id</td></tr>
+        <tr><td><code>stops()</code></td><td><code>PsdStopList</code>：按序车站，布局同车辆 <code>Stop</code>（name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code>，见 <a href="#stop">Stop / 换乘 / 出口</a>）</td></tr>
+      </tbody>
+    </table>
+
     <h2 id="lift">Lift（电梯）</h2>
     <p><code>mtr::Lift</code>（快照 + Java 包装器结合；快照部分）：</p>
     <table>
@@ -294,7 +340,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 播进场动画 */
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

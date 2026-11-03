@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -72,6 +72,7 @@
         <li><a href="#stop">Stop / interchanges / exits</a></li>
         <li><a href="#transport">Transport modes and types</a></li>
         <li><a href="#pids">Pids (arrival display)</a></li>
+        <li><a href="#psd">Psd (platform screen door)</a></li>
         <li><a href="#lift">Lift</a></li>
         <li><a href="#eyecandy">EyeCandy</a></li>
         <li><a href="#helpers">Helper types</a></li>
@@ -205,6 +206,51 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       </tbody>
     </table>
 
+    <h2 id="psd">Psd (platform screen door)</h2>
+    <p><code>mtr::Psd</code> mirrors the JS <code>PSDWrapper</code> (a <code>psdScripts</code> entry — see <a href="js-types.html#psd">JS script types · PSD scripts</a>):</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>Binding surface: <code>Psd::GLASS</code> or <code>Psd::TOP</code></td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>Canvas size (PIDS pixels): 96×96 per glass half, 96×54 for APG upper halves, 78×42 for top panels</td></tr>
+        <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>Served platform and station (ids are 0 without a platform)</td></tr>
+        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>Platform number (e.g. "1") and platform name (station name)</td></tr>
+        <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>Wall-wide current open amount (0..1) and whether any door is open</td></tr>
+        <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>: the door units (below)</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>: upcoming trains (below)</td></tr>
+        <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>: routes calling at the platform (below; stop lists only with <code>dataFetchMode: "ALL"</code>)</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>Clocks (server-offset corrected)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdDoor (door unit)</h3>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>number()</code></td><td>1-based unit number along the wall — one sliding panel group (a LEFT+RIGHT pair, or the 3-block odd style) within one contiguous wall run</td></tr>
+        <tr><td><code>is_open()</code> / <code>is_locked()</code></td><td>Live open / locked state (read straight off the door block entities every frame)</td></tr>
+        <tr><td><code>x()</code> / <code>y()</code> / <code>z()</code></td><td>Block position of the unit's first door block</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdArrival (upcoming train)</h3>
+    <p>Carries every Pids Arrival accessor (destination / route_name / route_number / platform_name / arrival_time / departure_time / deviation / realtime / terminating / circular_state / route_id / platform_id / route_color / car_count / departure_index — see <a href="#pids">Pids</a>), plus:</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>door_count()</code> / <code>door_number(i)</code></td><td>The <strong>door units this train will open</strong>: the actually-open units while the train dwells (falling back to the prediction during the door-animation gaps); before arrival, an approximation — the train stops centered on the platform midpoint, its length summed from the per-car vehicle resources</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdRoute / PsdStop (routes and stations)</h3>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>Route id / name / number / ARGB color / circular state / canonical transport type id</td></tr>
+        <tr><td><code>stops()</code></td><td><code>PsdStopList</code>: the ordered stops, laid out like the vehicle <code>Stop</code> (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — see <a href="#stop">Stop / interchanges / exits</a>)</td></tr>
+      </tbody>
+    </table>
+
     <h2 id="lift">Lift</h2>
     <p><code>mtr::Lift</code> (a snapshot + Java wrapper combination; the snapshot part):</p>
     <table>
@@ -294,7 +340,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* play arrival anima
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

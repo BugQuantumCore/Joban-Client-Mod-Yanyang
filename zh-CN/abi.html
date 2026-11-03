@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -80,8 +80,8 @@
     <table>
       <thead><tr><th>导出</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>返回编译时的 ABI 版本（当前 10）；宿主拒绝不兼容的版本——与 JCM 对 JS 脚本的版本失配重载策略一致</td></tr>
-        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code></td></tr>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>返回编译时的 ABI 版本（当前 12）；宿主拒绝不兼容的版本——与 JCM 对 JS 脚本的版本失配重载策略一致</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code></td></tr>
         <tr><td><code>const char* mtrScriptId()</code></td><td>脚本 id（须与资源包声明一致）</td></tr>
         <tr><td><code>size_t mtrStateSize()</code></td><td>逐实例状态块大小；宿主为每个实例分配一块</td></tr>
         <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>在宿主刚分配状态块后调用一次，placement-new 构造 <code>State</code>（ABI 6 起必需；宿主漏调时模块惰性构造兜底）</td></tr>
@@ -93,7 +93,7 @@
     <h3>JcmFrameInput（宿主 → 模块）</h3>
     <pre><code class="lang-cpp">typedef struct JcmFrameInput {
     uint32_t abi_version;              /* 协商后的 ABI 版本 */
-    int32_t  resource_kind;            /* MtrResourceKind：vehicle/pids/eyecandy/lift */
+    int32_t  resource_kind;            /* MtrResourceKind：vehicle/pids/eyecandy/lift/psd */
     const void* snapshot;              /* 对应的 Jcm*Snapshot */
     void*    state;                    /* 宿主分配的逐实例状态块 */
     size_t   state_size;
@@ -149,7 +149,7 @@
     </table>
 
     <h2 id="history">ABI 版本演进</h2>
-    <p>宿主接受 <strong>ABI 6–11</strong> 模块（各自按其时代的布局喂数、回报其自己的 ABI 号）。用当前 SDK 编译即产出 ABI 11：</p>
+    <p>宿主接受 <strong>ABI 6–12</strong> 模块（各自按其时代的布局喂数、回报其自己的 ABI 号）。用当前 SDK 编译即产出 ABI 12：</p>
     <table>
       <thead><tr><th>ABI</th><th>引入内容</th></tr></thead>
       <tbody>
@@ -159,6 +159,7 @@
         <tr><td>9</td><td>换乘 / 车辆的规范交通<strong>类型</strong> id（MAGIC MTR 扩展）；宿主停止逐帧复制快照、内存区容量出参</td></tr>
         <tr><td>10</td><td><code>defer_free</code> 延迟回收钩子（脚本自有大缓冲的离 JVM 线程释放）</td></tr>
         <tr><td>11</td><td>车辆快照 <code>door_direction</code>（开门方向 0..3 —— 由原 <code>_pad0</code> 字节就地升格，布局与尺寸不变，老模块照常工作）</td></tr>
+        <tr><td>12</td><td><code>MTR_RESOURCE_PSD</code>（第 5 类脚本）与 <code>JcmPsdSnapshot</code> / <code>JcmPsdArrival</code> / <code>JcmPsdRoute</code> / <code>JcmPsdDoor</code> 快照——纯增量，既有结构零变化；<strong>ABI 12 库要求晏阳 hotfix.2 以上宿主</strong></td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -179,7 +180,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

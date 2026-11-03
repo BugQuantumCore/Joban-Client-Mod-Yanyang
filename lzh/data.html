@@ -47,7 +47,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -74,6 +74,7 @@
         <li><a href="#stop">Stop / 轉乘 / 出口</a></li>
         <li><a href="#transport">交通之模式與類型</a></li>
         <li><a href="#pids">Pids（到站之屏）</a></li>
+        <li><a href="#psd">Psd（屏蔽之門）</a></li>
         <li><a href="#lift">Lift（電梯）</a></li>
         <li><a href="#eyecandy">EyeCandy（裝飾）</a></li>
         <li><a href="#helpers">器用之型</a></li>
@@ -207,6 +208,51 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       </tbody>
     </table>
 
+    <h2 id="psd">Psd（屏蔽之門）</h2>
+    <p><code>mtr::Psd</code> 映 JS 之 <code>PSDWrapper</code>（psdScripts 之目也，詳見 <a href="js-types.html#psd">JS 腳本之類 · PSD 之腳</a>）：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>所繫之面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（其上之板）</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>畫布之廣袤（PIDS 之像素）：玻璃每半 96×96，APG 上半 96×54，上面之板 78×42</td></tr>
+        <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所事之站台與車站（無站台則 id 為零）</td></tr>
+        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台之號（如「一」）與其名（車站之名）</td></tr>
+        <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>全牆今之啟度（0..1），與有門啟否</td></tr>
+        <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：門單元之列（見下）</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：將至之車（見下）</td></tr>
+        <tr><td><code>routes()</code></td><td><code>PsdRouteList</code>：經此站台之線（見下；惟 dataFetchMode 為 ALL 方載諸站）</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>時鐘（已正伺服器之偏）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdDoor（門之單元）</h3>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>number()</code></td><td>門單元之號（自一起，沿牆而計）——一面連牆之內，滑門之組（左扉右扉二塊，或奇式三塊）為一單元</td></tr>
+        <tr><td><code>is_open()</code> / <code>is_locked()</code></td><td>即時啟閉 / 加鎖之狀（逐幀直讀門之方塊實體）</td></tr>
+        <tr><td><code>x()</code> / <code>y()</code> / <code>z()</code></td><td>單元首門方塊之位</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdArrival（將至之車）</h3>
+    <p>Pids Arrival 諸訪問器皆備（destination / route_name / route_number / platform_name / arrival_time / departure_time / deviation / realtime / terminating / circular_state / route_id / platform_id / route_color / car_count / departure_index，見 <a href="#pids">Pids</a>），增益者：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>door_count()</code> / <code>door_number(i)</code></td><td>此車<strong>將啟之門號</strong>：車停其站，讀實啟之狀（門機未動之隙，退而用預測）；車猶未至，則以近似之法測之——車止於站台之中，其長以車輛資源逐卡累加而得</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdRoute / PsdStop（線與站）</h3>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>線之 id / 名 / 號 / 色（ARGB）/ 環線之態 / 交通類型之正號</td></tr>
+        <tr><td><code>stops()</code></td><td><code>PsdStopList</code>：諸站有序，佈局同車輛之 <code>Stop</code>（name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code>，見 <a href="#stop">Stop / 轉乘 / 出口</a>）</td></tr>
+      </tbody>
+    </table>
+
     <h2 id="lift">Lift（電梯）</h2>
     <p><code>mtr::Lift</code> 者，快照與 Java 包裝器相合之制；此其快照之部也：</p>
     <table>
@@ -296,7 +342,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 演進場之動畫
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

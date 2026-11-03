@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -72,6 +72,7 @@
         <li><a href="#eyecandy">裝飾物腳本</a></li>
         <li><a href="#lift">電梯腳本</a></li>
         <li><a href="#pids">PIDS 腳本</a></li>
+        <li><a href="#psd">PSD 腳本（屏蔽門）</a></li>
         <li><a href="#displayhelper">DisplayHelper</a></li>
       </ol>
     </div>
@@ -257,6 +258,37 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
       <p>PIDS 也能貼 <code>GraphicsTexture</code>：<code>create</code> 裏 <code>new GraphicsTexture(pids.width, pids.height)</code>，<code>render</code> 裏畫完 <code>upload()</code> 再 <code>Texture.create().texture(state.tex.identifier).size(pids.width, pids.height).draw(ctx)</code>，<code>dispose</code> 裏 <code>close()</code>——對文字排版無能為力時的兜底方案，代價是效能與記憶體。</p>
     </div>
     <p>不需要腳本？<code>pids_images</code> 裏只寫 <code>background</code> / <code>color</code> / <code>fonts</code> / <code>showWeather</code> / <code>showClock</code> / <code>hidePlatform</code> / <code>hideRow</code> / <code>topPadding</code> / <code>textOverflowMode</code> 等 JSON 欄位即為「JSON 預設」——簡單改臉夠用，且與腳本預設二選一不可混寫。</p>
+
+    <h2 id="psd">PSD 腳本（屏蔽門）</h2>
+    <p>為屏蔽門玻璃與頂部面板提供腳本。在 <code>mtr_custom_resources.json</code> 新增 <code>psdScripts</code> 類别——形式同 <code>vehicleScripts</code>（<code>scriptLocations</code> 支援 JS 與 C++ 混排、逐條目語言判定），新增 <code>type</code> 欄位選擇綁定表面：</p>
+    <pre><code>"psdScripts": [
+    {
+        "id": "psd_glass_pids",
+        "type": "glass",
+        "scriptLocations": [
+            "mtr:my_pack/js/psd_glass_pids/main.js",
+            "mtr:my_pack/native/psd_glass_pids"
+        ],
+        "dataFetchMode": "ALL"
+    }
+]</code></pre>
+    <p>遊戲内用新物品<strong>「屏蔽門腳本編輯器」</strong>（與 MTR 的「刷」在同一創造分類）对任意屏蔽門玻璃（含端部玻璃、半高閘門 APG 玻璃；MTR、天津地铁等一切基於 MTR PSD 類的模組）或屏蔽門頂部面板右鍵，在彈出介面中選擇該類型的條目<strong>或任一腳本化 PIDS 預設</strong>（PIDS 腳本原樣執行，畫布自動適配 PSD 表面）；「無腳本」解除綁定。綁定保存在伺服器并同步給同维度所有玩家。</p>
+    <ul>
+      <li><strong>玻璃</strong>：變為不透明白色，腳本控制的動態貼圖疊加其上（正反兩面，背面鏡像；APG 上半按 9px 高度適配）。畫布 96×96（APG 上半 96×54）。</li>
+      <li><strong>頂部面板</strong>：不再顯示原有箭头 / 線路圖，顯示內容完全由腳本控制。畫布 78×42。</li>
+    </ul>
+    <p>繪製 API 與 PIDS 完全一致（<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>，畫布原点為可见面左上角）。資料 API（JS 的 <code>psd</code> 参数 / C++ 的 <code>mtr::Psd</code>，完整訪問器见 <a href="data.html#psd">資料快照 · Psd</a>）：</p>
+    <table>
+      <thead><tr><th>JS</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>psd.type()</code> / <code>psd.width()</code> / <code>psd.height()</code></td><td>綁定表面（"glass" / "top"）與畫布尺寸</td></tr>
+        <tr><td><code>psd.platform()</code></td><td>站台：編號 / 名稱（<code>number()</code> / <code>name()</code>）、車站、停站時間</td></tr>
+        <tr><td><code>psd.routes()</code></td><td>经停線路全量信息；<code>dataFetchMode: "ALL"</code> 時每条線路含完整車站列表（轉乘 / 出口）</td></tr>
+        <tr><td><code>psd.arrivals()</code></td><td>到站列車：终点站、線路、車厢数、倒计時（<code>arrivalCountdown()</code>）、<strong>將開啟的門編號 <code>doorNumbers()</code></strong>、即時 / 终到 / 環線狀態</td></tr>
+        <tr><td><code>psd.doors()</code> / <code>psd.doorValue()</code> / <code>psd.isDoorOpen()</code></td><td>門單元列表（1 起編號、即時開門 / 上鎖）與整牆開門量</td></tr>
+      </tbody>
+    </table>
+    <p>C++ 側為第五類基類 <code>mtr::PsdScript&lt;State&gt;</code>（<code>MTR_REGISTER_PSD_SCRIPT</code>），資料快照 <code>JcmPsdSnapshot</code>（ABI 12），见 <code>native/examples/psd_glass.cpp</code>。</p>
 
     <h2 id="displayhelper">DisplayHelper（內置多螢幕助手）</h2>
     <p>車載多螢幕的現成方案：<code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code> 後——</p>

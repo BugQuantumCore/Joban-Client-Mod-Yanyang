@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>脚本模型与生命周期 — JCM Yanyang 脚本开发文档</title>
-<meta name="description" content="四类脚本基类、State 语义、create/render/dispose 时序、线程模型与崩溃隔离。">
+<meta name="description" content="五类脚本基类、State 语义、create/render/dispose 时序、线程模型与崩溃隔离。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -61,13 +61,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文档</a> / 脚本模型与生命周期</div>
       <h1>脚本模型与生命周期</h1>
-      <p class="page-lead">四类脚本基类、逐实例状态、生命周期时序，以及线程与崩溃隔离语义。</p>
+      <p class="page-lead">五类脚本基类、逐实例状态、生命周期时序，以及线程与崩溃隔离语义。</p>
     </header>
 
     <div class="page-toc">
       <b>本页内容</b>
       <ol>
-        <li><a href="#kinds">四类脚本</a></li>
+        <li><a href="#kinds">五类脚本</a></li>
         <li><a href="#state">State：逐实例状态</a></li>
         <li><a href="#lifecycle">生命周期时序</a></li>
         <li><a href="#threading">线程模型</a></li>
@@ -76,13 +76,14 @@
       </ol>
     </div>
 
-    <h2 id="kinds">四类脚本</h2>
+    <h2 id="kinds">五类脚本</h2>
     <p>包含 <code>&lt;mtr/script.hpp&gt;</code>，继承对应基类并用注册宏导出。基类模板参数是<strong>逐实例状态类型</strong>：</p>
     <table>
       <thead><tr><th>资源</th><th>基类</th><th>注册宏</th><th>数据包装器</th></tr></thead>
       <tbody>
         <tr><td>车辆</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Vehicle</code></td></tr>
         <tr><td>PIDS</td><td><code>mtr::PidsScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PIDS_SCRIPT</code></td><td><code>mtr::Pids</code></td></tr>
+        <tr><td>屏蔽门</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>电梯</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>装饰</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
       </tbody>
@@ -198,7 +199,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

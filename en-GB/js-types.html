@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -72,6 +72,7 @@
         <li><a href="#eyecandy">Eyecandy scripts</a></li>
         <li><a href="#lift">Lift scripts</a></li>
         <li><a href="#pids">PIDS scripts</a></li>
+        <li><a href="#psd">PSD scripts (platform screen doors)</a></li>
         <li><a href="#displayhelper">DisplayHelper</a></li>
       </ol>
     </div>
@@ -257,6 +258,37 @@ function dispose(ctx, state, vehicle) { /* On retirement: release textures */ }<
       <p>A PIDS can mount a <code>GraphicsTexture</code> too: <code>new GraphicsTexture(pids.width, pids.height)</code> in <code>create</code>, paint and <code>upload()</code> in <code>render</code>, then <code>Texture.create().texture(state.tex.identifier).size(pids.width, pids.height).draw(ctx)</code>, and <code>close()</code> in <code>dispose</code>—the fallback for when text layout lets you down, at the cost of performance and memory.</p>
     </div>
     <p>Don't need a script? A <code>pids_images</code> entry with only the JSON fields <code>background</code> / <code>color</code> / <code>fonts</code> / <code>showWeather</code> / <code>showClock</code> / <code>hidePlatform</code> / <code>hideRow</code> / <code>topPadding</code> / <code>textOverflowMode</code> and so on is a 'JSON preset'—enough for a simple facelift, and mutually exclusive with a script preset (the two cannot be combined in one entry).</p>
+
+    <h2 id="psd">PSD scripts (platform screen doors)</h2>
+    <p>Scripts for platform screen door glass and top panels. Declare them under the <code>psdScripts</code> category of <code>mtr_custom_resources.json</code> — the same entry shape as <code>vehicleScripts</code> (<code>scriptLocations</code> freely mixes JS and C++ with per-entry language detection) plus a <code>type</code> field selecting the binding surface:</p>
+    <pre><code>"psdScripts": [
+    {
+        "id": "psd_glass_pids",
+        "type": "glass",
+        "scriptLocations": [
+            "mtr:my_pack/js/psd_glass_pids/main.js",
+            "mtr:my_pack/native/psd_glass_pids"
+        ],
+        "dataFetchMode": "ALL"
+    }
+]</code></pre>
+    <p>In game, use the new <strong>PSD Script Editor</strong> item (in the same creative tab as MTR's brush): right-click any PSD glass (including glass ends and half-height APG gates — MTR, Tianjin Metro and every addon building on MTR's PSD classes) or psd_top block and pick either an entry of the matching type <strong>or any scripted PIDS preset</strong> (PIDS scripts run unchanged; the canvas adapts to the PSD surface). "No script" removes the binding. Bindings live on the server and sync to every player in the dimension.</p>
+    <ul>
+      <li><strong>Glass</strong> becomes opaque white with the script's dynamic texture on top (both faces, track side mirrored; APG upper halves adapt to the 9-px gate height). Canvas 96×96 (APG upper 96×54).</li>
+      <li><strong>Top panels</strong> stop showing the built-in arrow / route strip — the script fully controls the content. Canvas 78×42.</li>
+    </ul>
+    <p>Drawing is identical to PIDS scripts (<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>; the canvas origin is the top-left of the visible face). The data API (JS <code>psd</code> argument / C++ <code>mtr::Psd</code>; full accessors in <a href="data.html#psd">Data snapshots · Psd</a>):</p>
+    <table>
+      <thead><tr><th>JS</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>psd.type()</code> / <code>psd.width()</code> / <code>psd.height()</code></td><td>Binding surface ("glass" / "top") and canvas size</td></tr>
+        <tr><td><code>psd.platform()</code></td><td>Platform: number / name (<code>number()</code> / <code>name()</code>), station, dwell time</td></tr>
+        <tr><td><code>psd.routes()</code></td><td>Every route calling at the platform; with <code>dataFetchMode: "ALL"</code> each carries its full stop list (interchanges / exits)</td></tr>
+        <tr><td><code>psd.arrivals()</code></td><td>Upcoming trains: destination, route, car count, countdown (<code>arrivalCountdown()</code>), the <strong>door numbers that will open</strong> (<code>doorNumbers()</code>), realtime / terminating / circular state</td></tr>
+        <tr><td><code>psd.doors()</code> / <code>psd.doorValue()</code> / <code>psd.isDoorOpen()</code></td><td>Door unit list (1-based, live open / locked states) and the wall-wide open amount</td></tr>
+      </tbody>
+    </table>
+    <p>On the C++ side this is the fifth script base class <code>mtr::PsdScript&lt;State&gt;</code> (<code>MTR_REGISTER_PSD_SCRIPT</code>) with the <code>JcmPsdSnapshot</code> snapshot (ABI 12); see <code>native/examples/psd_glass.cpp</code>.</p>
 
     <h2 id="displayhelper">DisplayHelper (the built-in multi-screen helper)</h2>
     <p>A ready-made solution for multi-screen vehicles: after <code>include(Resources.id("mtrsteamloco:scripts/display_helper.js"))</code>—</p>

@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -61,7 +61,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>C++ native scripting</h1>
-      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write all four script kinds — <strong>vehicle, PIDS, lift, and eyecandy</strong> — in C++, with the same lifecycle and the same API surface as JavaScript scripts, and zero JVM crossings on the hot path. The full documentation of JavaScript scripting (the upstream JCM scripting system) is in the JavaScript Scripting section below.</p>
+      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write all five script kinds — <strong>vehicle, PIDS, lift, eyecandy, and platform screen doors</strong> — in C++, with the same lifecycle and the same API surface as JavaScript scripts, and zero JVM crossings on the hot path. The full documentation of JavaScript scripting (the upstream JCM scripting system) is in the JavaScript Scripting section below.</p>
     </header>
 
     <h2>What this is</h2>
@@ -163,7 +163,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
     <h2>Documentation contents</h2>
     <div class="toc-cards">
       <a class="toc-card" href="getting-started.html"><b>Quick start</b><span>Get the SDK, set up a project, build your first module, and package it into a resource pack</span></a>
-      <a class="toc-card" href="script-model.html"><b>Script model and lifecycle</b><span>The four script base classes, State semantics, create / render / dispose ordering, threading, and crash isolation</span></a>
+      <a class="toc-card" href="script-model.html"><b>Script model and lifecycle</b><span>The five script base classes, State semantics, create / render / dispose ordering, threading, and crash isolation</span></a>
       <a class="toc-card" href="data.html"><b>Data snapshots</b><span>The full accessor reference for Vehicle / Stop / Arrival / Pids / Lift / EyeCandy</span></a>
       <a class="toc-card" href="drawing.html"><b>Drawing and canvases</b><span>The Text / Texture fluent APIs, Matrices, GraphicsTexture, the Gfx2D rasterizer, and fonts</span></a>
       <a class="toc-card" href="java-api.html"><b>mtr::Api and Java interop</b><span>Call every public Java API JS can reach, callbacks, and a JS ↔ C++ cheat sheet</span></a>
@@ -182,7 +182,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

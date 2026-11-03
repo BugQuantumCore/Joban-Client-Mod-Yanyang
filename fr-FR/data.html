@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -72,6 +72,7 @@
         <li><a href="#stop">Stop / correspondances / sorties</a></li>
         <li><a href="#transport">Modes et types de transport</a></li>
         <li><a href="#pids">Pids (écran d’arrivées)</a></li>
+        <li><a href="#psd">Psd (portes palières)</a></li>
         <li><a href="#lift">Lift (ascenseur)</a></li>
         <li><a href="#eyecandy">EyeCandy (décoration)</a></li>
         <li><a href="#helpers">Types utilitaires</a></li>
@@ -205,6 +206,51 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       </tbody>
     </table>
 
+    <h2 id="psd">Psd (portes palières)</h2>
+    <p><code>mtr::Psd</code> reflète le <code>PSDWrapper</code> JS (une entrée <code>psdScripts</code> — voir <a href="js-types.html#psd">Types de scripts JS · Scripts PSD</a>) :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>Surface liée : <code>Psd::GLASS</code> (vitre) ou <code>Psd::TOP</code> (bandeau supérieur)</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>Taille du canevas (pixels PIDS) : 96×96 par demi-vitre, 96×54 pour les demi-portillons APG, 78×42 pour les bandeaux</td></tr>
+        <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>Quai et station desservis (id à 0 sans quai)</td></tr>
+        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>Numéro de quai (ex. « 1 ») et nom du quai (nom de la station)</td></tr>
+        <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>Ouverture actuelle du mur entier (0..1) et présence d’une porte ouverte</td></tr>
+        <tr><td><code>doors()</code></td><td><code>PsdDoorList</code> : les unités de porte (voir ci-dessous)</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code> : les trains à venir (voir ci-dessous)</td></tr>
+        <tr><td><code>routes()</code></td><td><code>PsdRouteList</code> : les lignes desservant le quai (voir ci-dessous ; listes de stations uniquement avec <code>dataFetchMode: "ALL"</code>)</td></tr>
+        <tr><td><code>game_time_millis()</code> / <code>in_game_time()</code></td><td>Horloges (décalage serveur corrigé)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdDoor (unité de porte)</h3>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>number()</code></td><td>Numéro d’unité (à partir de 1, le long du mur) — un groupe de vantaux coulissants (paire LEFT+RIGHT, ou modèle impair à 3 blocs) au sein d’un même tronçon continu</td></tr>
+        <tr><td><code>is_open()</code> / <code>is_locked()</code></td><td>État ouverture / verrouillage en direct (lu chaque frame sur les block entities des portes)</td></tr>
+        <tr><td><code>x()</code> / <code>y()</code> / <code>z()</code></td><td>Position du premier bloc de porte de l’unité</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdArrival (train à venir)</h3>
+    <p>Reprend tous les accesseurs d’Arrival de Pids (destination / route_name / route_number / platform_name / arrival_time / departure_time / deviation / realtime / terminating / circular_state / route_id / platform_id / route_color / car_count / departure_index — voir <a href="#pids">Pids</a>), et ajoute :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>door_count()</code> / <code>door_number(i)</code></td><td>Les <strong>unités de porte que ce train ouvrira</strong> : état réellement ouvert pendant l’arrêt (avec repli sur la prédiction pendant les phases d’animation) ; avant l’arrivée, une approximation — le train s’arrête centré sur le milieu du quai, sa longueur étant sommée depuis les ressources de chaque voiture</td></tr>
+      </tbody>
+    </table>
+
+    <h3>PsdRoute / PsdStop (lignes et stations)</h3>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>Id / nom / numéro / couleur ARGB / état circulaire de la ligne, et id de type de transport canonique</td></tr>
+        <tr><td><code>stops()</code></td><td><code>PsdStopList</code> : les arrêts dans l’ordre, avec la même disposition que le <code>Stop</code> véhicule (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — voir <a href="#stop">Stop / correspondances / sorties</a>)</td></tr>
+      </tbody>
+    </table>
+
     <h2 id="lift">Lift (ascenseur)</h2>
     <p><code>mtr::Lift</code> (combinaison instantané + enveloppe Java ; partie instantané) :</p>
     <table>
@@ -294,7 +340,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* animation d’arri
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

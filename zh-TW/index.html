@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -61,7 +61,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>C++ 原生腳本</h1>
-      <p class="lead">為 Minecraft Transit Railway 4 的資源包作者提供以 C++ 編寫<strong>車輛、PIDS、電梯、裝飾</strong>四類腳本的能力——與 JavaScript 腳本同生命週期、同 API 面，熱路徑零 JVM 穿越。JavaScript 腳本（原版 JCM 的腳本體系）的完整開發文件見下方「JavaScript 腳本」一節。</p>
+      <p class="lead">為 Minecraft Transit Railway 4 的資源包作者提供以 C++ 編寫<strong>車輛、PIDS、電梯、裝飾、屏蔽門</strong>五類腳本的能力——與 JavaScript 腳本同生命週期、同 API 面，熱路徑零 JVM 穿越。JavaScript 腳本（原版 JCM 的腳本體系）的完整開發文件見下方「JavaScript 腳本」一節。</p>
     </header>
 
     <h2>這是什麼</h2>
@@ -163,7 +163,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
     <h2>文件目錄</h2>
     <div class="toc-cards">
       <a class="toc-card" href="getting-started.html"><b>快速上手</b><span>取得 SDK、建立專案、編譯第一個模組、打包進資源包</span></a>
-      <a class="toc-card" href="script-model.html"><b>腳本模型與生命週期</b><span>四類腳本基類、State 語意、create / render / dispose 時序、執行緒與崩潰隔離</span></a>
+      <a class="toc-card" href="script-model.html"><b>腳本模型與生命週期</b><span>五類腳本基類、State 語意、create / render / dispose 時序、執行緒與崩潰隔離</span></a>
       <a class="toc-card" href="data.html"><b>資料快照</b><span>Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 全部存取器參考</span></a>
       <a class="toc-card" href="drawing.html"><b>繪製與畫布</b><span>Text / Texture 串流 API、Matrices、GraphicsTexture、Gfx2D 光柵器與字型</span></a>
       <a class="toc-card" href="java-api.html"><b>mtr::Api 與 Java 互通作業</b><span>呼叫 JS 能存取的全部公開 Java API、回呼、JS ↔ C++ 對照表</span></a>
@@ -182,7 +182,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 11（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 12（2.3.0-prerelease.2-yanyang.1）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

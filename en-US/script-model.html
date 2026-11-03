@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Script model and lifecycle — JCM Yanyang Scripting Docs</title>
-<meta name="description" content="The four script base classes, State semantics, create/render/dispose ordering, the threading model, and crash isolation.">
+<meta name="description" content="The five script base classes, State semantics, create/render/dispose ordering, the threading model, and crash isolation.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -45,7 +45,7 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 11<br>
+    SDK ABI 12<br>
     JCM 2.3.0-prerelease.2-yanyang.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
@@ -61,13 +61,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">Docs</a> / Script model and lifecycle</div>
       <h1>Script model and lifecycle</h1>
-      <p class="page-lead">The four script base classes, per-instance state, lifecycle ordering, and the threading and crash isolation semantics.</p>
+      <p class="page-lead">The five script base classes, per-instance state, lifecycle ordering, and the threading and crash isolation semantics.</p>
     </header>
 
     <div class="page-toc">
       <b>On this page</b>
       <ol>
-        <li><a href="#kinds">The four script kinds</a></li>
+        <li><a href="#kinds">The five script kinds</a></li>
         <li><a href="#state">State: per-instance state</a></li>
         <li><a href="#lifecycle">Lifecycle ordering</a></li>
         <li><a href="#threading">Threading model</a></li>
@@ -76,13 +76,14 @@
       </ol>
     </div>
 
-    <h2 id="kinds">The four script kinds</h2>
+    <h2 id="kinds">The five script kinds</h2>
     <p>Include <code>&lt;mtr/script.hpp&gt;</code>, derive from the matching base class, and export it with a registration macro. The base class's template argument is the <strong>per-instance state type</strong>:</p>
     <table>
       <thead><tr><th>Resource</th><th>Base class</th><th>Registration macro</th><th>Data wrapper</th></tr></thead>
       <tbody>
         <tr><td>Vehicle</td><td><code>mtr::VehicleScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_VEHICLE_SCRIPT</code></td><td><code>mtr::Vehicle</code></td></tr>
         <tr><td>PIDS</td><td><code>mtr::PidsScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PIDS_SCRIPT</code></td><td><code>mtr::Pids</code></td></tr>
+        <tr><td>PSD</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>Lift</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>Eyecandy</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
       </tbody>
@@ -198,7 +199,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 11 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 12 (2.3.0-prerelease.2-yanyang.1) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>
