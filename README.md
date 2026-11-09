@@ -1,7 +1,7 @@
 # Develop-Documentation-Website — JCM Yanyang 脚本开发文档（网页版）
 
 本分支存放 **Joban Client Mod — Yanyang**（晏阳技术组修改版）的脚本开发文档静态站点，与仓库
-`native/README.md` / `native/include/mtr/` 的 SDK（ABI 13，对应 2.3.0-1.0.1）同步维护，
+`native/README.md` / `native/include/mtr/` 的 SDK（ABI 13，对应 2.3.0-1.0.2）同步维护，
 并收录上游 JCM（v2.3，对应 https://jcm.joban.org/v2.3/ 的 For Content Authors）JavaScript 脚本体系的完整开发文档。
 - **在线地址**：<https://bugquantumcore.github.io/Joban-Client-Mod-Yanyang/>
 - **浅色 / 深色主题**：全站支持，首次访问跟随系统偏好，手动切换后记住选择（`localStorage`）
