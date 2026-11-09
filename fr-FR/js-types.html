@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>Scripts C++ / JS</b><small>Documentation</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">Premiers pas</div>
     <a href="index.html">Vue d’ensemble</a>
@@ -46,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -275,8 +276,8 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
 ]</code></pre>
     <p>En jeu, utilisez le nouvel objet <strong>Éditeur de scripts PSD</strong> (même onglet créatif que le pinceau de MTR) : clic droit sur une vitre de porte palière (y compris vitres d’extrémité et portillons APG à mi-hauteur — MTR, Tianjin Metro et tout addon bâti sur les classes PSD de MTR) ou un bloc psd_top, puis choisissez une entrée du type correspondant <strong>ou n’importe quel preset PIDS scripté</strong> (les scripts PIDS tournent tels quels ; le canevas s’adapte à la surface PSD). « Aucun script » supprime la liaison. Les liaisons sont stockées côté serveur et synchronisées à tous les joueurs de la dimension.</p>
     <ul>
-      <li><strong>Vitre</strong> : devient blanc opaque avec la texture dynamique du script par-dessus — la texture dynamique n’apparaît que du <strong>côté quai</strong> ; le côté voies (celui que voient les passagers depuis l’intérieur d’un train) reste blanc uni (les demi-portillons APG s’adaptent à la hauteur de 9 px). Canevas 96×96 (APG supérieur 96×54).</li>
-      <li><strong>Bandeau supérieur</strong> : n’affiche plus la flèche / la bande de ligne intégrée — le script contrôle entièrement le contenu. Canevas 78×42.</li>
+      <li><strong>Vitre</strong> : un fond opaque est ajouté — <strong>noir</strong> côté quai (écran sombre façon PIDS réel), blanc uni côté voies (les passagers depuis l’intérieur d’un train voient un panneau blanc uni, jamais le contenu en miroir). Le canevas du script se trouve côté quai, à l’intérieur du vitrage, et est <strong>découpé selon la fenêtre transparente du vitrage</strong> (dérivé du modèle et de l’alpha de la texture du pack — cadres et montants restent visibles devant et masquent le contenu) ; tout le tronçon de vitrage entre deux portes partage un seul canevas, et une colonne pleine hauteur sur deux blocs fusionne verticalement. Le canevas s’adapte à la fenêtre (96 px par bloc).</li>
+      <li><strong>Bandeau supérieur</strong> : toute la bande psd_top d’un même passage de portes partage un canevas unique — cette bande n’affiche plus la flèche / la ligne intégrée et son contenu est entièrement contrôlé par le script ; les autres bandes conservent le rendu d’origine. Canevas : 96 px de large par bloc (moins une marge de 0,125/16 de chaque côté) × 42 px de haut.</li>
     </ul>
     <p>Le dessin est identique aux scripts PIDS (<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code> ; l’origine du canevas est le coin supérieur gauche de la face visible). L’API de données (argument JS <code>psd</code> / C++ <code>mtr::Psd</code> ; accesseurs complets dans <a href="data.html#psd">Instantanés de données · Psd</a>) :</p>
     <table>
@@ -339,7 +340,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">API communes JS</a>
       <a href="js-yanyang.html">Extensions Yanyang</a>
     </div>
-    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-prerelease.3-yanyang.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    Documentation JCM Yanyang Scripting · volet JavaScript · correspond à JCM 2.3.0-1.0.1 · référence amont : <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

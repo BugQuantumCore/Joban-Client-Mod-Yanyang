@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>C++ / JS scripting</b><small>Docs</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
@@ -46,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -275,8 +276,8 @@ function dispose(ctx, state, vehicle) { /* On retirement: release textures */ }<
 ]</code></pre>
     <p>In game, use the new <strong>PSD Script Editor</strong> item (in the same creative tab as MTR's brush): right-click any PSD glass (including glass ends and half-height APG gates — MTR, Tianjin Metro and every addon building on MTR's PSD classes) or psd_top block and pick either an entry of the matching type <strong>or any scripted PIDS preset</strong> (PIDS scripts run unchanged; the canvas adapts to the PSD surface). "No script" removes the binding. Bindings live on the server and sync to every player in the dimension.</p>
     <ul>
-      <li><strong>Glass</strong> becomes opaque white with the script's dynamic texture on top — the dynamic texture shows on the <strong>platform side only</strong>; the track side (what passengers see from inside a train) stays plain white (APG upper halves adapt to the 9-px gate height). Canvas 96×96 (APG upper 96×54).</li>
-      <li><strong>Top panels</strong> stop showing the built-in arrow / route strip — the script fully controls the content. Canvas 78×42.</li>
+      <li><strong>Glass</strong> gets an opaque backing — <strong>black</strong> on the platform side (a real-PIDS dark display), plain white on the track side (passengers inside a train see a plain white panel, never mirrored content). The script canvas sits on the platform side, inside the pane, and is <strong>clipped to the pane's transparent window</strong> (derived from the resource pack's model and texture alpha, so frames and bars stay visible in front and occlude the content); the whole glass run between two doors shares one canvas, and a full-height two-block column merges vertically into one. The canvas adapts to the window (96 px per block).</li>
+      <li><strong>Top panels</strong>: the whole psd_top stretch over one door run shares one canvas — that stretch stops showing the built-in arrow / route strip and its content is fully script-controlled; other stretches keep the vanilla content. Canvas is 96 px per block wide (minus a 0.125/16 side padding each) × 42 px high.</li>
     </ul>
     <p>Drawing is identical to PIDS scripts (<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>; the canvas origin is the top-left of the visible face). The data API (JS <code>psd</code> argument / C++ <code>mtr::Psd</code>; full accessors in <a href="data.html#psd">Data snapshots · Psd</a>):</p>
     <table>
@@ -339,7 +340,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">JS common APIs</a>
       <a href="js-yanyang.html">Yanyang extensions</a>
     </div>
-    JCM Yanyang scripting documentation · JavaScript part · Matches JCM 2.3.0-prerelease.3-yanyang.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang scripting documentation · JavaScript part · Matches JCM 2.3.0-1.0.1 · Upstream reference: <a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

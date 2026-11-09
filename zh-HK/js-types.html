@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文件</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">開始</div>
     <a href="index.html">概覽</a>
@@ -46,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -275,8 +276,8 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
 ]</code></pre>
     <p>遊戲内用新物品<strong>「屏蔽門腳本編輯器」</strong>（與 MTR 的「刷」在同一創造分類）对任意屏蔽門玻璃（含端部玻璃、半高閘門 APG 玻璃；MTR、天津地铁等一切基於 MTR PSD 類的模組）或屏蔽門頂部面板右鍵，在彈出介面中選擇該類型的條目<strong>或任一腳本化 PIDS 預設</strong>（PIDS 腳本原樣執行，畫布自動適配 PSD 表面）；「無腳本」解除綁定。綁定保存在伺服器并同步給同维度所有玩家。</p>
     <ul>
-      <li><strong>玻璃</strong>：變為不透明白色，腳本控制的動態貼圖疊加其上——動態貼圖<strong>只顯示在月台側</strong>；軌道側（車內乘客所見嘅嗰一面）保持純白（APG 上半按 9px 高度適配）。畫布 96×96（APG 上半 96×54）。</li>
-      <li><strong>頂部面板</strong>：不再顯示原有箭头 / 線路圖，顯示內容完全由腳本控制。畫布 78×42。</li>
+      <li><strong>玻璃</strong>：加上不透明底板——月台一側<strong>黑色</strong>（真實 PIDS 深色螢幕觀感），路軌一側純白（車內乘客只見白色面板，見不到鏡像內容）。腳本畫布位於月台一側、藏於玻璃之內，<strong>自動裁剪至玻璃嘅透明視窗</strong>（按資源包模型同貼圖 alpha 推導；門框、拉筋等不透明部分照常顯示喺前面並遮擋內容）；兩道門之間嘅整段連續玻璃共用同一畫布，全高兩格玻璃上下合併為一。畫布尺寸隨視窗自適應（每方塊 96 像素）。</li>
+      <li><strong>頂部面板</strong>：同一門區上方嘅整段 psd_top 共用一塊畫布，該段不再顯示原有箭頭 / 線路圖——內容完全由腳本控制；其餘段保持原樣。畫布每方塊闊 96 像素（左右各留 0.125/16 邊距）× 高 42 像素。</li>
     </ul>
     <p>繪製 API 與 PIDS 完全一致（<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>，畫布原点為可见面左上角）。資料 API（JS 的 <code>psd</code> 参数 / C++ 的 <code>mtr::Psd</code>，完整訪問器见 <a href="data.html#psd">資料快照 · Psd</a>）：</p>
     <table>
@@ -339,7 +340,7 @@ function dispose(ctx, state, vehicle) {
       <a href="js-api.html">JS 公用 API</a>
       <a href="js-yanyang.html">晏陽擴展 API</a>
     </div>
-    JCM Yanyang 腳本文件 · JavaScript 篇 · 對應 JCM 2.3.0-prerelease.3-yanyang.1 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
+    JCM Yanyang 腳本文件 · JavaScript 篇 · 對應 JCM 2.3.0-1.0.1 · 上游對照：<a href="https://jcm.joban.org/v2.3/dev/scripting/" rel="noopener">jcm.joban.org</a>
   </footer>
 </main>
 </div>

@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>C++ / JS 脚本</b><small>开发文档</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">开始</div>
     <a href="index.html">概览</a>
@@ -46,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -212,7 +213,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>访问器</th><th>说明</th></tr></thead>
       <tbody>
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>绑定表面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（顶部面板）</td></tr>
-        <tr><td><code>width()</code> / <code>height()</code></td><td>画布尺寸（PIDS 像素）：玻璃每半块 96×96、APG 上半 96×54、面板 78×42</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>画布尺寸（PIDS 像素）：玻璃为整段透明窗口的尺寸（每方块 96 像素，整柱两格上下合并为一）；顶部面板每方块宽约 96（扣除边距）× 高 42</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所服务的站台与车站（无站台时 id 为 0）</td></tr>
         <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台编号（如 "1"）与站台名（车站名）</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>整墙当前开门量（0..1）与是否有门在开</td></tr>
@@ -358,7 +359,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 播进场动画 */
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-1.0.1）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

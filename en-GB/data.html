@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>C++ / JS scripting</b><small>Docs</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">Getting Started</div>
     <a href="index.html">Overview</a>
@@ -46,7 +47,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -212,7 +213,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>Binding surface: <code>Psd::GLASS</code> or <code>Psd::TOP</code></td></tr>
-        <tr><td><code>width()</code> / <code>height()</code></td><td>Canvas size (PIDS pixels): 96×96 per glass half, 96×54 for APG upper halves, 78×42 for top panels</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>Canvas size (PIDS pixels): glass — the whole segment's transparent window (96 px per block, full-height columns merge vertically); top panel — ~96 px per block wide (minus padding) × 42 high</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>Served platform and station (ids are 0 without a platform)</td></tr>
         <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>Platform number (e.g. "1") and platform name (station name)</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>Wall-wide current open amount (0..1) and whether any door is open</td></tr>
@@ -358,7 +359,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* play arrival anima
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-prerelease.3-yanyang.1) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.1) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

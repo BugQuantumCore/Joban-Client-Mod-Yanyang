@@ -13,9 +13,10 @@
 <div class="layout">
 
 <aside class="sidebar">
-      <span class="brand-mark">JCM</span>
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
     <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文檔</small></span>
-    </a>
+  </a>
   <nav class="nav">
     <div class="nav-group">肇始</div>
     <a href="index.html">綜覽</a>
@@ -48,7 +49,7 @@
   </div>
   <div class="sidebar-footer">
     SDK ABI 13<br>
-    JCM 2.3.0-prerelease.3-yanyang.1<br>
+    JCM 2.3.0-1.0.1<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -97,7 +98,7 @@
     <div class="admonition note">
       <span class="admonition-title">術語：MTR 三代之 train → MTR 四代之 vehicle</span>
       <p>MTR 四代之制，載具統名曰 <strong>vehicle</strong>（資源包宣告之鍵 <code>vehicleScripts</code>，Java 側則 <code>VehicleWrapper</code> 是也），故本 SDK 數據包裝之類，名之曰 <code>mtr::Vehicle</code>。前代 SDK 嘗循 MTR 三代之舊，名之曰 <code>mtr::Train</code>；今舊名猶存，為<strong>源碼相容之別名</strong>——二名並可編譯，所行全同。</p>
-    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 2.3.0-prerelease.3-yanyang.1 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
+    <p>按：<code>mtr::Vehicle</code> 之名已入倉庫 SDK 之原碼，將隨次版之 zip 而布；君所用若 2.3.0-1.0.1 或更早之 SDK zip，則請以 <code>mtr::Train</code> 名之（新 SDK 之中，二名並可編譯）。</p></div>
     <p><code>mtr::Vehicle</code> 所供者，映 JS 之 <code>VehicleWrapper</code> 加 <code>NTETrainWrapper</code>：</p>
     <table>
       <thead><tr><th>訪問器</th><th>類型</th><th>釋義</th></tr></thead>
@@ -214,7 +215,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
       <tbody>
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>所繫之面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（其上之板）</td></tr>
-        <tr><td><code>width()</code> / <code>height()</code></td><td>畫布之廣袤（PIDS 之像素）：玻璃每半 96×96，APG 上半 96×54，上面之板 78×42</td></tr>
+        <tr><td><code>width()</code> / <code>height()</code></td><td>畫布之廣袤（PIDS 之像素）：玻璃者，整段透明之窗也（每方 96 像素，整柱兩格上下相合為一）；其上之板，每方寬約 96（除其邊際）× 高 42</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所事之站台與車站（無站台則 id 為零）</td></tr>
         <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台之號（如「一」）與其名（車站之名）</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>全牆今之啟度（0..1），與有門啟否</td></tr>
@@ -360,7 +361,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 演進場之動畫
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-prerelease.3-yanyang.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.1）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>
