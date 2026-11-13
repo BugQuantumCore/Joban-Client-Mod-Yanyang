@@ -98,7 +98,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋放紋理 */ }</code></pr
         <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>除錯覆蓋層顯示（所有類型 ctx 都有；GraphicsTexture 直接貼圖顯示）</td></tr>
       </tbody>
     </table>
-    <p><span class="pill warn">已棄用</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用，但新程式碼請用上面的 RenderManager / SoundManager / 宣告欄位。<code>drawConnModel</code>（車廂連接件）與 <code>drawConnStretchTexture</code> 尚未實作，呼叫會拋出「未實作」。</p>
+    <p><span class="pill warn">已棄用</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用，但新程式碼請用上面的 RenderManager / SoundManager / 宣告欄位。<code>drawConnModel</code>（車廂連接件）的兩個多載均會擲出 <code>NotImplementedException</code>（未實作例外）；<code>drawConnStretchTexture</code> 在此上下文中未提供。兩者均不可用。</p>
 
     <h3>VehicleWrapper（vehicle）</h3>
     <table>

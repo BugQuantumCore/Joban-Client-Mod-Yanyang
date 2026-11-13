@@ -98,7 +98,7 @@ function dispose(ctx, state, vehicle) { /* On exit: release textures */ }</code>
         <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>Shown on the debug overlay (every type's ctx has it; a GraphicsTexture value is shown as the image itself)</td></tr>
       </tbody>
     </table>
-    <p><span class="pill warn">Deprecated</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> still work, but new code should use the RenderManagers / SoundManagers / declaration fields above. <code>drawConnModel</code> (car connectors) and <code>drawConnStretchTexture</code> are not yet implemented and throw "not implemented" when called.</p>
+    <p><span class="pill warn">Deprecated</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> still work, but new code should use the RenderManagers / SoundManagers / declaration fields above. Both overloads of <code>drawConnModel</code> (car connectors) throw <code>NotImplementedException</code>; <code>drawConnStretchTexture</code> is not exposed in this context. Neither API is usable.</p>
 
     <h3>VehicleWrapper (vehicle)</h3>
     <table>

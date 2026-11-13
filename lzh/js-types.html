@@ -100,7 +100,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋紋理 */ }</code></pre>
         <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>除錯覆層之顯（諸類之 ctx 皆有；GraphicsTexture 則徑以貼圖顯之）</td></tr>
       </tbody>
     </table>
-    <p><span class="pill warn">已廢</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用；然新碼請用上列之 RenderManager / SoundManager / 宣告之欄。<code>drawConnModel</code>（車廂連接之件）與 <code>drawConnStretchTexture</code> 尚未之實現，呼之必擲「未實現」。</p>
+    <p><span class="pill warn">已廢</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用；然新碼請用上列之 RenderManager / SoundManager / 宣告之欄。<code>drawConnModel</code>（車廂連接之件）有兩式，呼之皆擲 <code>NotImplementedException</code>，以其未實現也；<code>drawConnStretchTexture</code> 則未設於此上下文。二者皆不可用。</p>
 
     <h3>VehicleWrapper（vehicle）</h3>
     <table>

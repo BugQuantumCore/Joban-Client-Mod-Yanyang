@@ -98,7 +98,7 @@ function dispose(ctx, state, vehicle) { /* au retrait : libérer les textures */
         <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>affichage dans la surcouche de débogage (présent sur le <code>ctx</code> de tous les types ; une <code>GraphicsTexture</code> s’y affiche directement comme image)</td></tr>
       </tbody>
     </table>
-    <p><span class="pill warn">Obsolète</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> restent utilisables, mais le nouveau code doit employer les <code>RenderManager</code> / <code>SoundManager</code> / champs de déclaration ci-dessus. <code>drawConnModel</code> (attelages entre voitures) et <code>drawConnStretchTexture</code> ne sont pas implémentés — l’appel lève « non implémenté ».</p>
+    <p><span class="pill warn">Obsolète</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> restent utilisables, mais le nouveau code doit employer les <code>RenderManager</code> / <code>SoundManager</code> / champs de déclaration ci-dessus. Les deux surcharges de <code>drawConnModel</code> (attelages entre voitures) lèvent <code>NotImplementedException</code> ; <code>drawConnStretchTexture</code> n’est pas exposé dans ce contexte. Aucune de ces deux API n’est utilisable.</p>
 
     <h3>VehicleWrapper (vehicle)</h3>
     <table>
