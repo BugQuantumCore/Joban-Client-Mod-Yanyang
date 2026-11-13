@@ -247,10 +247,18 @@
     var lzhMain = document.querySelector(".main");
     if (lzhSurf && lzhMain && lzhSurf.addEventListener) {
       lzhMain.addEventListener("wheel", function (e) {
+        /* 保留浏览器缩放、横滚手势与代码块自身的纵向滚动。 */
+        if (e.defaultPrevented || !e.cancelable || e.ctrlKey || e.metaKey || e.shiftKey) return;
         if (e.deltaMode !== 0 && e.deltaMode !== 1) return;
         var dy = e.deltaY * (e.deltaMode === 1 ? 34 : 1);
         var dx = e.deltaX;
         if (!dy || Math.abs(dx) >= Math.abs(dy)) return;
+        for (var target = e.target; target && target !== lzhMain; target = target.parentElement) {
+          if (target === lzhSurf || target.nodeType !== 1) continue;
+          var maxY = target.scrollHeight - target.clientHeight;
+          if (maxY > 1 && /^(auto|scroll)$/.test(window.getComputedStyle(target).overflowY) &&
+              (dy > 0 ? target.scrollTop < maxY - 1 : target.scrollTop > 0)) return;
+        }
         if (lzhSurf.scrollWidth - lzhSurf.clientWidth <= 1) return;
         var before = lzhSurf.scrollLeft;
         lzhSurf.scrollLeft = before - dy;
@@ -270,7 +278,7 @@
     });
     select.addEventListener("change", function () {
       var page = location.pathname.split("/").pop() || "index.html";
-      location.href = "../" + select.value + "/" + page;
+      location.href = "../" + select.value + "/" + page + location.search + location.hash;
     });
   }
 
@@ -310,6 +318,10 @@
   var sidebar = document.querySelector(".sidebar");
   var btn = document.querySelector(".topbar .menu-btn");
   if (sidebar && btn) {
+    var mql = window.matchMedia("(max-width: 960px)");
+    var focusableSelector = 'a[href], button:not([disabled]), select:not([disabled]), [tabindex="0"]';
+    if (!sidebar.id) sidebar.id = "site-navigation";
+    btn.setAttribute("aria-controls", sidebar.id);
     btn.setAttribute("aria-expanded", "false");
 
     function drawerIsOpen() {
@@ -317,15 +329,29 @@
     }
 
     function openDrawer() {
+      if (!mql.matches) return;
       sidebar.classList.add("open");
       document.body.classList.add("nav-open");
       btn.setAttribute("aria-expanded", "true");
+      syncDrawerAccessibility();
+      var first = sidebar.querySelector(focusableSelector);
+      if (first) first.focus();
     }
 
     function closeDrawer() {
+      resetSwipe();
+      if (mql.matches && sidebar.contains(document.activeElement)) btn.focus();
       sidebar.classList.remove("open");
       document.body.classList.remove("nav-open");
       btn.setAttribute("aria-expanded", "false");
+      syncDrawerAccessibility();
+    }
+
+    function syncDrawerAccessibility() {
+      var hidden = mql.matches && !drawerIsOpen();
+      sidebar.inert = hidden;
+      if (hidden) sidebar.setAttribute("aria-hidden", "true");
+      else sidebar.removeAttribute("aria-hidden");
     }
 
     btn.addEventListener("click", function () {
@@ -344,6 +370,21 @@
       if (e.key === "Escape" && drawerIsOpen()) {
         closeDrawer();
         btn.focus();
+        e.preventDefault();
+      } else if (e.key === "Tab" && drawerIsOpen()) {
+        var controls = sidebar.querySelectorAll(focusableSelector);
+        if (!controls.length) return;
+        var first = controls[0], last = controls[controls.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          last.focus();
+          e.preventDefault();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          first.focus();
+          e.preventDefault();
+        } else if (!sidebar.contains(document.activeElement)) {
+          (e.shiftKey ? last : first).focus();
+          e.preventDefault();
+        }
       }
     });
 
@@ -352,8 +393,15 @@
     var rtlDrawer = locale === "lzh";
     var sx = null, sy = 0, dx = 0, dragging = false;
 
+    function resetSwipe() {
+      sidebar.style.transition = "";
+      sidebar.style.transform = "";
+      dragging = false;
+      sx = null;
+    }
+
     sidebar.addEventListener("touchstart", function (e) {
-      if (!drawerIsOpen()) return;
+      if (!drawerIsOpen() || e.touches.length !== 1) return;
       sx = e.touches[0].clientX;
       sy = e.touches[0].clientY;
       dx = 0;
@@ -362,6 +410,7 @@
 
     sidebar.addEventListener("touchmove", function (e) {
       if (sx === null) return;
+      if (e.touches.length !== 1) { resetSwipe(); return; }
       var mx = e.touches[0].clientX - sx;
       var my = e.touches[0].clientY - sy;
       if (!dragging) {
@@ -380,24 +429,22 @@
     }, { passive: true });
 
     function endSwipe() {
-      if (!dragging) { sx = null; return; }
-      sidebar.style.transition = "";
-      sidebar.style.transform = "";
-      dragging = false;
-      sx = null;
-      if (rtlDrawer ? dx > 70 : dx < -70) closeDrawer();
+      var shouldClose = dragging && (rtlDrawer ? dx > 70 : dx < -70);
+      resetSwipe();
+      if (shouldClose) closeDrawer();
     }
 
     sidebar.addEventListener("touchend", endSwipe, { passive: true });
-    sidebar.addEventListener("touchcancel", endSwipe, { passive: true });
+    sidebar.addEventListener("touchcancel", resetSwipe, { passive: true });
 
     /* 跨断点（如旋转平板）时清理抽屉状态，避免 ≥ 961px 留下遮罩/滚动锁 */
-    var mql = window.matchMedia("(max-width: 960px)");
     var onMq = function (e) {
-      if (!e.matches && drawerIsOpen()) closeDrawer();
+      if (!e.matches) closeDrawer();
+      else syncDrawerAccessibility();
     };
     if (mql.addEventListener) mql.addEventListener("change", onMq);
     else if (mql.addListener) mql.addListener(onMq);
+    syncDrawerAccessibility();
   }
 
   /* ---- 代码块复制按钮 ----
@@ -418,8 +465,10 @@
   var ICON_ERR = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 
   function legacyCopy(text) {
+    var ta = null;
+    var active = document.activeElement;
     try {
-      var ta = document.createElement("textarea");
+      ta = document.createElement("textarea");
       ta.value = text;
       ta.setAttribute("readonly", "");
       ta.style.position = "fixed";
@@ -430,10 +479,12 @@
       ta.select();
       ta.setSelectionRange(0, text.length);
       var ok = document.execCommand("copy");
-      document.body.removeChild(ta);
       return ok;
     } catch (e) {
       return false;
+    } finally {
+      if (ta && ta.parentNode) ta.parentNode.removeChild(ta);
+      if (active && active.focus) active.focus({ preventScroll: true });
     }
   }
 
@@ -579,7 +630,9 @@
         var m3 = i;
         while (m3 < n && /[A-Za-z0-9_]/.test(src[m3])) m3++;
         var word = src.slice(i, m3);
-        var after = src.slice(m3).match(/^\s*\(/);
+        var next = m3;
+        while (next < n && /\s/.test(src[next])) next++;
+        var after = src[next] === "(";
         if (kw.has(word)) {
           out += '<span class="tok-k">' + word + "</span>";
         } else if (/^(mtr|MTR|Jcm)[_A-Z]/.test(word) || /^[A-Z][A-Za-z0-9_]*$/.test(word) || (types && types.has(word))) {
@@ -609,8 +662,9 @@
         m = Math.min(m + 1, n);
         var seg = src.slice(i, m);
         // 键（后跟冒号）与普通字符串
-        var rest = src.slice(m);
-        out += '<span class="' + (/^\s*:/.test(rest) ? "tok-f" : "tok-s") + '">' +
+        var next = m;
+        while (next < n && /\s/.test(src[next])) next++;
+        out += '<span class="' + (src[next] === ":" ? "tok-f" : "tok-s") + '">' +
                esc(seg) + "</span>";
         i = m;
         continue;
@@ -622,7 +676,7 @@
         i = j2;
         continue;
       }
-      if (/[0-9-]/.test(c) && /[0-9]/.test(src[i + 1] || "")) {
+      if (/[0-9]/.test(c) || (c === "-" && /[0-9]/.test(src[i + 1] || ""))) {
         var m4 = i + 1;
         while (m4 < n && /[0-9.eE+-]/.test(src[m4])) m4++;
         out += '<span class="tok-n">' + esc(src.slice(i, m4)) + "</span>";
@@ -675,25 +729,44 @@
      CSS 为表格列设了保底宽度，窄屏下不再压缩比例；仍放不下的表格
      依赖 .table-wrap 横向滚动。此处依滚动位置切换 can-l / can-r，
      CSS 用 mask 在对应边缘渐隐，提示尚有内容可滑。 */
-  function syncTableEdges() {
-    document.querySelectorAll(".table-wrap").forEach(function (w) {
+  var tableWraps = document.querySelectorAll(".table-wrap");
+  function syncTableEdges(wrappers) {
+    /* 先批量读尺寸再写 class，避免在多张表之间交错触发布局。 */
+    var edges = [];
+    wrappers.forEach(function (w) {
       var max = w.scrollWidth - w.clientWidth;
-      if (max <= 4) {
-        w.classList.remove("can-l", "can-r");
-        return;
-      }
-      w.classList.toggle("can-r", w.scrollLeft < max - 4);
-      w.classList.toggle("can-l", w.scrollLeft > 4);
+      edges.push({ wrap: w, right: max > 4 && w.scrollLeft < max - 4, left: max > 4 && w.scrollLeft > 4 });
+    });
+    edges.forEach(function (edge) {
+      edge.wrap.classList.toggle("can-r", edge.right);
+      edge.wrap.classList.toggle("can-l", edge.left);
     });
   }
 
-  document.querySelectorAll(".table-wrap").forEach(function (w) {
-    w.addEventListener("scroll", syncTableEdges, { passive: true });
+  tableWraps.forEach(function (w) {
+    var pending = false;
+    w.addEventListener("scroll", function () {
+      if (pending) return;
+      pending = true;
+      window.requestAnimationFrame(function () {
+        pending = false;
+        syncTableEdges([w]);
+      });
+    }, { passive: true });
   });
-  window.addEventListener("resize", syncTableEdges);
-  window.addEventListener("orientationchange", syncTableEdges);
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(syncTableEdges).catch(function () { /* 忽略 */ });
+  var tableResizePending = false;
+  function scheduleTableEdges() {
+    if (tableResizePending) return;
+    tableResizePending = true;
+    window.requestAnimationFrame(function () {
+      tableResizePending = false;
+      syncTableEdges(tableWraps);
+    });
   }
-  syncTableEdges();
+  window.addEventListener("resize", scheduleTableEdges);
+  window.addEventListener("orientationchange", scheduleTableEdges);
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(scheduleTableEdges).catch(function () { /* 忽略 */ });
+  }
+  syncTableEdges(tableWraps);
 })();

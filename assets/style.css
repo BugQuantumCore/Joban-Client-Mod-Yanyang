@@ -1098,10 +1098,11 @@ td code {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
     transform: translateX(-102%);
-    transition: transform 0.24s ease;
+    visibility: hidden;
+    transition: transform 0.24s ease, visibility 0.24s;
   }
 
-  .sidebar.open { transform: translateX(0); }
+  .sidebar.open { transform: translateX(0); visibility: visible; }
 
   /* 打开时锁定背景滚动 + 全屏遮罩（点击遮罩关闭） */
   body.nav-open { overflow: hidden; }

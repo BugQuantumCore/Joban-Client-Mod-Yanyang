@@ -84,7 +84,7 @@
     <p>At the start of each frame the host marshals the instance's data <strong>in one go</strong> into a POD snapshot (fixed-length header + variable-length array pools + a UTF-8 string pool) and passes it to <code>mtrRender</code> together with the state block pointer. On top of that memory, the SDK's typed wrappers (<code>mtr::Vehicle</code>, <code>mtr::Pids</code>, <code>mtr::Lift</code>, <code>mtr::EyeCandy</code>) provide accessors <strong>with the same names as their JS counterparts</strong>:</p>
     <ul>
       <li>Strings come back as <code>mtr::StrView</code> (<code>data</code> + <code>len</code>); convert with <code>.str()</code> to a <code>std::string</code> and test with <code>.empty()</code>; the view is valid only within the current <code>render</code> call.</li>
-      <li>Out-of-range indices throw <code>std::out_of_range</code> (matching the semantics of the Java side's <code>IndexOutOfBounds</code>).</li>
+      <li>Out-of-range indices in ordinary lists throw <code>std::out_of_range</code> (matching the semantics of the Java side's <code>IndexOutOfBounds</code>).</li>
       <li>Do <strong>not</strong> keep snapshot pointers or wrappers across frames.</li>
     </ul>
     <div class="admonition note">
@@ -215,7 +215,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>Binding surface: <code>Psd::GLASS</code> or <code>Psd::TOP</code></td></tr>
         <tr><td><code>width()</code> / <code>height()</code></td><td>Canvas size (PIDS pixels): glass — the whole segment's transparent window (96 px per block, full-height columns merge vertically); top panel — ~96 px per block wide (minus padding) × 42 high</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>Served platform and station (ids are 0 without a platform)</td></tr>
-        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>Platform number (e.g. "1") and platform name (station name)</td></tr>
+        <tr><td><code>platform_number()</code> / <code>station_name()</code></td><td>Platform number (e.g. "1") and station name</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>Wall-wide current open amount (0..1) and whether any door is open</td></tr>
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>: the door units (below)</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>: upcoming trains (below)</td></tr>
@@ -255,6 +255,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 
     <h3>PsdStation (the station record, ABI 13)</h3>
     <p><code>JcmPsdSnapshot.station_offset</code> (byte offset 124; <code>-1</code> = no station — the field was padding in ABI 12) points at the 96-byte <code>JcmPsdStation</code> record — the same data the JS <code>psd.stop()</code> object exposes:</p>
+    <p><code>PsdStation</code> and its nested station accessors return absent objects, empty strings or defaults for invalid indices or records instead of throwing index exceptions. When constructing a snapshot outside the host, pass the actual buffer size to <code>mtr::Psd(snapshot, byteLength)</code>. The compatible pointer-only constructor requires a fully readable header and its declared backing buffer; a raw pointer cannot reveal the allocation size.</p>
     <table>
       <thead><tr><th>Field</th><th>Description</th></tr></thead>
       <tbody>
