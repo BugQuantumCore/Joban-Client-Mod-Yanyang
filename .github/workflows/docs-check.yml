@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [Develop-Documentation-Website]
   push:
-    branches: ['fix/docs-audit-*']
+    branches: [Develop-Documentation-Website, 'fix/docs-audit-*']
   workflow_dispatch:
 
 permissions:
