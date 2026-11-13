@@ -279,6 +279,7 @@ function dispose(ctx, state, vehicle) { /* 退场：释放纹理 */ }</code></pr
       <li><strong>玻璃</strong>：衬上不透明底板——站台一侧<strong>黑色</strong>（真实 PIDS 的深色显示屏观感），轨道一侧纯白（车内乘客只见白色面板，看不到镜像内容）。脚本画布在站台一侧、夹于玻璃之内，<strong>自动裁剪到玻璃的透明窗口</strong>（按资源包模型与贴图 alpha 推导；门框、拉筋等不透明部分照常显示在前并遮挡内容）；两门之间的整段连续玻璃共用一块画布，整柱两格高的玻璃上下合并为一。画布尺寸随窗口自适应（每方块 96 像素）。</li>
       <li><strong>顶部面板</strong>：同一门区上方的整段 psd_top 共用一块画布，该段不再显示原有箭头 / 线路图——内容完全由脚本控制；其余段保持原样。画布每方块宽 96 像素（左右各留 0.125/16 边距）× 高 42 像素。</li>
     </ul>
+    <p>连续玻璃段或顶板段不超过 64 格时仍共用一个完整画布，即使跨越坐标网格边界也不拆分。超过 64 格的长段按画布向右方向的有符号世界坐标切为对齐的 64 格区间（首尾区间可更短）；编辑器绑定、解除绑定及顶板原有内容的隐藏都只作用于同一个子段。</p>
     <p>绘制 API 与 PIDS 完全一致（<code>Text</code> / <code>Texture</code> / <code>Rect</code> + <code>ctx.draw</code>，画布原点为可见面左上角）。数据 API（JS 的 <code>psd</code> 参数 / C++ 的 <code>mtr::Psd</code>，完整访问器见 <a href="data.html#psd">数据快照 · Psd</a>）：</p>
     <table>
       <thead><tr><th>JS</th><th>说明</th></tr></thead>
