@@ -106,12 +106,17 @@ async function main() {
     });
     assert.deepEqual(scroll, { nestedPreserved: true, zoomPreserved: true, turnsPage: true });
 
+    await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto(`${origin}/zh-CN/js-api.html`);
     await page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
       document.execCommand = () => { throw new Error("Clipboard unavailable"); };
     });
     const copy = page.locator(".copy-btn").first();
+    // This context has a fine mouse pointer: the site intentionally reveals
+    // copy buttons on hover. Perform that real user interaction before click's
+    // hit-test instead of forcing a click through a pointer-disabled button.
+    await page.locator(".code-block-wrap").first().hover();
     await copy.click();
     await page.waitForFunction(() => document.querySelector(".copy-btn").classList.contains("err"));
     assert.equal(await page.locator("textarea").count(), 0, "failed fallback left its hidden textarea");
