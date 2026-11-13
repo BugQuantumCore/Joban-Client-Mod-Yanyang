@@ -58,7 +58,14 @@ async function main() {
       await page.goto(`${origin}/${locale}/js-api.html?ci=1#render`);
       assert.ok(await page.locator(".sidebar").evaluate((sidebar) => sidebar.inert));
       await page.locator(".menu-btn").click();
-      assert.ok(await page.locator(".sidebar").evaluate((sidebar) => sidebar.contains(document.activeElement)));
+      const drawerFocus = await page.locator(".sidebar").evaluate((sidebar) => ({
+        inside: sidebar.contains(document.activeElement),
+        active: document.activeElement.outerHTML.slice(0, 180),
+        visibility: getComputedStyle(sidebar).visibility,
+        inert: sidebar.inert,
+        open: sidebar.classList.contains("open"),
+      }));
+      assert.ok(drawerFocus.inside, `${locale}: opening drawer must move focus inside: ${JSON.stringify(drawerFocus)}`);
       await page.keyboard.press("Shift+Tab");
       assert.ok(await page.locator(".lang-select").evaluate((select) => select === document.activeElement));
       await page.keyboard.press("Tab");

@@ -1102,7 +1102,13 @@ td code {
     transition: transform 0.24s ease, visibility 0.24s;
   }
 
-  .sidebar.open { transform: translateX(0); visibility: visible; }
+  .sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    /* Opening must make links focusable synchronously; animating visibility
+       leaves them hidden when openDrawer() moves keyboard focus. */
+    transition: transform 0.24s ease;
+  }
 
   /* 打开时锁定背景滚动 + 全屏遮罩（点击遮罩关闭） */
   body.nav-open { overflow: hidden; }
