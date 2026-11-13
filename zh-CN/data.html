@@ -84,7 +84,7 @@
     <p>每帧开始时，宿主把该实例的数据<strong>一次性</strong>打包成一块 POD 快照（定长头部 + 变长数组池 + UTF-8 字符串池），连同状态块指针一起传给 <code>mtrRender</code>。SDK 的类型化包装器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在这块内存上提供与 JS Wrapper <strong>同名的访问器</strong>：</p>
     <ul>
       <li>字符串以 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）返回，用 <code>.str()</code> 转 <code>std::string</code>、<code>.empty()</code> 判空；视图只在本次 <code>render</code> 调用内有效。</li>
-      <li>越界索引抛 <code>std::out_of_range</code>（与 Java 端 <code>IndexOutOfBounds</code> 语义一致）。</li>
+      <li>普通列表的越界索引抛 <code>std::out_of_range</code>（与 Java 端 <code>IndexOutOfBounds</code> 语义一致）。</li>
       <li>快照指针与包装器<strong>不要</strong>跨帧保存。</li>
     </ul>
     <div class="admonition note">
@@ -215,7 +215,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>绑定表面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（顶部面板）</td></tr>
         <tr><td><code>width()</code> / <code>height()</code></td><td>画布尺寸（PIDS 像素）：玻璃为整段透明窗口的尺寸（每方块 96 像素，整柱两格上下合并为一）；顶部面板每方块宽约 96（扣除边距）× 高 42</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所服务的站台与车站（无站台时 id 为 0）</td></tr>
-        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台编号（如 "1"）与站台名（车站名）</td></tr>
+        <tr><td><code>platform_number()</code> / <code>station_name()</code></td><td>站台编号（如 "1"）与车站名</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>整墙当前开门量（0..1）与是否有门在开</td></tr>
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：门单元列表（见下）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：到站列车（见下）</td></tr>
@@ -255,6 +255,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 
     <h3>PsdStation（车站记录，ABI 13）</h3>
     <p><code>JcmPsdSnapshot.station_offset</code>（字节偏移 124；<code>-1</code> = 无车站——该字段在 ABI 12 中是填充位）指向 96 字节的 <code>JcmPsdStation</code> 记录——与 JS <code>psd.stop()</code> 对象同一数据：</p>
+    <p><code>PsdStation</code> 及其嵌套车站访问器在索引或记录无效时返回空对象、空字符串或默认值，不抛索引异常。若在宿主之外构造快照，请传入 <code>mtr::Psd(snapshot, byteLength)</code> 的实际缓冲区字节数；仅传指针的兼容构造器要求完整可读的头部与其声明的缓冲区，无法从裸指针推断分配大小。</p>
     <table>
       <thead><tr><th>字段</th><th>说明</th></tr></thead>
       <tbody>

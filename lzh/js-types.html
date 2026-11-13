@@ -100,7 +100,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋紋理 */ }</code></pre>
         <tr><td><code>setDebugInfo(key, value)</code> / <code>setDebugInfo(value)</code></td><td>除錯覆層之顯（諸類之 ctx 皆有；GraphicsTexture 則徑以貼圖顯之）</td></tr>
       </tbody>
     </table>
-    <p><span class="pill warn">已廢</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用；然新碼請用上列之 RenderManager / SoundManager / 宣告之欄。<code>drawConnModel</code>（車廂連接之件）與 <code>drawConnStretchTexture</code> 尚未之實現，呼之必擲「未實現」。</p>
+    <p><span class="pill warn">已廢</span> <code>drawCarModel(...)</code> / <code>playCarSound(...)</code> / <code>setDataFetchMode(...)</code> 仍可用；然新碼請用上列之 RenderManager / SoundManager / 宣告之欄。<code>drawConnModel</code>（車廂連接之件）有兩式，呼之皆擲 <code>NotImplementedException</code>，以其未實現也；<code>drawConnStretchTexture</code> 則未設於此上下文。二者皆不可用。</p>
 
     <h3>VehicleWrapper（vehicle）</h3>
     <table>
@@ -281,6 +281,7 @@ function dispose(ctx, state, vehicle) { /* 退場：釋紋理 */ }</code></pre>
       <li><strong>玻璃</strong>：衬以不透明之底——月台之側<strong>玄色</strong>（仿真 PIDS 深屏之觀），軌道之側純白（車中乘客惟見白板，不見鏡像之文）。腳之畫布居月台一側、藏於玻璃之內，<strong>自裁於玻璃透明之窗</strong>（依資源包模型與貼圖 alpha 而推；門框拉筋等不透明者仍顯於前而蔽其文）；兩門之間連續之玻璃共為一段、同用一布，整柱兩格者上下合而為一。畫布隨窗自適（每方 96 像素）。</li>
       <li><strong>其上之板</strong>：同一門區之上整段 psd_top 共用一布，其段不復顯舊有之箭頭 / 線圖——所顯者一由腳司之；餘段如故。畫布每方寬 96 像素（左右各留 0.125/16 之際）× 高 42 像素。</li>
     </ul>
+    <p>玻璃或頂板相連，未逾六十四格者，仍共一全幅，雖跨座標之界亦不分。逾此數者，循畫布右行之有號世界座標，以六十四格為齊界而分段，首尾可短；編輯器之繫解與頂板舊圖之隱，皆以同一子段為限。</p>
     <p>繪畫之法與 PIDS 全同（<code>Text</code> / <code>Texture</code> / <code>Rect</code> 佐 <code>ctx.draw</code>，畫布之原點在可見面之左上）。數據之法（JS 之 <code>psd</code> 參 / C++ 之 <code>mtr::Psd</code>，訪問器之全備者見 <a href="data.html#psd">數據快照 · Psd</a>）：</p>
     <table>
       <thead><tr><th>JS</th><th>釋義</th></tr></thead>

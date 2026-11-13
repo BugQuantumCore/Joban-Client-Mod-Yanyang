@@ -84,7 +84,7 @@
     <p>每幀開始時，宿主把該實例的資料<strong>一次性</strong>搬運處理成一塊 POD 快照（定長標頭 + 變長陣列集區 + UTF-8 字串集區），連同狀態區塊指標一起傳給 <code>mtrRender</code>。SDK 的型別化包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）在這塊記憶體上提供與 JS Wrapper <strong>同名的存取器</strong>：</p>
     <ul>
       <li>字串以 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）傳回，用 <code>.str()</code> 轉 <code>std::string</code>、<code>.empty()</code> 判斷是否為空；視圖只在本次 <code>render</code> 呼叫內有效。</li>
-      <li>越界索引擲出 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 語意一致）。</li>
+      <li>一般清單的越界索引擲出 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 語意一致）。</li>
       <li>快照指標與包裝器<strong>不要</strong>跨幀保存。</li>
     </ul>
     <div class="admonition note">
@@ -215,7 +215,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>綁定表面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（頂部面板）</td></tr>
         <tr><td><code>width()</code> / <code>height()</code></td><td>畫布尺寸（PIDS 像素）：玻璃為整段透明視窗的尺寸（每方塊 96 像素，整柱兩格上下合併為一）；頂部面板每方塊寬約 96（扣除邊距）× 高 42</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所服務的站台與車站（無站台時 id 為 0）</td></tr>
-        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台編號（如 "1"）與站台名（車站名）</td></tr>
+        <tr><td><code>platform_number()</code> / <code>station_name()</code></td><td>月台編號（如 "1"）與車站名</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>整牆当前開門量（0..1）與是否有門在开</td></tr>
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：門單元列表（见下）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：到站列車（见下）</td></tr>
@@ -255,6 +255,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 
     <h3>PsdStation（車站記錄，ABI 13）</h3>
     <p><code>JcmPsdSnapshot.station_offset</code>（位元組偏移 124；<code>-1</code> = 無車站——該欄位在 ABI 12 中是填補位）指向 96 位元組的 <code>JcmPsdStation</code> 記錄——與 JS <code>psd.stop()</code> 物件同一資料：</p>
+    <p><code>PsdStation</code> 及其巢狀車站存取器在索引或記錄無效時傳回空物件、空字串或預設值，不擲出索引例外。若在宿主以外建立快照，請向 <code>mtr::Psd(snapshot, byteLength)</code> 傳入實際緩衝區位元組數；僅傳指標的相容建構子要求完整可讀的標頭及其宣告的緩衝區，無法由裸指標推斷配置大小。</p>
     <table>
       <thead><tr><th>欄位</th><th>說明</th></tr></thead>
       <tbody>

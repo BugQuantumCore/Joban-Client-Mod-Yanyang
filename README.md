@@ -6,7 +6,7 @@
 - **在线地址**：<https://bugquantumcore.github.io/Joban-Client-Mod-Yanyang/>
 - **浅色 / 深色主题**：全站支持，首次访问跟随系统偏好，手动切换后记住选择（`localStorage`）
 - **多语言**：简体中文（中国大陆）· 繁體中文（香港特別行政區）· 繁體中文（台灣）· 文言（華夏）· English (US) · English (UK) · Français (France)
-- **文言版仿古纵排**：`lzh/` 全部 12 页依古籍之制呈现——竖排右起（`writing-mode: vertical-rl`）、卷面横向展卷（滚轮下滚即向左续读）、正文句读悉去（`app.js` 剥除现代标点，拉丁字串相邻处以空格代之以免粘连）、仿宋刻本字体、宣纸／玄夜／朱砂配色、上下双线界框、题签加「晏陽之印」朱印、着重朱点（`text-emphasis`）；侧栏目录亦作竖排界行，位于页面右侧，移动端抽屉自右而启。代码块、表格与架构图为保可用仍作横排「插图之岛」（限高内滚）。全部规则限定于 `html[data-locale="lzh"]`，其他语言版面不受影响；打印时自动退回横排常式。
+- **文言版仿古纵排**：`lzh/` 全部 12 页依古籍之制呈现——竖排右起（`writing-mode: vertical-rl`）、卷面横向展卷（滚轮下滚即向左续读）、正文句读悉去（`app.js` 剥除现代标点，拉丁字串相邻处以空格代之以免粘连）、仿宋刻本字体、宣纸／玄夜／朱砂配色、上下双线界框、题签加「晏陽之印」朱印、着重朱点（`text-emphasis`）；侧栏目录亦作竖排界行，位于页面右侧，移动端抽屉自右而启。表格与架构图化为竖排笺条；代码块为保可用仍作横排「插图之岛」（限高内滚，滚轮优先滚动代码内容）。全部规则限定于 `html[data-locale="lzh"]`，其他语言版面不受影响；打印时自动退回横排常式。
 
 ## 站点结构
 
@@ -52,3 +52,7 @@ python3 -m http.server 8080
 
 仓库 Pages 已配置为 *Deploy from a branch* → 分支 `Develop-Documentation-Website`
 → 目录 `/（root）`，站点即从本分支根目录发布。
+
+## GitHub 验证
+
+`.github/workflows/docs-check.yml` 在文档拉取请求、`fix/docs-audit-*` 修复分支推送或手动触发时检查站内链接、锚点和 JavaScript 语法，并以 Chromium 遍历全部语言页面，验证移动端导航、语言切换定位、文言卷轴及复制失败后的清理行为。浏览器依赖仅由 GitHub Actions 安装；站点本身仍然无外部依赖。此工作流不部署 GitHub Pages。

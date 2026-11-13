@@ -86,7 +86,7 @@
     <p>每幀方始，宿主以此實例之數據<strong>一舉</strong>搬運，為一 POD 快照：定長之首，變長之陣列池，UTF-8 字串之池，三者具焉；連狀態塊之指針，併傳於 <code>mtrRender</code>。SDK 之具型包裝器（<code>mtr::Vehicle</code>、<code>mtr::Pids</code>、<code>mtr::Lift</code>、<code>mtr::EyeCandy</code>）居此記憶體之上，供與 JS Wrapper <strong>同名</strong>之訪問器：</p>
     <ul>
       <li>字串以 <code>mtr::StrView</code>（<code>data</code>＋<code>len</code>）而返；<code>.str()</code> 則轉為 <code>std::string</code>，<code>.empty()</code> 則判其虛實。視圖惟本次 <code>render</code> 一呼之內為效。</li>
-      <li>索引越界，則擲 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 同其義也）。</li>
+      <li>常式之列，索引越界，則擲 <code>std::out_of_range</code>（與 Java 端 <code>IndexOutOfBounds</code> 同其義也）。</li>
       <li>快照之指針與包裝器，<strong>慎勿</strong>跨幀而存之。</li>
     </ul>
     <div class="admonition note">
@@ -217,7 +217,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>所繫之面：<code>Psd::GLASS</code>（玻璃）或 <code>Psd::TOP</code>（其上之板）</td></tr>
         <tr><td><code>width()</code> / <code>height()</code></td><td>畫布之廣袤（PIDS 之像素）：玻璃者，整段透明之窗也（每方 96 像素，整柱兩格上下相合為一）；其上之板，每方寬約 96（除其邊際）× 高 42</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>所事之站台與車站（無站台則 id 為零）</td></tr>
-        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>站台之號（如「一」）與其名（車站之名）</td></tr>
+        <tr><td><code>platform_number()</code> / <code>station_name()</code></td><td>站台之號（如「一」）與車站之名</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>全牆今之啟度（0..1），與有門啟否</td></tr>
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code>：門單元之列（見下）</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code>：將至之車（見下）</td></tr>
@@ -257,6 +257,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 
     <h3>PsdStation（車站之記，ABI 13）</h3>
     <p><code>JcmPsdSnapshot.station_offset</code>（位元組之偏 124；<code>-1</code> 者無車站也——此欄於 ABI 12 猶填補之位）所指者，九十六位元組 <code>JcmPsdStation</code> 之記也——與 JS <code>psd.stop()</code> 之物件同其數據：</p>
+    <p><code>PsdStation</code> 及其所屬諸訪問器，索引或記錄失實，則返空物、空字串或預設之值，不擲索引之異常。自造快照於宿主之外者，宜以 <code>mtr::Psd(snapshot, byteLength)</code> 傳實有之位元組數；惟傳指針之舊式，須首部及其所宣之緩衝區皆完備可讀，蓋裸指針不能自明所配之大小。</p>
     <table>
       <thead><tr><th>欄</th><th>釋義</th></tr></thead>
       <tbody>

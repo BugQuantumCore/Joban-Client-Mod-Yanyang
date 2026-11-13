@@ -84,7 +84,7 @@
     <p>Au début de chaque frame, l’hôte marshalle <strong>en une seule fois</strong> les données de l’instance en un instantané POD (en-tête de longueur fixe + pools de tableaux de longueur variable + pool de chaînes UTF-8), qu’il transmet à <code>mtrRender</code> avec le pointeur du bloc d’état. Les enveloppes typées du SDK (<code>mtr::Vehicle</code>, <code>mtr::Pids</code>, <code>mtr::Lift</code>, <code>mtr::EyeCandy</code>) fournissent sur ce bloc mémoire des accesseurs <strong>homonymes</strong> de ceux du Wrapper JS :</p>
     <ul>
       <li>Les chaînes sont retournées sous forme de <code>mtr::StrView</code> (<code>data</code> + <code>len</code>) ; convertissez avec <code>.str()</code> en <code>std::string</code> et testez la vacuité avec <code>.empty()</code> ; la vue n’est valable que durant l’appel <code>render</code> en cours.</li>
-      <li>Un index hors limites lève <code>std::out_of_range</code> (sémantique identique à l’<code>IndexOutOfBounds</code> côté Java).</li>
+      <li>Dans les listes ordinaires, un index hors limites lève <code>std::out_of_range</code> (sémantique identique à l’<code>IndexOutOfBounds</code> côté Java).</li>
       <li>Ne conservez <strong>pas</strong> les pointeurs d’instantané ni les enveloppes d’une frame à l’autre.</li>
     </ul>
     <div class="admonition note">
@@ -215,7 +215,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>type()</code> / <code>is_glass()</code> / <code>is_top()</code></td><td>Surface liée : <code>Psd::GLASS</code> (vitre) ou <code>Psd::TOP</code> (bandeau supérieur)</td></tr>
         <tr><td><code>width()</code> / <code>height()</code></td><td>Taille du canevas (pixels PIDS) : vitre — la fenêtre transparente de tout le tronçon (96 px par bloc, les colonnes pleine hauteur fusionnent verticalement) ; bandeau supérieur — ~96 px de large par bloc (marges déduites) × 42 de haut</td></tr>
         <tr><td><code>platform_id()</code> / <code>has_platform()</code> / <code>station_id()</code></td><td>Quai et station desservis (id à 0 sans quai)</td></tr>
-        <tr><td><code>platform_number()</code> / <code>platform_name()</code></td><td>Numéro de quai (ex. « 1 ») et nom du quai (nom de la station)</td></tr>
+        <tr><td><code>platform_number()</code> / <code>station_name()</code></td><td>Numéro de quai (ex. « 1 ») et nom de la station</td></tr>
         <tr><td><code>door_value()</code> / <code>is_door_open()</code></td><td>Ouverture actuelle du mur entier (0..1) et présence d’une porte ouverte</td></tr>
         <tr><td><code>doors()</code></td><td><code>PsdDoorList</code> : les unités de porte (voir ci-dessous)</td></tr>
         <tr><td><code>arrivals()</code></td><td><code>PsdArrivalList</code> : les trains à venir (voir ci-dessous)</td></tr>
@@ -255,6 +255,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
 
     <h3>PsdStation (l’enregistrement de gare, ABI 13)</h3>
     <p><code>JcmPsdSnapshot.station_offset</code> (décalage d’octet 124 ; <code>-1</code> = pas de gare — le champ était du remplissage en ABI 12) pointe l’enregistrement <code>JcmPsdStation</code> de 96 octets — les mêmes données que l’objet JS <code>psd.stop()</code> :</p>
+    <p><code>PsdStation</code> et ses accesseurs de station imbriqués renvoient des objets absents, des chaînes vides ou des valeurs par défaut si un index ou un enregistrement est invalide, sans exception d’index. Pour construire un instantané hors de l’hôte, passez la taille réelle du tampon à <code>mtr::Psd(snapshot, byteLength)</code>. Le constructeur compatible à pointeur seul exige un en-tête entièrement lisible et le tampon qu’il déclare ; un pointeur brut ne révèle pas la taille de l’allocation.</p>
     <table>
       <thead><tr><th>Champ</th><th>Description</th></tr></thead>
       <tbody>

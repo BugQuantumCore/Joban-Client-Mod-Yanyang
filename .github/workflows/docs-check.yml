@@ -1,0 +1,46 @@
+name: Documentation checks
+
+on:
+  pull_request:
+    branches: [Develop-Documentation-Website]
+  push:
+    branches: ['fix/docs-audit-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  site:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check internal links, anchors and shared JavaScript
+        run: |
+          python3 scripts/check_links.py
+          node --check assets/app.js
+          node --check scripts/check_browser.cjs
+      - name: Install browser used only by CI
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check all pages and navigation regressions
+        run: node scripts/check_browser.cjs
+      - name: Upload failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: documentation-failure
+          path: artifacts/
+          if-no-files-found: ignore
