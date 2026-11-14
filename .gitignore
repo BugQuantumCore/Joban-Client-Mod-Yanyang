@@ -61,3 +61,7 @@ native/build-*/
 native/bench/*.so
 native/bench/gfx2d_bench
 native/bench/smoke_test
+
+# Pinned MTR 4.1 dependency downloads (CI only)
+dependencies/
+neoforge/run/

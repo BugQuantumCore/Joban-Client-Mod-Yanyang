@@ -7,15 +7,17 @@ pluginManagement {
 		mavenCentral()
 		gradlePluginPortal()
 		maven { url "https://maven.minecraftforge.net/" }
+		maven { url "https://maven.neoforged.net/releases/" }
 	}
 }
 
 plugins {
-	id "org.gradle.toolchains.foojay-resolver-convention" version "+"
+	id "org.gradle.toolchains.foojay-resolver-convention" version "1.0.0"
 }
 
-include ("fabric")
-include ("forge")
+def targetLoader = providers.gradleProperty('target_loader').getOrElse('all')
+if (targetLoader == 'all' || targetLoader == 'fabric') include('fabric')
+if (targetLoader == 'all' || targetLoader == 'neoforge') include('neoforge')
 include ("rhino")
 
 rootProject.name = "Joban-Client-Mod"

@@ -1,0 +1,50 @@
+plugins {
+    id 'net.neoforged.moddev' version '2.0.119'
+}
+
+neoForge {
+    version = project.properties["neoforge_version_${rootProject.minecraft_version}"]
+    mods {
+        jsblock { sourceSet sourceSets.main }
+    }
+}
+
+sourceSets.main {
+    java {
+        srcDir '../fabric/src/main/java'
+        exclude 'com/lx862/jcm/entrypoint/**'
+    }
+    resources {
+        srcDir '../fabric/src/main/resources'
+        exclude 'fabric.mod.json'
+    }
+}
+
+dependencies {
+    implementation files(rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-neoforge.jar"))
+    annotationProcessor 'systems.manifold:manifold-preprocessor:2023.1.33'
+    jarJar 'folk.sisby:kaleido-config:0.3.3+1.3.2'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+// ModDev's jarJar supplies metadata while the shadow jar supplies the private
+// Rhino/OBJ implementations. Never embed MTR or TSC in the addon.
+tasks.named('jar') { archiveClassifier = 'slim' }
+tasks.named('shadowJar') { archiveClassifier = 'shadowed' }
+tasks.named('jarJar') {
+    dependsOn tasks.named('shadowJar')
+    archiveClassifier = ''
+    from(provider { zipTree(tasks.named('shadowJar').get().archiveFile.get().asFile) })
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.register('moveBuild', Copy) {
+    dependsOn tasks.named('jarJar')
+    from tasks.named('jarJar')
+    into rootProject.layout.buildDirectory
+}
+tasks.named('build') { finalizedBy tasks.named('moveBuild') }

@@ -36,18 +36,22 @@ configure(subprojects.findAll {it.name != 'rhino'}) {
         }
 
         dependencies {
-                implementation 'com.google.code.findbugs:jsr305:+'
+                implementation 'com.google.code.findbugs:jsr305:3.0.2'
+                implementation 'org.jspecify:jspecify:1.0.0'
                 shadowImplementation project(":rhino")
+                shadowImplementation 'de.javagl:obj:0.4.0'
                 implementation "folk.sisby:kaleido-config:${rootProject.properties.kaleido_version}"
         }
 
         repositories {
+                mavenCentral()
                 maven { url "https://jitpack.io" }
                 maven { url 'https://repo.sleeping.town/' }
         }
 
         shadowJar {
                 configurations = [project.configurations.shadowImplementation]
+                relocate 'de.javagl', 'com.lx862.mtrscripting.lib.de.javagl'
         }
 
         def mc_ver = rootProject.properties.minecraft_version
@@ -154,7 +158,7 @@ configure(subprojects.findAll {it.name != 'rhino'}) {
                         }
                 }
 
-                filesMatching('META-INF/mods.toml') {
+                filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
                         expand (
                                 "minecraft_version": minecraft_version,
                                 "mod_version": project.full_mod_version

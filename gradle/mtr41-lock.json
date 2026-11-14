@@ -1,0 +1,12 @@
+{
+  "repository": "BugQuantumCore/MTR-Yanyang",
+  "tag": "4.1.0-beta-2.yanyang.18",
+  "source_revision": "9467c8f91395be1cc981ecb5809cf0da9ef8913d",
+  "tsc_revision": "601876836d8eb4fdf010c6a2ff969dda8ee19b72",
+  "artifacts": {
+    "1.21.1-fabric": {"name": "mtr-4.1.0-beta-2.yanyang.18+1.21.1-fabric.jar", "sha256": "642547bca28a53d5872e904bd3e23d9f75d30a16106f3f4e88375c88e76431ae"},
+    "1.21.1-neoforge": {"name": "mtr-4.1.0-beta-2.yanyang.18+1.21.1-neoforge-all.jar", "sha256": "cf4f0f217411e4cd013364f33f784a4c2f560b92c2cb078074ca8fbc7f1b6ad5"},
+    "1.21.4-fabric": {"name": "mtr-4.1.0-beta-2.yanyang.18+1.21.4-fabric.jar", "sha256": "7adaea0af24c78da6f7d5e425cf6a1d7b30165cd59412af1035adb162a69db59"},
+    "1.21.4-neoforge": {"name": "mtr-4.1.0-beta-2.yanyang.18+1.21.4-neoforge-all.jar", "sha256": "d1d381337d0c810b9f9ed5c72113a9f9904bd0b5f5e6bbefee45c77be6da1753"}
+  }
+}

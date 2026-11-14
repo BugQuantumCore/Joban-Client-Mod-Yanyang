@@ -1,83 +1,54 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
-#
-# NOTE: these are FAST CI JARS — they are built WITHOUT the native bridges
-# (-Pnative_bridge_dir is not passed), so they cannot load any resource-pack
-# C++ script in a live game; every native script logs "native bridge
-# unavailable". For game-ready jars use the "Complete Build" workflow or a
-# Release. Complete Build bundles the testing trio; Release bundles all eight.
-
-name: build
-on: [pull_request, push]
-
+name: MTR 4.1 Port Build
+on:
+  push:
+    branches: ['port/mtr-4.1.0']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mtr41-build-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        minecraft: [1.17.1, 1.18.2, 1.19.2, 1.19.4, 1.20.1, 1.20.4]
+        minecraft: ['1.21.1', '1.21.4']
+        loader: [fabric, neoforge]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-      - name: Set up JDK 21
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
         with:
-          distribution: 'temurin'
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
           java-version: 21
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v5
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Download pinned MTR with its matching TSC
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dependencies
+          NAME=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].name' gradle/mtr41-lock.json)
+          SHA=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].sha256' gradle/mtr41-lock.json)
+          TAG=$(jq -r .tag gradle/mtr41-lock.json)
+          gh release download "$TAG" --repo BugQuantumCore/MTR-Yanyang --pattern "$NAME" --dir dependencies
+          printf '%s  %s\n' "$SHA" "dependencies/$NAME" | sha256sum --check --strict
+          mv "dependencies/$NAME" "dependencies/mtr-$MC-$LOADER.jar"
+      - name: Compile and package against the real target API
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
+        run: bash ./gradlew ":$LOADER:build" -Pminecraft_version="$MC" -Ptarget_loader="$LOADER" --stacktrace --console=plain --max-workers=2
+      - uses: actions/upload-artifact@v4
+        if: success()
         with:
-          cache-disabled: true
-      - name: Make Gradle wrapper executable
-        run: chmod +x ./gradlew
-      - name: Setup Forge files
-        run: |
-          # Forge/Maven read-timeouts are transient — retry before failing the matrix leg.
-          try() {
-            local n=0
-            until "$@"; do
-              n=$((n+1))
-              if [ "$n" -ge 3 ]; then return 1; fi
-              echo "::warning::gradle attempt ${n} failed; retrying in 30s"
-              sleep 30
-            done
-          }
-          try ./gradlew setupFiles -Pminecraft_version="${{ matrix.minecraft }}"
-      - name: Build with Gradle
-        run: |
-          try() {
-            local n=0
-            until "$@"; do
-              n=$((n+1))
-              if [ "$n" -ge 3 ]; then return 1; fi
-              echo "::warning::gradle attempt ${n} failed; retrying in 30s"
-              sleep 30
-            done
-          }
-          NOW=$(date '+%Y-%m-%d-%H.%M')
-          try ./gradlew build -Pminecraft_version="${{ matrix.minecraft }}" -Partifact_date=".artifact_$NOW"
-      - name: Stamp CI-jar warning into the artifact
-        run: |
-          cat > build/README-IMPORT-WARNING.txt <<'EOF'
-          THIS IS A FAST CI BUILD, NOT A GAME-READY JAR.
-
-          These jars are compiled WITHOUT the native bridge binaries
-          (-Pnative_bridge_dir is not passed in the push/PR CI pipeline),
-          so in a live game every resource-pack C++ script (vehicle/lift/
-          eyecandy/PIDS natives) is skipped with
-          "native bridge unavailable (jcm_native_bridge not loaded)".
-
-          For jars that can actually run native scripts:
-            * Run the "Complete Build" workflow (workflow_dispatch) and
-              download its complete-jars-* artifacts, or
-            * download a Release jar (all release jars bundle the eight
-              platform bridges under assets/jcm/natives/).
-          EOF
-      - name: Upload Artifacts to GitHub
-        uses: actions/upload-artifact@v5
-        with:
-          name: JCM for Minecraft ${{ matrix.minecraft }}
-          path: build/
+          name: JCM-MTR41-${{ matrix.minecraft }}-${{ matrix.loader }}
+          path: build/*.jar
+          if-no-files-found: error
