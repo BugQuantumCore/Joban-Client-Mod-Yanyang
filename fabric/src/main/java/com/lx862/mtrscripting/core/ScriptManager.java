@@ -28,6 +28,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import com.lx862.jcm.mod.render.mesh.RawModel;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.joml.Vector3f;
 
 @ApiInternal
 public class ScriptManager {

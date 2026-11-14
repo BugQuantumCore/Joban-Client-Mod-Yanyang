@@ -4,9 +4,9 @@ import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleDataCache;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;

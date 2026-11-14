@@ -5,11 +5,11 @@ import com.lx862.jcm.mod.data.pids.TextOverflowMode;
 import com.lx862.jcm.mod.data.pids.TextTranslationMode;
 import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.jcm.mod.render.text.*;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.data.IGui;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.MTRClient;
+import org.mtr.data.IGui;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -88,7 +88,7 @@ public abstract class TextComponent extends PIDSComponent {
 
         if(split.isEmpty()) return "";
 
-        return split.get(((int)InitClient.getGameTick() / SWITCH_LANG_DURATION) % split.size());
+        return split.get(((int)org.mtr.MTRClient.getGameTick() / SWITCH_LANG_DURATION) % split.size());
     }
 
     protected boolean isCjk(String str, boolean isTranslation) {

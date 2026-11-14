@@ -5,11 +5,11 @@ import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.gui.hud.SortableScriptInstance;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.PositionAndRotation;
+import net.minecraft.client.Minecraft;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.PositionAndRotation;
 
 public class VehicleScriptInstance extends ScriptInstance<VehicleWrapper> implements SortableScriptInstance {
     private final VehicleExtension vehicleExtension;
@@ -42,7 +42,7 @@ public class VehicleScriptInstance extends ScriptInstance<VehicleWrapper> implem
     }
 
     public boolean shouldInvalidate() {
-        if(MinecraftClient.getInstance().getWorldMapped() == null) return true;
+        if(Minecraft.getInstance().level == null) return true;
         final org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongOpenHashSet ids = liveVehicleIds;
         if(ids != null) {
             return !ids.contains(vehicleExtension.getId());

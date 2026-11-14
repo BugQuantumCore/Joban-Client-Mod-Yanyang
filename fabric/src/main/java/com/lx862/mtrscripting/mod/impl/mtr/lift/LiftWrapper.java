@@ -8,15 +8,20 @@ import org.mtr.core.data.LiftDirection;
 import org.mtr.core.data.LiftFloor;
 import org.mtr.core.tool.Angle;
 import org.mtr.core.tool.Vector;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.block.BlockLiftTrackFloor;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.item.ItemLiftRefresher;
-import org.mtr.mod.render.PositionAndRotation;
+import org.mtr.block.BlockLiftTrackFloor;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.item.ItemLiftRefresher;
+import org.mtr.render.PositionAndRotation;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.AABB;
 
 public class LiftWrapper {
     private final Lift liftObject;
@@ -42,7 +47,7 @@ public class LiftWrapper {
     private Boolean doorway1Openable;
     private Boolean doorway2Openable;
 
-    public LiftWrapper(MinecraftClientData.LiftWrapper liftWrapper, World worldView) {
+    public LiftWrapper(MinecraftClientData.LiftWrapper liftWrapper, Level worldView) {
         this.liftObject = liftWrapper.getLift();
         this.floors = new ArrayList<>();
         this.shouldRender = liftWrapper.shouldRender;
@@ -61,7 +66,7 @@ public class LiftWrapper {
         this.angleDegrees = angle.angleDegrees;
         this.angleRadians = angle.angleRadians;
 
-        PositionAndRotation absolutePositionAndRotation = getLiftPositionAndRotation(ClientWorld.cast(worldView), liftObject);
+        PositionAndRotation absolutePositionAndRotation = getLiftPositionAndRotation((ClientLevel)worldView, liftObject);
         this.absolutePositionAndRotation = absolutePositionAndRotation;
         this.pos = new ScriptVector3f(absolutePositionAndRotation.position);
 
@@ -76,8 +81,8 @@ public class LiftWrapper {
             doorway2Openable = false;
             return;
         }
-        Box doorway1 = new Box(-0.75F, 0.0F, -liftObject.getDepth() / (double)2.0F + (double)0.25F, 0.75F, 0.0F, -liftObject.getDepth() / (double)2.0F);
-        Box doorway2 = new Box(-0.75F, 0.0F, liftObject.getDepth() / (double)2.0F - (double)0.25F, 0.75F, 0.0F, liftObject.getDepth() / (double)2.0F);
+        AABB doorway1 = new AABB(-0.75F, 0.0F, -liftObject.getDepth() / (double)2.0F + (double)0.25F, 0.75F, 0.0F, -liftObject.getDepth() / (double)2.0F);
+        AABB doorway2 = new AABB(-0.75F, 0.0F, liftObject.getDepth() / (double)2.0F - (double)0.25F, 0.75F, 0.0F, liftObject.getDepth() / (double)2.0F);
         doorway1Openable = MTRUtil.canOpenDoors(doorway1, absolutePositionAndRotation);
         doorway2Openable = liftObject.getIsDoubleSided() && MTRUtil.canOpenDoors(doorway2, absolutePositionAndRotation);
     }
@@ -164,13 +169,13 @@ public class LiftWrapper {
         return VehicleRidingMovement.isRiding(liftObject.getId());
     }
 
-    public static void populateFloors(List<Floor> list, Lift lift, World worldView) {
+    public static void populateFloors(List<Floor> list, Lift lift, Level worldView) {
         lift.iterateFloors(liftFloor -> {
             BlockPos floorBlockPos = new BlockPos((int)liftFloor.getPosition().getX(), (int)liftFloor.getPosition().getY(), (int)liftFloor.getPosition().getZ());
             BlockEntity be = worldView.getBlockEntity(floorBlockPos);
 
             // Block entity contains all the necessary info TSC does not sync over
-            BlockLiftTrackFloor.BlockEntity floorBE = be == null ? null : (BlockLiftTrackFloor.BlockEntity)be.data;
+            BlockLiftTrackFloor.LiftTrackFloorBlockEntity floorBE = be == null ? null : (BlockLiftTrackFloor.LiftTrackFloorBlockEntity)be;
 
             Floor floor = new Floor(lift, liftFloor, floorBE);
             list.add(floor);
@@ -190,9 +195,9 @@ public class LiftWrapper {
     }
 
     @ApiInternal
-    private static PositionAndRotation getLiftPositionAndRotation(ClientWorld clientWorld, Lift lift) {
-        Vector position = lift.getPosition((floorPosition1, floorPosition2) -> ItemLiftRefresher.findPath(new World(clientWorld.data), floorPosition1, floorPosition2));
-        return new PositionAndRotation(new Vector(position.x + lift.getOffsetX(), position.y + lift.getOffsetY(), position.z + lift.getOffsetZ()), (-Math.PI / 2D) - lift.getAngle().angleRadians, (double)0.0F);
+    private static PositionAndRotation getLiftPositionAndRotation(ClientLevel clientWorld, Lift lift) {
+        Vector position = lift.getPosition((floorPosition1, floorPosition2) -> ItemLiftRefresher.findPath(clientWorld, floorPosition1, floorPosition2));
+        return new PositionAndRotation(new Vector(position.x() + lift.getOffsetX(), position.y() + lift.getOffsetY(), position.z() + lift.getOffsetZ()), (-Math.PI / 2D) - lift.getAngle().angleRadians, 0.0F, 0.0F);
     }
 
     public static class Floor {
@@ -203,7 +208,7 @@ public class LiftWrapper {
         private final boolean isTargetFloor;
         private final boolean isCurrentFloor;
 
-        public Floor(Lift currentLift, LiftFloor liftFloor, BlockLiftTrackFloor.BlockEntity be) {
+        public Floor(Lift currentLift, LiftFloor liftFloor, BlockLiftTrackFloor.LiftTrackFloorBlockEntity be) {
             this.pos = new ScriptVector3f(liftFloor.getPosition());
             this.number = be == null ? liftFloor.getNumber() : be.getFloorNumber();
             this.description = be == null ? liftFloor.getDescription() : be.getFloorDescription();

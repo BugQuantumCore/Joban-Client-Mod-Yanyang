@@ -13,12 +13,13 @@ import com.lx862.mtrscripting.core.util.Matrices;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.core.integration.VoxelShapeWrapper;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.VoxelShape;
-import org.mtr.mod.block.BlockEyeCandy;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.mtr.block.BlockEyeCandy;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 @SuppressWarnings("unused")
 public class EyeCandyScriptContext extends MTRScriptContext {
@@ -30,7 +31,7 @@ public class EyeCandyScriptContext extends MTRScriptContext {
     protected final ScriptRenderManager renderManager;
 
     @ApiInternal
-    public EyeCandyScriptContext(BlockEyeCandy.BlockEntity blockEntity) {
+    public EyeCandyScriptContext(BlockEyeCandy.EyeCandyBlockEntity blockEntity) {
         super(blockEntity.getModelId());
         this.events = new EyecandyEvents();
         this.outlineShape = null;
@@ -75,7 +76,7 @@ public class EyeCandyScriptContext extends MTRScriptContext {
     }
 
     public void setCollisionShape(VoxelShapeWrapper voxelShapeWrapper) {
-        if(!voxelShapeWrapper.impl().isEmpty() && voxelShapeWrapper.impl().getBoundingBox().getMaxYMapped() > 1.5) {
+        if(!voxelShapeWrapper.impl().isEmpty() && voxelShapeWrapper.impl().bounds().maxY > 1.5) {
             throw new IllegalStateException("Collision shape must not be larger than 1.5 blocks (24 unit)!");
         }
         this.collisionShape = voxelShapeWrapper;
@@ -93,7 +94,7 @@ public class EyeCandyScriptContext extends MTRScriptContext {
         playSound(JSUtil.parseId(id), volume, pitch);
     }
 
-    public void playSound(Identifier id, float volume, float pitch) {
+    public void playSound(ResourceLocation id, float volume, float pitch) {
         this.soundManager.playSound(id, ScriptVector3f.ZERO, volume, pitch);
     }
 

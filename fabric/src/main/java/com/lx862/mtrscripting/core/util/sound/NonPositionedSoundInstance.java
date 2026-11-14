@@ -1,18 +1,18 @@
 package com.lx862.mtrscripting.core.util.sound;
 
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
-import org.mtr.mapping.holder.SoundCategory;
-import org.mtr.mapping.holder.SoundEvent;
-import org.mtr.mapping.mapper.AbstractSoundInstanceExtension;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.util.RandomSource;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
 
 @ApiInternal
-public class NonPositionedSoundInstance extends AbstractSoundInstanceExtension {
-    protected NonPositionedSoundInstance(SoundEvent sound, SoundCategory category, float volume, float pitch) {
-        super(sound, category);
-        setVolumeMapped(volume);
-        setPitchMapped(pitch);
-        setIsRepeatableMapped(false);
-        setIsRepeatableMapped(false);
-        setIsRelativeMapped(true);
+public class NonPositionedSoundInstance extends AbstractSoundInstance {
+    protected NonPositionedSoundInstance(SoundEvent sound, SoundSource category, float volume, float pitch) {
+        super(sound, category, RandomSource.create());
+        this.volume = volume;
+        this.pitch = pitch;
+        this.looping = false;
+        this.relative = true;
     }
 }

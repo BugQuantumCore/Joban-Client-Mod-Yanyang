@@ -10,13 +10,13 @@ import com.lx862.jcm.mod.scripting.JCMScripting;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.rhinojs.RhinoParsedScript;
 import org.apache.commons.io.IOUtils;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mod.client.CustomResourceLoader;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.Minecraft;
+import org.mtr.resource.ResourceManagerHelper;
+import org.mtr.client.CustomResourceLoader;
 
 public class JCMResourceManager {
-    private static final Identifier CUSTOM_RESOURCE_PATH = Constants.id("joban_custom_resources.json");
+    private static final ResourceLocation CUSTOM_RESOURCE_PATH = Constants.id("joban_custom_resources.json");
 
     public static void reload() {
         JCMClient.getMcMetaManager().reset();
@@ -29,7 +29,6 @@ public class JCMResourceManager {
     private static void loadCustomResources() {
         JCMScripting.getScriptManager().scriptErrorNotifier.reset();
 
-        CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.beginReload();
         ResourceManagerHelper.readAllResources(CUSTOM_RESOURCE_PATH, (inputStream -> {
             try {
                 String str = IOUtils.toString(inputStream, Charsets.UTF_8);
@@ -40,9 +39,8 @@ public class JCMResourceManager {
             }
         }));
         ComplexModelStorage.beginReload();
-        CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.finishReload();
 
-        if(MinecraftClient.getInstance().getPlayerMapped() != null) {
+        if(Minecraft.getInstance().player != null) {
             JCMScripting.getScriptManager().scriptErrorNotifier.flush();
         }
     }

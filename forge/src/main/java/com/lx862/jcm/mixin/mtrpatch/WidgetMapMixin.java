@@ -6,11 +6,10 @@ import org.mtr.core.data.Platform;
 import org.mtr.core.data.Route;
 import org.mtr.core.data.SavedRailBase;
 import org.mtr.core.data.Siding;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.screen.WidgetMap;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import com.lx862.jcm.mod.compat.TextHelper;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.screen.WidgetMap;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -20,6 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.lx862.jcm.mod.render.RenderHelper.ARGB_BLACK;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 @Mixin(WidgetMap.class)
 public class WidgetMapMixin {
@@ -28,22 +31,22 @@ public class WidgetMapMixin {
         if(!JCMClientConfig.INSTANCE.mtrPatch.showDashboardTooltip.value()) return;
 
         Platform platform = (Platform)savedRail;
-        final MutableText platformText = TextUtil.literal("Platform " + platform.getName()).formatted(TextFormatting.RED);
-        final MutableText keyDwell = TextUtil.literal("Dwell: ").formatted(TextFormatting.GOLD);
-        final MutableText valueDwell = TextUtil.literal((platform.getDwellTime() / 1000d) + "s").formatted(TextFormatting.WHITE);
-        final MutableText keyRouteVia = TextUtil.literal("Route Via: ").formatted(TextFormatting.GOLD);
+        final MutableComponent platformText = TextUtil.literal("Platform " + platform.getName()).withStyle(TextFormatting.RED);
+        final MutableComponent keyDwell = TextUtil.literal("Dwell: ").withStyle(TextFormatting.GOLD);
+        final MutableComponent valueDwell = TextUtil.literal((platform.getDwellTime() / 1000d) + "s").withStyle(TextFormatting.WHITE);
+        final MutableComponent keyRouteVia = TextUtil.literal("Route Via: ").withStyle(TextFormatting.GOLD);
 
-        final List<MutableText> tooltipComponents = new ArrayList<>();
+        final List<MutableComponent> tooltipComponents = new ArrayList<>();
         tooltipComponents.add(platformText);
         tooltipComponents.add(TextHelper.append(keyDwell, valueDwell));
         tooltipComponents.add(keyRouteVia);
 
         for (Route route : MinecraftClientData.getDashboardInstance().routes) {
             if (route.getRoutePlatforms().stream().anyMatch(e -> e.getPlatform().getId() == platform.getId())) {
-                MutableText routeText = TextUtil.literal(route.getName().replace("|", " "));
+                MutableComponent routeText = TextUtil.literal(route.getName().replace("|", " "));
                 TextHelper.setStyle(routeText, Style.getEmptyMapped().withColor(TextColor.fromRgb(ARGB_BLACK | route.getColor())));
                 if(route.getHidden()) {
-                    TextHelper.append(routeText, TextUtil.literal(" (Hidden)").formatted(TextFormatting.GRAY));
+                    TextHelper.append(routeText, TextUtil.literal(" (Hidden)").withStyle(TextFormatting.GRAY));
                 }
                 tooltipComponents.add(routeText);
             }
@@ -54,7 +57,7 @@ public class WidgetMapMixin {
         }
 
         #if MC_VERSION >= "11903"
-        MinecraftClient.getInstance().getCurrentScreenMapped().data.setTooltipForNextRenderPass(tooltipComponents.stream().map(e -> e.data.getVisualOrderText()).toList());
+        Minecraft.getInstance().getCurrentScreenMapped().setTooltipForNextRenderPass(tooltipComponents.stream().map(e -> e.getVisualOrderText()).toList());
         #endif
     }
 
@@ -63,21 +66,21 @@ public class WidgetMapMixin {
         if(!JCMClientConfig.INSTANCE.mtrPatch.showDashboardTooltip.value()) return;
 
         final Siding siding = (Siding)savedRail;
-        final MutableText platformText = TextUtil.literal("Siding " + siding.getName()).formatted(TextFormatting.YELLOW);
-        final MutableText keyRailLength = TextUtil.literal("Rail Length: ").formatted(TextFormatting.GOLD);
-        final MutableText valueRailLength = TextUtil.literal((int)Math.round(siding.getRailLength()) + "m").formatted(TextFormatting.WHITE);
-        final MutableText keyVehicleLength = TextUtil.literal("Vehicle Length: ").formatted(TextFormatting.GOLD);
+        final MutableComponent platformText = TextUtil.literal("Siding " + siding.getName()).withStyle(TextFormatting.YELLOW);
+        final MutableComponent keyRailLength = TextUtil.literal("Rail Length: ").withStyle(TextFormatting.GOLD);
+        final MutableComponent valueRailLength = TextUtil.literal((int)Math.round(siding.getRailLength()) + "m").withStyle(TextFormatting.WHITE);
+        final MutableComponent keyVehicleLength = TextUtil.literal("Vehicle Length: ").withStyle(TextFormatting.GOLD);
 
         int roundedVehicleLength = (int)Math.round(Siding.getTotalVehicleLength(siding.getVehicleCars()));
         String carPlural = siding.getVehicleCars().size() == 1 ? "car" : "cars";
-        final MutableText valueVehicleLength = TextUtil.literal(String.format("%dm (%d-%s)", roundedVehicleLength, siding.getVehicleCars().size(), carPlural)).formatted(TextFormatting.WHITE);
+        final MutableComponent valueVehicleLength = TextUtil.literal(String.format("%dm (%d-%s)", roundedVehicleLength, siding.getVehicleCars().size(), carPlural)).withStyle(TextFormatting.WHITE);
 
-        final MutableText keyMaxVehicles = TextUtil.literal("Max Vehicle(s): ").formatted(TextFormatting.GOLD);
-        final MutableText valueMaxVehicles = TextUtil.literal(siding.getIsUnlimited() ? "Unlimited" : String.valueOf(siding.getMaxVehicles())).formatted(siding.getIsUnlimited() ? TextFormatting.GREEN : TextFormatting.WHITE);
-        final MutableText keyManual = TextUtil.literal("Manual: ").formatted(TextFormatting.GOLD);
-        final MutableText valueManual = TextUtil.literal("Yes").formatted(TextFormatting.GREEN);
+        final MutableComponent keyMaxVehicles = TextUtil.literal("Max Vehicle(s): ").withStyle(TextFormatting.GOLD);
+        final MutableComponent valueMaxVehicles = TextUtil.literal(siding.getIsUnlimited() ? "Unlimited" : String.valueOf(siding.getMaxVehicles())).withStyle(siding.getIsUnlimited() ? TextFormatting.GREEN : TextFormatting.WHITE);
+        final MutableComponent keyManual = TextUtil.literal("Manual: ").withStyle(TextFormatting.GOLD);
+        final MutableComponent valueManual = TextUtil.literal("Yes").withStyle(TextFormatting.GREEN);
 
-        final List<MutableText> tooltipComponents = new ArrayList<>();
+        final List<MutableComponent> tooltipComponents = new ArrayList<>();
         tooltipComponents.add(platformText);
         tooltipComponents.add(TextHelper.append(keyVehicleLength, valueVehicleLength));
         tooltipComponents.add(TextHelper.append(keyRailLength, valueRailLength));
@@ -88,7 +91,7 @@ public class WidgetMapMixin {
         }
 
         #if MC_VERSION >= "11903"
-        MinecraftClient.getInstance().getCurrentScreenMapped().data.setTooltipForNextRenderPass(tooltipComponents.stream().map(e -> e.data.getVisualOrderText()).toList());
+        Minecraft.getInstance().getCurrentScreenMapped().setTooltipForNextRenderPass(tooltipComponents.stream().map(e -> e.getVisualOrderText()).toList());
         #endif
     }
 }

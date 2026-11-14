@@ -6,19 +6,23 @@ import com.lx862.jcm.mod.data.TransactionHistoryManager;
 import com.lx862.jcm.mod.network.gui.EnquiryUpdateGUIPacket;
 import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.SoundEvents;
-import org.mtr.mod.data.TicketSystem;
+import org.mtr.registry.SoundEvents;
+import org.mtr.data.TicketSystem;
 
 import java.util.List;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 
 public interface EnquiryMachineBehavior {
-    default void enquiry(EnquiryScreenType type, BlockPos pos, World world, PlayerEntity player) {
-        world.playSound(null, player.getBlockPos(), SoundEvents.TICKET_PROCESSOR_ENTRY.get(), SoundCategory.BLOCKS, 1, 1);
+    default void enquiry(EnquiryScreenType type, BlockPos pos, Level world, Player player) {
+        world.playSound(null, player.blockPosition(), SoundEvents.TICKET_PROCESSOR_ENTRY.get(), SoundSource.BLOCKS, 1, 1);
 
         if(type == EnquiryScreenType.NONE) {
             int score = TicketSystem.getBalance(world, player);
-            player.sendMessage(Text.cast(TextUtil.translatable("gui.mtr.balance", String.valueOf(score))), true);
+            player.displayClientMessage((TextUtil.translatable("gui.mtr.balance", String.valueOf(score))), true);
         } else {
             List<TransactionEntry> entries = TransactionHistoryManager.getLogs(player);
             Networking.sendPacketToClient(player, new EnquiryUpdateGUIPacket(type, pos, entries, TicketSystem.getBalance(world, player)));

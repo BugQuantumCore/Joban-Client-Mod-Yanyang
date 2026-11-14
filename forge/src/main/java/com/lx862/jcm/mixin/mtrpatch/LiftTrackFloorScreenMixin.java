@@ -1,8 +1,8 @@
 package com.lx862.jcm.mixin.mtrpatch;
 
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.mapper.CheckboxWidgetExtension;
-import org.mtr.mod.screen.LiftTrackFloorScreen;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Checkbox;
+import org.mtr.screen.LiftTrackFloorScreen;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class LiftTrackFloorScreenMixin {
     @Shadow
     @Final
-    private CheckboxWidgetExtension checkboxShouldDing;
+    private Checkbox checkboxShouldDing;
 
     @Inject(method = "init2", at = @At("TAIL"))
     private void jsblock$addDingCheckbox(CallbackInfo ci) {

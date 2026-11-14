@@ -3,12 +3,13 @@ package com.lx862.mtrscripting.mod.network.packet.psd;
 import com.lx862.jcm.mod.scripting.psd.PSDBinding;
 import com.lx862.jcm.mod.scripting.psd.PSDClientBindings;
 import com.lx862.jcm.mod.scripting.psd.PSDWrapper;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.core.BlockPos;
 
 /**
  * Server → client: the full PSD script binding list of one dimension — the
@@ -36,7 +37,7 @@ public class PSDScriptsS2CPacket extends PacketHandler {
             final String scriptId = packetBufferReceiver.readString();
             final boolean pidsPreset = packetBufferReceiver.readBoolean();
             final String type = packetBufferReceiver.readString();
-            this.bindings.add(new PSDBinding(new org.mtr.mapping.holder.BlockPos(x, y, z), scriptId, pidsPreset, PSDWrapper.PSDType.valueOf(type)));
+            this.bindings.add(new PSDBinding(new net.minecraft.core.BlockPos(x, y, z), scriptId, pidsPreset, PSDWrapper.PSDType.valueOf(type)));
         }
     }
 

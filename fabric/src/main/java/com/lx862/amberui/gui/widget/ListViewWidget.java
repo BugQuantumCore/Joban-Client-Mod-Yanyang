@@ -4,9 +4,9 @@ import com.lx862.jcm.mod.Constants;
 import com.lx862.amberui.gui.ClipStack;
 import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,16 +22,16 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
     }
 
     public void setXYSize(int x, int y, int width, int height) {
-        setX2(x);
-        setY2(y);
-        setWidth2(width);
-        setHeightMapped(height);
+        setX(x);
+        setY(y);
+        setWidth(width);
+        setHeight(height);
         setScroll(currentScroll);
         positionWidgets(currentScroll);
         refreshDisplayedList();
     }
 
-    public void add(MutableText text, MappedWidget widget) {
+    public void add(MutableComponent text, MappedWidget widget) {
         add(new ContentItem(text, widget));
     }
 
@@ -40,7 +40,7 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
         refreshDisplayedList();
     }
 
-    public void addCategory(MutableText text) {
+    public void addCategory(MutableComponent text) {
         entryList.add(new CategoryItem(text));
         refreshDisplayedList();
     }
@@ -72,9 +72,11 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        GuiHelper.drawRectangle(new GuiDrawing(graphicsHolder), getX2(), getY2(), width, height, 0x4F4C4C4C);
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+    public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+    
+        GuiHelper.drawRectangle(new GuiDrawing(graphicsHolder), getX(), getY(), getWidth(), getHeight(), 0x4F4C4C4C);
+        super.renderWidget(guiGraphics, mouseX, mouseY, tickDelta);
     }
 
     @Override
@@ -85,19 +87,19 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
         int incY = 0;
         for (AbstractListItem abstractListItem : displayedEntryList) {
             ClipStack.ensureStateCorrect();
-            int entryX = getX2();
-            int entryY = getY2() + incY - (int) currentScroll;
+            int entryX = getX();
+            int entryY = getY() + incY - (int) currentScroll;
             boolean widgetVisible = false;
-            boolean rowInSight = inRectangle(entryX, entryY, getX2(), getY2(), getWidth2(), getHeight2()) || inRectangle(entryX, entryY+abstractListItem.getHeight(), getX2(), getY2(), getWidth2(), getHeight2());
+            boolean rowInSight = inRectangle(entryX, entryY, getX(), getY(), getWidth(), getHeight()) || inRectangle(entryX, entryY+abstractListItem.getHeight(), getX(), getY(), getWidth(), getHeight());
 
             if (abstractListItem instanceof ContentItem) {
                 ContentItem contentItem = (ContentItem) abstractListItem;
-                boolean topLeftVisible = inRectangle(contentItem.widget.getX(), contentItem.widget.getY(), getX2(), getY2(), getWidth2(), getHeight2());
-                boolean bottomRightVisible = inRectangle(contentItem.widget.getX() + contentItem.widget.getWidth(), contentItem.widget.getY() + contentItem.widget.getHeight(), getX2(), getY2(), getWidth2(), getHeight2());
+                boolean topLeftVisible = inRectangle(contentItem.widget.getX(), contentItem.widget.getY(), getX(), getY(), getWidth(), getHeight());
+                boolean bottomRightVisible = inRectangle(contentItem.widget.getX() + contentItem.widget.getWidth(), contentItem.widget.getY() + contentItem.widget.getHeight(), getX(), getY(), getWidth(), getHeight());
                 widgetVisible = topLeftVisible && bottomRightVisible;
             }
 
-            abstractListItem.draw(graphicsHolder, guiDrawing, entryX, entryY, width - getScrollbarOffset(), height, mouseX, mouseY, widgetVisible, rowInSight, elapsed, tickDelta);
+            abstractListItem.draw(graphicsHolder, guiDrawing, entryX, entryY, getWidth() - getScrollbarOffset(), getHeight(), mouseX, mouseY, widgetVisible, rowInSight, elapsed, tickDelta);
 
             incY += abstractListItem.getHeight();
         }
@@ -123,15 +125,19 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
     }
 
     private void positionWidgets(double scroll) {
-        int startX = getX2();
-        int startY = getY2();
+        int startX = getX();
+        int startY = getY();
 
         int incY = 0;
         for (AbstractListItem listItem : displayedEntryList) {
             int entryY = startY + incY;
-            int x = (startX + width - getScrollbarOffset()) - ENTRY_PADDING;
+            int x = (startX + getWidth() - getScrollbarOffset()) - ENTRY_PADDING;
             listItem.positionChanged(x, (int) -scroll + entryY);
             incY += listItem.getHeight();
         }
     }
+
+	@Override
+	public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+	}
 }

@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.culling.Frustum;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
+import net.minecraft.client.renderer.culling.Frustum;
 
 /**
  * Forge half of native vehicle-script frustum culling: exposes the vanilla

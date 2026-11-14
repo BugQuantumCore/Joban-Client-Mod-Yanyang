@@ -1,10 +1,10 @@
 package com.lx862.jcm.mod.block;
 
 import com.lx862.jcm.mod.block.entity.StaticSignalLightBlockEntity;
-import org.mtr.mapping.holder.BlockSettings;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 
 public class StaticSignalLightBlockRedTop extends StaticSignalLightBlock {
-    public StaticSignalLightBlockRedTop(BlockSettings settings) {
+    public StaticSignalLightBlockRedTop(BlockBehaviour.Properties settings) {
         super(settings, 2, 14);
     }
 

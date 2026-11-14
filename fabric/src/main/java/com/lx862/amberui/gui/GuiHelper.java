@@ -2,10 +2,10 @@ package com.lx862.amberui.gui;
 
 import com.lx862.jcm.mod.JCMClient;
 import com.lx862.jcm.mod.data.Pair;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import static com.lx862.jcm.mod.render.RenderHelper.MAX_RENDER_LIGHT;
 
@@ -15,12 +15,12 @@ public interface GuiHelper {
     int MAX_BUTTON_WIDTH = 375;
     int MAX_ALPHA = 0xFF000000;
 
-    static void drawTexture(GuiDrawing guiDrawing, Identifier identifier, double x, double y, double width, double height) {
+    static void drawTexture(GuiDrawing guiDrawing, ResourceLocation identifier, double x, double y, double width, double height) {
         Pair<Float, Float> uv = JCMClient.getMcMetaManager().getUV(identifier);
         drawTexture(guiDrawing, identifier, x, y, width, height, 0, uv.getLeft(), 1, uv.getRight());
     }
 
-    static void drawTexture(GuiDrawing guiDrawing, Identifier identifier, double x, double y, double width, double height, float u1, float v1, float u2, float v2) {
+    static void drawTexture(GuiDrawing guiDrawing, ResourceLocation identifier, double x, double y, double width, double height, float u1, float v1, float u2, float v2) {
         guiDrawing.beginDrawingTexture(identifier);
         guiDrawing.drawTexture(x, y, x + width, y + height, u1, v1, u2, v2);
         guiDrawing.finishDrawingTexture();
@@ -45,7 +45,7 @@ public interface GuiHelper {
      * @param color Color of the text
      * @param shadow Whether text should be rendered with shadow
      */
-    static void drawScrollableText(GraphicsHolder graphicsHolder, MutableText text, double elapsed, int startX, int textX, int textY, int maxW, int color, boolean shadow) {
+    static void drawScrollableText(GraphicsHolder graphicsHolder, MutableComponent text, double elapsed, int startX, int textX, int textY, int maxW, int color, boolean shadow) {
         int textWidth = GraphicsHolder.getTextWidth(text);
 
         if(textWidth > maxW) {

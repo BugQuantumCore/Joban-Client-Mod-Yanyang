@@ -11,9 +11,9 @@ import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
 import com.lx862.mtrscripting.mod.util.JSUtil;
 import org.apache.commons.lang3.NotImplementedException;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.data.VehicleExtension;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.data.VehicleExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +84,7 @@ public class VehicleScriptContext extends MTRScriptContext {
         playCarSound(JSUtil.parseId(soundId), carIndex, x, y, z, volume, pitch);
     }
 
-    public void playCarSound(Identifier soundId, int carIndex, float x, float y, float z, float volume, float pitch) {
+    public void playCarSound(ResourceLocation soundId, int carIndex, float x, float y, float z, float volume, float pitch) {
         if(!scriptCallsHolder.carSoundManagers.containsKey(carIndex)) return;
         scriptCallsHolder.carSoundManagers.get(carIndex).playSound(soundId, new ScriptVector3f(x, y, z), volume, pitch);
     }
@@ -93,7 +93,7 @@ public class VehicleScriptContext extends MTRScriptContext {
         playAnnSound(JSUtil.parseId(soundId), volume, pitch);
     }
 
-    public void playAnnSound(Identifier soundId, float volume, float pitch) {
+    public void playAnnSound(ResourceLocation soundId, float volume, float pitch) {
         if(!scriptCallsHolder.carSoundManagers.containsKey(0)) return;
 
         if(VehicleRidingMovement.isRiding(vehicleExtension.getId())) {

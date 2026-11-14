@@ -4,29 +4,33 @@ import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.api.AbstractScriptContext;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.MovingSoundInstanceExtension;
-import org.mtr.mapping.mapper.SoundHelper;
+import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
+import com.lx862.jcm.mod.compat.SoundHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 
-public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implements AutoCloseable {
+public class TickableSoundInstanceJS extends AbstractTickableSoundInstance implements AutoCloseable {
     private boolean instanceInUse = false;
     private boolean isRepeatable = false;
     private boolean useNewRepeatBehaviour = false;
 
-    protected TickableSoundInstanceJS(Identifier soundId, String category) {
-        this(SoundHelper.createSoundEvent(soundId), SoundCategory.valueOf(category));
+    protected TickableSoundInstanceJS(ResourceLocation soundId, String category) {
+        this(SoundHelper.createSoundEvent(soundId), SoundSource.valueOf(category));
     }
 
-    protected TickableSoundInstanceJS(SoundEvent sound, SoundCategory category) {
-        super(sound, category);
+    protected TickableSoundInstanceJS(SoundEvent sound, SoundSource category) {
+        super(sound, category, net.minecraft.util.RandomSource.create());
     }
 
     @ApiInternal
-    public static TickableSoundInstanceJS create(Identifier soundId, SoundCategory category) {
+    public static TickableSoundInstanceJS create(ResourceLocation soundId, SoundSource category) {
         return new TickableSoundInstanceJS(SoundHelper.createSoundEvent(soundId), category);
     }
 
-    public static TickableSoundInstanceJS create(Identifier soundId, String category) {
+    public static TickableSoundInstanceJS create(ResourceLocation soundId, String category) {
         return new TickableSoundInstanceJS(soundId, category);
     }
 
@@ -37,12 +41,12 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
     // TODO: Getters
 
     public TickableSoundInstanceJS setSoundVolume(float f) {
-        setVolume(f);
+        this.volume = f;
         return this;
     }
 
     public TickableSoundInstanceJS setSoundPitch(float f) {
-        setPitch(f);
+        this.pitch = f;
         return this;
     }
 
@@ -55,29 +59,29 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
     /** Legacy method that directly sets the sound instance. Not recommended due to manually managed */
     @Deprecated
     public TickableSoundInstanceJS setLoopable(boolean canLoop) {
-        super.setIsRepeatableMapped(canLoop);
+        this.looping = canLoop;
         return this;
     }
 
     public TickableSoundInstanceJS setLoopDelay(int tick) {
-        setRepeatDelay(tick);
+        this.delay = tick;
         return this;
     }
 
     public TickableSoundInstanceJS setRelative(boolean isRelative) {
-        setIsRelativeMapped(isRelative);
+        this.relative = isRelative;
         return this;
     }
 
     public TickableSoundInstanceJS setPos(ScriptVector3f pos) {
-        setX(pos.x());
-        setY(pos.y());
-        setZ(pos.z());
+        this.x = pos.x();
+        this.y = pos.y();
+        this.z = pos.z();
         return this;
     }
 
     public boolean isPlaying() {
-        return MinecraftClient.getInstance().getSoundManager().isPlaying(new SoundInstance(this));
+        return Minecraft.getInstance().getSoundManager().isActive(this);
     }
 
     public void play(AbstractScriptContext abstractScriptContext) {
@@ -93,10 +97,10 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
     public void play() {
         if(isInstanceInUse()) return; // Don't allow playing twice
 
-        if(this.useNewRepeatBehaviour) setIsRepeatableMapped(this.isRepeatable);
+        if(this.useNewRepeatBehaviour) this.looping = this.isRepeatable;
         setInstanceInUse(true);
-        MinecraftClient.getInstance().submit(() -> {
-            MinecraftClient.getInstance().getSoundManager().play(new SoundInstance(this));
+        Minecraft.getInstance().submit(() -> {
+            Minecraft.getInstance().getSoundManager().play(this);
         });
     }
 
@@ -104,9 +108,9 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
         if(isInstanceInUse()) return; // Don't allow playing twice
 
         setInstanceInUse(true);
-        if(this.useNewRepeatBehaviour) setIsRepeatableMapped(this.isRepeatable);
-        MinecraftClient.getInstance().submit(() -> {
-            MinecraftClient.getInstance().getSoundManager().play(new SoundInstance(this), delay);
+        if(this.useNewRepeatBehaviour) this.looping = this.isRepeatable;
+        Minecraft.getInstance().submit(() -> {
+            Minecraft.getInstance().getSoundManager().playDelayed(this, delay);
         });
     }
 
@@ -115,9 +119,9 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
         if(!isInstanceInUse()) return;
 
         setInstanceInUse(false);
-        super.setIsRepeatableMapped(false);
-        MinecraftClient.getInstance().submit(() -> {
-            MinecraftClient.getInstance().getSoundManager().stop(new SoundInstance(this));
+        this.looping = false;
+        Minecraft.getInstance().submit(() -> {
+            Minecraft.getInstance().getSoundManager().stop(this);
         });
     }
 
@@ -133,13 +137,13 @@ public class TickableSoundInstanceJS extends MovingSoundInstanceExtension implem
 
     @ApiInternal
     @Override
-    public boolean shouldAlwaysPlay2() {
+    public boolean canPlaySound() {
         return true;
     }
 
     @ApiInternal
     @Override
-    public void tick2() {
+    public void tick() {
     }
 
     @Override

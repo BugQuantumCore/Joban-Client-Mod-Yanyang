@@ -4,27 +4,32 @@ import com.lx862.jcm.mod.util.CachedIdentifiers;
 import com.lx862.jcm.mod.util.TextUtil;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.Style;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.Init;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.compat.TextHelper;
+import org.mtr.MTR;
+import org.mtr.MTRClient;
+import org.mtr.render.MainRenderer;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.List;
 
 import static com.lx862.jcm.mod.render.RenderHelper.MAX_RENDER_LIGHT;
+import com.mojang.blaze3d.vertex.Tesselator;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.network.chat.Component;
+import org.joml.Matrix4f;
 
 public class TextWrapper extends PIDSDrawCall<TextWrapper> {
     protected String textContent;
-    protected Identifier fontId;
+    protected ResourceLocation fontId;
     protected QueuedRenderLayer renderType;
     protected boolean shadow;
     protected boolean styleItalic;
@@ -66,9 +71,9 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
      *  String.valueOf per char — a 30-char marquee ≈ 120 objects per wrapper
      *  per frame). */
     private String jcm$marqueeStr;
-    private Identifier jcm$marqueeFont;
+    private ResourceLocation jcm$marqueeFont;
     private boolean jcm$marqueeBold, jcm$marqueeItalic;
-    private MutableText[] jcm$marqueeTexts = EMPTY_TEXTS;
+    private MutableComponent[] jcm$marqueeTexts = EMPTY_TEXTS;
     private int[] jcm$marqueeWidths = EMPTY_WIDTHS;
 
     /** Free-list for the NATIVE replay path only: JS scripts may legally
@@ -81,9 +86,9 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
     private boolean jcm$nativePooled;
     private boolean jcm$inPool;
 
-    private static final MutableText[] EMPTY_TEXTS = new MutableText[0];
+    private static final MutableComponent[] EMPTY_TEXTS = new MutableComponent[0];
     private static final int[] EMPTY_WIDTHS = new int[0];
-    private static final Identifier DEFAULT_FONT = new Identifier(Init.MOD_ID, "mtr");
+    private static final ResourceLocation DEFAULT_FONT = org.mtr.font.FontRenderHelper.MTR_FONT;
 
     protected TextWrapper() {
         super(100, 25);
@@ -92,7 +97,7 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
         this.lineHeight = 1;
         this.marqueeDurationOverride = -1;
         this.marqueeProgressOverride = -1;
-        this.renderType = QueuedRenderLayer.TEXT;
+        this.renderType = QueuedRenderLayer.LIGHT;
         this.fontId = DEFAULT_FONT;
     }
 
@@ -129,7 +134,7 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
         resetDefaults(100, 25);
         this.textContent = null;
         this.fontId = DEFAULT_FONT;
-        this.renderType = QueuedRenderLayer.TEXT;
+        this.renderType = QueuedRenderLayer.LIGHT;
         this.shadow = false;
         this.styleItalic = false;
         this.styleBold = false;
@@ -227,7 +232,7 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
         return font(fontId.startsWith("./") ? JSUtil.parseId(fontId) : CachedIdentifiers.of(fontId));
     }
 
-    public TextWrapper font(Identifier fontId) {
+    public TextWrapper font(ResourceLocation fontId) {
         this.fontId = fontId;
         return this;
     }
@@ -298,9 +303,9 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
     @Override
     protected void drawTransformed(StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         final int textLight = this.naturalLight ? light : MAX_RENDER_LIGHT;
-        MainRenderer.scheduleRender(this.renderType, (graphicsHolderNew, offset) -> {
-//          graphicsHolderNew.push(); // Applied with storedMatrixTransformations.transform
-            storedMatrixTransformations.transform(graphicsHolderNew, offset);
+        MainRenderer.scheduleTextRender((poseStack, offset) -> {
+            storedMatrixTransformations.transform(poseStack, offset);
+            final GraphicsHolder graphicsHolderNew = new GraphicsHolder(poseStack);
             try {
                 if (this.jcm$bgRectangle) {
                     // TextRenderer's empty-run background spans [-1,1] x
@@ -314,8 +319,8 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
                 }
                 graphicsHolderNew.scale((float)this.scale, (float)this.scale, (float)this.scale);
 
-                List<MutableText> texts = new ArrayList<>();
-                final MutableText originalText = getFormattedText(textContent);
+                List<MutableComponent> texts = new ArrayList<>();
+                final MutableComponent originalText = getFormattedText(textContent);
 
                 int actualW = GraphicsHolder.getTextWidth(originalText);
                 int actualH = 9;
@@ -358,18 +363,18 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
                     drawMarqueeText(graphicsHolderNew, texts.get(0).getString(), this.color, this.shadow, textLight, this.marqueeDurationOverride, this.marqueeProgressOverride);
                 } else {
                     int i = 0;
-                    for(MutableText text : texts) {
+                    for(MutableComponent text : texts) {
                         drawText(graphicsHolderNew, text, (int)(i*(9*this.lineHeight)), this.color, this.shadow, textLight);
                         i++;
                     }
                 }
             } finally {
-                graphicsHolderNew.pop();
+                poseStack.popPose();
             }
         });
     }
 
-    private void drawText(GraphicsHolder graphicsHolder, MutableText text, int y, int color, boolean shadow, int light) {
+    private void drawText(GraphicsHolder graphicsHolder, MutableComponent text, int y, int color, boolean shadow, int light) {
         int startX = 0;
         int totalW = GraphicsHolder.getTextWidth(text);
         if(this.alignment == 0) {
@@ -400,38 +405,16 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
      * callback returns, exactly like drawText's own discipline. The
      * loader/version guards mirror the proven round-12 (channel N2)
      * invocation, which shipped on all six MC versions × both loaders. */
+    /** Render-thread scratch (see jcm$TEXT_IMMEDIATE in JsonPIDSPreset). */
+    private static final ThreadLocal<net.minecraft.client.renderer.MultiBufferSource.BufferSource> jcm$BG_IMMEDIATE =
+            ThreadLocal.withInitial(() -> net.minecraft.client.renderer.MultiBufferSource.immediate(new com.mojang.blaze3d.vertex.ByteBufferBuilder(256)));
+
     private void jcm$drawTextWithBackground(GraphicsHolder graphicsHolder, String text, int x, int y, int color, int backgroundColor, boolean shadow, int light) {
-#if LOADER == "fabric"
-        final net.minecraft.client.util.math.MatrixStack matrices =
-                ((com.lx862.jcm.nativeapi.NativeMatrixApplier) (Object) graphicsHolder).jcm$getMatrixStack();
-        final net.minecraft.client.render.VertexConsumerProvider.Immediate immediate =
-                net.minecraft.client.render.VertexConsumerProvider.immediate(net.minecraft.client.render.Tessellator.getInstance().getBuffer());
-#if MC_VERSION >= "11903"
-        final org.joml.Matrix4f model = matrices.peek().getPositionMatrix();
-        net.minecraft.client.MinecraftClient.getInstance().textRenderer.draw(text, x, y, color, shadow, model, immediate, net.minecraft.client.font.TextRenderer.TextLayerType.NORMAL, backgroundColor, light);
-#else
-#if MC_VERSION <= "11701"
-        final net.minecraft.util.math.Matrix4f model = matrices.peek().getModel();
-#else
-        final net.minecraft.util.math.Matrix4f model = matrices.peek().getPositionMatrix();
-#endif
-        net.minecraft.client.MinecraftClient.getInstance().textRenderer.draw(text, x, y, color, shadow, model, immediate, false, backgroundColor, light);
-#endif
-        immediate.draw();
-#else
-        final com.mojang.blaze3d.vertex.PoseStack matrices =
-                ((com.lx862.jcm.nativeapi.NativeMatrixApplier) (Object) graphicsHolder).jcm$getMatrixStack();
-        final net.minecraft.client.renderer.MultiBufferSource.BufferSource immediate =
-                net.minecraft.client.renderer.MultiBufferSource.immediate(com.mojang.blaze3d.vertex.Tesselator.getInstance().getBuilder());
-#if MC_VERSION >= "11903"
+        final com.mojang.blaze3d.vertex.PoseStack matrices = graphicsHolder.getPoseStack();
+        final net.minecraft.client.renderer.MultiBufferSource.BufferSource immediate = jcm$BG_IMMEDIATE.get();
         final org.joml.Matrix4f model = matrices.last().pose();
         net.minecraft.client.Minecraft.getInstance().font.drawInBatch(text, x, y, color, shadow, model, immediate, net.minecraft.client.gui.Font.DisplayMode.NORMAL, backgroundColor, light);
-#else
-        final com.mojang.math.Matrix4f model = matrices.last().pose();
-        net.minecraft.client.Minecraft.getInstance().font.drawInBatch(text, x, y, color, shadow, model, immediate, false, backgroundColor, light);
-#endif
         immediate.endBatch();
-#endif
     }
 
     private void drawMarqueeText(GraphicsHolder graphicsHolder, String str, int color, boolean shadow, int light, double durationOverride, double progressOverride) {
@@ -448,7 +431,7 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
             this.jcm$marqueeBold = this.styleBold;
             this.jcm$marqueeItalic = this.styleItalic;
             if (this.jcm$marqueeTexts.length < len) {
-                this.jcm$marqueeTexts = new MutableText[len];
+                this.jcm$marqueeTexts = new MutableComponent[len];
                 this.jcm$marqueeWidths = new int[len];
             }
             for (int i = 0; i < len; i++) {
@@ -456,7 +439,7 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
                 this.jcm$marqueeWidths[i] = GraphicsHolder.getTextWidth(this.jcm$marqueeTexts[i]);
             }
         }
-        final MutableText[] charTexts = this.jcm$marqueeTexts;
+        final MutableComponent[] charTexts = this.jcm$marqueeTexts;
         final int[] textWidths = this.jcm$marqueeWidths;
 
         /* textWidth accounts for the duration where the text starts to disappear by clipping to the left edge */
@@ -468,11 +451,11 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
         /* + w accounts for the duration where the text starts to appear from the right edge */
         int fullWidth = (int)(textWidth + (int)this.w);
         double cycleDuration = durationOverride != -1 ? (durationOverride * 20) : str.length() * 10;
-        double marqueeProgress = progressOverride != -1 ? progressOverride : (InitClient.getGameTick() % cycleDuration) / cycleDuration;
+        double marqueeProgress = progressOverride != -1 ? progressOverride : (MTRClient.getGameTick() % cycleDuration) / cycleDuration;
 
         double wSoFar = w - (fullWidth * marqueeProgress);
         for (int i = 0; i < str.length(); i++) {
-            final MutableText tx = charTexts[i];
+            final MutableComponent tx = charTexts[i];
 
             if(wSoFar >= 0 && wSoFar <= this.w) {
                 graphicsHolder.push();
@@ -485,12 +468,12 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
         }
     }
 
-    private MutableText getFormattedText(String str) {
+    private MutableComponent getFormattedText(String str) {
         final Style fontStyle;
         if(this.fontId != null) {
             fontStyle = TextUtil.withFontStyle(this.fontId).withBold(this.styleBold).withItalic(this.styleItalic);
         } else {
-            fontStyle = Style.getEmptyMapped().withBold(this.styleBold).withItalic(this.styleItalic);
+            fontStyle = Style.EMPTY.withBold(this.styleBold).withItalic(this.styleItalic);
         }
 
         return TextHelper.setStyle(TextHelper.literal(str), fontStyle);

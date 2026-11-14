@@ -1,8 +1,8 @@
 package com.lx862.jcm.mixin.mtrpatch;
 
 import com.lx862.jcm.mod.data.BlockProperties;
-import org.mtr.mapping.tool.HolderBase;
-import org.mtr.mod.block.BlockRailwaySignPole;
+import com.lx862.jcm.mod.render.HolderBase;
+import org.mtr.block.BlockRailwaySignPole;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;

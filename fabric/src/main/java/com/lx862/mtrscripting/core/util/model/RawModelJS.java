@@ -1,16 +1,15 @@
 package com.lx862.mtrscripting.core.util.model;
 
-import com.lx862.jcm.mixin.mtrscripting.ObjModelAccessor;
 import com.lx862.jcm.mixin.mtrscripting.RawMeshAccessor;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.OptimizedModel;
-import org.mtr.mapping.render.batch.MaterialProperties;
-import org.mtr.mapping.render.model.RawMesh;
-import org.mtr.mapping.render.model.RawModel;
-import org.mtr.mod.resource.RenderStage;
+import net.minecraft.resources.ResourceLocation;
+import com.lx862.jcm.mod.render.mesh.MaterialProperties;
+import com.lx862.jcm.mod.render.mesh.ShaderType;
+import com.lx862.jcm.mod.render.mesh.RawMesh;
+import com.lx862.jcm.mod.render.mesh.RawModel;
+import org.mtr.resource.RenderStage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,17 +22,6 @@ public class RawModelJS {
     public RawModelJS() {
         this.rawModel = new RawModel();
         this.renderType = "EXTERIOR";
-    }
-
-    @ApiInternal
-    public RawModelJS(OptimizedModel.ObjModel... rawModel) {
-        this();
-        for(OptimizedModel.ObjModel model : rawModel) {
-            ObjModelAccessor accessor = ((ObjModelAccessor) (Object) model);
-            for(RawMesh mesh : accessor.getRawMeshes()) {
-                this.rawModel.append(mesh);
-            }
-        }
     }
 
     @ApiInternal
@@ -88,7 +76,7 @@ public class RawModelJS {
         RawModel newModel = new RawModel();
         List<RawMesh> meshes = new ArrayList<>();
         rawModel.iterateRawMeshList(f -> {
-            MaterialProperties newProp = new MaterialProperties(f.materialProperties.shaderType, f.materialProperties.getTexture(), f.materialProperties.vertexAttributeState.color);
+            MaterialProperties newProp = new MaterialProperties(f.materialProperties.shaderType, f.materialProperties.getTexture(), f.materialProperties.color);
             RawMesh newMesh = new RawMesh(newProp);
             /* Change the list reference */
             ((RawMeshAccessor)(Object)newMesh).setVertices(f.vertices);
@@ -104,9 +92,9 @@ public class RawModelJS {
         replaceTexture(oldTexture, JSUtil.parseId(newTexture));
     }
 
-    public void replaceTexture(String oldTexture, Identifier newTexture) {
+    public void replaceTexture(String oldTexture, ResourceLocation newTexture) {
         rawModel.iterateRawMeshList(f -> {
-            Identifier id = f.materialProperties.getTexture();
+            ResourceLocation id = f.materialProperties.getTexture();
             String oldPath = id.getPath();
             if (oldPath.substring(oldPath.lastIndexOf("/") + 1).equals(oldTexture)) {
                 f.materialProperties.setTexture(newTexture);
@@ -130,7 +118,7 @@ public class RawModelJS {
         replaceAllTexture(JSUtil.parseId(id));
     }
 
-    public void replaceAllTexture(Identifier id) {
+    public void replaceAllTexture(ResourceLocation id) {
         rawModel.iterateRawMeshList(f -> {
             f.materialProperties.setTexture(id);
         });
@@ -139,7 +127,7 @@ public class RawModelJS {
     public void setAllRenderType(String renderType) {
         rawModel.iterateRawMeshList(rawMesh -> {
             MaterialProperties originalProp = rawMesh.materialProperties;
-            ((RawMeshAccessor)(Object)rawMesh).setMaterialProperties(new MaterialProperties(stringToRenderStage(renderType).shaderType, originalProp.getTexture(), originalProp.vertexAttributeState.color));
+            ((RawMeshAccessor)(Object)rawMesh).setMaterialProperties(new MaterialProperties(ShaderType.fromRenderStage(stringToRenderStage(renderType)), originalProp.getTexture(), originalProp.color));
         });
 
         this.renderType = renderType;

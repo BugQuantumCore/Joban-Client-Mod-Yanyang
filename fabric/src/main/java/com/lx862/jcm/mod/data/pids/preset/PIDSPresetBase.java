@@ -5,12 +5,12 @@ import com.lx862.jcm.mod.render.RenderHelper;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.StoredMatrixTransformations;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -20,11 +20,11 @@ public abstract class PIDSPresetBase implements RenderHelper {
     private final String id;
     private final String name;
     private final List<String> blacklist;
-    protected final Identifier thumbnail;
+    protected final ResourceLocation thumbnail;
     public final boolean builtin;
     private final boolean outOfBound;
 
-    public PIDSPresetBase(String id, @Nullable String name, Identifier thumbnail, List<String> blacklistedPIDS, boolean outOfBound, boolean builtin) {
+    public PIDSPresetBase(String id, @Nullable String name, ResourceLocation thumbnail, List<String> blacklistedPIDS, boolean outOfBound, boolean builtin) {
         this.id = id;
         if(name == null) {
             this.name = id;
@@ -45,7 +45,7 @@ public abstract class PIDSPresetBase implements RenderHelper {
         return name;
     }
 
-    public Identifier getThumbnail() {
+    public ResourceLocation getThumbnail() {
         return thumbnail;
     }
 
@@ -60,5 +60,5 @@ public abstract class PIDSPresetBase implements RenderHelper {
     public abstract int getTextColor();
     public abstract boolean isRowHidden(int row);
 
-    public abstract void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, World world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light);
+    public abstract void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, Level world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light);
 }

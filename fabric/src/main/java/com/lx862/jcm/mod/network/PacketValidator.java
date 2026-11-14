@@ -1,7 +1,7 @@
 package com.lx862.jcm.mod.network;
 
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mod.Items;
+import net.minecraft.server.level.ServerPlayer;
+import org.mtr.registry.Items;
 
 public class PacketValidator {
     /**
@@ -10,7 +10,7 @@ public class PacketValidator {
      * @param serverPlayerEntity The player to check against.
      * @return true if the player can configure the block, false otherwise.
      */
-    public static boolean canConfigureBlock(ServerPlayerEntity serverPlayerEntity) {
+    public static boolean canConfigureBlock(ServerPlayer serverPlayerEntity) {
         if(serverPlayerEntity.isCreative() || serverPlayerEntity.isSpectator()) return true;
         // We ought to search through the entire inventory, but this does not seem to be exposed by MC-Mappings.
         // And the odds of you being in survival/adventure, having a brush, and managed to tug it away from your hand before the GUI opens... is a bit low

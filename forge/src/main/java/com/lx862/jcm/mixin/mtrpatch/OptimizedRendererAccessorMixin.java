@@ -1,7 +1,7 @@
 package com.lx862.jcm.mixin.mtrpatch;
 
 import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mapping.render.shader.ShaderManager;
+import com.lx862.jcm.mod.render.mesh.ShaderManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

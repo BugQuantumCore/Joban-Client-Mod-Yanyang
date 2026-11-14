@@ -7,8 +7,6 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.lwjgl.opengl.GL33;
 import org.lwjgl.system.MemoryUtil;
-import org.mtr.mapping.holder.*;
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
@@ -16,11 +14,15 @@ import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.UUID;
+import com.mojang.blaze3d.platform.NativeImage;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.resources.ResourceLocation;
 
 @SuppressWarnings("unused")
 public class GraphicsTexture implements Closeable {
-    private final NativeImageBackedTexture dynamicTexture;
-    public final Identifier identifier;
+    private final DynamicTexture dynamicTexture;
+    public final ResourceLocation identifier;
 
     public final BufferedImage bufferedImage;
     public final Graphics2D graphics;
@@ -30,19 +32,19 @@ public class GraphicsTexture implements Closeable {
     public GraphicsTexture(int width, int height) {
         this.width = width;
         this.height = height;
-        this.dynamicTexture = new NativeImageBackedTexture(new NativeImage(width, height, false));
+        this.dynamicTexture = new DynamicTexture(new NativeImage(width, height, false));
         this.identifier = MTRScriptingMod.id(String.format("dynamic/graphics/%s", UUID.randomUUID()));
 
-        MinecraftClient.getInstance().execute(() -> {
+        Minecraft.getInstance().execute(() -> {
             // Use GL Swizzle to remap color. MC's NativeImage is BGRA
             int prevTextureBinding = GL33.glGetInteger(GL33.GL_TEXTURE_BINDING_2D);
-            this.dynamicTexture.bindTexture();
+            GlStateManager._bindTexture(this.dynamicTexture.getId());
             GL33.glTexParameteriv(GL33.GL_TEXTURE_2D, GL33.GL_TEXTURE_SWIZZLE_RGBA,
                     new int[] { GL33.GL_BLUE, GL33.GL_GREEN, GL33.GL_RED, GL33.GL_ALPHA });
             GlStateManager._bindTexture(prevTextureBinding);
 
             // Register the texture to MC!
-            MinecraftClient.getInstance().getTextureManager().registerTexture(identifier, new AbstractTexture(this.dynamicTexture.data));
+            Minecraft.getInstance().getTextureManager().register(identifier, this.dynamicTexture);
         });
         bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         graphics = bufferedImage.createGraphics();
@@ -120,9 +122,9 @@ public class GraphicsTexture implements Closeable {
         }
         copyBuffer(sourceImage, this.dynamicTexture, dstOffsetX, dstOffsetY, srcOffsetX, srcOffsetY, uploadWidth, uploadHeight, this.width, this.height, srcImgWidth, srcImgHeight);
         RenderSystem.recordRenderCall(() -> {
-            NativeImage nativeImage = dynamicTexture.getImage();
+            NativeImage nativeImage = dynamicTexture.getPixels();
             if(nativeImage != null) {
-                dynamicTexture.bindTexture();
+                GlStateManager._bindTexture(dynamicTexture.getId());
                 nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY, uploadWidth, uploadHeight, false, false, false, false);
             }
         });
@@ -130,7 +132,7 @@ public class GraphicsTexture implements Closeable {
 
     private static void copyBuffer(
             BufferedImage source,
-            NativeImageBackedTexture destination,
+            DynamicTexture destination,
             int dstX, int dstY,
             int srcX, int srcY,
             int width, int height,
@@ -138,8 +140,8 @@ public class GraphicsTexture implements Closeable {
             int srcImgWidth, int srcImgHeight
     ) {
         int[] sourceData = ((DataBufferInt)source.getRaster().getDataBuffer()).getData();
-        NativeImage destImg = destination.getImage();
-        long destImgPointer = LoaderImplClient.getNativeImagePointer(destination.getImage());
+        NativeImage destImg = destination.getPixels();
+        long destImgPointer = LoaderImplClient.getNativeImagePointer(destination.getPixels());
         IntBuffer buffer = MemoryUtil.memByteBuffer(destImgPointer, dstImgWidth * dstImgHeight * 4).asIntBuffer();
         int srcPixelStart = srcY * srcImgWidth + srcX;
         int dstPixelStart = dstY * dstImgWidth + dstX;
@@ -203,9 +205,9 @@ public class GraphicsTexture implements Closeable {
                 dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY, width, height,
                 this.width, this.height, this.width, this.height);
         RenderSystem.recordRenderCall(() -> {
-            NativeImage nativeImage = this.dynamicTexture.getImage();
+            NativeImage nativeImage = this.dynamicTexture.getPixels();
             if (nativeImage != null) {
-                this.dynamicTexture.bindTexture();
+                GlStateManager._bindTexture(this.dynamicTexture.getId());
                 nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY,
                         width, height, false, false, false, false);
             }
@@ -228,8 +230,8 @@ public class GraphicsTexture implements Closeable {
 
     @Override
     public void close() {
-        MinecraftClient.getInstance().execute(() -> {
-            MinecraftClient.getInstance().getTextureManager().destroyTexture(identifier);
+        Minecraft.getInstance().execute(() -> {
+            Minecraft.getInstance().getTextureManager().release(identifier);
         });
         graphics.dispose();
     }

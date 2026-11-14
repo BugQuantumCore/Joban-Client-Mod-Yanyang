@@ -2,9 +2,9 @@ package com.lx862.amberui.gui.widget;
 
 import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import static com.lx862.amberui.gui.widget.ListViewWidget.ENTRY_PADDING;
 
@@ -18,10 +18,10 @@ import static com.lx862.amberui.gui.widget.ListViewWidget.ENTRY_PADDING;
  * every frame and the game's zero-allocation discipline applies here too.</p>
  */
 public class DynamicTextItem extends AbstractListItem {
-    private final java.util.function.Supplier<MutableText> text;
+    private final java.util.function.Supplier<MutableComponent> text;
     private final int height;
 
-    public DynamicTextItem(java.util.function.Supplier<MutableText> text, int height) {
+    public DynamicTextItem(java.util.function.Supplier<MutableComponent> text, int height) {
         this.text = text;
         this.height = height;
     }

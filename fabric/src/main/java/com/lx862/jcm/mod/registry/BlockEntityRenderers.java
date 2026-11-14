@@ -3,6 +3,8 @@ package com.lx862.jcm.mod.registry;
 import com.lx862.jcm.mod.Constants;
 import com.lx862.jcm.mod.render.block.*;
 import com.lx862.jcm.mod.util.JCMLogger;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Block;
 
 public final class BlockEntityRenderers {
     public static void registerClient() {

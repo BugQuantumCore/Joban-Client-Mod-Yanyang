@@ -4,8 +4,8 @@ import com.lx862.mtrscripting.mod.network.packet.data.RequestStopsDataC2SPacket;
 import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRDatasetHolder;
 import org.mtr.core.data.*;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.data.VehicleExtension;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.data.VehicleExtension;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -63,7 +63,7 @@ public class VehicleDataCache {
 
         final long revision = mtrData.getRevision();
         BuiltStops cached = builtStopsCache.get(vehicleExtension.getId());
-        if(cached != null && cached.data != null && cached.source == simplifiedStopsData
+        if(cached != null && cached.source == simplifiedStopsData
                 && cached.sourceRevision == revision) {
             /* Cached graph is still current. Refresh only the siding reference:
             MTR swaps the object in sidingIdMap on sync, and the wrapper reads

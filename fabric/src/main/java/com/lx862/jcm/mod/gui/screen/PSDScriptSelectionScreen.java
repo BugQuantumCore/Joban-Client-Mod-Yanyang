@@ -5,6 +5,7 @@ import com.lx862.amberui.gui.screen.SavableScreen;
 import com.lx862.amberui.gui.widget.ContentItem;
 import com.lx862.amberui.gui.widget.HorizontalWidgetSet;
 import com.lx862.amberui.gui.widget.ListViewWidget;
+import com.lx862.amberui.gui.widget.AlwaysRenderedTextField;
 import com.lx862.amberui.gui.widget.MappedWidget;
 import com.lx862.jcm.mod.data.pids.PIDSManager;
 import com.lx862.jcm.mod.data.pids.preset.PIDSPresetBase;
@@ -19,13 +20,17 @@ import com.lx862.mtrscripting.mod.gui.screen.EyecandySelectionScreen;
 import com.lx862.mtrscripting.mod.network.packet.psd.PSDScriptBindC2SPacket;
 import com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager;
 import com.lx862.mtrscripting.mod.resource.PSDResourceProvider;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.TextFieldWidgetExtension;
-import org.mtr.mapping.tool.TextCase;
+import com.lx862.amberui.gui.widget.Button;
+import net.minecraft.client.gui.components.EditBox;
+import com.lx862.jcm.mod.render.TextCase;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.TextCase;
 
 /**
  * The PSD Script Editor's selection screen — lists every {@code psdScripts}
@@ -45,7 +50,7 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
     /** Every block of the managed surface (whole glass segment / psd_top group). */
     private final List<BlockPos> positions;
     private final PSDWrapper.PSDType type;
-    private final TextFieldWidgetExtension searchBox;
+    private final EditBox searchBox;
     private final ListViewWidget listViewWidget;
     private final List<Runnable> selectListener = new ArrayList<>();
 
@@ -74,7 +79,7 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
         this.positions = positions;
         this.type = type;
         this.listViewWidget = new ListViewWidget();
-        this.searchBox = new TextFieldWidgetExtension(0, 0, 0, 22, 60, TextCase.DEFAULT, null, TextUtil.translatable(TextCategory.GUI, "widget.search").getString());
+        this.searchBox = new AlwaysRenderedTextField(0, 0, 0, 22, 60, TextCase.DEFAULT, null, TextUtil.translatable(TextCategory.GUI, "widget.search").getString());
 
         for (BlockPos pos : positions) {
             final PSDBinding binding = PSDClientBindings.get(pos);
@@ -87,8 +92,8 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
         int contentWidth = (int) Math.min((width * 0.75), MAX_CONTENT_WIDTH);
         int listViewHeight = (int) ((height - 90) * 0.76);
         int startX = (width - contentWidth) / 2;
@@ -100,24 +105,24 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
         addOptions();
         updateSelectedEntry();
 
-        searchBox.setX2(startX);
-        searchBox.setY2(searchStartY);
-        searchBox.setWidth2(contentWidth);
-        searchBox.setChangedListener2(listViewWidget::setSearchTerm);
-        searchBox.setText2(searchBox.getText2());
+        searchBox.setX(startX);
+        searchBox.setY(searchStartY);
+        searchBox.setWidth(contentWidth);
+        searchBox.setResponder(listViewWidget::setSearchTerm);
+        searchBox.setValue(searchBox.getValue());
 
         listViewWidget.setXYSize(startX, startY, contentWidth, listViewHeight);
-        addChild(new ClickableWidget(listViewWidget));
-        addChild(new ClickableWidget(searchBox));
+        addRenderableWidget(listViewWidget);
+        addRenderableWidget(searchBox);
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return TextUtil.translatable(TextCategory.GUI, "psd_script.title");
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.translatable(TextCategory.GUI, "psd_script.subtitle", type == PSDWrapper.PSDType.GLASS
                 ? TextUtil.translatable(TextCategory.GUI, "psd_script.surface.glass").getString()
                 : TextUtil.translatable(TextCategory.GUI, "psd_script.surface.top").getString());
@@ -162,7 +167,7 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
     }
 
     private void addOptionEntry(Option option) {
-        final ButtonWidgetExtension selectBtn = new ButtonWidgetExtension(0, 0, 60, 20, TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose"), (btn) -> {
+        final Button selectBtn = new Button(0, 0, 60, 20, TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose"), (btn) -> {
             choose(option);
             updateSelectedEntry();
         });
@@ -170,10 +175,10 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
         selectListener.add(() -> {
             final boolean selected = option.id.equals(currentScriptId) && option.pidsPreset == currentIsPidsPreset && !(option.isNone && !currentScriptId.isEmpty());
             if (selected) {
-                selectBtn.setMessage2(Text.cast(TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.selected")));
+                selectBtn.setMessage((TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.selected")));
                 selectBtn.active = false;
             } else {
-                selectBtn.setMessage2(Text.cast(TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose")));
+                selectBtn.setMessage((TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose")));
                 selectBtn.active = true;
             }
         });
@@ -182,7 +187,7 @@ public class PSDScriptSelectionScreen extends SavableScreen implements RenderHel
         widgetSet.addWidget(new MappedWidget(selectBtn));
         widgetSet.setXYSize(0, 0, 70, 20);
 
-        addChild(new ClickableWidget(selectBtn));
+        addRenderableWidget(selectBtn);
         final ContentItem contentItem = new ContentItem(
                 TextUtil.literal(option.displayName + (option.pidsPreset ? " (PIDS)" : "")),
                 new MappedWidget(widgetSet), 26);

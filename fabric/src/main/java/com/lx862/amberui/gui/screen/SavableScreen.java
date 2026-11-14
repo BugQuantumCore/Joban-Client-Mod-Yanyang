@@ -4,12 +4,12 @@ import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.amberui.gui.widget.WidgetSet;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
+import net.minecraft.client.gui.components.AbstractWidget;
+import com.lx862.amberui.gui.widget.Button;
 
 public abstract class SavableScreen extends TitledScreen implements GuiHelper {
-    protected ButtonWidgetExtension saveButton;
-    protected ButtonWidgetExtension discardButton;
+    protected Button saveButton;
+    protected Button discardButton;
     protected boolean discardConfig = false;
 
     public SavableScreen(boolean animatable) {
@@ -19,33 +19,33 @@ public abstract class SavableScreen extends TitledScreen implements GuiHelper {
     protected void addBottomRowEntry(int x, int y, int width, int height) {
         WidgetSet bottomEntryWidget = new WidgetSet(20);
 
-        this.saveButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "block_config.save"), (btn) -> {
-            onClose2();
+        this.saveButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "block_config.save"), (btn) -> {
+            onClose();
         });
 
-        this.discardButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "block_config.discard"), (btn) -> {
+        this.discardButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "block_config.discard"), (btn) -> {
             discardConfig = true;
-            onClose2();
+            onClose();
         });
 
-        addChild(new ClickableWidget(saveButton));
-        addChild(new ClickableWidget(discardButton));
+        addRenderableWidget(saveButton);
+        addRenderableWidget(discardButton);
 
         bottomEntryWidget.addWidget(saveButton);
         bottomEntryWidget.addWidget(discardButton);
         bottomEntryWidget.setXYSize(x, y, width, height);
-        addChild(new ClickableWidget(bottomEntryWidget));
+        addRenderableWidget(bottomEntryWidget);
     }
 
     @Override
-    public void onClose2() {
+    public void onClose() {
         // Save config by default, unless explicitly requested not to
         if(!discardConfig) {
             onSave();
         } else {
             onDiscard();
         }
-        super.onClose2();
+        super.onClose();
     }
 
     protected abstract void onSave();
@@ -54,7 +54,7 @@ public abstract class SavableScreen extends TitledScreen implements GuiHelper {
     }
 
     @Override
-    public boolean isPauseScreen2() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

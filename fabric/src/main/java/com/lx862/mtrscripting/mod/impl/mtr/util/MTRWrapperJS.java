@@ -11,16 +11,16 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.Init;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.config.Config;
-import org.mtr.mod.data.ArrivalsCacheClient;
-import org.mtr.mod.data.VehicleExtension;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
+import org.mtr.MTR;
+import org.mtr.MTRClient;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.config.Config;
+import org.mtr.data.ArrivalsCacheClient;
+import org.mtr.data.VehicleExtension;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +66,7 @@ public class MTRWrapperJS {
     public static class Data {
         /* Station */
         public static @ValueNullable Station findStation(ScriptVector3f pos) {
-            return InitClient.findStation(pos.rawBlockPos());
+            return MTRClient.findStation(pos.rawBlockPos());
         }
 
         public static @ValueNullable Station getStation(long stationId) {
@@ -79,7 +79,7 @@ public class MTRWrapperJS {
 
         /* Depot */
         public static @ValueNullable Depot findDepot(ScriptVector3f pos) {
-            return InitClient.findDepot(pos.rawBlockPos());
+            return MTRClient.findDepot(pos.rawBlockPos());
         }
 
         public static @ValueNullable Depot getDepot(long depotId) {
@@ -124,10 +124,10 @@ public class MTRWrapperJS {
         public static MountDetail getVehicleMountDetail() {
             VehicleExtension playerMountedVehicle = getPlayerMountedVehicle();
             if(playerMountedVehicle == null) return null;
-            IntObjectImmutablePair<ObjectObjectImmutablePair<Vector3d, Double>> obj = VehicleRidingMovement.getRidingVehicleCarNumberAndOffset(playerMountedVehicle.getId());
+            IntObjectImmutablePair<ObjectObjectImmutablePair<Vec3, Double>> obj = VehicleRidingMovement.getRidingVehicleCarNumberAndOffset(playerMountedVehicle.getId());
             if(obj == null) return null;
             int carIndex = obj.leftInt();
-            Vector3d vec3d = obj.right().left();
+            Vec3 vec3d = obj.right().left();
             if(vec3d == null) return null;
             return new MountDetail(carIndex, new ScriptVector3f(vec3d));
         }
@@ -147,7 +147,7 @@ public class MTRWrapperJS {
 
         public static List<LiftWrapper.Floor> getLiftFloors(Lift lift) {
             List<LiftWrapper.Floor> floors = new ArrayList<>();
-            LiftWrapper.populateFloors(floors, lift, World.cast(MinecraftClient.getInstance().getWorldMapped()));
+            LiftWrapper.populateFloors(floors, lift, (Level)Minecraft.getInstance().level);
             return floors;
         }
 
@@ -175,7 +175,7 @@ public class MTRWrapperJS {
 
         public static List<Siding> findNearbySidings(ScriptVector3f pos, int radius) {
             List<Siding> sidings = new ArrayList<>();
-            Position position = Init.blockPosToPosition(pos.rawBlockPos());
+            Position position = new Position(pos.rawBlockPos().getX(), pos.rawBlockPos().getY(), pos.rawBlockPos().getZ());
             MinecraftClientData.getInstance().sidings
                     .stream()
                     .filter((siding) -> siding.closeTo(position, radius))
@@ -194,7 +194,7 @@ public class MTRWrapperJS {
 
         public static List<Platform> findNearbyPlatforms(ScriptVector3f pos, int radius) {
             List<Platform> platforms = new ArrayList<>();
-            Position position = Init.blockPosToPosition(pos.rawBlockPos());
+            Position position = new Position(pos.rawBlockPos().getX(), pos.rawBlockPos().getY(), pos.rawBlockPos().getZ());
             MinecraftClientData.getInstance().platforms
                     .stream()
                     .filter((platform) -> platform.closeTo(position, radius))
@@ -224,7 +224,7 @@ public class MTRWrapperJS {
             for(int i = 0; i < 2; i++) {
                 if(i == 0 && !front) continue;
                 if(i == 1 && !back) continue;
-                Position position = i == 0 ? pathData.getOrderedPosition2() : pathData.getOrderedPosition1();
+                Position position = i == 0 ? pathData.getOrderedPosition1() : pathData.getOrderedPosition2();
 
                 for(Map.Entry<Position, Object2ObjectOpenHashMap<Position, Rail>> entry : MinecraftClientData.getInstance().positionsToRail.entrySet()) {
                     if(entry.getKey().equals(position)) {

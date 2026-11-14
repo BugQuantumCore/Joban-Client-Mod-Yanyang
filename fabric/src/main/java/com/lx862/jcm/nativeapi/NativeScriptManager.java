@@ -3,8 +3,8 @@ package com.lx862.jcm.nativeapi;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.resource.ResourceManagerHelper;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.world.InteractionHand;
 
 /**
  * NativeScriptManager — the JNI-free host for C++ script modules.
@@ -311,7 +312,7 @@ public final class NativeScriptManager {
             return null;
         }
         try {
-            final Identifier libId = new Identifier(libraryPath);
+            final ResourceLocation libId = ResourceLocation.parse(libraryPath);
             final byte[] lib = readResourceBytes(libId);
             if (lib == null || lib.length == 0) {
                 JCMLogger.warn("Native script library {} not found!", libraryPath);
@@ -372,7 +373,7 @@ public final class NativeScriptManager {
                .add(module);
     }
 
-    private static byte[] readResourceBytes(Identifier id) {
+    private static byte[] readResourceBytes(ResourceLocation id) {
         /* Binary-safe read: readResource() decodes as text (String),
            which corrupts .so/.dll/.dylib bytes through a UTF-8
            round-trip. readAllResources hands us the raw stream. */
@@ -903,7 +904,7 @@ public final class NativeScriptManager {
                 NativeApiSession.quiesce(moduleKey);
                 try {
                     if (module.nativeHandle != 0) {
-                        /* Hand the LIVE buffer this instance was last rendered
+                        /* InteractionHand the LIVE buffer this instance was last rendered
                            with: the retained copy in the bridge never refreshed
                            (the reusable buffers keep their address), so dispose()
                            used to receive the instance's first frame forever. */

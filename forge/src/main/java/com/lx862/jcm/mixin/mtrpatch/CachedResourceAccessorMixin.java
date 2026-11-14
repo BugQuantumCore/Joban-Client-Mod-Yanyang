@@ -1,6 +1,6 @@
 package com.lx862.jcm.mixin.mtrpatch;
 
-import org.mtr.mod.resource.CachedResource;
+import org.mtr.resource.CachedResource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

@@ -5,10 +5,10 @@ import com.google.gson.JsonObject;
 import com.lx862.jcm.mod.data.KVPair;
 import com.lx862.jcm.mod.data.pids.preset.PIDSContext;
 import com.lx862.jcm.mod.data.pids.preset.components.base.PIDSComponent;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.InitClient;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.MTRClient;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,7 +38,7 @@ public class CycleComponent extends PIDSComponent {
         if(cycleTime == -1 && !filteredComponents.isEmpty()) {
             filteredComponents.get(0).render(graphicsHolder, guiDrawing, facing, context); // Render first available component
         } else {
-            int currentComponentIndex = (int) ((int)(InitClient.getGameTick() % (cycleTime * filteredComponents.size())) / cycleTime);
+            int currentComponentIndex = (int) ((int)(MTRClient.getGameTick() % (cycleTime * filteredComponents.size())) / cycleTime);
 
             PIDSComponent component = filteredComponents.get(currentComponentIndex);
             component.render(graphicsHolder, guiDrawing, facing, context);

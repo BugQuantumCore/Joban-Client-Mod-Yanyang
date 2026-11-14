@@ -13,7 +13,8 @@ import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.ScriptManager;
 import com.lx862.mtrscripting.core.api.ClassRule;
 import com.lx862.mtrscripting.core.api.MTRScriptingAPI;
-import org.mtr.mod.client.MinecraftClientData;
+import org.mtr.client.MinecraftClientData;
+import net.minecraft.network.chat.Component;
 
 public class JCMScripting {
     private static ScriptManager scriptManager;

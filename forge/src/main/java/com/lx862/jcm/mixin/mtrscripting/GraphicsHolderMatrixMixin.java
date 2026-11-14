@@ -1,7 +1,7 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
 import com.lx862.jcm.nativeapi.NativeMatrixApplier;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 import org.spongepowered.asm.mixin.*;
 import java.nio.FloatBuffer;
 
@@ -9,6 +9,8 @@ import java.nio.FloatBuffer;
 import net.minecraft.client.util.math.MatrixStack;
 #else
 import com.mojang.blaze3d.vertex.PoseStack;
+import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 #endif
 
 @Mixin(value=GraphicsHolder.class,remap=false)

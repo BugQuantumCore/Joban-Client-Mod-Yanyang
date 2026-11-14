@@ -2,10 +2,10 @@ package com.lx862.jcm.mod.network.gui;
 
 import com.lx862.jcm.mod.data.EnquiryScreenType;
 import com.lx862.jcm.mod.data.TransactionEntry;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +22,7 @@ public class EnquiryUpdateGUIPacket extends PacketHandler {
     public EnquiryUpdateGUIPacket(PacketBufferReceiver packetBufferReceiver) {
         this.entries = new ArrayList<>();
         this.type = EnquiryScreenType.valueOf(packetBufferReceiver.readString());
-        this.pos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.pos = BlockPos.of(packetBufferReceiver.readLong());
         this.remainingBalance = packetBufferReceiver.readInt();
 
         this.entryCount = packetBufferReceiver.readInt();

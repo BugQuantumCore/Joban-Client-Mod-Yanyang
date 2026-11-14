@@ -1,11 +1,12 @@
 package com.lx862.mtrscripting.mod.network.packet.psd;
 
 import com.lx862.mtrscripting.mod.impl.mtr.server.PSDServerBindings;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import net.minecraft.core.BlockPos;
 
 /**
  * Client → server: "bind (or, with an empty script id, unbind) a PSD script
@@ -32,7 +33,7 @@ public class PSDScriptBindC2SPacket extends PacketHandler {
         this.type = packetBufferReceiver.readString();
     }
 
-    public PSDScriptBindC2SPacket(org.mtr.mapping.holder.BlockPos pos, String scriptId, boolean pidsPreset, String type) {
+    public PSDScriptBindC2SPacket(net.minecraft.core.BlockPos pos, String scriptId, boolean pidsPreset, String type) {
         this.x = (int) pos.getX();
         this.y = (int) pos.getY();
         this.z = (int) pos.getZ();
@@ -52,7 +53,7 @@ public class PSDScriptBindC2SPacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
         minecraftServer.submit(() -> PSDServerBindings.handleBind(minecraftServer, serverPlayerEntity, x, y, z, scriptId, pidsPreset, type));
     }
 }

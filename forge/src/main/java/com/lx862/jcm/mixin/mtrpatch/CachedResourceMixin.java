@@ -3,7 +3,7 @@ package com.lx862.jcm.mixin.mtrpatch;
 import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.jcm.mod.util.JCMLogger;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mod.resource.CachedResource;
+import org.mtr.resource.CachedResource;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

@@ -11,18 +11,28 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraftforge.fml.loading.FMLPaths;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.SoundHelper;
+import com.lx862.jcm.mod.compat.SoundHelper;
 
 import java.nio.file.Path;
 import java.util.Optional;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockBehaviour.Properties;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * Forge implementation via Mojang mapping
  */
 public class LoaderImpl {
-    public static boolean isRainingAt(World world, BlockPos pos) {
-        return world.data.isRainingAt(pos.data);
+    public static boolean isRainingAt(Level world, BlockPos pos) {
+        return world.isRainingAt(pos);
     }
 
     public static Path getConfigPath() {
@@ -30,65 +40,65 @@ public class LoaderImpl {
     }
 
     /** Get a block settings forcing it to be solid, as we don't want water to break our block. */
-    public static BlockSettings getSolidBlockSettings(BlockSettings settings) {
+    public static BlockBehaviour.Properties getSolidBlockSettings(BlockBehaviour.Properties settings) {
         #if MC_VERSION >= "12001"
-            return new BlockSettings(settings.data.forceSolidOn());
+            return new BlockBehaviour.Properties(settings.forceSolidOn());
         #else
             return settings;
         #endif
     }
 
-    public static Item getItemFromId(Identifier id) {
+    public static Item getItemFromId(ResourceLocation id) {
         #if MC_VERSION < "11903"
             final Optional<net.minecraft.world.item.Item> itm;
-            itm = net.minecraft.core.Registry.ITEM.getOptional(id.data);
+            itm = net.minecraft.core.Registry.ITEM.getOptional(id);
         #else
             final Optional<net.minecraft.world.item.Item> itm;
-            itm = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id.data);
+            itm = net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id);
         #endif
         return itm.map(Item::new).orElse(null);
     }
 
-    public static Identifier getIdFromItem(Item itm) {
+    public static ResourceLocation getIdFromItem(Item itm) {
         #if MC_VERSION < "11903"
-            return new Identifier(net.minecraft.core.Registry.ITEM.getKey(itm.data));
+            return ResourceLocation.parse(net.minecraft.core.Registry.ITEM.getKey(itm));
         #else
-            return new Identifier(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(itm.data));
+            return ResourceLocation.parse(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(itm));
         #endif
     }
 
-    public static int getRedstoneLevel(World world, BlockPos blockPos) {
-        return world.data.getBestNeighborSignal(blockPos.data);
+    public static int getRedstoneLevel(Level world, BlockPos blockPos) {
+        return world.getBestNeighborSignal(blockPos);
     }
 
     public static Style withClipboardContentText(Style style, String content) {
-        return new Style(style.data.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, content)));
+        return new Style(style.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, content)));
     }
 
     public static Style withURLContentText(Style style, String urlContent) {
-        return new Style(style.data.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, urlContent)));
+        return new Style(style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, urlContent)));
     }
 
-    public static Style withHoverContentText(Style style, MutableText content) {
-        return new Style(style.data.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, content.data)));
+    public static Style withHoverContentText(Style style, MutableComponent content) {
+        return new Style(style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, content)));
     }
 
-    public static void playSound(World world, ServerPlayerEntity playerEntity, Identifier soundId, SoundCategory soundCategory, BlockPos blockPos, float volume, float pitch) {
+    public static void playSound(Level world, ServerPlayer playerEntity, ResourceLocation soundId, SoundSource soundCategory, BlockPos blockPos, float volume, float pitch) {
         #if MC_VERSION >= "11903"
         SoundEvent event = SoundHelper.createSoundEvent(soundId);
-        playerEntity.data.connection.send(
-                new ClientboundSoundPacket(Holder.direct(event.data), soundCategory.data, blockPos.getX(), blockPos.getY(), blockPos.getZ(), volume, pitch, world.getRandom().data.nextLong())
+        playerEntity.connection.send(
+                new ClientboundSoundPacket(Holder.direct(event), soundCategory, blockPos.getX(), blockPos.getY(), blockPos.getZ(), volume, pitch, world.getRandom().nextLong())
         );
         #elif MC_VERSION >= "11900"
-        playerEntity.data.connection.send(new ClientboundCustomSoundPacket(soundId.data, soundCategory.data, new net.minecraft.world.phys.Vec3(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1, world.getRandom().data.nextLong()));
+        playerEntity.connection.send(new ClientboundCustomSoundPacket(soundId, soundCategory, new net.minecraft.world.phys.Vec3(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1, world.getRandom().nextLong()));
         #else
-        playerEntity.data.connection.send(new ClientboundCustomSoundPacket(soundId.data, soundCategory.data, new net.minecraft.world.phys.Vec3(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1));
+        playerEntity.connection.send(new ClientboundCustomSoundPacket(soundId, soundCategory, new net.minecraft.world.phys.Vec3(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1));
         #endif
     }
 
     public static String getBlockStateValue(BlockState blockState, String stateName) {
-        Property property = blockState.getBlock().data.getStateDefinition().getProperty(stateName);
+        Property property = blockState.getBlock().getStateDefinition().getProperty(stateName);
         if(property == null) return null;
-        return property.getName(blockState.data.getValue(property));
+        return property.getName(blockState.getValue(property));
     }
 }

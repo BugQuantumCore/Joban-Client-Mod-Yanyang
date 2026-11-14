@@ -4,16 +4,16 @@ import com.lx862.jcm.mod.util.TextUtil;
 import org.mtr.core.data.Siding;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongCollection;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mapping.holder.TextFormatting;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.ScreenExtension;
-import org.mtr.mod.client.CustomResourceLoader;
-import org.mtr.mod.resource.VehicleResource;
-import org.mtr.mod.screen.DashboardListItem;
-import org.mtr.mod.screen.DashboardListSelectorScreen;
-import org.mtr.mod.screen.VehicleSelectorScreen;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.ChatFormatting;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.client.gui.screens.Screen;
+import org.mtr.client.CustomResourceLoader;
+import org.mtr.resource.VehicleResource;
+import org.mtr.screen.DashboardListItem;
+import org.mtr.screen.DashboardListSelectorScreen;
+import org.mtr.screen.VehicleSelectorScreen;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.world.item.Item;
 
 /**
  * Little messy code to provide car auto-filling feature in vehicle selections.
@@ -38,7 +39,7 @@ public abstract class VehicleSelectorScreenMixin extends DashboardListSelectorSc
     private Siding siding;
 
     @Shadow
-    protected abstract int drawWrappedText(GraphicsHolder graphicsHolder, MutableText component, int y, int color);
+    protected abstract int drawWrappedText(GraphicsHolder graphicsHolder, MutableComponent component, int y, int color);
 
     @Unique
     private static final Map<Long, VehicleResource> listIdToVehicleResource = new HashMap<>();
@@ -52,12 +53,12 @@ public abstract class VehicleSelectorScreenMixin extends DashboardListSelectorSc
     @Unique
     private static int oldListSize = 0;
 
-    public VehicleSelectorScreenMixin(ObjectImmutableList<DashboardListItem> allData, LongCollection selectedIds, boolean isSingleSelect, boolean canRepeat, ScreenExtension previousScreenExtension) {
+    public VehicleSelectorScreenMixin(ObjectImmutableList<DashboardListItem> allData, LongCollection selectedIds, boolean isSingleSelect, boolean canRepeat, Screen previousScreenExtension) {
         super(allData, selectedIds, isSingleSelect, canRepeat, previousScreenExtension);
     }
 
     @Inject(method = "<init>", at = @At("RETURN"))
-    private void jsblock$populateIds(Siding siding, ScreenExtension previousScreenExtension, CallbackInfo ci) {
+    private void jsblock$populateIds(Siding siding, Screen previousScreenExtension, CallbackInfo ci) {
         oldListSize = 0;
         /* All three: the other two survived resource pack reloads and kept
            stale VehicleResource objects (formations computed from old car
@@ -92,7 +93,7 @@ public abstract class VehicleSelectorScreenMixin extends DashboardListSelectorSc
             if(remainingLength >= trailerVehicle.getLength()) {
                 int trailerCars = (int)Math.floor(remainingLength/ trailerVehicle.getLength());
 
-                MutableText reminderText = TextUtil.literal("\nJCM Autofill formation:\n").formatted(TextFormatting.AQUA);
+                MutableComponent reminderText = TextUtil.literal("\nJCM Autofill formation:\n").withStyle(TextFormatting.AQUA);
                 reminderText.append("1-" + trailerCars + "-1   (" + (trailerCars+2) + "-cars)\n")
                         .append("\nTo use, hold SHIFT then add car.");
 

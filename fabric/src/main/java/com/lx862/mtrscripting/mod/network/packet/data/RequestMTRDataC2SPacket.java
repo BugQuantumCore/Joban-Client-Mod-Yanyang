@@ -12,14 +12,14 @@ import org.mtr.core.data.*;
 import org.mtr.core.simulation.Simulator;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import org.mtr.MTR;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +74,7 @@ public class RequestMTRDataC2SPacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
         if(JCMServerConfig.INSTANCE.disableScriptDataFetching.value()) {
             if(JCMServerConfig.INSTANCE.debugMode.value()) {
                 MTRScriptingMod.LOGGER.info("[MTR Scripting via JCM] Refusing to provide MTR data for {} as it is disabled in server config.", serverPlayerEntity.getGameProfile().getName());
@@ -83,8 +83,8 @@ public class RequestMTRDataC2SPacket extends PacketHandler {
         }
 
         Main tscInstance = InitAccessorMixin.getMain();
-        World playerWorld = serverPlayerEntity.getEntityWorld();
-        String tscDimensionId = Init.getWorldId(playerWorld);
+        Level playerWorld = serverPlayerEntity.level();
+        String tscDimensionId = MTR.getWorldId(playerWorld);
 
         ObjectImmutableList<Simulator> simulators = ((MainAccessorMixin)tscInstance).getSimulators();
         for(Simulator simulator : simulators) {
@@ -108,7 +108,7 @@ public class RequestMTRDataC2SPacket extends PacketHandler {
                         }
 
                         minecraftServer.submit(() -> {
-                            Networking.sendPacketToClient(PlayerEntity.cast(serverPlayerEntity), new MTRDataS2CPacket(dataInstance));
+                            Networking.sendPacketToClient((Player)serverPlayerEntity, new MTRDataS2CPacket(dataInstance));
                         });
                     } catch (Exception e) {
                         MTRScriptingMod.LOGGER.error("RequestMTRDataC2SPacket failed!", e);

@@ -9,31 +9,29 @@ import com.lx862.mtrscripting.mod.util.JSUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.apache.commons.io.IOUtils;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.OptimizedModel;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mod.Init;
-import org.mtr.mod.resource.CustomResourceTools;
-import org.mtr.mod.resource.ModelResourceLoader;
-import org.mtr.mod.resource.ResourceProvider;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.resource.ResourceManagerHelper;
+import org.mtr.MTR;
+import org.mtr.resource.CustomResourceTools;
+import org.mtr.resource.ResourceProvider;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class ModelManagerJS {
     private static final ResourceProvider RESOURCE_PROVIDER = new ResourceProvider() {
-        public String get(Identifier id) {
+        public String get(ResourceLocation id) {
             DataReaderJS dataReaderJS = ScriptResourceUtil.read(id);
             return dataReaderJS == null ? "" : dataReaderJS.asString();
         }
 
-        public byte[] getBytes(Identifier id) {
+        public byte[] getBytes(ResourceLocation id) {
             DataReaderJS dataReaderJS = ScriptResourceUtil.read(id);
             return dataReaderJS == null ? null : dataReaderJS.asByteArray();
         }
     };
 
-    private record ModelKey(Identifier id, boolean flipTextureV) {}
+    private record ModelKey(ResourceLocation id, boolean flipTextureV) {}
     private static final Map<ModelKey, RawModelJS> rawModelCache = new HashMap<>();
     private static final Map<RawModelJS, ModelJS> modelCache = new HashMap<>();
 
@@ -41,12 +39,12 @@ public class ModelManagerJS {
     }
 
     @Deprecated
-    public static RawModelJS loadRawModel(@ValueNullable Object resourceManager, Identifier id, @ValueNullable Object atlasManager) {
+    public static RawModelJS loadRawModel(@ValueNullable Object resourceManager, ResourceLocation id, @ValueNullable Object atlasManager) {
         return loadModel(id, false);
     }
 
     @Deprecated
-    public static Map<String, RawModelJS> loadPartedRawModel(@ValueNullable Object resourceManager, Identifier id, @ValueNullable Object atlasManager) {
+    public static Map<String, RawModelJS> loadPartedRawModel(@ValueNullable Object resourceManager, ResourceLocation id, @ValueNullable Object atlasManager) {
         return loadModelParts(id, false);
     }
 
@@ -59,7 +57,7 @@ public class ModelManagerJS {
         return loadModel(JSUtil.parseId(id));
     }
 
-    public static RawModelJS loadModel(Identifier id) {
+    public static RawModelJS loadModel(ResourceLocation id) {
         return loadModel(id, true);
     }
 
@@ -67,7 +65,7 @@ public class ModelManagerJS {
         return loadModel(JSUtil.parseId(id), flipTextureV);
     }
 
-    public static RawModelJS loadModel(Identifier id, boolean flipTextureV) {
+    public static RawModelJS loadModel(ResourceLocation id, boolean flipTextureV) {
         ModelKey key = new ModelKey(id, flipTextureV);
         if(rawModelCache.containsKey(key)) return rawModelCache.get(key);
 
@@ -87,16 +85,16 @@ public class ModelManagerJS {
         return loadModelParts(JSUtil.parseId(modelLocation), flipTextureV);
     }
 
-    public static Map<String, RawModelJS> loadModelParts(Identifier modelLocation, boolean flipTextureV) {
+    public static Map<String, RawModelJS> loadModelParts(ResourceLocation modelLocation, boolean flipTextureV) {
         String idStr = modelLocation.getNamespace() + ":" + modelLocation.getPath();
 
-        final boolean isSupportedFormat = ModelResourceLoader.isSupportedModelResource(idStr);
-        final Identifier textureId = CustomResourceTools.formatIdentifierWithDefault("", "png");
+        final boolean isSupportedFormat = com.lx862.jcm.mod.render.mesh.ModelResourceLoader.isSupportedModelResource(idStr);
+        final ResourceLocation textureId = CustomResourceTools.formatIdentifierWithDefault("", "png");
 
         if (isSupportedFormat) {
             Map<String, RawModelJS> rawModels = new Object2ObjectOpenHashMap<>();
-            Map<String, OptimizedModel.ObjModel> models = ModelResourceLoader.loadModel(idStr, textureId, flipTextureV, RESOURCE_PROVIDER);
-            for(Map.Entry<String, OptimizedModel.ObjModel> modelEntry : models.entrySet()) {
+            Map<String, com.lx862.jcm.mod.render.mesh.RawModel> models = com.lx862.jcm.mod.render.mesh.ModelResourceLoader.loadModel(idStr, textureId, flipTextureV, RESOURCE_PROVIDER);
+            for(Map.Entry<String, com.lx862.jcm.mod.render.mesh.RawModel> modelEntry : models.entrySet()) {
                 rawModels.put(modelEntry.getKey(), new RawModelJS(modelEntry.getValue()));
             }
             return rawModels;
@@ -105,7 +103,7 @@ public class ModelManagerJS {
         }
     }
 
-    public static Map<String, RawModelJS> loadModelParts(Identifier modelLocation) {
+    public static Map<String, RawModelJS> loadModelParts(ResourceLocation modelLocation) {
         return loadModelParts(modelLocation, true);
     }
 
@@ -113,7 +111,7 @@ public class ModelManagerJS {
         return loadModelPart(modelName, JSUtil.parseId(modelLocation));
     }
 
-    public static RawModelJS loadModelPart(String modelName, Identifier modelLocation) {
+    public static RawModelJS loadModelPart(String modelName, ResourceLocation modelLocation) {
         return loadModelPart(modelName, modelLocation, true);
     }
 
@@ -121,7 +119,7 @@ public class ModelManagerJS {
         return loadModelPart(modelName, JSUtil.parseId(modelLocation), flipTextureV);
     }
 
-    public static RawModelJS loadModelPart(String modelName, Identifier modelLocation, boolean flipTextureV) {
+    public static RawModelJS loadModelPart(String modelName, ResourceLocation modelLocation, boolean flipTextureV) {
         return loadModelParts(modelLocation, flipTextureV).get(modelName);
     }
 

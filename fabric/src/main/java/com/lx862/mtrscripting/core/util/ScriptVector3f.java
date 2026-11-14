@@ -3,9 +3,9 @@ package com.lx862.mtrscripting.core.util;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import org.mtr.core.data.Position;
 import org.mtr.core.tool.Vector;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mapping.holder.Vector3f;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 
 public class ScriptVector3f {
     public static final ScriptVector3f ZERO = new ScriptVector3f(0, 0, 0);
@@ -13,45 +13,45 @@ public class ScriptVector3f {
     public static final ScriptVector3f YP = new ScriptVector3f(0, 1, 0);
     public static final ScriptVector3f ZP = new ScriptVector3f(0, 0, 1);
 
-    private Vector3d impl;
+    private org.joml.Vector3f impl;
 
     @ApiInternal
-    public ScriptVector3f(Vector3d impl) {
+    public ScriptVector3f(Vec3 impl) {
         if(impl == null) throw new IllegalArgumentException("Cannot use null as the impl!");
-        this.impl = impl;
+        this.impl = new org.joml.Vector3f((float) impl.x, (float) impl.y, (float) impl.z);
     }
 
     public ScriptVector3f(float x, float y, float z) {
-        this(new Vector3d(x, y, z));
+        this(new Vec3(x, y, z));
     }
 
     public ScriptVector3f(Vector3f impl) {
-        this(new Vector3d(impl));
+        this.impl = new org.joml.Vector3f(impl);
     }
 
     public ScriptVector3f(Vector tscVector) {
-        this(new Vector3d(tscVector.x(), tscVector.y(), tscVector.z()));
+        this.impl = new org.joml.Vector3f((float) tscVector.x(), (float) tscVector.y(), (float) tscVector.z());
     }
 
     public ScriptVector3f(Position tscPosition) {
-        this(new Vector3d(tscPosition.getX(), tscPosition.getY(), tscPosition.getZ()));
+        this.impl = new org.joml.Vector3f(tscPosition.getX(), tscPosition.getY(), tscPosition.getZ());
     }
 
     public ScriptVector3f(BlockPos blockPos) {
         this(blockPos.getX(), blockPos.getY(), blockPos.getZ());
     }
 
-    public float x() { return (float)impl.getXMapped(); }
-    public float y() { return (float)impl.getYMapped(); }
-    public float z() { return (float)impl.getZMapped(); }
+    public float x() { return impl.x; }
+    public float y() { return impl.y; }
+    public float z() { return impl.z; }
 
     public ScriptVector3f copy() {
-        Vector3d newImpl = new Vector3d(x(), y(), z());
+        Vec3 newImpl = new Vec3(x(), y(), z());
         return new ScriptVector3f(newImpl);
     }
 
     public ScriptVector3f normalize() {
-        impl = impl.normalize();
+        impl = impl.normalize(new org.joml.Vector3f());
         return this;
     }
 
@@ -66,17 +66,17 @@ public class ScriptVector3f {
     }
 
     public ScriptVector3f sub(ScriptVector3f other) {
-        impl = impl.subtract(other.impl);
+        impl = impl.sub(other.impl);
         return this;
     }
 
     public ScriptVector3f mul(float x, float y, float z) {
-        impl = impl.multiply(x, y, z);
+        impl = impl.mul(x, y, z);
         return this;
     }
 
     public ScriptVector3f mul(float n) {
-        impl = impl.multiply(n);
+        impl = impl.mul(n);
         return this;
     }
 
@@ -96,7 +96,7 @@ public class ScriptVector3f {
     }
 
     public ScriptVector3f cross(ScriptVector3f other) {
-        impl = impl.crossProduct(other.impl);
+        impl = impl.cross(other.impl);
         return this;
     }
 
@@ -126,8 +126,8 @@ public class ScriptVector3f {
         return new BlockPos((int)x(), (int)y(), (int)z());
     }
 
-    public Vector3d rawVector3d() {
-        return copy().impl;
+    public Vec3 rawVector3d() {
+        return new Vec3(impl.x, impl.y, impl.z);
     }
 
     public Vector3f rawVector3f() {

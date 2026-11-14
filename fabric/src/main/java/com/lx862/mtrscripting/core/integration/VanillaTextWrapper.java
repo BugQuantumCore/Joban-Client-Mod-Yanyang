@@ -3,18 +3,23 @@ package com.lx862.mtrscripting.core.integration;
 import com.lx862.jcm.mapping.LoaderImpl;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.TextHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.TextColor;
+import net.minecraft.resources.ResourceLocation;
 
 public class VanillaTextWrapper {
-    private final MutableText impl;
+    private final MutableComponent impl;
     private Style style;
     private boolean skipApplyingStyle;
 
     @ApiInternal
-    public VanillaTextWrapper(MutableText impl) {
+    public VanillaTextWrapper(MutableComponent impl) {
         this.impl = impl;
-        this.style = Style.getEmptyMapped();
+        this.style = Style.EMPTY;
     }
 
     public static VanillaTextWrapper literal(String str) {
@@ -45,7 +50,7 @@ public class VanillaTextWrapper {
         return withFont(JSUtil.parseId(id));
     }
 
-    public VanillaTextWrapper withFont(Identifier id) {
+    public VanillaTextWrapper withFont(ResourceLocation id) {
         this.style = this.style.withFont(id);
         return this;
     }
@@ -56,9 +61,9 @@ public class VanillaTextWrapper {
     }
 
     public VanillaTextWrapper withColor(String colorName) {
-        TextFormatting textFormatting = TextFormatting.byName(colorName);
-        if(textFormatting == null) throw new IllegalArgumentException("Color " + colorName + " is not a valid text color!");
-        this.style = this.style.withColor(textFormatting);
+        ChatFormatting chatFormatting = ChatFormatting.getByName(colorName);
+        if(chatFormatting == null) throw new IllegalArgumentException("Color " + colorName + " is not a valid text color!");
+        this.style = this.style.withColor(chatFormatting);
         return this;
     }
 
@@ -81,7 +86,7 @@ public class VanillaTextWrapper {
      * MutableText is not the intended argument type, scripts should not be exposed to internal details.
      */
     @Deprecated
-    public VanillaTextWrapper withHoverText(MutableText content) {
+    public VanillaTextWrapper withHoverText(MutableComponent content) {
         this.style = LoaderImpl.withHoverContentText(style, content);
         return this;
     }
@@ -95,7 +100,7 @@ public class VanillaTextWrapper {
         return this.impl.getString();
     }
 
-    public MutableText impl() {
+    public MutableComponent impl() {
         return skipApplyingStyle ? this.impl : TextHelper.setStyle(this.impl, this.style);
     }
 }

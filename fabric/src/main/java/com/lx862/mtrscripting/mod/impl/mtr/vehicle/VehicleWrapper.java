@@ -12,17 +12,19 @@ import org.mtr.core.data.*;
 import org.mtr.core.tool.Utilities;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Box;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.PositionAndRotation;
+import net.minecraft.world.phys.AABB;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.PositionAndRotation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 
 public class VehicleWrapper {
     private static final int FULL_NOTCH_LEVEL = 5;
@@ -72,31 +74,26 @@ public class VehicleWrapper {
         this.vehicleExtension = vehicleExtension;
         this.doorLeftOpen = new boolean[getCarCount()];
         this.doorRightOpen = new boolean[getCarCount()];
-        boolean anyVehicleCarVisible = false;
-        for(boolean rayTracingVisible : vehicleExtension.persistentVehicleData.rayTracing) {
-            if(rayTracingVisible) {
-                anyVehicleCarVisible = true;
-                break;
-            }
-        }
-        this.anyVehicleCarVisible = anyVehicleCarVisible;
         posAndRotations = vehicleExtension.getSmoothedVehicleCarsAndPositions(0).stream()
                 .map(vehicleCarAndPosition -> {
                     final ObjectArrayList<PositionAndRotation> bogiePositions = vehicleCarAndPosition.right()
                             .stream()
-                            .map(bogiePositionPair -> new PositionAndRotation(bogiePositionPair.left(), bogiePositionPair.right(), true))
+                            .map(bogiePositionPair -> new PositionAndRotation(bogiePositionPair.positionAndTiltAngle1().position(), bogiePositionPair.positionAndTiltAngle2().position(), 0, 0, true))
                             .collect(Collectors.toCollection(ObjectArrayList::new));
                     return new PositionAndRotation(bogiePositions, vehicleCarAndPosition.left(), vehicleExtension.getTransportMode().hasPitchAscending || vehicleExtension.getTransportMode().hasPitchDescending);
                 })
                 .collect(Collectors.toCollection(ObjectArrayList::new));
+
+        /* Computed after posAndRotations exists — see the culling note above. */
+        this.anyVehicleCarVisible = isAnyCarVisible(this);
 
         for(int i = 0; i < getCarCount(); i++) {
             PositionAndRotation posAndRotation = posAndRotations.get(i);
             double halfWidth = getWidth(i) / 2;
             double halfLength = getLength(i) / 2;
 
-            this.doorLeftOpen[i] = getDoorValue() > 0 && MTRUtil.canOpenDoors(new Box(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), posAndRotation);
-            this.doorRightOpen[i] = getDoorValue() > 0 && MTRUtil.canOpenDoors(new Box(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), posAndRotation);
+            this.doorLeftOpen[i] = getDoorValue() > 0 && MTRUtil.canOpenDoors(new AABB(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), posAndRotation);
+            this.doorRightOpen[i] = getDoorValue() > 0 && MTRUtil.canOpenDoors(new AABB(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), posAndRotation);
         }
 
         this.stopsData = StopsData.constructData(dataFetchMode, vehicleExtension);
@@ -256,7 +253,7 @@ public class VehicleWrapper {
             final long revision = VehicleDataCache.mtrData.getRevision();
             final long now = System.nanoTime();
             final Limited cached = LIMITED_CACHE.get(key);
-            if(cached != null && cached.data != null && cached.mode == dataFetchMode
+            if(cached != null && cached.mode == dataFetchMode
                     && cached.signature == signature && cached.revision == revision
                     && now - cached.builtAtNanos < LIMITED_TTL_NANOS) {
                 return cached.data;
@@ -268,7 +265,7 @@ public class VehicleWrapper {
             StopsData limitedStopsData = new StopsData(siding, false);
             buildLimitedStopsData(limitedStopsData, vehicle);
 
-            Limited entry = cached != null ? cached : new Limited();
+            final Limited entry = cached != null ? cached : new Limited();
             entry.mode = dataFetchMode;
             entry.signature = signature;
             entry.revision = revision;
@@ -468,13 +465,38 @@ public class VehicleWrapper {
         }
     }
 
+    /* ------------------------------------------------------------------
+       Visibility port note: MTR 4.1 dropped the per-car `rayTracing` array
+       the 4.0-era TSC renderer maintained. The equivalent cheap check is the
+       camera culling helper MTR 4.1 itself uses for vehicles
+       (CullingHelper#getDistanceFromCamera): a car counts as rendered when
+       it is inside the render-distance budget and in front of the camera.
+       ------------------------------------------------------------------ */
+    private static boolean isCarVisible(VehicleWrapper wrapper, int car) {
+        if (car < 0 || car >= wrapper.posAndRotations.size()) return false;
+        final PositionAndRotation positionAndRotation = wrapper.posAndRotations.get(car);
+        if (positionAndRotation == null || positionAndRotation.position == null) return false;
+        return org.mtr.tool.CullingHelper.getDistanceFromCamera(
+                positionAndRotation.position.x(),
+                positionAndRotation.position.y(),
+                positionAndRotation.position.z()
+        ) != java.lang.Integer.MAX_VALUE;
+    }
+
+    private static boolean isAnyCarVisible(VehicleWrapper wrapper) {
+        for (int car = 0; car < wrapper.posAndRotations.size(); car++) {
+            if (isCarVisible(wrapper, car)) return true;
+        }
+        return true;
+    }
+
     /* Start getters */
     public boolean isRendered() {
         return anyVehicleCarVisible;
     }
     public boolean isCarRendered(int... cars) {
         for(int car : cars) {
-            if(vehicleExtension.persistentVehicleData.rayTracing[car]) return true;
+            if(isCarVisible(this, car)) return true;
         }
         return false;
     }
@@ -606,7 +628,7 @@ public class VehicleWrapper {
     public boolean isDoorOpenable(int car, ScriptVector3f relativeCarPos1, ScriptVector3f relativeCarPos2) {
         if(car >= posAndRotations.size()) return false;
         PositionAndRotation positionAndRotation = posAndRotations.get(car);
-        return MTRUtil.canOpenDoors(new Box(relativeCarPos1.rawVector3d(), relativeCarPos2.rawVector3d()), positionAndRotation);
+        return MTRUtil.canOpenDoors(new AABB(relativeCarPos1.rawVector3d(), relativeCarPos2.rawVector3d()), positionAndRotation);
     }
 
     public boolean isDoorOpenable(int car, ScriptVector3f relativeCarPos) {
@@ -816,10 +838,10 @@ public class VehicleWrapper {
             final double halfWidth = getWidth(i) / 2;
             final double halfLength = getLength(i) / 2;
             if(!left) {
-                left = MTRUtil.canOpenDoors(new Box(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), positionAndRotation);
+                left = MTRUtil.canOpenDoors(new AABB(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), positionAndRotation);
             }
             if(!right) {
-                right = MTRUtil.canOpenDoors(new Box(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), positionAndRotation);
+                right = MTRUtil.canOpenDoors(new AABB(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), positionAndRotation);
             }
         }
         return doorDirection(left, right);
@@ -902,10 +924,10 @@ public class VehicleWrapper {
             final PositionAndRotation positionAndRotation = new PositionAndRotation(bogiePositions, vehicleCar, hasPitch);
             final double halfWidth = vehicleCar.getWidth() / 2;
             if(!left) {
-                left = MTRUtil.canOpenDoors(new Box(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), positionAndRotation);
+                left = MTRUtil.canOpenDoors(new AABB(-halfWidth - 0.1, -1, -halfLength, -halfWidth, 1, halfLength), positionAndRotation);
             }
             if(!right) {
-                right = MTRUtil.canOpenDoors(new Box(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), positionAndRotation);
+                right = MTRUtil.canOpenDoors(new AABB(halfWidth, -1, -halfLength, halfWidth + 0.1, 1, halfLength), positionAndRotation);
             }
             checkRailProgress += (reversed ? 1 : -1) * vehicleCar.getTotalLength(true, false);
         }
@@ -932,7 +954,7 @@ public class VehicleWrapper {
         final Vector position1 = positionAt(value1);
         final Vector position2 = positionAt(value2);
         if(position1 == null || position2 == null) return false;
-        out.add(new PositionAndRotation(position1, position2, hasPitch));
+        out.add(new PositionAndRotation(position1, position2, 0, 0, hasPitch));
         return true;
     }
 
@@ -942,11 +964,10 @@ public class VehicleWrapper {
         if(path.isEmpty()) return null;
         final PathData pathData = Utilities.getElement(path, Utilities.getIndexFromConditionalList(path, railProgress));
         if(pathData == null) return null;
-        /* PathData.getPosition(rawValue) — the position API of the TSC build
-           shipped inside MTR 4.0.5 (the newer getPositionAndTiltAngle is
-           not in it). The mod warms each path segment's rail cache on every
-           vehicle sync (PacketUpdateData / PacketUpdateVehiclesLifts), so
-           this follows the real rail geometry, not just the endpoint line. */
-        return pathData.getPosition(railProgress - pathData.getStartDistance());
+        /* 4.1 exposes the rail position through getPositionAndTiltAngle; the
+           rail cache is warmed on every vehicle sync, so this follows the
+           real rail geometry, not just the endpoint line. */
+        final Vehicle.PositionAndTiltAngle positionAndTiltAngle = pathData.getPositionAndTiltAngle(MinecraftClientData.getInstance(), railProgress - pathData.getStartDistance());
+        return positionAndTiltAngle == null ? null : positionAndTiltAngle.position();
     }
 }

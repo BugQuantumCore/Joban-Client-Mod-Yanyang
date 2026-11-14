@@ -3,32 +3,34 @@ package com.lx862.jcm.mod.gui.screen;
 import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.amberui.gui.screen.TitledScreen;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.level.Level;
 
 public class TestScreen extends TitledScreen implements GuiHelper {
-    private static final Identifier TEXTURE_BACKGROUND = new Identifier("jsblock:textures/gui/config_screen/bg.png");
-    private static final Identifier TEXTURE_TERRAIN = new Identifier("jsblock:textures/gui/config_screen/terrain.png");
+    private static final ResourceLocation TEXTURE_BACKGROUND = ResourceLocation.parse("jsblock:textures/gui/config_screen/bg.png");
+    private static final ResourceLocation TEXTURE_TERRAIN = ResourceLocation.parse("jsblock:textures/gui/config_screen/terrain.png");
 
     public TestScreen() {
         super(true);
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return TextUtil.literal("Demo Screen");
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.literal("Hello World :3");
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
     }
 
     @Override

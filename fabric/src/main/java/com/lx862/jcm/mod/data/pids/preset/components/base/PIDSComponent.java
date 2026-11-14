@@ -4,12 +4,13 @@ import com.google.gson.JsonObject;
 import com.lx862.jcm.mod.data.pids.preset.PIDSContext;
 import com.lx862.jcm.mod.data.pids.preset.components.*;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.client.gui.screens.Screen;
 
 public abstract class PIDSComponent implements RenderHelper {
     /**

@@ -1,6 +1,6 @@
 package com.lx862.jcm.mod.scripting.psd;
 
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 
 /**
  * One PSD script binding: the block position, the script it runs, and the

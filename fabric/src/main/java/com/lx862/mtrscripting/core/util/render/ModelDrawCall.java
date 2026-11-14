@@ -1,9 +1,9 @@
 package com.lx862.mtrscripting.core.util.render;
 
 import com.lx862.mtrscripting.core.util.model.ModelJS;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import org.mtr.render.StoredMatrixTransformations;
 
 public class ModelDrawCall extends RenderDrawCall<ModelDrawCall> {
     private ModelJS model;
@@ -30,7 +30,7 @@ public class ModelDrawCall extends RenderDrawCall<ModelDrawCall> {
     }
 
     @Override
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int lightCoord) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int lightCoord) {
         super.run(world, storedMatrixTransformations, facing, lightCoord);
         this.model.draw(storedMatrixTransformations, hasCustomLight ? this.lightCoord : lightCoord);
     }

@@ -9,9 +9,9 @@ import com.lx862.amberui.gui.widget.ListViewWidget;
 import com.lx862.amberui.gui.widget.MappedWidget;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.holder.MutableText;
+import net.minecraft.core.BlockPos;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.MutableComponent;
 
 public class ButterflyLightScreen extends BlockConfigListScreen {
     private long value;
@@ -22,8 +22,8 @@ public class ButterflyLightScreen extends BlockConfigListScreen {
     }
 
     @Override
-    public MutableText getScreenTitle() {
-        return Blocks.BUTTERFLY_LIGHT.get().getName();
+    public MutableComponent getScreenTitle() {
+        return com.lx862.jcm.mod.registry.Blocks.BUTTERFLY_LIGHT.get().getName();
     }
 
     @Override
@@ -34,7 +34,7 @@ public class ButterflyLightScreen extends BlockConfigListScreen {
             this.value = newValue;
         });
 
-        addChild(new ClickableWidget(startBlinkingSecTextField));
+        addRenderableWidget(startBlinkingSecTextField);
         listViewWidget.add(TextUtil.translatable(TextCategory.GUI, "butterfly_light.countdown"), new MappedWidget(startBlinkingSecTextField));
     }
 

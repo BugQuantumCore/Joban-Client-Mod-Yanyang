@@ -3,17 +3,17 @@ package com.lx862.mtrscripting.core.util.sound;
 import com.lx862.mtrscripting.core.api.ScriptResultCall;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
-import org.mtr.mapping.holder.SoundCategory;
-import org.mtr.mapping.holder.SoundEvent;
-import org.mtr.mapping.holder.World;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.level.Level;
 
 public abstract class SoundCall implements ScriptResultCall {
     protected final SoundEvent soundEvent;
-    protected final SoundCategory soundCategory;
+    protected final SoundSource soundCategory;
     protected final float volume;
     protected final float pitch;
 
-    public SoundCall(SoundEvent soundEvent, SoundCategory soundCategory, float volume, float pitch) {
+    public SoundCall(SoundEvent soundEvent, SoundSource soundCategory, float volume, float pitch) {
         this.soundEvent = soundEvent;
         this.volume = volume;
         this.pitch = pitch;
@@ -21,7 +21,7 @@ public abstract class SoundCall implements ScriptResultCall {
     }
 
     @ApiInternal
-    public abstract void run(World world, ScriptVector3f basePos);
+    public abstract void run(Level world, ScriptVector3f basePos);
 
     @Override
     public void validate() {

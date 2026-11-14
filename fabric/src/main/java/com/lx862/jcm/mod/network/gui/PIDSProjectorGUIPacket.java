@@ -1,8 +1,8 @@
 package com.lx862.jcm.mod.network.gui;
 
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 public class PIDSProjectorGUIPacket extends PIDSGUIPacket {
     private final double x1;

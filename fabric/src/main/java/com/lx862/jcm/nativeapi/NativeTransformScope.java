@@ -1,6 +1,8 @@
 package com.lx862.jcm.nativeapi;
 
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.render.StoredMatrixTransformations;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Duck-typed surface added to {@link StoredMatrixTransformations} by

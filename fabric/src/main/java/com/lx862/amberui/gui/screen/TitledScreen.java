@@ -2,8 +2,8 @@ package com.lx862.amberui.gui.screen;
 
 import com.lx862.jcm.mod.Constants;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.network.chat.MutableComponent;
 
 public abstract class TitledScreen extends AnimatedScreen {
     public static final int TEXT_PADDING = 10;
@@ -15,21 +15,22 @@ public abstract class TitledScreen extends AnimatedScreen {
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
+    public void render(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
         drawBackground(graphicsHolder, mouseX, mouseY, tickDelta);
         drawTitle(graphicsHolder);
         drawSubtitle(graphicsHolder);
         elapsed += tickDelta / Constants.MC_TICK_PER_SECOND;
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+        super.render(guiGraphics, mouseX, mouseY, tickDelta);
     }
 
     public void drawBackground(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        super.renderBackground(graphicsHolder);
+        super.renderBackground(graphicsHolder.getGuiGraphics(), mouseX, mouseY, tickDelta);
     }
 
     private void drawTitle(GraphicsHolder graphicsHolder) {
         int titleHeight = (RenderHelper.lineHeight * TITLE_SCALE);
-        MutableText titleText = getScreenTitle();
+        MutableComponent titleText = getScreenTitle();
         graphicsHolder.push();
         graphicsHolder.translate(width / 2.0, TEXT_PADDING, 0);
         graphicsHolder.translate(0, -((titleHeight + TEXT_PADDING) * (1 - animationProgress)), 0);
@@ -41,7 +42,7 @@ public abstract class TitledScreen extends AnimatedScreen {
 
     private void drawSubtitle(GraphicsHolder graphicsHolder) {
         double titleHeight = (RenderHelper.lineHeight * TITLE_SCALE);
-        MutableText subtitleText = getScreenSubtitle();
+        MutableComponent subtitleText = getScreenSubtitle();
         graphicsHolder.push();
         graphicsHolder.translate(width / 2.0, titleHeight * animationProgress, 0);
         graphicsHolder.translate(0, TEXT_PADDING * 1.5, 0);
@@ -50,6 +51,6 @@ public abstract class TitledScreen extends AnimatedScreen {
         graphicsHolder.pop();
     }
 
-    public abstract MutableText getScreenTitle();
-    public abstract MutableText getScreenSubtitle();
+    public abstract MutableComponent getScreenTitle();
+    public abstract MutableComponent getScreenSubtitle();
 }

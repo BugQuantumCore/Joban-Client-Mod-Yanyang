@@ -5,11 +5,12 @@ import com.lx862.mtrscripting.mod.impl.mtr.pids.ArrivalWrapper;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.EyecandyBlockEntityWrapper;
 import com.lx862.mtrscripting.mod.impl.mtr.lift.LiftWrapper;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.nio.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import net.minecraft.core.BlockPos;
 
 /** POD snapshots for all non-vehicle script kinds; offsets are blob-relative. */
 public final class NativeContentSnapshot {
@@ -37,7 +38,7 @@ public final class NativeContentSnapshot {
         buffer.putInt(at, ref[0]); buffer.putInt(at + 4, ref[1]);
     }
     private static long day() {
-        return MinecraftClient.getInstance().getWorldMapped() == null ? 0 : com.lx862.mtrscripting.core.integration.MinecraftClientWrapper.worldDayTime();
+        return Minecraft.getInstance().level == null ? 0 : com.lx862.mtrscripting.core.integration.MinecraftClientWrapper.worldDayTime();
     }
     private ByteBuffer finish() { buffer.flip(); return buffer; }
 
@@ -198,7 +199,7 @@ public final class NativeContentSnapshot {
         for (int i = 0; i < doors.size(); i++) {
             final com.lx862.jcm.mod.scripting.psd.PSDWrapper.PSDDoorWrapper door = doors.get(i);
             final int p = doorOffset + i * 32;
-            final org.mtr.mapping.holder.BlockPos pos = door.pos().rawBlockPos();
+            final net.minecraft.core.BlockPos pos = door.pos().rawBlockPos();
             buffer.putLong(p, pos.getX()); buffer.putLong(p + 8, pos.getY()); buffer.putLong(p + 16, pos.getZ());
             buffer.putInt(p + 24, door.number());
             buffer.put(p + 28, (byte) (door.isOpen() ? 1 : 0));

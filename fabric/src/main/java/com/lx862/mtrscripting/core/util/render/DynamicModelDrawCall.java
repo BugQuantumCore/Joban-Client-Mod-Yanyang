@@ -1,9 +1,9 @@
 package com.lx862.mtrscripting.core.util.render;
 
 import com.lx862.mtrscripting.core.util.model.DynamicModelHolderJS;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import org.mtr.render.StoredMatrixTransformations;
 
 public class DynamicModelDrawCall extends RenderDrawCall<DynamicModelDrawCall> {
     private DynamicModelHolderJS dynamicModelHolder;
@@ -22,7 +22,7 @@ public class DynamicModelDrawCall extends RenderDrawCall<DynamicModelDrawCall> {
     }
 
     @Override
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         super.run(world, storedMatrixTransformations, facing, light);
         if(this.dynamicModelHolder.getUploadedModel() != null) {
             this.dynamicModelHolder.getUploadedModel().draw(storedMatrixTransformations, light);

@@ -23,7 +23,27 @@ dependencies {
     mappings loom.officialMojangMappings()
     // CI downloads and hash-verifies the exact Yanyang MTR release. Its jar
     // already contains the matching TSC; never shade a second simulation core.
-    modImplementation files(rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-fabric.jar"))
+    // A locally trimmed classes-only -compile.jar (same classes, assets/natives
+    // stripped) may be used for faster offline compiles; CI always uses the full
+    // pinned jar.
+    def mtrJar = rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-fabric-compile.jar")
+    if (!mtrJar.exists()) {
+        mtrJar = rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-fabric.jar")
+    }
+    modImplementation files(mtrJar)
+    // MTR-Yanyang bundles Elementa / UniversalCraft / Kotlin as jar-in-jar;
+    // their classes appear in MTR screen signatures, so they must be on the
+    // compile classpath too (provided at runtime by MTR's JiJ).
+    // Elementa / UniversalCraft / Kotlin are provided at runtime as MTR's
+    // jar-in-jar dependencies. For compilation we keep locally pre-remapped
+    // (mojmap) copies on the compileOnly classpath: compileOnly keeps them
+    // OFF the remapJar classpath, where they would otherwise collide with
+    // the same classes loom extracts from MTR's nested META-INF/jars.
+    compileOnly files(
+        rootProject.file("dependencies/elementa-743-mojmap.jar"),
+        rootProject.file("dependencies/universalcraft-1.21-fabric-497-mojmap.jar"),
+        rootProject.file("dependencies/kotlin-stdlib-2.5.0-RC.jar"),
+    )
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
     modApi "com.terraformersmc:modmenu:${mod_menu_version}"
@@ -63,6 +83,16 @@ remapJar {
     dependsOn(shadowJar)
     mustRunAfter(shadowJar)
     inputFile = file(shadowJar.archiveFile)
+    // The pre-remapped (mojmap) Elementa / UniversalCraft / Kotlin compile
+    // stubs duplicate the copies loom expands out of MTR's nested
+    // META-INF/jars, and tiny-remapper aborts with "duplicate method in
+    // inputs". They are compile-only (provided at runtime by MTR's JiJ),
+    // so drop them from the remap classpath.
+    classpath = classpath.filter { f ->
+        !f.name.contains('elementa') &&
+        !f.name.contains('universalcraft') &&
+        !f.name.contains('kotlin-stdlib')
+    }
 }
 
 tasks.register("moveBuild") {

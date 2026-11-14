@@ -1,27 +1,27 @@
 package com.lx862.jcm.mod.extra;
 
-import com.lx862.jcm.mixin.mtrpatch.OptimizedRendererAccessorMixin;
-import com.lx862.jcm.mixin.mtrpatch.OptimizedRendererWrapperAccessorMixin;
 import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.mtrscripting.mod.impl.mtr.util.MTRWrapperJS;
 import it.unimi.dsi.fastutil.longs.Long2IntArrayMap;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mapping.render.shader.ModShaderHandler;
-import org.mtr.mapping.render.shader.ShaderManager;
-import org.mtr.mod.client.CustomResourceLoader;
-import org.mtr.mod.resource.CustomResourceTools;
+import org.mtr.resource.CustomResourceTools;
 
 import java.nio.file.FileSystems;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import com.lx862.jcm.mod.util.ShaderDetector;
 
 public class JCMPatchForMTR {
     private final static int RAIL_CULLING_AREA_LIMIT = Integer.MAX_VALUE / 2;
     private static boolean cachedRenderingShadow = false;
     private static final Long2IntArrayMap liftInstructions = new Long2IntArrayMap();
-    public static Identifier LIFT_DING_SOUND = new Identifier("minecraft:block.note_block.pling");
+    public static ResourceLocation LIFT_DING_SOUND = ResourceLocation.parse("minecraft:block.note_block.pling");
     public static Map<BlockPos, BlockState> cachedRailNodeState = new HashMap<>();
     public static boolean isSitting = false;
     public static boolean wasSneaking = false;
@@ -31,16 +31,18 @@ public class JCMPatchForMTR {
      * This was originally a part of {@link OptimizedRenderer#beginReload()}, however reloading shaders is quite heavy and memory intensive.<br>
      * It should only be done once during resource reload, hence it has been moved here to increase model loading speed.
      */
+    /**
+     * No-op since the MTR 4.1 port: the custom optimized-render shader
+     * pipeline (OptimizedRenderer / ShaderManager) was removed upstream and
+     * 4.1 renders through vanilla RenderTypes, so there is nothing to reload.
+     */
     public static void reloadOptimizedRenderingShader() {
-        OptimizedRenderer optimizedRenderer = ((OptimizedRendererWrapperAccessorMixin)(Object) CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER).getOptimizedRenderer();
-        ShaderManager shaderManager = ((OptimizedRendererAccessorMixin)(Object) optimizedRenderer).getShaderManager();
-        shaderManager.reloadShaders();
     }
 
     public static void tick() {
-        if(MinecraftClient.getInstance().getPlayerMapped() != null) {
+        if(Minecraft.getInstance().player != null) {
             if(JCMClientConfig.INSTANCE.mtrPatch.allowCameraLowering.value()) {
-                boolean isPlayerSneaking = MinecraftClient.getInstance().getPlayerMapped().isSneaking();
+                boolean isPlayerSneaking = Minecraft.getInstance().player.isShiftKeyDown();
                 if(MTRWrapperJS.Data.getPlayerMountedVehicle() == null) {
                     JCMPatchForMTR.isSitting = false;
                 } else {
@@ -61,11 +63,11 @@ public class JCMPatchForMTR {
      * @param extension The file extension
      * @return An identifier with the absolute path.
      */
-    public static Identifier resolveRelativePath(String basePath, String resource, String extension) {
+    public static ResourceLocation resolveRelativePath(String basePath, String resource, String extension) {
         if (resource.contains(":")) { // Assume it is already an identifier
             return CustomResourceTools.formatIdentifierWithDefault(resource, extension);
         } else {
-            Identifier basePathId = new Identifier(basePath);
+            ResourceLocation basePathId = ResourceLocation.parse(basePath);
             String relative = resource.toLowerCase(Locale.ROOT).replace('\\', '/');
 
             String resolvedPath = FileSystems.getDefault().getPath(basePathId.getPath()).getParent().resolve(relative)
@@ -82,7 +84,7 @@ public class JCMPatchForMTR {
     }
 
     public static void updateRenderingShadow() {
-        cachedRenderingShadow = ModShaderHandler.renderingShadows();
+        cachedRenderingShadow = ShaderDetector.isRenderingShadowPass();
     }
 
     public static boolean isRenderingShadow() {
@@ -104,13 +106,13 @@ public class JCMPatchForMTR {
         return false;
     }
 
-    public static Box clampBoundingBoxToRenderDistance(Vector3d pos, int renderDistance, double lowX, double lowY, double lowZ, double highX, double highY, double highZ) {
+    public static AABB clampBoundingBoxToRenderDistance(Vec3 pos, int renderDistance, double lowX, double lowY, double lowZ, double highX, double highY, double highZ) {
         int blocksPerSide = (renderDistance * 16) + 1;
-        double clampLowX = pos.getXMapped() - blocksPerSide;
-        double clampLowZ = pos.getZMapped() - blocksPerSide;
-        double clampHighX = pos.getXMapped() + blocksPerSide;
-        double clampHighZ = pos.getZMapped() + blocksPerSide;
+        double clampLowX = pos.x() - blocksPerSide;
+        double clampLowZ = pos.z() - blocksPerSide;
+        double clampHighX = pos.x() + blocksPerSide;
+        double clampHighZ = pos.z() + blocksPerSide;
 
-        return new Box(Math.max(lowX, clampLowX), lowY, Math.max(lowZ, clampLowZ), Math.min(highX, clampHighX), highY, Math.min(highZ, clampHighZ));
+        return new AABB(Math.max(lowX, clampLowX), lowY, Math.max(lowZ, clampLowZ), Math.min(highX, clampHighX), highY, Math.min(highZ, clampHighZ));
     }
 }

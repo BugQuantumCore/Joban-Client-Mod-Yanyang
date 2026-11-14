@@ -1,10 +1,10 @@
 package com.lx862.amberui.gui.widget;
 
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.OrderedText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.util.List;
 import java.util.Locale;
@@ -17,10 +17,10 @@ import static com.lx862.amberui.gui.widget.ListViewWidget.ENTRY_PADDING;
  */
 public class DescriptionItem extends AbstractListItem {
     private static final int LINE_HEIGHT = 13;
-    private final MutableText text;
-    public final List<OrderedText> lines;
+    private final MutableComponent text;
+    public final List<FormattedCharSequence> lines;
 
-    public DescriptionItem(MutableText text, int width) {
+    public DescriptionItem(MutableComponent text, int width) {
         this.text = text;
         this.lines = TextUtil.wrapText(this.text, width - ENTRY_PADDING - ENTRY_PADDING);
     }

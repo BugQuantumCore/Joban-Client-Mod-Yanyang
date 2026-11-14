@@ -2,7 +2,9 @@ package com.lx862.amberui.gui.widget;
 
 import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.tool.TextCase;
+import com.lx862.jcm.mod.render.TextCase;
+import net.minecraft.network.chat.Component;
+import com.lx862.jcm.mod.render.TextCase;
 
 /**
  * Text Field Widget for entering coordinates (XYZ)
@@ -20,11 +22,11 @@ public class CoordTextField extends AlwaysRenderedTextField implements RenderHel
     }
 
     @Override
-    public boolean charTyped2(char chr, int modifiers) {
-        String prevValue = getText2();
-        boolean bl = super.charTyped2(chr, modifiers);
+    public boolean charTyped(char chr, int modifiers) {
+        String prevValue = getValue();
+        boolean bl = super.charTyped(chr, modifiers);
         try {
-            String newString = new StringBuilder(getText2()).insert(getCursor2(), chr).toString().trim();
+            String newString = new StringBuilder(getValue()).insert(getCursorPosition(), chr).toString().trim();
 
             // Position
             String[] strSplit = newString.split("\\s+");
@@ -43,7 +45,7 @@ public class CoordTextField extends AlwaysRenderedTextField implements RenderHel
             int val = Integer.parseInt(newString);
             if(val < min || val > max) {
                 JCMLogger.debug("NumericTextField: Value too large or small");
-                setText2(prevValue);
+                setValue(prevValue);
                 return false;
             }
         } catch (Exception e) {
@@ -55,21 +57,21 @@ public class CoordTextField extends AlwaysRenderedTextField implements RenderHel
     }
 
     @Override
-    public boolean mouseScrolled2(double mouseX, double mouseY, double amount) {
-        if(getVisibleMapped() && getActiveMapped() && isFocused2()) {
-            if(amount > 0) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if(visible && active && isFocused()) {
+            if(scrollY > 0) {
                 increment();
             } else {
                 decrement();
             }
         }
 
-        return super.mouseScrolled2(mouseX, mouseY, amount);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     public int getNumber() {
         try {
-            return Integer.parseInt(getText2());
+            return Integer.parseInt(getValue());
         } catch (Exception e) {
             return defaultValue;
         }
@@ -77,12 +79,12 @@ public class CoordTextField extends AlwaysRenderedTextField implements RenderHel
 
     public void setValue(long value) {
         if(value < min || value > max) return;
-        setText2(String.valueOf(value));
+        setValue(String.valueOf(value));
     }
 
     private void increment() {
         try {
-            setValue(Integer.parseInt(getText2())+1);
+            setValue(Integer.parseInt(getValue())+1);
         } catch (Exception e) {
             setValue(defaultValue);
         }
@@ -90,9 +92,13 @@ public class CoordTextField extends AlwaysRenderedTextField implements RenderHel
 
     private void decrement() {
         try {
-            setValue(Integer.parseInt(getText2())-1);
+            setValue(Integer.parseInt(getValue())-1);
         } catch (Exception e) {
             setValue(defaultValue);
         }
     }
+
+	@Override
+	public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+	}
 }

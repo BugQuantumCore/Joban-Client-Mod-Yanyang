@@ -3,7 +3,7 @@ package com.lx862.jcm.entrypoint;
 import com.lx862.jcm.nativeapi.NativeCullFrustum;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
-import org.mtr.mapping.holder.Frustum;
+import net.minecraft.client.renderer.culling.Frustum;
 
 /**
  * Fabric half of native vehicle-script frustum culling.
@@ -19,7 +19,7 @@ import org.mtr.mapping.holder.Frustum;
  * remain loader-neutral.
  *
  * <p>The hook is the same one MTR builds its own block-entity culling frustum
- * from ({@code org.mtr.mod.render.BlockEntityRenderCulling#init} registers
+ * from ({@code org.mtr.render.BlockEntityRenderCulling#init} registers
  * {@code WorldRenderEvents.AFTER_SETUP} as well), so a vehicle is culled under
  * exactly the frustum MTR would reject a box with there.
  *

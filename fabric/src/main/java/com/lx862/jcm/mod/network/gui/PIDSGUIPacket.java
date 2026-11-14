@@ -1,10 +1,10 @@
 package com.lx862.jcm.mod.network.gui;
 
 import com.lx862.jcm.mod.network.JCMPacketHandlerHelper;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 public class PIDSGUIPacket extends PacketHandler {
     protected final BlockPos blockPos;
@@ -14,7 +14,7 @@ public class PIDSGUIPacket extends PacketHandler {
     protected final String presetId;
 
     public PIDSGUIPacket(PacketBufferReceiver packetBufferReceiver) {
-        this.blockPos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
         int rows = packetBufferReceiver.readInt();
         this.customMessages = new String[rows];
         this.rowHidden = new boolean[rows];

@@ -10,14 +10,18 @@ import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.primitive.UniqueKey;
 import com.lx862.mtrscripting.core.util.GraphicsTexture;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mapping.mapper.SoundHelper;
-import org.mtr.mapping.mapper.TextHelper;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import com.lx862.jcm.mod.compat.SoundHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.MutableComponent;
 
 public class MTRScriptDebugOverlay {
     private static final double IDEAL_FRAMERATE = 60;
@@ -45,14 +49,14 @@ public class MTRScriptDebugOverlay {
         graphicsHolder.translate(10, 10, 0);
 
         int textX = 0;
-        MutableText sourceSelectText = TextHelper.literal("Showing scripts for: ").formatted(TextFormatting.GRAY);
+        MutableComponent sourceSelectText = TextHelper.literal("Showing scripts for: ").withStyle(ChatFormatting.GRAY);
         graphicsHolder.drawText(sourceSelectText, textX, 0, COLOR_WHITE, true, MAX_LIGHT);
         textX += GraphicsHolder.getTextWidth(sourceSelectText);
 
         for(int i = 0; i < debugSources.size(); i++) {
             boolean isSelected = i == sourceIndex;
             ScriptDebugSource source = debugSources.get(i);
-            MutableText sourceText = TextHelper.literal("[" + source.getSourceName() + "]").formatted(isSelected ? TextFormatting.YELLOW : TextFormatting.GRAY);
+            MutableComponent sourceText = TextHelper.literal("[" + source.getSourceName() + "]").withStyle(isSelected ? ChatFormatting.YELLOW : ChatFormatting.GRAY);
             graphicsHolder.drawText(sourceText, textX, 0, COLOR_WHITE, true, MAX_LIGHT);
             textX += GraphicsHolder.getTextWidth(sourceText);
             textX += 5;
@@ -80,7 +84,7 @@ public class MTRScriptDebugOverlay {
             graphicsHolder.translate(0, 10, 0);
 
             for(Map.Entry<String, List<Pair<UniqueKey, ScriptInstance>>> group : nameToInstances.entrySet()) {
-                MutableText title = TextHelper.literal(group.getKey()).formatted(TextFormatting.UNDERLINE);
+                MutableComponent title = TextHelper.literal(group.getKey()).withStyle(ChatFormatting.UNDERLINE);
                 graphicsHolder.drawText(title, 0, 0, COLOR_BLUE, true, MAX_LIGHT);
 
                 graphicsHolder.translate(0, 12, 0);
@@ -134,7 +138,7 @@ public class MTRScriptDebugOverlay {
         if(nativeModules.isEmpty() && skippedNatives.isEmpty()) return;
 
         graphicsHolder.translate(0, 12, 0);
-        MutableText title = TextHelper.literal("C++ Native Scripts (" + NativeScriptManager.getPlatformKeyExact() + ")").formatted(TextFormatting.UNDERLINE);
+        MutableComponent title = TextHelper.literal("C++ Native Scripts (" + NativeScriptManager.getPlatformKeyExact() + ")").withStyle(ChatFormatting.UNDERLINE);
         graphicsHolder.drawText(title, 0, 0, COLOR_BLUE, true, MAX_LIGHT);
         graphicsHolder.translate(0, 12, 0);
         graphicsHolder.translate(10, 0, 0);
@@ -204,8 +208,8 @@ public class MTRScriptDebugOverlay {
     }
 
     private static void drawScriptDebugInfo(GraphicsHolder graphicsHolder, GuiDrawing guiDrawing, ScriptInstance scriptInstance) {
-        final int maxTexWidth = MinecraftClient.getInstance().getWindow().getScaledWidth() - 10 - 10 - 10;
-        final int maxTexHeight = MinecraftClient.getInstance().getWindow().getScaledHeight() / 3;
+        final int maxTexWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth() - 10 - 10 - 10;
+        final int maxTexHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight() / 3;
 
 
         for(Map.Entry<String, Object> debugInfoEntry : new LinkedHashMap<>(scriptInstance.getContextObject().getDebugInfo()).entrySet()) {
@@ -249,16 +253,16 @@ public class MTRScriptDebugOverlay {
     public static void previousSource() {
         if(sourceIndex-1 >= 0) {
             sourceIndex--;
-            ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
-            if(player != null) player.playSound(SoundHelper.createSoundEvent(new Identifier("ui.button.click")), 1, 1);
+            LocalPlayer player = Minecraft.getInstance().player;
+            if(player != null) player.playSound(SoundHelper.createSoundEvent(ResourceLocation.parse("ui.button.click")), 1, 1);
         }
     }
 
     public static void nextSource() {
         if(sourceIndex+1 < debugSources.size()) {
             sourceIndex++;
-            ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
-            if(player != null) player.playSound(SoundHelper.createSoundEvent(new Identifier("ui.button.click")), 1, 1);
+            LocalPlayer player = Minecraft.getInstance().player;
+            if(player != null) player.playSound(SoundHelper.createSoundEvent(ResourceLocation.parse("ui.button.click")), 1, 1);
         }
     }
 

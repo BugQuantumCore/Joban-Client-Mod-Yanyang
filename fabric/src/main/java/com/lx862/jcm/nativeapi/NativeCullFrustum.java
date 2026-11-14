@@ -1,7 +1,7 @@
 package com.lx862.jcm.nativeapi;
 
-import org.mtr.mapping.holder.Frustum;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.Minecraft;
 
 import java.util.function.Supplier;
 
@@ -84,7 +84,7 @@ public final class NativeCullFrustum {
             /* Live mode: the frustum is read mid-pass, so the world it
                belongs to is by definition the world being rendered. */
             try {
-                return MinecraftClient.getInstance().getWorldMapped().data;
+                return Minecraft.getInstance().level;
             } catch(Throwable t) {
                 return null;
             }

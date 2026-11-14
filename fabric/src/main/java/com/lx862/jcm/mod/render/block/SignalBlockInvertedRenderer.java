@@ -2,35 +2,36 @@ package com.lx862.jcm.mod.render.block;
 
 import com.lx862.jcm.mod.JCMClient;
 import com.lx862.jcm.mod.config.JCMClientConfig;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.block.BlockSignalBase;
-import org.mtr.mod.client.IDrawing;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.RenderSignalLight2Aspect;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.block.BlockSignalBase;
+import org.mtr.client.IDrawing;
+import org.mtr.render.MainRenderer;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.RenderSignalLight2Aspect;
+import org.mtr.render.StoredMatrixTransformations;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
 public class SignalBlockInvertedRenderer<T extends BlockSignalBase.BlockEntityBase> extends RenderSignalLight2Aspect<T> {
     private final int proceedColor;
     private final boolean redOnTop;
-    public SignalBlockInvertedRenderer(Argument dispatcher, int proceedColor, boolean redOnTop) {
-        super(dispatcher, redOnTop, proceedColor);
+    public SignalBlockInvertedRenderer(BlockEntityRendererProvider.Context dispatcher, int proceedColor, boolean redOnTop) {
+        super(redOnTop, proceedColor);
         this.proceedColor = proceedColor;
         this.redOnTop = redOnTop;
     }
 
     @Override
-    protected void render(StoredMatrixTransformations t, BlockSignalBase.BlockEntityBase signalBlockEntity, float v, int occupiedAspect, boolean isBackSide) {
+    protected void render(StoredMatrixTransformations t, BlockSignalBase.BlockEntityBase signalBlockEntity, net.minecraft.client.multiplayer.ClientLevel clientWorld, float v, int light, int occupiedAspect, boolean isBackSide) {
         if (JCMClientConfig.INSTANCE.disableRendering.value()) return;
 
         float y = (occupiedAspect > 0) == redOnTop ? 0.4375F : 0.0625F;
 
-        MainRenderer.scheduleRender(new Identifier("mtr", "textures/block/white.png"), false, QueuedRenderLayer.LIGHT, (graphicsHolder, offset) -> {
-            t.transform(graphicsHolder, offset);
-            IDrawing.drawTexture(graphicsHolder, -0.125F, y, -0.19375F, 0.125F, y + 0.25F, -0.19375F, Direction.UP, occupiedAspect > 0 ? proceedColor : 0xFFFF0000, GraphicsHolder.getDefaultLight());
-            graphicsHolder.pop();
+        MainRenderer.scheduleRender(ResourceLocation.fromNamespaceAndPath("mtr", "textures/block/white.png"), false, QueuedRenderLayer.LIGHT, (poseStack, vertexConsumer, offset) -> {
+            t.transform(poseStack, offset);
+            IDrawing.drawTexture(poseStack, vertexConsumer, -0.125F, y, -0.19375F, 0.125F, y + 0.25F, -0.19375F, Direction.UP, occupiedAspect > 0 ? proceedColor : 0xFFFF0000, GraphicsHolder.getDefaultLight());
+            poseStack.popPose();
         });
     }
 }

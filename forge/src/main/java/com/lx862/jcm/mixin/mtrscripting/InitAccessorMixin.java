@@ -1,7 +1,7 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
 import org.mtr.core.Main;
-import org.mtr.mod.Init;
+import org.mtr.MTR;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 

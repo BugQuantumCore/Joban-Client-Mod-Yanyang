@@ -2,7 +2,6 @@ package com.lx862.mtrscripting.mod.network.packet.data;
 
 import com.lx862.jcm.mixin.mtrscripting.InitAccessorMixin;
 import com.lx862.jcm.mixin.mtrscripting.MainAccessorMixin;
-import com.lx862.jcm.mixin.mtrscripting.SidingAccessorMixin;
 import com.lx862.jcm.mod.config.JCMServerConfig;
 import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.mtrscripting.mod.MTRScriptingMod;
@@ -13,14 +12,14 @@ import org.mtr.core.simulation.Simulator;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import org.mtr.MTR;
 
 public class RequestStopsDataC2SPacket extends PacketHandler {
     private final long vehicleId;
@@ -43,7 +42,7 @@ public class RequestStopsDataC2SPacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
         if(JCMServerConfig.INSTANCE.disableScriptStopsFetching.value()) {
             if(JCMServerConfig.INSTANCE.debugMode.value()) {
                 MTRScriptingMod.LOGGER.info("[MTR Scripting via JCM] Refusing to provide stop data for {} as it is disabled in server config.", serverPlayerEntity.getGameProfile().getName());
@@ -53,8 +52,8 @@ public class RequestStopsDataC2SPacket extends PacketHandler {
 
         Main tscInstance = InitAccessorMixin.getMain();
         if(tscInstance == null) return; // Simulator may not be initialized during server startup.
-        World playerWorld = serverPlayerEntity.getEntityWorld();
-        String tscDimensionId = Init.getWorldId(playerWorld);
+        Level playerWorld = serverPlayerEntity.level();
+        String tscDimensionId = MTR.getWorldId(playerWorld);
 
         ObjectImmutableList<Simulator> simulators = ((MainAccessorMixin)tscInstance).getSimulators();
         for(Simulator simulator : simulators) {
@@ -77,9 +76,9 @@ public class RequestStopsDataC2SPacket extends PacketHandler {
                             }
 
                             boolean vehicleFound = false;
-                            ObjectArraySet<Vehicle> vehicles = ((SidingAccessorMixin)(Object)siding).getVehicles();
-                            for(Vehicle vehicle : vehicles) {
-                                if(vehicle.getId() == vehicleId) {
+                            Vehicle vehicle = siding.getVehicleById(vehicleId);
+                            if (vehicle != null) {
+                                {
                                     vehicleFound = true;
                                     VehicleDataCache.SimplifiedStopsData simplifiedStopsData = new VehicleDataCache.SimplifiedStopsData();
                                     if(!depot.routes.isEmpty()) {
@@ -135,12 +134,11 @@ public class RequestStopsDataC2SPacket extends PacketHandler {
                                         MTRScriptingMod.LOGGER.info("[MTR Scripting via JCM] RequestStopsDataC2SPacket: Submitting Response Packet");
                                     }
                                     minecraftServer.submit(() -> {
-                                        Networking.sendPacketToClient(PlayerEntity.cast(serverPlayerEntity), new StopsDataS2CPacket(vehicleId, sidingId, simplifiedStopsData));
+                                        Networking.sendPacketToClient((Player)serverPlayerEntity, new StopsDataS2CPacket(vehicleId, sidingId, simplifiedStopsData));
                                         if(debugLogging) {
                                             MTRScriptingMod.LOGGER.info("[MTR Scripting via JCM] RequestStopsDataC2SPacket: Request Packet Sent to {}, Goodbye!", serverPlayerEntity.getGameProfile().getName());
                                         }
                                     });
-                                    break;
                                 }
                             }
                             if(!vehicleFound) {

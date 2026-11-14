@@ -4,7 +4,7 @@ import com.google.gson.*;
 import com.lx862.mtrscripting.core.util.GraphicsTexture;
 import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
 import com.lx862.mtrscripting.core.util.model.*;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -26,7 +26,7 @@ public final class NativeDisplayHelper implements AutoCloseable {
         this.config = new JsonParser().parse(config.toString()).getAsJsonObject();
         JsonArray size = config.getAsJsonArray("texSize");
         String renderType = config.has("renderType") ? config.get("renderType").getAsString() : "interior";
-        RawMeshBuilderJS mesh = new RawMeshBuilderJS(4, renderType, new Identifier("minecraft:textures/misc/white.png"));
+        RawMeshBuilderJS mesh = new RawMeshBuilderJS(4, renderType, ResourceLocation.parse("minecraft:textures/misc/white.png"));
         for (JsonElement entry : config.getAsJsonArray("slots")) {
             JsonObject slot = entry.getAsJsonObject();
             JsonArray area = slot.getAsJsonArray("texArea");

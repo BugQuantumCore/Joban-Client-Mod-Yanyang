@@ -1,11 +1,11 @@
 package com.lx862.jcm.mod.block;
 
-import org.mtr.mapping.holder.BlockSettings;
-import org.mtr.mapping.holder.Blocks;
-import org.mtr.mapping.mapper.StairsBlockExtension;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.StairBlock;
 
-public class MTRStairsBlock extends StairsBlockExtension {
-    public MTRStairsBlock(BlockSettings settings) {
-        super(Blocks.getSmoothStoneMapped().getDefaultState(), settings);
+public class MTRStairsBlock extends StairBlock {
+    public MTRStairsBlock(BlockBehaviour.Properties settings) {
+        super(Blocks.SMOOTH_STONE.defaultBlockState(), settings);
     }
 }

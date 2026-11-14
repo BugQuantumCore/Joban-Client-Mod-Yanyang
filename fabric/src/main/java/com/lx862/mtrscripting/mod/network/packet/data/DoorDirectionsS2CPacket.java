@@ -1,9 +1,9 @@
 package com.lx862.mtrscripting.mod.network.packet.data;
 
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.ServerDoorDirections;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 /**
  * Server → client: the answer to {@link RequestDoorDirectionsC2SPacket} —

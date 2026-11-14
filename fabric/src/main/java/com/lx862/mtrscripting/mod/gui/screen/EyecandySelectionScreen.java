@@ -5,6 +5,7 @@ import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.amberui.gui.screen.SavableScreen;
 import com.lx862.amberui.gui.widget.ContentItem;
 import com.lx862.amberui.gui.widget.HorizontalWidgetSet;
+import com.lx862.amberui.gui.widget.AlwaysRenderedTextField;
 import com.lx862.amberui.gui.widget.ListViewWidget;
 import com.lx862.amberui.gui.widget.MappedWidget;
 import com.lx862.jcm.mod.util.TextCategory;
@@ -15,22 +16,29 @@ import com.lx862.mtrscripting.mod.resource.EyecandyResourceProvider;
 import com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mapping.mapper.TextFieldWidgetExtension;
-import org.mtr.mapping.tool.TextCase;
-import org.mtr.mod.block.BlockEyeCandy;
-import org.mtr.mod.client.CustomResourceLoader;
-import org.mtr.mod.resource.ObjectResource;
+import com.lx862.amberui.gui.widget.Button;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import net.minecraft.client.gui.components.EditBox;
+import com.lx862.jcm.mod.render.TextCase;
+import org.mtr.block.BlockEyeCandy;
+import org.mtr.client.CustomResourceLoader;
+import org.mtr.resource.ObjectResource;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import com.lx862.jcm.mod.render.TextCase;
 
 public class EyecandySelectionScreen extends SavableScreen implements RenderHelper, GuiHelper {
-    private final TextFieldWidgetExtension searchBox;
+    private final EditBox searchBox;
     private final ListViewWidget listViewWidget;
     private final Runnable callback;
     private final BlockPos blockPos;
@@ -45,21 +53,21 @@ public class EyecandySelectionScreen extends SavableScreen implements RenderHelp
         super(false);
         this.blockPos = blockPos;
         this.selectedIndices = selectedIndices;
-        BlockEntity be = MinecraftClient.getInstance().getWorldMapped().getBlockEntity(blockPos);
-        if(be != null && be.data instanceof BlockEyeCandy.BlockEntity) {
-            this.currentObject = ((BlockEyeCandy.BlockEntity)be.data).getModelId();
-            this.storedConfigEntries.putAll(new HashMap<>(((JCMBlockEyecandyExtra)be.data).jsblock$getCustomConfig()));
+        BlockEntity be = Minecraft.getInstance().level.getBlockEntity(blockPos);
+        if(be != null && be instanceof BlockEyeCandy.EyeCandyBlockEntity) {
+            this.currentObject = ((BlockEyeCandy.EyeCandyBlockEntity)be).getModelId();
+            this.storedConfigEntries.putAll(new HashMap<>(((JCMBlockEyecandyExtra)be).jsblock$getCustomConfig()));
         } else {
             this.currentObject = "";
         }
         this.callback = callback;
         this.listViewWidget = new ListViewWidget();
-        this.searchBox = new TextFieldWidgetExtension(0, 0, 0, 22, 60, TextCase.DEFAULT, null, TextUtil.translatable(TextCategory.GUI, "widget.search").getString());
+        this.searchBox = new AlwaysRenderedTextField(0, 0, 0, 22, 60, TextCase.DEFAULT, null, TextUtil.translatable(TextCategory.GUI, "widget.search").getString());
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
         int contentWidth = (int)Math.min((width * 0.75), MAX_CONTENT_WIDTH);
         int listViewHeight = (int)((height - 90) * 0.76);
         int startX = (width - contentWidth) / 2;
@@ -69,26 +77,26 @@ public class EyecandySelectionScreen extends SavableScreen implements RenderHelp
         selectListener.clear();
         listViewWidget.reset();
         addConfigEntries(this.listViewWidget);
-        searchBox.setX2(startX);
-        searchBox.setY2(searchStartY);
-        searchBox.setWidth2(contentWidth);
-        searchBox.setChangedListener2(listViewWidget::setSearchTerm);
-        searchBox.setText2(searchBox.getText2());
+        searchBox.setX(startX);
+        searchBox.setY(searchStartY);
+        searchBox.setWidth(contentWidth);
+        searchBox.setResponder(listViewWidget::setSearchTerm);
+        searchBox.setValue(searchBox.getValue());
 
         listViewWidget.setXYSize(startX, startY, contentWidth, listViewHeight);
-        addChild(new ClickableWidget(listViewWidget));
-        addChild(new ClickableWidget(searchBox));
+        addRenderableWidget(listViewWidget);
+        addRenderableWidget(searchBox);
 
-        addBottomRowEntry(startX, startY + listViewHeight + 6, contentWidth, getHeightMapped() - (startY + listViewHeight));
+        addBottomRowEntry(startX, startY + listViewHeight + 6, contentWidth, height - (startY + listViewHeight));
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return TextUtil.translatable(TextCategory.GUI, "eyecandy.title");
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.translatable(TextCategory.GUI, "eyecandy.subtitle", currentObject);
     }
 
@@ -106,17 +114,17 @@ public class EyecandySelectionScreen extends SavableScreen implements RenderHelp
     }
 
     private void addObjectEntry(ListViewWidget listViewWidget, ObjectResource objectResource) {
-        ButtonWidgetExtension selectBtn = new ButtonWidgetExtension(0, 0, 60, 20, TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose"), (btn) -> {
+        Button selectBtn = new Button(0, 0, 60, 20, TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose"), (btn) -> {
             choose(objectResource);
             updateSelectedEntry();
         });
 
         selectListener.add(() -> {
             if(objectResource.getId().equals(currentObject)) {
-                selectBtn.setMessage2(Text.cast(TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.selected")));
+                selectBtn.setMessage((TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.selected")));
                 selectBtn.active = false;
             } else {
-                selectBtn.setMessage2(Text.cast(TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose")));
+                selectBtn.setMessage((TextUtil.translatable(TextCategory.GUI, "pids_preset.listview.widget.choose")));
                 selectBtn.active = true;
             }
         });
@@ -124,17 +132,15 @@ public class EyecandySelectionScreen extends SavableScreen implements RenderHelp
         EyecandyResourceProvider.EyecandyScriptConfiguration scriptConfig = MtrScriptingResourceManager.eyecandy.getScriptEntry(objectResource.getId());
         boolean hasCustomConfig = scriptConfig != null && scriptConfig.eyecandyCustomConfig() != null;
 
-        ButtonWidgetExtension editBtn = new ButtonWidgetExtension(0, 0, 20, 20, TextUtil.translatable(TextCategory.GUI, "eyecandy.listview.widget.edit"), (btn) -> {
-            getClientMapped().openScreen(
-                    new Screen(
-                            new EyecandyCustomConfigScreen(
-                                objectResource.getName(),
-                                objectResource.getId(),
-                                blockPos,
-                                this.storedConfigEntries,
-                                scriptConfig.eyecandyCustomConfig()
-                            ).withPreviousScreen(new Screen(this))
-                    )
+        Button editBtn = new Button(0, 0, 20, 20, TextUtil.translatable(TextCategory.GUI, "eyecandy.listview.widget.edit"), (btn) -> {
+            Minecraft.getInstance().setScreen(
+                    new EyecandyCustomConfigScreen(
+                        objectResource.getName(),
+                        objectResource.getId(),
+                        blockPos,
+                        this.storedConfigEntries,
+                        scriptConfig.eyecandyCustomConfig()
+                    ).withPreviousScreen(this)
             );
         });
 
@@ -143,9 +149,9 @@ public class EyecandySelectionScreen extends SavableScreen implements RenderHelp
         widgetSet.addWidget(new MappedWidget(selectBtn));
         widgetSet.setXYSize(0, 0, 110, 20);
 
-        if(hasCustomConfig) addChild(new ClickableWidget(editBtn));
-        addChild(new ClickableWidget(selectBtn));
-        addChild(new ClickableWidget(widgetSet));
+        if(hasCustomConfig) addRenderableWidget(editBtn);
+        addRenderableWidget(selectBtn);
+        addRenderableWidget(widgetSet);
         ContentItem contentItem = new ContentItem(TextUtil.literal(objectResource.getName()), new MappedWidget(widgetSet), 26);
 
         contentItem.setIconCallback((guiDrawing, startX, startY, width, height) -> {

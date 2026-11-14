@@ -2,10 +2,10 @@ package com.lx862.amberui.gui.widget;
 
 import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -17,21 +17,21 @@ import static com.lx862.amberui.gui.widget.ListViewWidget.ENTRY_PADDING;
  */
 public class ContentItem extends AbstractListItem {
     public DrawIconCallback drawIconCallback = null;
-    public final MutableText title;
+    public final MutableComponent title;
     public final MappedWidget widget;
     private final int height;
 
-    public ContentItem(MutableText title, MappedWidget widget, int height) {
+    public ContentItem(MutableComponent title, MappedWidget widget, int height) {
         this.height = height;
         this.title = title;
         this.widget = widget;
     }
 
-    public ContentItem(MutableText title, MappedWidget widget) {
+    public ContentItem(MutableComponent title, MappedWidget widget) {
         this(title, widget, 22);
     }
 
-    public ContentItem setIcon(Identifier textureId) {
+    public ContentItem setIcon(ResourceLocation textureId) {
         this.drawIconCallback = (guiDrawing, startX, startY, width, height) -> GuiHelper.drawTexture(guiDrawing, textureId, startX, startY, width, height);
         return this;
     }

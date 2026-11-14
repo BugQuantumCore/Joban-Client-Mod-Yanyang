@@ -8,23 +8,24 @@ import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.block.IBlock;
-import org.mtr.mod.data.ArrivalsCacheClient;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.MTRClient;
+import org.mtr.block.IBlock;
+import org.mtr.data.ArrivalsCacheClient;
+import org.mtr.render.StoredMatrixTransformations;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
 public abstract class PIDSRenderer<T extends PIDSBlockEntity> extends JCMBlockEntityRenderer<T> {
-    public PIDSRenderer(Argument dispatcher) {
+    public PIDSRenderer(BlockEntityRendererProvider.Context dispatcher) {
         super(dispatcher);
     }
 
     @Override
-    public void renderCurated(T blockEntity, GraphicsHolder graphicsHolder, World world, BlockState state, BlockPos pos, float tickDelta, int light, int i1) {
+    public void renderCurated(T blockEntity, GraphicsHolder graphicsHolder, Level world, BlockState state, BlockPos pos, float tickDelta, int light, int i1) {
         PIDSPresetBase pidsPreset = getPreset(blockEntity);
         if(pidsPreset == null) return;
 
@@ -41,22 +42,22 @@ public abstract class PIDSRenderer<T extends PIDSBlockEntity> extends JCMBlockEn
             platforms = new LongImmutableList(blockEntity.getPlatformIds());
         } else {
             LongArrayList closestPlatforms = new LongArrayList();
-            InitClient.findClosePlatform(pos.down(4), 5, e -> closestPlatforms.add(e.getId()));
+            MTRClient.findClosePlatform(pos.below(4), 5, e -> closestPlatforms.add(e.getId()));
             platforms = new LongImmutableList(closestPlatforms);
         }
 
         ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(platforms);
 
-        StoredMatrixTransformations storedMatrixTransformations = new StoredMatrixTransformations(0.5 + blockEntity.getPos2().getX(), 0.5 + blockEntity.getPos2().getY(), 0.5 + blockEntity.getPos2().getZ());
-        storedMatrixTransformations.add(graphicsHolderNew -> {
-            graphicsHolderNew.rotateYDegrees(90 - facing.asRotation());
-            graphicsHolderNew.rotateZDegrees(180);
+        StoredMatrixTransformations storedMatrixTransformations = new StoredMatrixTransformations(0.5 + blockEntity.getBlockPos().getX(), 0.5 + blockEntity.getBlockPos().getY(), 0.5 + blockEntity.getBlockPos().getZ());
+        storedMatrixTransformations.add(poseStack -> {
+            poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(90 - facing.toYRot()));
+            poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180));
         });
 
         renderPIDS(blockEntity, pidsPreset, graphicsHolder, storedMatrixTransformations, world, state, pos, facing, platforms, arrivals, tickDelta, rowHidden, light);
     }
 
-    public abstract void renderPIDS(T blockEntity, PIDSPresetBase pidsPreset, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, World world, BlockState state, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, float tickDelta, boolean[] rowHidden, int light);
+    public abstract void renderPIDS(T blockEntity, PIDSPresetBase pidsPreset, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, Level world, BlockState state, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, float tickDelta, boolean[] rowHidden, int light);
 
     private PIDSPresetBase getPreset(PIDSBlockEntity blockEntity) {
         return PIDSManager.getPreset(blockEntity.getPresetId(), PIDSManager.getPreset(blockEntity.getDefaultPresetId()));

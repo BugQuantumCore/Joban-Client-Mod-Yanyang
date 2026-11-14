@@ -1,34 +1,37 @@
 package com.lx862.amberui.mapping;
 
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ScreenExtension;
+import net.minecraft.client.gui.screens.Screen;
 
 import java.util.List;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
 
 /**
  * Forge implementation via Mojang mapping
  */
 public class LoaderImplGUI {
-    public static void openURLScreen(ScreenExtension parentScreen, String url) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        mc.openScreen(
+    public static void openURLScreen(Screen parentScreen, String url) {
+        Minecraft mc = Minecraft.getInstance();
+        mc.setScreen(
                 new Screen(new net.minecraft.client.gui.screens.ConfirmLinkScreen((confirmed) -> {
                     if(confirmed) {
                         Util.getOperatingSystem().open(url);
                     }
-                    mc.openScreen(new Screen(parentScreen));
+                    mc.setScreen(new Screen(parentScreen));
                 }, url, true)
             )
         );
     }
 
-    public static void setTooltip(Screen screen, OrderedText orderedText) {
+    public static void setTooltip(Screen screen, FormattedCharSequence orderedText) {
         #if MC_VERSION >= "11903"
-        screen.data.setTooltipForNextRenderPass(List.of(orderedText.data));
+        screen.setTooltipForNextRenderPass(List.of(orderedText));
         #endif
     }
 
-    public static OrderedText asOrderedText(MutableText mutableText) {
-        return new OrderedText(mutableText.data.getVisualOrderText());
+    public static FormattedCharSequence asOrderedText(MutableComponent mutableText) {
+        return new FormattedCharSequence(mutableText.getVisualOrderText());
     }
 }

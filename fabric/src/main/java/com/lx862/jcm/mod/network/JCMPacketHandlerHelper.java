@@ -1,7 +1,7 @@
 package com.lx862.jcm.mod.network;
 
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 import java.util.AbstractCollection;
 import java.util.function.Consumer;

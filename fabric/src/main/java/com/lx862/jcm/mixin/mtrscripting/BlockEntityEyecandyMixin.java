@@ -3,8 +3,8 @@ package com.lx862.jcm.mixin.mtrscripting;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTEStringMapSerializer;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.JCMBlockEyecandyExtra;
-import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mod.block.BlockEyeCandy;
+import net.minecraft.nbt.CompoundTag;
+import org.mtr.block.BlockEyeCandy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,13 +14,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
-@Mixin(value = BlockEyeCandy.BlockEntity.class, remap = false)
+@Mixin(value = BlockEyeCandy.EyeCandyBlockEntity.class, remap = false)
 public abstract class BlockEntityEyecandyMixin implements JCMBlockEyecandyExtra {
     @Unique
     private final Map<String, String> jsblock$eyecandyCustomConfig = new HashMap<>();
 
-    @Inject(method = "readCompoundTag", at = @At("HEAD"))
+    @Inject(method = "readNbt", at = @At("HEAD"))
     private void jsblock$readCustomConfigTag(CompoundTag compoundTag, CallbackInfo ci) {
         jsblock$eyecandyCustomConfig.clear();
 
@@ -34,7 +35,7 @@ public abstract class BlockEntityEyecandyMixin implements JCMBlockEyecandyExtra 
         }
     }
 
-    @Inject(method = "writeCompoundTag", at = @At("HEAD"))
+    @Inject(method = "writeNbt", at = @At("HEAD"))
     private void jsblock$writeCustomConfigTag(CompoundTag compoundTag, CallbackInfo ci) {
         try {
             byte[] configBytes = ANTEStringMapSerializer.serializeToByteArray(jsblock$eyecandyCustomConfig);
@@ -53,6 +54,6 @@ public abstract class BlockEntityEyecandyMixin implements JCMBlockEyecandyExtra 
     public void jsblock$updateCustomConfig(Map<String, String> newConfig) {
         jsblock$eyecandyCustomConfig.clear();
         jsblock$eyecandyCustomConfig.putAll(new HashMap<>(newConfig));
-        ((BlockEyeCandy.BlockEntity)(Object)this).markDirty2();
+        ((BlockEyeCandy.EyeCandyBlockEntity)(Object)this).setChanged();
     }
 }

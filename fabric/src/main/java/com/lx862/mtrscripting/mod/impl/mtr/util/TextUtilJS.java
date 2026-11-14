@@ -24,8 +24,8 @@
 
 package com.lx862.mtrscripting.mod.impl.mtr.util;
 
-import org.mtr.mod.InitClient;
-import org.mtr.mod.data.IGui;
+import org.mtr.MTRClient;
+import org.mtr.data.IGui;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,7 +73,7 @@ public class TextUtilJS {
         List<String> split = new ArrayList<>(Arrays.asList(mtrString.split("\\|")));
         if(split.isEmpty()) return "";
 
-        return split.get(((int) InitClient.getGameTick() / switchDuration) % split.size());
+        return split.get(((int) org.mtr.MTRClient.getGameTick() / switchDuration) % split.size());
     }
 
     private static String getExtraMatching(String src, boolean extra) {

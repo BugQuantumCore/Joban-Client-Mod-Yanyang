@@ -33,8 +33,8 @@ import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.mod.util.JSUtil;
 import org.apache.commons.io.IOUtils;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.resource.ResourceManagerHelper;
 
 import java.awt.*;
 import java.awt.font.FontRenderContext;
@@ -54,15 +54,15 @@ import java.util.function.Supplier;
 
 @SuppressWarnings("unused")
 public class ScriptResourceUtil {
-    private static final Stack<Identifier> scriptLocationStack = new Stack<>();
+    private static final Stack<ResourceLocation> scriptLocationStack = new Stack<>();
     private static ParsedScript activeParsingScript;
 
     public static final boolean ANTE_FLAG = false;
 
     private static final FontRenderContext FONT_CONTEXT = new FontRenderContext(new AffineTransform(), true, false);
-    private static final Identifier NOTO_SANS_CJK_LOCATION = new Identifier("mtr", "font/noto-sans-cjk-tc-medium.otf");
-    private static final Identifier NOTO_SANS_LOCATION = new Identifier("mtr", "font/noto-sans-semibold.ttf");
-    private static final Identifier NOTO_SERIF_LOCATION = new Identifier("mtr", "font/noto-serif-cjk-tc-semibold.ttf");
+    private static final ResourceLocation NOTO_SANS_CJK_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-sans-cjk-tc-medium.otf");
+    private static final ResourceLocation NOTO_SANS_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-sans-semibold.ttf");
+    private static final ResourceLocation NOTO_SERIF_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-serif-cjk-tc-semibold.ttf");
     private static Font NOTO_SANS_CACHE;
     /** Sentinel for a font that failed to load (see getSystemFont). */
     private static final Font FAILED_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 1);
@@ -83,7 +83,7 @@ public class ScriptResourceUtil {
     }
 
     @ApiInternal
-    public static void executeScript(ParsedScript script, Identifier scriptLocation, String scriptContent) {
+    public static void executeScript(ParsedScript script, ResourceLocation scriptLocation, String scriptContent) {
         scriptLocationStack.push(scriptLocation);
         try {
             script.parseScriptContent(scriptContent, scriptLocation.getNamespace() + ":" + scriptLocation.getPath());
@@ -99,9 +99,9 @@ public class ScriptResourceUtil {
         if (!isParsingStage()) throw new RuntimeException(
             "Cannot use include() in Runtime Stage, as all scripts has been parsed and finalized at this point!"
         );
-        Identifier identifier;
-        if (pathOrIdentifier instanceof Identifier) {
-            identifier = (Identifier) pathOrIdentifier;
+        ResourceLocation identifier;
+        if (pathOrIdentifier instanceof ResourceLocation) {
+            identifier = (ResourceLocation) pathOrIdentifier;
         } else {
             identifier = idr(pathOrIdentifier.toString());
         }
@@ -125,33 +125,33 @@ public class ScriptResourceUtil {
     }
 
     @Deprecated
-    public static Identifier identifier(String textForm) {
+    public static ResourceLocation identifier(String textForm) {
         return id(textForm);
     }
 
-    public static Identifier id(String textForm) {
-        return new Identifier(textForm);
+    public static ResourceLocation id(String textForm) {
+        return ResourceLocation.parse(textForm);
     }
 
-    public static Identifier id(Identifier id, String suffix) {
-        return new Identifier(id.getNamespace(), id.getPath() + suffix);
+    public static ResourceLocation id(ResourceLocation id, String suffix) {
+        return ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath() + suffix);
     }
 
     @Deprecated
-    public static Identifier idRelative(String textForm) {
+    public static ResourceLocation idRelative(String textForm) {
         return idr(textForm);
     }
 
-    public static Identifier idr(String textForm) {
+    public static ResourceLocation idr(String textForm) {
         if (scriptLocationStack.empty()) throw new RuntimeException(
                 "Cannot use idr/idRelative in functions."
         );
-        Identifier id = scriptLocationStack.peek();
+        ResourceLocation id = scriptLocationStack.peek();
         return resolveRelativePath(id, textForm);
     }
 
     @Deprecated
-    public static @ValueNullable InputStream readStream(Identifier identifier) throws IOException {
+    public static @ValueNullable InputStream readStream(ResourceLocation identifier) throws IOException {
         DataReaderJS dataReader = read(identifier);
         if(dataReader != null) {
             return dataReader.asInputStream();
@@ -161,21 +161,21 @@ public class ScriptResourceUtil {
     }
 
     @Deprecated
-    public static @ValueNullable String readString(Identifier id) {
+    public static @ValueNullable String readString(ResourceLocation id) {
         DataReaderJS dataReaderJS = read(id);
         if(dataReaderJS == null) return null;
         return dataReaderJS.asString();
     }
 
     @Deprecated
-    public static @ValueNullable BufferedImage readBufferedImage(Identifier id) {
+    public static @ValueNullable BufferedImage readBufferedImage(ResourceLocation id) {
         DataReaderJS dataReaderJS = read(id);
         if(dataReaderJS == null) return null;
         return dataReaderJS.asBufferedImage();
     }
 
     @Deprecated
-    public static @ValueNullable Font readFont(Identifier id) {
+    public static @ValueNullable Font readFont(ResourceLocation id) {
         DataReaderJS dataReaderJS = read(id);
         if(dataReaderJS == null) return null;
         return dataReaderJS.asFont();
@@ -185,7 +185,7 @@ public class ScriptResourceUtil {
         return read(JSUtil.parseId(id));
     }
 
-    public static @ValueNullable DataReaderJS read(Identifier id) {
+    public static @ValueNullable DataReaderJS read(ResourceLocation id) {
         String idStr = id.getNamespace() + ":" + id.getPath();
 
         return cacheOrGet(idStr, () -> {
@@ -212,7 +212,7 @@ public class ScriptResourceUtil {
         return exist(JSUtil.parseId(id));
     }
 
-    public static boolean exist(Identifier id) {
+    public static boolean exist(ResourceLocation id) {
         boolean[] resourceFound = new boolean[]{false};
         ResourceManagerHelper.readResource(id, is -> resourceFound[0] = true);
         return resourceFound[0];
@@ -333,11 +333,11 @@ public class ScriptResourceUtil {
     }
 
     @ApiInternal
-    private static Identifier resolveRelativePath(Identifier baseFile, String relative) {
+    private static ResourceLocation resolveRelativePath(ResourceLocation baseFile, String relative) {
         String result = relative.toLowerCase(Locale.ROOT).replace('\\', '/');
         if (result.contains(":")) {
             result = result.replaceAll("[^a-z0-9/.:_-]", "_");
-            return new Identifier(result);
+            return ResourceLocation.parse(result);
         } else {
             result = result.replaceAll("[^a-z0-9/._-]", "_");
             if (result.endsWith(".jpg") || result.endsWith(".bmp") || result.endsWith(".tga")) {
@@ -345,7 +345,7 @@ public class ScriptResourceUtil {
                 result = var10000 + ".png";
             }
 
-            return new Identifier(baseFile.getNamespace(), FileSystems.getDefault().getPath(baseFile.getPath()).getParent().resolve(result).normalize().toString().replace('\\', '/'));
+            return ResourceLocation.fromNamespaceAndPath(baseFile.getNamespace(), FileSystems.getDefault().getPath(baseFile.getPath()).getParent().resolve(result).normalize().toString().replace('\\', '/'));
         }
     }
 

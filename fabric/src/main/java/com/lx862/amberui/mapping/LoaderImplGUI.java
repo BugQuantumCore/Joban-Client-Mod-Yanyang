@@ -1,48 +1,33 @@
 package com.lx862.amberui.mapping;
 
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ScreenExtension;
-
-import java.util.List;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConfirmLinkScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
 
 /**
- * Fabric implementation via Yarn mapping
+ * Fabric implementation, Mojang mappings (1.21.x)
  */
 public class LoaderImplGUI {
 
-    public static void openURLScreen(ScreenExtension parentScreen, String url) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-
-        #if MC_VERSION <= "11802"
-            mc.openScreen(
-                    new Screen(new net.minecraft.client.gui.screen.ConfirmChatLinkScreen((confirmed) -> {
-                        if(confirmed) {
-                            Util.getOperatingSystem().open(url);
-                        }
-                        mc.openScreen(new Screen(parentScreen));
-                    }, url, true)
-                )
-            );
-        #else
-        mc.openScreen(
-                new Screen(new net.minecraft.client.gui.screen.ConfirmLinkScreen((confirmed) -> {
-                    if(confirmed) {
-                        Util.getOperatingSystem().open(url);
-                    }
-                    mc.openScreen(new Screen(parentScreen));
-                }, url, true)
-                )
-        );
-        #endif
+    public static void openURLScreen(Screen parentScreen, String url) {
+        final Minecraft mc = Minecraft.getInstance();
+        mc.setScreen(new ConfirmLinkScreen(confirmed -> {
+            if (confirmed) {
+                Util.getPlatform().openUri(url);
+            }
+            mc.setScreen(parentScreen);
+        }, url, true));
     }
 
-    public static void setTooltip(Screen screen, OrderedText orderedText) {
-        #if MC_VERSION >= "11903"
-        screen.data.setTooltip(List.of(orderedText.data));
-        #endif
+    public static void setTooltip(Screen screen, FormattedCharSequence orderedText) {
+        // 1.21.x renders tooltips through GuiGraphics; the legacy per-screen
+        // setter is a no-op shim (callers pass tooltips via render now).
     }
 
-    public static OrderedText asOrderedText(MutableText mutableText) {
-        return new OrderedText(mutableText.data.asOrderedText());
+    public static FormattedCharSequence asOrderedText(MutableComponent mutableText) {
+        return mutableText.getVisualOrderText();
     }
 }

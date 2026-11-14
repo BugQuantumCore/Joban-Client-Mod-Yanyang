@@ -6,7 +6,7 @@ import com.lx862.jcm.mod.util.BuildMetadata;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.MTRScriptingMod;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
-import org.mtr.mod.Keys;
+import org.mtr.Keys;
 
 import java.io.IOException;
 

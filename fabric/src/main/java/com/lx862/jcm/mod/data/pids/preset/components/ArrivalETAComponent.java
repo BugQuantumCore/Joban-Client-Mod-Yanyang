@@ -9,11 +9,11 @@ import com.lx862.jcm.mod.render.text.TextInfo;
 import com.lx862.jcm.mod.util.TextUtil;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.data.ArrivalsCacheClient;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.data.ArrivalsCacheClient;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -41,7 +41,7 @@ public class ArrivalETAComponent extends TextComponent {
         int remSec = (int)(remTime / 1000L);
         if(remSec <= 0) return;
 
-        final MutableText etaText;
+        final MutableComponent etaText;
 
         if(useAbsoluteTime) {
             etaText = TextUtil.literal(new SimpleDateFormat("HH:mm").format(new Date(arrival.getArrival())));

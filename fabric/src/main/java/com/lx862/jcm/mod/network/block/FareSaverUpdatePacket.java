@@ -5,10 +5,14 @@ import com.lx862.jcm.mod.block.entity.FareSaverBlockEntity;
 import com.lx862.jcm.mod.network.PacketValidator;
 import com.lx862.jcm.mod.util.BlockUtil;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class FareSaverUpdatePacket extends PacketHandler {
     private final BlockPos blockPos;
@@ -16,7 +20,7 @@ public class FareSaverUpdatePacket extends PacketHandler {
     private final int discount;
 
     public FareSaverUpdatePacket(PacketBufferReceiver packetBufferReceiver) {
-        this.blockPos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
         this.prefix = packetBufferReceiver.readString();
         this.discount = packetBufferReceiver.readInt();
     }
@@ -35,18 +39,18 @@ public class FareSaverUpdatePacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
-        World world = serverPlayerEntity.getEntityWorld();
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
+        Level world = serverPlayerEntity.level();
         BlockState state = BlockUtil.getBlockState(world, blockPos);
-        if(state == null || !(state.getBlock().data instanceof JCMBlock)) return;
+        if(state == null || !(state.getBlock() instanceof JCMBlock)) return;
         if(!PacketValidator.canConfigureBlock(serverPlayerEntity)) {
             JCMLogger.warn("Player {} attempted to configure Fare Saver at {} {} {} without permission.", serverPlayerEntity.getGameProfile().getName(), blockPos.getX(), blockPos.getY(), blockPos.getZ());
             return;
         }
 
-        ((JCMBlock)state.getBlock().data).loopStructure(state, world, blockPos, (bs, be) -> {
-            if(be.data instanceof FareSaverBlockEntity) {
-                ((FareSaverBlockEntity)be.data).setData(prefix, discount);
+        ((JCMBlock)state.getBlock()).loopStructure(state, world, blockPos, (bs, be) -> {
+            if(be instanceof FareSaverBlockEntity) {
+                ((FareSaverBlockEntity)be).setData(prefix, discount);
             }
         });
     }

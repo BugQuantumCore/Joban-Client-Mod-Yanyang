@@ -1,11 +1,11 @@
 package com.lx862.mtrscripting.mod.network.packet.psd;
 
 import com.lx862.mtrscripting.mod.impl.mtr.server.PSDServerBindings;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 /**
  * Client → server: "send me every PSD script binding of this dimension" —
@@ -29,7 +29,7 @@ public class RequestPSDScriptsC2SPacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
         /* Same thread hop as the other request packets in this package: the
            manager is server-thread confined. */
         minecraftServer.submit(() -> PSDServerBindings.handleQuery(minecraftServer, serverPlayerEntity, dimension));

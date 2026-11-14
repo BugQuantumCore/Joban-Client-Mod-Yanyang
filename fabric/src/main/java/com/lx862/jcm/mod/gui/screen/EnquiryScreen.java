@@ -7,14 +7,14 @@ import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.amberui.gui.screen.AnimatedScreen;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.data.IGui;
+import net.minecraft.core.BlockPos;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.amberui.gui.widget.Button;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.data.IGui;
 
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -23,7 +23,7 @@ public class EnquiryScreen extends AnimatedScreen {
     private static final int BACKGROUND_COLOR = 0xFF034AE2;
     private static final int CONTENT_WIDTH = 260;
     private static final int CONTENT_HEIGHT = 200;
-    private final static Identifier font  = Constants.id("pids_lcd");
+    private final static ResourceLocation font  = Constants.id("pids_lcd");
     private final int SCALE_WIDTH = 475;
     private final int DISPLAYED_ENTRIES = 10;
     private final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("dd/MM/yyyy");
@@ -38,27 +38,28 @@ public class EnquiryScreen extends AnimatedScreen {
     }
 
     @Override
-    protected void init2() {
-        ButtonWidgetExtension doneButton = new ButtonWidgetExtension(0, 0, 200, 20, TextUtil.translatable("gui.done"), (btn) -> onClose2());
-        doneButton.setX2((getWidthMapped() / 2) - (doneButton.getWidth2() / 2));
-        doneButton.setY2(getHeightMapped() - doneButton.getHeight2() - 10);
-        addChild(new ClickableWidget(doneButton));
+    protected void init() {
+        Button doneButton = new Button(0, 0, 200, 20, TextUtil.translatable("gui.done"), (btn) -> onClose());
+        doneButton.setX((width / 2) - (doneButton.getWidth() / 2));
+        doneButton.setY(height - doneButton.getHeight() - 10);
+        addRenderableWidget(doneButton);
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        super.renderBackground(graphicsHolder);
+    public void render(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        super.renderBackground(guiGraphics, mouseX, mouseY, tickDelta);
 
         GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
-        int screenWidth = getWidthMapped();
-        int screenHeight = getHeightMapped();
+        int screenWidth = width;
+        int screenHeight = height;
 
-        float scaleFactor = Math.min(1.75F, (float)(double)getWidthMapped() / SCALE_WIDTH);
+        float scaleFactor = Math.min(1.75F, (float)(double)width / SCALE_WIDTH);
         int scaledEnquiryScreenWidth = (int)(CONTENT_WIDTH * scaleFactor);
         int scaledEnquiryScreenHeight = (int)(CONTENT_HEIGHT * scaleFactor);
 
         GuiHelper.drawRectangle(guiDrawing, (screenWidth - scaledEnquiryScreenWidth) / 2.0, (screenHeight - scaledEnquiryScreenHeight) / 2.0, scaledEnquiryScreenWidth, scaledEnquiryScreenHeight, BACKGROUND_COLOR);
-        graphicsHolder.drawCenteredText(TextUtil.translatable(TextCategory.BLOCK, "mtr_enquiry_machine"), getWidthMapped() / 2, ((screenHeight - scaledEnquiryScreenHeight) / 2) / 2, RenderHelper.ARGB_WHITE);
+        graphicsHolder.drawCenteredText(TextUtil.translatable(TextCategory.BLOCK, "mtr_enquiry_machine"), width / 2, ((screenHeight - scaledEnquiryScreenHeight) / 2) / 2, RenderHelper.ARGB_WHITE);
 
         int startX = 5;
         int startY = 5;
@@ -82,7 +83,7 @@ public class EnquiryScreen extends AnimatedScreen {
             graphicsHolder.drawText(TextUtil.withFont(TextUtil.literal(TIME_FORMATTER.format(entry.time())), font), startX, startY + (i * 14), RenderHelper.ARGB_WHITE, false, GraphicsHolder.getDefaultLight());
             graphicsHolder.drawText(TextUtil.withFont(TextUtil.literal(IGui.formatStationName(entry.source())), font), startX + 90, startY + (i * 14), RenderHelper.ARGB_WHITE, false, GraphicsHolder.getDefaultLight());
 
-            MutableText balText = TextUtil.withFont(entry.amount() < 0 ? TextUtil.literal("-$" + (double)-entry.amount()) : entry.amount() == 0 ?  TextUtil.literal("$" + (double)entry.amount()) : TextUtil.literal("+$" + (double)entry.amount()), font);
+            MutableComponent balText = TextUtil.withFont(entry.amount() < 0 ? TextUtil.literal("-$" + (double)-entry.amount()) : entry.amount() == 0 ?  TextUtil.literal("$" + (double)entry.amount()) : TextUtil.literal("+$" + (double)entry.amount()), font);
             int balTextWidth = GraphicsHolder.getTextWidth(balText);
             graphicsHolder.drawText(balText, CONTENT_WIDTH - balTextWidth - 5, startY + (i * 14), RenderHelper.ARGB_WHITE, false, GraphicsHolder.getDefaultLight());
         }
@@ -100,11 +101,11 @@ public class EnquiryScreen extends AnimatedScreen {
         }
 
         graphicsHolder.pop();
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+        super.render(guiGraphics, mouseX, mouseY, tickDelta);
     }
 
     @Override
-    public boolean isPauseScreen2() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

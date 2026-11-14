@@ -11,15 +11,21 @@ import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.*;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.event.BlockUseEvent;
 import com.lx862.mtrscripting.mod.impl.mtr.lift.*;
 import org.mtr.core.data.Lift;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.block.BlockEyeCandy;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.block.BlockEyeCandy;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.nio.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.*;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** Shared native create/render/dispose driver for PIDS, lifts and eyecandies. */
 public final class NativeContentDriver {
@@ -70,7 +76,7 @@ public final class NativeContentDriver {
         return state;
     }
 
-    public static void pids(String script,PIDSWrapper wrapper, World world,StoredMatrixTransformations transform,Direction facing,int light) {
+    public static void pids(String script,PIDSWrapper wrapper, Level world,StoredMatrixTransformations transform,Direction facing,int light) {
         pidsDrive(script,wrapper,world);
         pidsReplay(script,wrapper.blockPos().rawBlockPos(),world,transform,facing,light);
         pidsReplaySounds(script,wrapper.blockPos().rawBlockPos(),world);
@@ -79,14 +85,14 @@ public final class NativeContentDriver {
     /** PIDS drive half — marshal the snapshot and run every C++ module once.
      *  Split from the replay so multi-surface hosts (a PIDS preset bound to
      *  both faces of a PSD glass) execute the native side ONCE per frame. */
-    public static void pidsDrive(String script,PIDSWrapper wrapper, World world) {
+    public static void pidsDrive(String script,PIDSWrapper wrapper, Level world) {
         run(key("pids",script,wrapper.blockPos().rawBlockPos()),script,NativeScriptManager.MTR_RESOURCE_PIDS,wrapper,
                 b->NativeContentSnapshot.pids(b,wrapper),()->new PIDSScriptContext(script));
     }
 
     /** PIDS replay half — re-invoke the last captured draw calls of every
      *  module context onto the given transform. */
-    public static void pidsReplay(String script, org.mtr.mapping.holder.BlockPos blockPos, World world,StoredMatrixTransformations transform,Direction facing,int light) {
+    public static void pidsReplay(String script, net.minecraft.core.BlockPos blockPos, Level world,StoredMatrixTransformations transform,Direction facing,int light) {
         State state=STATES.get(key("pids",script,blockPos));
         if(state==null) return;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -95,7 +101,7 @@ public final class NativeContentDriver {
     }
 
     /** PIDS sound replay — once per frame regardless of replay surface count. */
-    public static void pidsReplaySounds(String script, org.mtr.mapping.holder.BlockPos blockPos, World world) {
+    public static void pidsReplaySounds(String script, net.minecraft.core.BlockPos blockPos, Level world) {
         State state=STATES.get(key("pids",script,blockPos));
         if(state==null) return;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -105,13 +111,13 @@ public final class NativeContentDriver {
 
     /** Native PIDS presets hosted by a PSD use the PSD depth direction.
      *  Their state is distinct from ordinary PIDS blocks at the same position. */
-    public static void psdPidsDrive(String script, PIDSWrapper wrapper, World world) {
+    public static void psdPidsDrive(String script, PIDSWrapper wrapper, Level world) {
         run(key("psd_pids", script, wrapper.blockPos().rawBlockPos()), script, NativeScriptManager.MTR_RESOURCE_PIDS, wrapper,
                 b -> NativeContentSnapshot.pids(b, wrapper),
                 () -> new com.lx862.jcm.mod.scripting.psd.PSDScriptContext(script));
     }
 
-    public static void psdPidsReplay(String script, BlockPos blockPos, World world, StoredMatrixTransformations transform, Direction facing, int light) {
+    public static void psdPidsReplay(String script, BlockPos blockPos, Level world, StoredMatrixTransformations transform, Direction facing, int light) {
         State state = STATES.get(key("psd_pids", script, blockPos));
         if (state == null) return;
         for (AbstractScriptContext context : state.contexts.values()) {
@@ -119,7 +125,7 @@ public final class NativeContentDriver {
         }
     }
 
-    public static void psdPidsReplaySounds(String script, BlockPos blockPos, World world) {
+    public static void psdPidsReplaySounds(String script, BlockPos blockPos, Level world) {
         State state = STATES.get(key("psd_pids", script, blockPos));
         if (state == null) return;
         for (AbstractScriptContext context : state.contexts.values()) {
@@ -133,13 +139,13 @@ public final class NativeContentDriver {
      *  BOTH faces (platform + mirrored track side) from ONE native execution;
      *  only invoked on main render passes (PSDScriptRenderer skips shadow
      *  passes entirely, so — unlike eyecandy — no shadow variant is needed). */
-    public static void psdDrive(String script, com.lx862.jcm.mod.scripting.psd.PSDWrapper wrapper, World world) {
+    public static void psdDrive(String script, com.lx862.jcm.mod.scripting.psd.PSDWrapper wrapper, Level world) {
         run(key("psd",script,wrapper.blockPos().rawBlockPos()),script,NativeScriptManager.MTR_RESOURCE_PSD,wrapper,
                 b->NativeContentSnapshot.psd(b,wrapper),
                 ()->new com.lx862.jcm.mod.scripting.psd.PSDScriptContext(script));
     }
 
-    public static void psdReplay(String script, org.mtr.mapping.holder.BlockPos blockPos, World world,StoredMatrixTransformations transform,Direction facing,int light) {
+    public static void psdReplay(String script, net.minecraft.core.BlockPos blockPos, Level world,StoredMatrixTransformations transform,Direction facing,int light) {
         State state=STATES.get(key("psd",script,blockPos));
         if(state==null) return;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -147,7 +153,7 @@ public final class NativeContentDriver {
         }
     }
 
-    public static void psdReplaySounds(String script, org.mtr.mapping.holder.BlockPos blockPos, World world) {
+    public static void psdReplaySounds(String script, net.minecraft.core.BlockPos blockPos, Level world) {
         State state=STATES.get(key("psd",script,blockPos));
         if(state==null) return;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -164,8 +170,8 @@ public final class NativeContentDriver {
      *  the next main pass. Mirrors the JS branch's shadow guard in
      *  RenderEyeCandyMixin, which skips invokeRenderFunctions but keeps the
      *  render-manager replay. */
-    public static void eyecandy(String script,BlockEyeCandy.BlockEntity block,World world,StoredMatrixTransformations transform,Direction facing,int light,boolean shadowPass) {
-        final String key=key("eyecandy",script,block.getPos2());
+    public static void eyecandy(String script,BlockEyeCandy.EyeCandyBlockEntity block,Level world,StoredMatrixTransformations transform,Direction facing,int light,boolean shadowPass) {
+        final String key=key("eyecandy",script,block.getBlockPos());
         if(shadowPass) {
             State state=STATES.get(key);
             if(state==null) return;   /* nothing captured yet: nothing to replay */
@@ -198,14 +204,14 @@ public final class NativeContentDriver {
     }
 
     private static final class GraphicsHolderDefaultLight {
-        static final int VALUE=org.mtr.mapping.mapper.GraphicsHolder.getDefaultLight();
+        static final int VALUE=com.lx862.jcm.mod.render.GraphicsHolder.getDefaultLight();
     }
 
     public static void lift(String script,LiftWrapper wrapper,Lift lift) {
         run("lift/"+script+"/"+wrapper.getId(),script,NativeScriptManager.MTR_RESOURCE_LIFT,wrapper,
                 b->NativeContentSnapshot.lift(b,wrapper),()->new LiftScriptContext(lift));
     }
-    public static void invokeLift(String script,long id,World world,StoredMatrixTransformations transform,int light,ScriptVector3f pos) {
+    public static void invokeLift(String script,long id,Level world,StoredMatrixTransformations transform,int light,ScriptVector3f pos) {
         State state=STATES.get("lift/"+script+"/"+id);
         if(state==null) return;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -218,9 +224,9 @@ public final class NativeContentDriver {
         }
     }
 
-    public static VoxelShape shape(BlockEyeCandy.BlockEntity block,boolean collision) {
+    public static VoxelShape shape(BlockEyeCandy.EyeCandyBlockEntity block,boolean collision) {
         String script=com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager.eyecandy.getScriptEntryId(block.getModelId());
-        State state=STATES.get(key("eyecandy",script,block.getPos2()));
+        State state=STATES.get(key("eyecandy",script,block.getBlockPos()));
         if(state==null) return null;
         VoxelShape shape=null;
         for(AbstractScriptContext context:state.contexts.values()) {
@@ -230,10 +236,10 @@ public final class NativeContentDriver {
         }
         return shape;
     }
-    public static boolean blockUse(BlockEyeCandy.BlockEntity block,BlockUseEvent event) {
+    public static boolean blockUse(BlockEyeCandy.EyeCandyBlockEntity block,BlockUseEvent event) {
         String script=com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager.eyecandy.getScriptEntryId(block.getModelId());
         if(!NativeScriptManager.isLoaded(script)) return false;
-        State state=STATES.get(key("eyecandy",script,block.getPos2()));
+        State state=STATES.get(key("eyecandy",script,block.getBlockPos()));
         if(state!=null) for(AbstractScriptContext context:state.contexts.values()) ((EyeCandyScriptContext)context).events().onBlockUse.trigger(event);
         return true;
     }
@@ -264,7 +270,7 @@ public final class NativeContentDriver {
            nothing. */
         return NativeStringCache.string(arena,offset,length);
     }
-    private static org.mtr.mapping.holder.Identifier identifier(ByteBuffer arena,int offset,int length) {
+    private static net.minecraft.resources.ResourceLocation identifier(ByteBuffer arena,int offset,int length) {
         return NativeStringCache.identifier(arena,offset,length);
     }
 
@@ -294,7 +300,7 @@ public final class NativeContentDriver {
                 call.pose(frame.matrixArena,records.getInt(pos+16),records.getInt(pos+20));
                 renderManager(context).draw(call);
             } else if(kind==4||kind==5) {
-                org.mtr.mapping.holder.Identifier id=identifier(frame.stringArena,records.getInt(pos+32),records.getInt(pos+36));
+                net.minecraft.resources.ResourceLocation id=identifier(frame.stringArena,records.getInt(pos+32),records.getInt(pos+36));
                 if(kind==5) soundManager(context).playLocalSound(id,records.getFloat(pos+24),records.getFloat(pos+28));
                 else soundManager(context).playSound(id,new ScriptVector3f(records.getFloat(pos+12),records.getFloat(pos+16),records.getFloat(pos+20)),records.getFloat(pos+24),records.getFloat(pos+28));
             } else if(kind==6) {

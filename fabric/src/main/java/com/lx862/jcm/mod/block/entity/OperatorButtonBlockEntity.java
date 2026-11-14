@@ -3,9 +3,11 @@ package com.lx862.jcm.mod.block.entity;
 import com.lx862.jcm.mod.block.OperatorButtonBlock;
 import com.lx862.jcm.mod.registry.BlockEntities;
 import com.lx862.jcm.mod.util.JCMUtil;
-import org.mtr.mapping.holder.*;
-
 import java.util.Objects;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class OperatorButtonBlockEntity extends JCMBlockEntityBase {
     private boolean[] keyRequirements = new boolean[OperatorButtonBlock.ACCEPTED_KEYS.length];
@@ -18,8 +20,8 @@ public class OperatorButtonBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void readCompoundTag(CompoundTag compoundTag) {
-        super.readCompoundTag(compoundTag);
+    public void readNbt(CompoundTag compoundTag) {
+        super.readNbt(compoundTag);
         for(int i = 0; i < OperatorButtonBlock.ACCEPTED_KEYS.length; i++) {
             boolean isEnabled = !compoundTag.contains("required_key" + i) || compoundTag.getBoolean("required_key" + i);
             this.keyRequirements[i] = isEnabled;
@@ -27,8 +29,8 @@ public class OperatorButtonBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void writeCompoundTag(CompoundTag compoundTag) {
-        super.writeCompoundTag(compoundTag);
+    public void writeNbt(CompoundTag compoundTag) {
+        super.writeNbt(compoundTag);
         for(int i = 0; i < OperatorButtonBlock.ACCEPTED_KEYS.length; i++) {
             compoundTag.putBoolean("required_key" + i, keyRequirements[i]);
         }
@@ -36,7 +38,7 @@ public class OperatorButtonBlockEntity extends JCMBlockEntityBase {
 
     public void setData(boolean[] keyRequirements) {
         this.keyRequirements = keyRequirements;
-        this.markDirty2();
+        this.setChanged();
     }
 
     public boolean[] getKeyRequirements() {
@@ -45,7 +47,7 @@ public class OperatorButtonBlockEntity extends JCMBlockEntityBase {
 
     public boolean canOpen(ItemStack itemStack) {
         for(int i = 0; i < OperatorButtonBlock.ACCEPTED_KEYS.length; i++) {
-            if(Objects.equals(OperatorButtonBlock.ACCEPTED_KEYS[i].get().data, itemStack.getItem().data)) {
+            if(Objects.equals(OperatorButtonBlock.ACCEPTED_KEYS[i].get(), itemStack.getItem())) {
                 return keyRequirements[i];
             }
         }

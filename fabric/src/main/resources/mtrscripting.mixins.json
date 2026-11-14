@@ -6,33 +6,27 @@
     "mtrscripting.BlockEntityEyecandyMixin",
     "mtrscripting.InitAccessorMixin",
     "mtrscripting.MainAccessorMixin",
-    "mtrscripting.SidingAccessorMixin"
+    "mtrscripting.BuiltVehicleModelHolderMixin"
   ],
   "client": [
     "mtrscripting.BlockEyecandyMixin",
-    "mtrscripting.EyecandyScreenMixin",
     "mtrscripting.LegacyVehicleResourceSchemaMixin",
     "mtrscripting.MainRendererMixin",
     "mtrscripting.MainRendererPSDMixin",
     "mtrscripting.RenderRouteBaseMixin",
     "mtrscripting.ModelPropertiesPartMixin",
     "mtrscripting.NativeImageAccessor",
-    "mtrscripting.ObjModelAccessor",
-    "mtrscripting.OptimizedModelAccessor",
-    "mtrscripting.GlStateTrackerAccessor",
-    "mtrscripting.OptimizedModelWrapperAccessor",
     "mtrscripting.RawMeshAccessor",
     "mtrscripting.RenderEyeCandyMixin",
     "mtrscripting.RenderLiftsMixin",
     "mtrscripting.RenderVehiclesMixin",
     "mtrscripting.VehicleAccessorMixin",
     "mtrscripting.VehicleExtensionMixin",
-    "mtrscripting.VehicleResourceMixin",
     "mtrscripting.VehicleSchemaMixin",
-    "mtrscripting.VertexAttributeStateAccessor",
     "mtrscripting.GraphicsHolderMatrixMixin",
     "mtrscripting.StoredMatrixTransformationsMixin",
-    "mtrscripting.SpriteContentsAccessor"
+    "mtrscripting.SpriteContentsAccessor",
+    "mtrscripting.BuiltVehicleModelHolderMixin"
   ],
   "injectors": {
     "defaultRequire": 1

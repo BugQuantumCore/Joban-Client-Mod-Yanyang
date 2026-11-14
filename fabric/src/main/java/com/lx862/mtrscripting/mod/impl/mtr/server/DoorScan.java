@@ -4,12 +4,13 @@ import org.mtr.core.data.Rail;
 import org.mtr.core.data.RailMath;
 import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Vector;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Box;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.Init;
-import org.mtr.mod.block.PlatformHelper;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.level.Level;
+import org.mtr.MTR;
+import org.mtr.block.PlatformHelper;
+import net.minecraft.client.Minecraft;
 
 /**
  * Server-side geometry for the door-opening-direction feature: walks a
@@ -138,7 +139,7 @@ final class DoorScan {
      *         head-forward, non-reversed train travelling along the
      *         canonical forward direction
      */
-    static boolean[] scanRailSides(World world, Rail rail) {
+    static boolean[] scanRailSides(Level world, Rail rail) {
         final boolean[] result = new boolean[]{false, false};
         final RailMath railMath = rail.railMath;
         final double length = railMath.getLength();
@@ -170,13 +171,13 @@ final class DoorScan {
             final Pose pose = new Pose(bogieFront, bogieRear, hasPitch);
 
             if(!left) {
-                left = canOpenDoors(world, pose, new Box(
+                left = canOpenDoors(world, pose, new AABB(
                         -HALF_WIDTH - 0.1, -1, -HALF_LENGTH,
                         -HALF_WIDTH, 1, HALF_LENGTH
                 ));
             }
             if(!right) {
-                right = canOpenDoors(world, pose, new Box(
+                right = canOpenDoors(world, pose, new AABB(
                         HALF_WIDTH, -1, -HALF_LENGTH,
                         HALF_WIDTH + 0.1, 1, HALF_LENGTH
                 ));
@@ -188,17 +189,17 @@ final class DoorScan {
     }
 
     /**
-     * Server twin of {@code MTRUtil#canOpenDoors(Box, PositionAndRotation)}:
+     * Server twin of {@code MTRUtil#canOpenDoors(AABB, PositionAndRotation)}:
      * transforms the four doorway-box corners to world space, expands the
      * resulting bounds by the client's lattice radii and asks each block in
      * that lattice the same question the client asks while dwelling here.
      * The world is a parameter so this never touches {@code MinecraftClient}.
      */
-    private static boolean canOpenDoors(World world, Pose pose, Box doorway) {
-        final Vector position1 = pose.transform(doorway.getMinXMapped(), doorway.getMaxYMapped(), doorway.getMinZMapped());
-        final Vector position2 = pose.transform(doorway.getMaxXMapped(), doorway.getMaxYMapped(), doorway.getMinZMapped());
-        final Vector position3 = pose.transform(doorway.getMaxXMapped(), doorway.getMaxYMapped(), doorway.getMaxZMapped());
-        final Vector position4 = pose.transform(doorway.getMinXMapped(), doorway.getMaxYMapped(), doorway.getMaxZMapped());
+    private static boolean canOpenDoors(Level world, Pose pose, AABB doorway) {
+        final Vector position1 = pose.transform(doorway.minX, doorway.maxY, doorway.minZ);
+        final Vector position2 = pose.transform(doorway.maxX, doorway.maxY, doorway.minZ);
+        final Vector position3 = pose.transform(doorway.maxX, doorway.maxY, doorway.maxZ);
+        final Vector position4 = pose.transform(doorway.minX, doorway.maxY, doorway.maxZ);
         final double minX = Math.min(Math.min(position1.x(), position2.x()), Math.min(position3.x(), position4.x()));
         final double maxX = Math.max(Math.max(position1.x(), position2.x()), Math.max(position3.x(), position4.x()));
         final double minY = Math.min(Math.min(position1.y(), position2.y()), Math.min(position3.y(), position4.y()));
@@ -209,7 +210,7 @@ final class DoorScan {
         for(double checkX = minX - CHECK_DOOR_RADIUS_XZ; checkX <= maxX + CHECK_DOOR_RADIUS_XZ; checkX++) {
             for(double checkY = minY - CHECK_DOOR_RADIUS_Y; checkY <= maxY + CHECK_DOOR_RADIUS_Y; checkY++) {
                 for(double checkZ = minZ - CHECK_DOOR_RADIUS_XZ; checkZ <= maxZ + CHECK_DOOR_RADIUS_XZ; checkZ++) {
-                    if(isDoorOpenableBlock(world, Init.newBlockPos(checkX, checkY, checkZ))) {
+                    if(isDoorOpenableBlock(world, new BlockPos((int)checkX, (int)checkY, (int)checkZ))) {
                         return true;
                     }
                 }
@@ -225,7 +226,7 @@ final class DoorScan {
      * to that decision, and a scan with no train present could only ever
      * see doors locked anyway, so they are deliberately not consulted.
      */
-    private static boolean isDoorOpenableBlock(World world, BlockPos blockPos) {
-        return world.getBlockState(blockPos).getBlock().data instanceof PlatformHelper;
+    private static boolean isDoorOpenableBlock(Level world, BlockPos blockPos) {
+        return world.getBlockState(blockPos).getBlock() instanceof PlatformHelper;
     }
 }

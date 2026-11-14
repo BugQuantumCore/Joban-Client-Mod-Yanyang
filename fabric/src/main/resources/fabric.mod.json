@@ -3,7 +3,7 @@
 	"id": "jsblock",
 	"version": "${version}",
 	"name": "Joban Client Mod",
-	"description": "Railway facilities & technical addon for Minecraft Transit Railway 4.0.",
+	"description": "Railway facilities & technical addon for Minecraft Transit Railway 4.1.",
 	"authors": [
 		"AmberFrost"
 	],
@@ -42,7 +42,7 @@
 	"depends": {
 		"fabricloader": ">=0.16.0",
 		"minecraft": "~${minecraft_version}",
-		"mtr": ">=4.0.5 <4.1",
+		"mtr": ">=4.1 <4.2",
 		"fabric": "*"
 	},
 	"custom": {

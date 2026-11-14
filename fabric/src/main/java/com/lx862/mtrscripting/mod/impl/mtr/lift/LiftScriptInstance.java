@@ -6,8 +6,8 @@ import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
 import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
 import com.lx862.mtrscripting.mod.gui.hud.SortableScriptInstance;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mod.client.VehicleRidingMovement;
+import net.minecraft.client.Minecraft;
+import org.mtr.client.VehicleRidingMovement;
 
 public class LiftScriptInstance extends ScriptInstance<LiftWrapper> implements SortableScriptInstance {
     private ScriptRenderManager renderManager;
@@ -43,7 +43,7 @@ public class LiftScriptInstance extends ScriptInstance<LiftWrapper> implements S
     public boolean shouldInvalidate() {
         boolean beRemoved = getWrapperObject().removed();
         boolean modelChanged = getWrapperObject().styleChanged(getContextObject().getName());
-        boolean notInGame = MinecraftClient.getInstance().getWorldMapped() == null;
+        boolean notInGame = Minecraft.getInstance().level == null;
         return notInGame || beRemoved || modelChanged;
     }
 

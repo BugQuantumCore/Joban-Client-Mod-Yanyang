@@ -1,25 +1,25 @@
 package com.lx862.jcm.mod.block.base;
 
-import org.mtr.mapping.holder.Block;
-import org.mtr.mapping.holder.BlockSettings;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.ItemPlacementContext;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.context.BlockPlaceContext;
 
 public abstract class PoleBlock extends SlabExtendableBlock {
-    public PoleBlock(BlockSettings settings) {
+    public PoleBlock(BlockBehaviour.Properties settings) {
         super(settings);
     }
 
     public boolean canPlace(Block block) {
-        return (block.data instanceof PoleBlock) || blockIsAllowed(block);
+        return (block instanceof PoleBlock) || blockIsAllowed(block);
     }
 
     @Override
-    public BlockState getPlacementState2(ItemPlacementContext ctx) {
-        BlockState superState = super.getPlacementState2(ctx);
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        BlockState superState = super.getStateForPlacement(ctx);
         if(superState == null) return null;
 
-        BlockState blockBelow = ctx.getWorld().getBlockState(ctx.getBlockPos().down());
+        BlockState blockBelow = ctx.getLevel().getBlockState(ctx.getClickedPos().below());
         if (this.canPlace(blockBelow.getBlock()) && blockIsAllowed(blockBelow.getBlock())) {
             return superState;
         } else {

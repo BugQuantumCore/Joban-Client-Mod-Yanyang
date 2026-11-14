@@ -1,39 +1,23 @@
 package com.lx862.jcm.mixin.mtrscripting;
-
 import com.lx862.jcm.nativeapi.NativeMatrixApplier;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 import org.spongepowered.asm.mixin.*;
-import java.nio.FloatBuffer;
-
-#if LOADER == "fabric"
-import net.minecraft.client.util.math.MatrixStack;
-#else
 import com.mojang.blaze3d.vertex.PoseStack;
-#endif
 
 @Mixin(value=GraphicsHolder.class,remap=false)
 public abstract class GraphicsHolderMatrixMixin implements NativeMatrixApplier {
     @Shadow @Final
-#if LOADER == "fabric"
-    private MatrixStack matrixStack;
-#else
-    private PoseStack matrixStack;
-#endif
+    private PoseStack poseStack;
 
     /* 2.3.0-1.0.1: re-exposed (was yanyang.11-12) — the backing carrier
        borrows the holder's raw pose to rebuild a GraphicsHolder around a
        private immediate (the drawText discipline), keeping the flush-time
        camera matrices intact; see PSDScriptRenderer#drawBacking. */
     @Override
-#if LOADER == "fabric"
-    public MatrixStack jcm$getMatrixStack() {
-#else
     public PoseStack jcm$getMatrixStack() {
-#endif
-        return matrixStack;
+        return poseStack;
     }
 
-#if MC_VERSION >= "11903"
     /* Pooled JOML scratch (render thread): the old path allocated a fresh
        Matrix4f + Matrix3f per native pose application — per pose per car
        per frame. Both objects are fully overwritten by set() before every
@@ -42,7 +26,6 @@ public abstract class GraphicsHolderMatrixMixin implements NativeMatrixApplier {
             ThreadLocal.withInitial(org.joml.Matrix4f::new);
     private static final ThreadLocal<org.joml.Matrix3f> jcm$ScratchMatrix3f =
             ThreadLocal.withInitial(org.joml.Matrix3f::new);
-#endif
 
     /* Scratch for the offset pose variant: one small array per render
        thread, reused every call. */
@@ -55,7 +38,6 @@ public abstract class GraphicsHolderMatrixMixin implements NativeMatrixApplier {
         jcm$multiplyNativeMatrix(scratch);
     }
     @Override public void jcm$multiplyNativeMatrix(float[] values) {
-#if MC_VERSION >= "11903"
         org.joml.Matrix4f matrix=jcm$ScratchMatrix4f.get();
         matrix.set(values);
         org.joml.Matrix3f normal=jcm$ScratchMatrix3f.get();
@@ -63,37 +45,7 @@ public abstract class GraphicsHolderMatrixMixin implements NativeMatrixApplier {
                    matrix.m10(),matrix.m11(),matrix.m12(),
                    matrix.m20(),matrix.m21(),matrix.m22());
         normal.invert().transpose();
-#if LOADER == "fabric"
-        matrixStack.peek().getPositionMatrix().mul(matrix);
-        matrixStack.peek().getNormalMatrix().mul(normal);
-#else
-        matrixStack.last().pose().mul(matrix);
-        matrixStack.last().normal().mul(normal);
-#endif
-#else
-#if LOADER == "fabric"
-        net.minecraft.util.math.Matrix4f matrix=new net.minecraft.util.math.Matrix4f();
-        matrix.readColumnMajor(FloatBuffer.wrap(values));
-#if MC_VERSION <= "11701"
-        matrixStack.peek().getModel().multiply(matrix);
-#else
-        matrixStack.peek().getPositionMatrix().multiply(matrix);
-#endif
-        net.minecraft.util.math.Matrix3f normal = new net.minecraft.util.math.Matrix3f(matrix);
-        normal.invert(); normal.transpose();
-#if MC_VERSION <= "11701"
-        matrixStack.peek().getNormal().multiply(normal);
-#else
-        matrixStack.peek().getNormalMatrix().multiply(normal);
-#endif
-#else
-        com.mojang.math.Matrix4f matrix=new com.mojang.math.Matrix4f();
-        matrix.load(FloatBuffer.wrap(values));
-        matrixStack.last().pose().multiply(matrix);
-        com.mojang.math.Matrix3f normal = new com.mojang.math.Matrix3f(matrix);
-        normal.invert(); normal.transpose();
-        matrixStack.last().normal().mul(normal);
-#endif
-#endif
+        poseStack.last().pose().mul(matrix);
+        poseStack.last().normal().mul(normal);
     }
 }

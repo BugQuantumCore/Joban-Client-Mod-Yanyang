@@ -9,9 +9,9 @@ import com.lx862.jcm.mod.render.text.TextAlignment;
 import com.lx862.jcm.mod.data.pids.TextOverflowMode;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.core.tool.Utilities;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 public class PlatformComponent extends TextComponent {
     private final int arrivalIndex;

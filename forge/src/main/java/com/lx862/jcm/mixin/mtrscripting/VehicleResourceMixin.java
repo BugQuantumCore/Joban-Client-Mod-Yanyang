@@ -3,7 +3,7 @@ package com.lx862.jcm.mixin.mtrscripting;
 import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.jcm.nativeapi.NativeVehicleDriver;
 import com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager;
-import org.mtr.mod.client.VehicleRidingMovement;
+import org.mtr.client.VehicleRidingMovement;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
 import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
@@ -15,14 +15,16 @@ import org.mtr.core.data.VehicleCar;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.*;
-import org.mtr.mod.resource.VehicleResource;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.*;
+import org.mtr.resource.VehicleResource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
 
 @Mixin(value = VehicleResource.class, remap = false)
 public abstract class VehicleResourceMixin {
@@ -57,7 +59,7 @@ public abstract class VehicleResourceMixin {
         StoredMatrixTransformations newTransform = storedMatrixTransformations.copy();
         newTransform.add(gh -> gh.translate(0, -1, 0)); // Replicate behaviour from MTR 3. Not sure if we should do it here tho?
 
-        World world = World.cast(MinecraftClient.getInstance().getWorldMapped());
+        Level world = Level.cast(Minecraft.getInstance().level);
 
         /* Yanyang: per-car average bogie position, computed once per frame by
            RenderVehiclesMixin (shared with the native path). This used to

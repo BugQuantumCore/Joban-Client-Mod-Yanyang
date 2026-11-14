@@ -14,13 +14,18 @@ import com.lx862.mtrscripting.mod.gui.widget.ConfigTextField;
 import com.lx862.mtrscripting.mod.gui.widget.ValidatableWidget;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.EyecandyCustomConfig;
 import com.lx862.mtrscripting.mod.network.packet.EyecandyCustomConfigUpdateC2SPacket;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.CheckboxWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.TextFieldWidgetExtension;
-import org.mtr.mapping.tool.TextCase;
+import net.minecraft.client.gui.components.Checkbox;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.client.gui.components.EditBox;
+import com.lx862.jcm.mod.render.TextCase;
 
 import java.util.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.FormattedCharSequence;
+import com.lx862.jcm.mod.render.TextCase;
 
 public class EyecandyCustomConfigScreen extends SavableScreen implements RenderHelper, GuiHelper {
     private final ListViewWidget listViewWidget;
@@ -46,8 +51,8 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
         int contentWidth = (int)Math.min((width * 0.75), MAX_CONTENT_WIDTH);
         int listViewHeight = (int)((height - 60) * 0.76);
         int startX = (width - contentWidth) / 2;
@@ -58,41 +63,42 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
         addConfigEntries(this.listViewWidget);
 
         listViewWidget.setXYSize(startX, startY, contentWidth, listViewHeight);
-        addChild(new ClickableWidget(listViewWidget));
+        addRenderableWidget(listViewWidget);
 
-        addBottomRowEntry(startX, startY + listViewHeight + 6, contentWidth, getHeightMapped() - (startY + listViewHeight));
+        addBottomRowEntry(startX, startY + listViewHeight + 6, contentWidth, height - (startY + listViewHeight));
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return TextUtil.translatable(TextCategory.GUI, "eyecandy.custom_config.title");
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.translatable(eyecandyName);
     }
 
     /* Validate and enable/disable save button as necessary*/
     @Override
-    public void tick2() {
+    public void tick() {
         boolean allValidated = true;
         for(ValidatableWidget validatableWidget : validatableWidgets) {
             if(!validatableWidget.validated()) {
                 allValidated = false;
             }
         }
-        saveButton.setActiveMapped(allValidated);
+        saveButton.active = allValidated;
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+    public void render(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        super.render(guiGraphics, mouseX, mouseY, tickDelta);
 
         #if MC_VERSION >= "11903"
         if(saveButton.isHovered()) {
-            OrderedText orderedText = LoaderImplGUI.asOrderedText(TextUtil.translatable(TextCategory.GUI, "eyecandy.listview.widget.not_validated"));
-            LoaderImplGUI.setTooltip(MinecraftClient.getInstance().getCurrentScreenMapped(), orderedText);
+            FormattedCharSequence orderedText = LoaderImplGUI.asOrderedText(TextUtil.translatable(TextCategory.GUI, "eyecandy.listview.widget.not_validated"));
+            LoaderImplGUI.setTooltip(Minecraft.getInstance().screen, orderedText);
         }
         #endif
     }
@@ -128,9 +134,9 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
                 this.storedConfigEntriesPending.put(entry.id(), newStr);
             });
             textField.setOriginalValue(originalValue);
-            textField.setText2(currentValue);
+            textField.setValue(currentValue);
             widgetSet.addWidget(new MappedWidget(textField));
-            addChild(new ClickableWidget(textField));
+            addRenderableWidget(textField);
             validatableWidgets.add(textField);
         } else if(entry.type() == EyecandyCustomConfig.Entry.Type.INTEGER) {
             int parsedCurrentValue = parseInt(currentValue, 0);
@@ -143,7 +149,7 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
             textField.setOriginalValue(parsedOriginalValue);
             textField.setValue(parsedCurrentValue);
             widgetSet.addWidget(new MappedWidget(textField));
-            addChild(new ClickableWidget(textField));
+            addRenderableWidget(textField);
             validatableWidgets.add(textField);
         } else if(entry.type() == EyecandyCustomConfig.Entry.Type.BOOLEAN) {
             boolean parsedCurrentValue = Objects.equals(currentValue, "true");
@@ -154,12 +160,12 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
             checkbox.setOriginalValue(parsedOriginalValue);
             checkbox.setChecked(parsedCurrentValue);
             widgetSet.addWidget(new MappedWidget(checkbox));
-            addChild(new ClickableWidget(checkbox));
+            addRenderableWidget(checkbox);
         }
 
         widgetSet.setXYSize(0, 0, 120, 20);
 
-        addChild(new ClickableWidget(widgetSet));
+        addRenderableWidget(widgetSet);
         ContentItem contentItem = new ContentItem(entry.name(), new MappedWidget(widgetSet), 26);
 
         listViewWidget.add(contentItem);
@@ -168,18 +174,18 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
     private void addUnknownEntry(String key) {
         HorizontalWidgetSet widgetSet = new HorizontalWidgetSet();
 
-        TextFieldWidgetExtension textFieldWidgetExtension = new TextFieldWidgetExtension(0, 0, 120, 20, 600, TextCase.DEFAULT, null, null);
-        textFieldWidgetExtension.setChangedListener2((newStr) -> {
+        AlwaysRenderedTextField textFieldWidgetExtension = new AlwaysRenderedTextField(0, 0, 120, 20, 600, TextCase.DEFAULT, null, null);
+        textFieldWidgetExtension.setResponder((newStr) -> {
             this.storedConfigEntriesPending.put(key, newStr);
         });
-        textFieldWidgetExtension.setText2(this.storedConfigEntriesPending.get(key));
+        textFieldWidgetExtension.setValue(this.storedConfigEntriesPending.get(key));
 
         widgetSet.addWidget(new MappedWidget(textFieldWidgetExtension));
-        addChild(new ClickableWidget(textFieldWidgetExtension));
+        addRenderableWidget(textFieldWidgetExtension);
 
         widgetSet.setXYSize(0, 0, 120, 20);
 
-        addChild(new ClickableWidget(widgetSet));
+        addRenderableWidget(widgetSet);
         ContentItem contentItem = new ContentItem(TextUtil.literal(key), new MappedWidget(widgetSet), 26);
 
         listViewWidget.add(contentItem);

@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicLong;
+import net.minecraft.world.level.block.Blocks;
 
 /**
  * ShmPoller — the Java side of the JNI-free fallback invocation plane

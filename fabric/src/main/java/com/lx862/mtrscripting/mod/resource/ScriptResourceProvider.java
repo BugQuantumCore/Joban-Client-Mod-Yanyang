@@ -13,12 +13,16 @@ import com.lx862.mtrscripting.mod.MTRScriptingMod;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mapping.mapper.TextHelper;
+import org.mtr.resource.ResourceManagerHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
 
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
 
 public interface ScriptResourceProvider {
 
@@ -122,7 +126,7 @@ public interface ScriptResourceProvider {
                     continue;
                 }
 
-                Identifier scriptLocationSource = new Identifier(entryElement.getAsString());
+                ResourceLocation scriptLocationSource = ResourceLocation.parse(entryElement.getAsString());
                 String scriptText = ResourceManagerHelper.readResource(scriptLocationSource);
                 if(scriptText.isEmpty()) {
                     MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Script {}:{} is missing (or empty)!", scriptLocationSource.getNamespace(), scriptLocationSource.getPath());
@@ -144,14 +148,14 @@ public interface ScriptResourceProvider {
            an empty script, so a native-only entry stays native-only. */
         if(!jsFiles.isEmpty() || hasTexts) {
             if(inputElement != null) {
-                Identifier scriptLocationSource = MTRScriptingMod.id("internal/script_input/" + scriptType + "/" + id);
+                ResourceLocation scriptLocationSource = MTRScriptingMod.id("internal/script_input/" + scriptType + "/" + id);
                 scripts.add(new ScriptContent(scriptLocationSource, "const SCRIPT_INPUT = " + inputElement.toString() + ";"));
             }
 
             if(hasTexts) {
                 JsonArray scriptTextArray = jsonObject.get(scriptTextsKey).getAsJsonArray();
                 for(int i = 0; i < scriptTextArray.size(); i++) {
-                    Identifier scriptLocationSource = MTRScriptingMod.id("internal/script_texts/" + scriptType + "/" + id + "/line" + i);
+                    ResourceLocation scriptLocationSource = MTRScriptingMod.id("internal/script_texts/" + scriptType + "/" + id + "/line" + i);
                     scripts.add(new ScriptContent(scriptLocationSource, scriptTextArray.get(i).getAsString()));
                 }
             }
@@ -261,8 +265,8 @@ public interface ScriptResourceProvider {
         if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) {
             MTRScriptingModClient.LOGGER.error("[MTR Scripting] Error while {}!", action, e);
             MTRContentScripting.getScriptManager().scriptErrorNotifier.queue(() -> {
-                MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(VanillaTextWrapper.literal("[MTR] Error while " + action + "!").withColor("RED").withHoverText(VanillaTextWrapper.literal(e.getMessage()).withColor("RED")).impl()), false);
-                MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(TextHelper.setStyle(TextHelper.literal("See Console for details."), Style.getEmptyMapped().withColor(TextFormatting.RED))), false);
+                Minecraft.getInstance().player.displayClientMessage((VanillaTextWrapper.literal("[MTR] Error while " + action + "!").withColor("RED").withHoverText(VanillaTextWrapper.literal(e.getMessage()).withColor("RED")).impl()), false);
+                Minecraft.getInstance().player.displayClientMessage((TextHelper.setStyle(TextHelper.literal("See Console for details."), Style.EMPTY.withColor(ChatFormatting.RED))), false);
             });
         } else {
             MTRScriptingModClient.LOGGER.error("[MTR Scripting] Error while {}: {}", action, e.getMessage());

@@ -8,12 +8,12 @@ import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.core.util.render.ScriptRenderManager;
 import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
 import com.lx862.mtrscripting.mod.gui.hud.SortableScriptInstance;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.block.BlockPSDAPGGlassBase;
-import org.mtr.mod.block.BlockPSDTop;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
+import org.mtr.block.BlockPSDAPGGlassBase;
+import org.mtr.block.BlockPSDTop;
 
 /**
  * One running PSD script instance — one per bound block position, keyed by
@@ -35,8 +35,8 @@ public class PSDScriptInstance extends ScriptInstance<PSDWrapper> implements Sor
         super(new PSDScriptContext(binding.scriptId), script);
         this.blockPos = binding.pos;
         this.type = binding.type;
-        final org.mtr.mapping.holder.ClientWorld world = MinecraftClient.getInstance().getWorldMapped();
-        this.worldData = world == null ? null : world.data;
+        final net.minecraft.client.multiplayer.ClientLevel world = Minecraft.getInstance().level;
+        this.worldData = world == null ? null : world;
         this.soundManager = new ScriptSoundManager();
         this.renderManager = new ScriptRenderManager();
     }
@@ -60,11 +60,11 @@ public class PSDScriptInstance extends ScriptInstance<PSDWrapper> implements Sor
 
     @Override
     public boolean shouldInvalidate() {
-        final org.mtr.mapping.holder.ClientWorld clientWorld = MinecraftClient.getInstance().getWorldMapped();
-        if (clientWorld == null || clientWorld.data != worldData) return true;
-        final World world = World.cast(clientWorld);
+        final net.minecraft.client.multiplayer.ClientLevel clientWorld = Minecraft.getInstance().level;
+        if (clientWorld == null || clientWorld != worldData) return true;
+        final Level world = (Level)clientWorld;
         final BlockState state = world.getBlockState(blockPos);
-        final Object block = state.getBlock().data;
+        final Object block = state.getBlock();
         final boolean stillPsd = type == PSDWrapper.PSDType.TOP
                 ? block instanceof BlockPSDTop : block instanceof BlockPSDAPGGlassBase;
         return !stillPsd || !PSDClientBindings.isSameBinding(blockPos, getContextObject().getName(), false, type);

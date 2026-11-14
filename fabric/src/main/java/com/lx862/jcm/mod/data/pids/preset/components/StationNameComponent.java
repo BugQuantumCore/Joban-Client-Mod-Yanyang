@@ -6,11 +6,11 @@ import com.lx862.jcm.mod.data.pids.preset.PIDSContext;
 import com.lx862.jcm.mod.data.pids.preset.components.base.PIDSComponent;
 import com.lx862.jcm.mod.data.pids.preset.components.base.TextComponent;
 import org.mtr.core.data.Station;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.data.IGui;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.MTRClient;
+import org.mtr.data.IGui;
 
 public class StationNameComponent extends TextComponent {
     public StationNameComponent(double x, double y, double width, double height, KVPair additionalParam) {
@@ -22,7 +22,7 @@ public class StationNameComponent extends TextComponent {
         if(context.pos == null) {
             drawText(graphicsHolder, guiDrawing, facing, "車站|Station");
         } else {
-            final Station station = InitClient.findStation(context.pos);
+            final Station station = MTRClient.findStation(context.pos);
             if(station == null) {
                 drawText(graphicsHolder, guiDrawing, facing, IGui.textOrUntitled(""));
             } else {

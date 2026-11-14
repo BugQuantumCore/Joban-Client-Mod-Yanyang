@@ -10,15 +10,15 @@ import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.EyecandyBlockEntityWrapper;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.primitive.UniqueKey;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mod.block.BlockEyeCandy;
-import org.mtr.mod.block.IBlock;
-import org.mtr.mod.render.RenderEyeCandy;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.block.BlockEyeCandy;
+import org.mtr.block.IBlock;
+import org.mtr.render.RenderEyeCandy;
+import org.mtr.render.StoredMatrixTransformations;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,6 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 @Mixin(value = RenderEyeCandy.class, remap = false)
 public class RenderEyeCandyMixin {
@@ -57,7 +58,7 @@ public class RenderEyeCandyMixin {
         boolean initialized;
 
         boolean matches(BlockEyeCandy.BlockEntity be, Direction facing) {
-            BlockPos pos = be.getPos2();
+            BlockPos pos = be.getBlockPos();
             return this.initialized
                     && this.px == pos.getX() && this.py == pos.getY() && this.pz == pos.getZ()
                     && this.tx == be.getTranslateX() && this.ty == be.getTranslateY() && this.tz == be.getTranslateZ()
@@ -67,7 +68,7 @@ public class RenderEyeCandyMixin {
 
         void rebuild(BlockEyeCandy.BlockEntity be, Direction facing) {
             final StoredMatrixTransformations transform = this.transform;
-            final BlockPos pos = be.getPos2();
+            final BlockPos pos = be.getBlockPos();
             /* Primitives only — see the capture discipline note above. */
             final double bx = 0.5 + pos.getX(), by = pos.getY(), bz = 0.5 + pos.getZ();
             final float ltx = be.getTranslateX(), lty = be.getTranslateY(), ltz = be.getTranslateZ();
@@ -112,7 +113,7 @@ public class RenderEyeCandyMixin {
 
     @Inject(method = "render(Lorg/mtr/mod/block/BlockEyeCandy$BlockEntity;FLorg/mtr/mapping/mapper/GraphicsHolder;II)V", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/block/BlockEyeCandy$BlockEntity;getModelId()Ljava/lang/String;"), cancellable = true)
     public void jsblock$executeAndRenderScript(BlockEyeCandy.BlockEntity blockEntity, float tickDelta, GraphicsHolder graphicsHolder, int light, int overlay, CallbackInfo ci) {
-        World world = blockEntity.getWorld2();
+        Level world = blockEntity.getLevel();
         if(world == null) return;
 
         String eyecandyId = blockEntity.getModelId();
@@ -120,7 +121,7 @@ public class RenderEyeCandyMixin {
         if(eyecandyScriptEntry == null) return;
         String nativeId=MtrScriptingResourceManager.eyecandy.getScriptEntryId(eyecandyId);
         if(com.lx862.jcm.nativeapi.NativeScriptManager.isLoaded(nativeId)) {
-            Direction facing=IBlock.getStatePropertySafe(world,blockEntity.getPos2(),BlockEyeCandy.FACING);
+            Direction facing=IBlock.getStatePropertySafe(world,blockEntity.getBlockPos(),BlockEyeCandy.FACING);
             /* Cached base (rebuilt only on NBT change): invoke replays every
                draw call against pooled snapshots seeded from this base, so
                the cached instance serves directly as the replay root. */
@@ -141,7 +142,7 @@ public class RenderEyeCandyMixin {
         ParsedScript parsedScript = eyecandyScriptEntry.parsedScript();
         if(parsedScript == null) return; /* native-only entry: nothing left to drive */
 
-        ScriptInstance<EyecandyBlockEntityWrapper> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("eyecandy", eyecandyId, blockEntity.getPos2().getX(), blockEntity.getPos2().getY(), blockEntity.getPos2().getZ()), () -> new EyeCandyScriptInstance(blockEntity, new EyeCandyScriptContext(blockEntity), parsedScript));
+        ScriptInstance<EyecandyBlockEntityWrapper> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("eyecandy", eyecandyId, blockEntity.getBlockPos().getX(), blockEntity.getBlockPos().getY(), blockEntity.getBlockPos().getZ()), () -> new EyeCandyScriptInstance(blockEntity, new EyeCandyScriptContext(blockEntity), parsedScript));
         if(!(scriptInstance instanceof EyeCandyScriptInstance)) return;
 
         if(MtrScriptingResourceManager.eyecandy.isScriptControlledRendering(eyecandyId)) {
@@ -161,12 +162,12 @@ public class RenderEyeCandyMixin {
             });
         }
 
-        Direction facing = IBlock.getStatePropertySafe(blockEntity.getWorld2(), blockEntity.getPos2(), BlockEyeCandy.FACING);
+        Direction facing = IBlock.getStatePropertySafe(blockEntity.getLevel(), blockEntity.getBlockPos(), BlockEyeCandy.FACING);
 
         /* Same cached base as the native path (see above). */
         StoredMatrixTransformations storedMatrixTransformations = transformOf(blockEntity, facing);
 
         eyeCandyScriptInstance.getRenderManager().invoke(world, storedMatrixTransformations, facing, light);
-        eyeCandyScriptInstance.getSoundManager().invoke(world, new ScriptVector3f(blockEntity.getPos2()));
+        eyeCandyScriptInstance.getSoundManager().invoke(world, new ScriptVector3f(blockEntity.getBlockPos()));
     }
 }

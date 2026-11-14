@@ -3,12 +3,23 @@ package com.lx862.jcm.mod.block.entity;
 import com.lx862.jcm.mapping.LoaderImpl;
 import com.lx862.jcm.mod.data.JCMServerStats;
 import com.lx862.jcm.mod.registry.BlockEntities;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.MinecraftServerHelper;
-import org.mtr.mapping.mapper.SoundHelper;
+import com.lx862.jcm.mod.compat.MinecraftServerHelper;
+import com.lx862.jcm.mod.compat.SoundHelper;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Vec3i;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 
 public class SoundLooperBlockEntity extends JCMBlockEntityBase {
-    public static final SoundCategory[] SOURCE_LIST = {SoundCategory.MASTER, SoundCategory.MUSIC, SoundCategory.WEATHER, SoundCategory.AMBIENT, SoundCategory.PLAYERS, SoundCategory.BLOCKS, SoundCategory.VOICE};
+    public static final SoundSource[] SOURCE_LIST = {SoundSource.MASTER, SoundSource.MUSIC, SoundSource.WEATHER, SoundSource.AMBIENT, SoundSource.PLAYERS, SoundSource.BLOCKS, SoundSource.VOICE};
     public static final int MIN_SOUND_RANGE = 64;
     public static final int MAX_SOUND_RANGE = 2000; // 2km range, should be good enough for most of the things tbh.
     private String soundID = "";
@@ -24,21 +35,21 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void readCompoundTag(CompoundTag compoundTag) {
-        super.readCompoundTag(compoundTag);
+    public void readNbt(CompoundTag compoundTag) {
+        super.readNbt(compoundTag);
         this.repeatTick = compoundTag.getInt("repeat_tick");
         this.soundID = compoundTag.getString("sound_id");
         this.soundCategory = compoundTag.getInt("sound_category");
         this.volume = compoundTag.getFloat("volume");
         this.needRedstone = compoundTag.getBoolean("need_redstone");
         this.limitRange = compoundTag.getBoolean("limit_range");
-        this.corner1 = BlockPos.fromLong(compoundTag.getLong("pos_1"));
-        this.corner2 = BlockPos.fromLong(compoundTag.getLong("pos_2"));
+        this.corner1 = BlockPos.of(compoundTag.getLong("pos_1"));
+        this.corner2 = BlockPos.of(compoundTag.getLong("pos_2"));
     }
 
     @Override
-    public void writeCompoundTag(CompoundTag compoundTag) {
-        super.writeCompoundTag(compoundTag);
+    public void writeNbt(CompoundTag compoundTag) {
+        super.writeNbt(compoundTag);
         compoundTag.putInt("repeat_tick", repeatTick);
         compoundTag.putString("sound_id", soundID);
         compoundTag.putInt("sound_category", soundCategory);
@@ -49,24 +60,23 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
         compoundTag.putLong("pos_2", corner2.asLong());
     }
 
-    @Override
-    public void blockEntityTick() {
-        World world = getWorld2();
+    public void tick() {
+        Level world = getLevel();
 
-        if(repeatTick > 0 && !soundID.isEmpty() && world != null && !world.isClient() && JCMServerStats.getGameTick() % repeatTick == 0) {
-            boolean bl1 = world.isEmittingRedstonePower(getPos2(), Direction.NORTH);
-            boolean bl2 = world.isEmittingRedstonePower(getPos2(), Direction.EAST);
-            boolean bl3 = world.isEmittingRedstonePower(getPos2(), Direction.SOUTH);
-            boolean bl4 = world.isEmittingRedstonePower(getPos2(), Direction.WEST);
-            boolean bl5 = world.isEmittingRedstonePower(getPos2(), Direction.UP);
-            boolean bl6 = world.isEmittingRedstonePower(getPos2(), Direction.DOWN);
+        if(repeatTick > 0 && !soundID.isEmpty() && world != null && !world.isClientSide() && JCMServerStats.getGameTick() % repeatTick == 0) {
+            boolean bl1 = world.getDirectSignal(getBlockPos(), Direction.NORTH) > 0;
+            boolean bl2 = world.getDirectSignal(getBlockPos(), Direction.EAST) > 0;
+            boolean bl3 = world.getDirectSignal(getBlockPos(), Direction.SOUTH) > 0;
+            boolean bl4 = world.getDirectSignal(getBlockPos(), Direction.WEST) > 0;
+            boolean bl5 = world.getDirectSignal(getBlockPos(), Direction.UP) > 0;
+            boolean bl6 = world.getDirectSignal(getBlockPos(), Direction.DOWN) > 0;
             boolean emittingRedstonePower = bl1 || bl2 || bl3 || bl4 || bl5 || bl6;
             if(needRedstone && !emittingRedstonePower) return;
 
-            final SoundCategory category = SOURCE_LIST[soundCategory];
-            final Identifier identifier;
+            final SoundSource category = SOURCE_LIST[soundCategory];
+            final ResourceLocation identifier;
             try {
-                identifier = new Identifier(soundID);
+                identifier = ResourceLocation.parse(soundID);
             } catch (Exception ignored) {
                 return;
             }
@@ -75,25 +85,25 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
 
             if(!limitRange) {
                 int broadcastRange = Math.min(MAX_SOUND_RANGE, Math.max(MIN_SOUND_RANGE, getLoopInterval()));
-                Box limitedRange = new Box(getPos2().getX()-broadcastRange, getPos2().getY()-broadcastRange, getPos2().getZ()-broadcastRange, getPos2().getX()+broadcastRange, getPos2().getY()+broadcastRange, getPos2().getZ()+broadcastRange);
+                AABB limitedRange = new AABB(getBlockPos().getX()-broadcastRange, getBlockPos().getY()-broadcastRange, getBlockPos().getZ()-broadcastRange, getBlockPos().getX()+broadcastRange, getBlockPos().getY()+broadcastRange, getBlockPos().getZ()+broadcastRange);
 
-                MinecraftServerHelper.iteratePlayers(ServerWorld.cast(world), (player) -> {
-                    if(limitedRange.contains(player.getPos())) {
-                        LoaderImpl.playSound(world, player, identifier, category, getPos2(), volume, 1);
+                MinecraftServerHelper.iteratePlayers((ServerLevel)world, (player) -> {
+                    if(limitedRange.contains(player.position())) {
+                        LoaderImpl.playSound(world, player, identifier, category, getBlockPos(), volume, 1);
                     }
                 });
             } else {
                 BlockPos corner1 = getCorner1();
                 BlockPos corner2 = getCorner2();
-                Box limitedRange = new Box(corner1.getX(), corner1.getY(), corner1.getZ(), corner2.getX(), corner2.getY(), corner2.getZ());
+                AABB limitedRange = new AABB(corner1.getX(), corner1.getY(), corner1.getZ(), corner2.getX(), corner2.getY(), corner2.getZ());
 
-                MinecraftServerHelper.iteratePlayers(ServerWorld.cast(world), (player) -> {
-                    if(limitedRange.contains(player.getPos())) {
-                        float dist = getPos2().getManhattanDistance(new Vector3i((int)player.getPos().getXMapped(), (int)player.getPos().getYMapped(),(int)player.getPos().getZMapped()));
+                MinecraftServerHelper.iteratePlayers((ServerLevel)world, (player) -> {
+                    if(limitedRange.contains(player.position())) {
+                        float dist = getBlockPos().distManhattan(new Vec3i((int)player.position().x(), (int)player.position().y(),(int)player.position().z()));
                         float fadeToZeroDist = 16 * volume;
 
                         float calculatedVolume = (1 - (Math.max(0.001f, dist / fadeToZeroDist))) * volume;
-                        player.playSound(soundEvent, category, calculatedVolume, 1);
+                        player.playSound(soundEvent, calculatedVolume, 1);
                     }
                 });
             }
@@ -131,7 +141,7 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
         return corner1;
     }
 
-    public BlockPos getCorner2() { // This used to be called getPos2, which happens to override MC Mappings method, causing the world to be null. Ended up spending an hour debugging it, horrifying.
+    public BlockPos getCorner2() { // This used to be called getBlockPos, which happens to override MC Mappings method, causing the world to be null. Ended up spending an hour debugging it, horrifying.
         return corner2;
     }
 
@@ -144,6 +154,6 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
         this.corner1 = corner1;
         this.corner2 = corner2;
         this.limitRange = limitRange;
-        this.markDirty2();
+        this.setChanged();
     }
 }

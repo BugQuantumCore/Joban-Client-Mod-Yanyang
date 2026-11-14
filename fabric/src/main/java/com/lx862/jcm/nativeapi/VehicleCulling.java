@@ -5,11 +5,12 @@ import org.mtr.core.data.VehicleCar;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-import org.mtr.mapping.holder.Box;
-import org.mtr.mapping.holder.Frustum;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mod.data.VehicleExtension;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.phys.Vec3;
+import org.mtr.data.VehicleExtension;
+import net.minecraft.world.level.Level;
 
 /**
  * Frustum culling for native (C++) vehicle scripts.
@@ -25,9 +26,9 @@ import org.mtr.mod.data.VehicleExtension;
  * <h2>How the frustum is obtained</h2>
  * The frustum is captured from the same Fabric {@code WorldRenderEvents} hook
  * MTR itself caches its block-entity culling frustum from
- * ({@code org.mtr.mod.render.BlockEntityRenderCulling#init}) and published via
+ * ({@code org.mtr.render.BlockEntityRenderCulling#init}) and published via
  * {@link NativeCullFrustum}. It is tested through MTR's own {@link Frustum}
- * mapping wrapper ({@link Frustum#isVisible(Box)} → {@code class_4604.method_23093}),
+ * mapping wrapper ({@link Frustum#isVisible(AABB)} → {@code class_4604.method_23093}),
  * so a vehicle is culled exactly where MTR's frustum would reject a box of that
  * extent. MTR additionally occlusion-culls each car against the chunk it sits
  * in before queueing it for drawing, so a train hidden behind geometry is not
@@ -58,7 +59,7 @@ public final class VehicleCulling {
         final Frustum current = NativeCullFrustum.frustum();
         if (current == null || NativeCullFrustum.world() == null) return false;
         try {
-            return NativeCullFrustum.world() == MinecraftClient.getInstance().getWorldMapped().data;
+            return NativeCullFrustum.world() == Minecraft.getInstance().level;
         } catch (Throwable t) {
             return false;
         }
@@ -74,7 +75,7 @@ public final class VehicleCulling {
         try {
             if (vehicle == null) return false;
             if (!haveFrustum()) return true;
-            final Box box = vehicleBox(vehicle);
+            final AABB box = vehicleBox(vehicle);
             if (box == null) return true;
             return NativeCullFrustum.frustum().isVisible(box);
         } catch (Throwable t) {
@@ -86,8 +87,8 @@ public final class VehicleCulling {
      * World-space envelope around every car of {@code vehicle}, or {@code null}
      * when the position data is unavailable (which means "assume visible").
      */
-    private static Box vehicleBox(VehicleExtension vehicle) {
-        ObjectArrayList<ObjectObjectImmutablePair<VehicleCar, ObjectArrayList<ObjectObjectImmutablePair<Vector, Vector>>>> cars =
+    private static AABB vehicleBox(VehicleExtension vehicle) {
+        ObjectArrayList<ObjectObjectImmutablePair<VehicleCar, ObjectArrayList<org.mtr.core.data.Vehicle.BogiePosition>>> cars =
                 vehicle.getVehicleCarsAndPositions();
         if (cars == null || cars.isEmpty()) return null;
 
@@ -96,15 +97,15 @@ public final class VehicleCulling {
         boolean any = false;
 
         for (int i = 0; i < cars.size(); i++) {
-            final ObjectArrayList<ObjectObjectImmutablePair<Vector, Vector>> positions = cars.get(i).right();
+            final ObjectArrayList<org.mtr.core.data.Vehicle.BogiePosition> positions = cars.get(i).right();
             if (positions == null) continue;
             for (int p = 0; p < positions.size(); p++) {
-                final ObjectObjectImmutablePair<Vector, Vector> pair = positions.get(p);
+                final org.mtr.core.data.Vehicle.BogiePosition pair = positions.get(p);
                 if (pair == null) continue;
                 /* Unrolled: a two-element Vector[] was allocated per bogie pair
                  * per car per frame for every vehicle in the world. */
-                final Vector left = pair.left();
-                final Vector right = pair.right();
+                final Vector left = pair.positionAndTiltAngle1().position();
+                final Vector right = pair.positionAndTiltAngle2().position();
                 if (left != null) {
                     any = true;
                     if (left.x() < minX) minX = left.x();
@@ -127,8 +128,8 @@ public final class VehicleCulling {
         }
         if (!any) return null;
 
-        return new Box(new Vector3d(minX - PADDING, minY - PADDING, minZ - PADDING),
-                       new Vector3d(maxX + PADDING, maxY + PADDING, maxZ + PADDING));
+        return new AABB(new Vec3(minX - PADDING, minY - PADDING, minZ - PADDING),
+                       new Vec3(maxX + PADDING, maxY + PADDING, maxZ + PADDING));
     }
 
     /** Script ids of {@code vehicle} that resolve to a loaded native module. */

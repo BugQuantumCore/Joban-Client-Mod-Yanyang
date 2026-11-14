@@ -10,36 +10,27 @@
     "DoorWorldChunkAccessor",
     "SimpleDefaultedRegistryMixin",
     "TicketSystemMixin",
-    "mtrpatch.BlockExtensionMixin",
     "mtrpatch.BlockPoleCheckBaseMixin",
-    "mtrpatch.BlockRailwaySignPoleMixin"
+    "mtrpatch.BlockRailwaySignPoleMixin",
+    "mtrpatch.SignResourceMixin",
+    "mtrpatch.SignPoleNeighborUpdateMixin"
   ],
   "client": [
-    "mtrpatch.CachedResourceAccessorMixin",
-    "mtrpatch.CachedResourceMixin",
-    "mtrpatch.RenderLiftsMixin",
-    "mtrpatch.DashboardListSelectorScreenMixin",
     "mtrpatch.PlayerEntityMixin",
     "mtrpatch.WorldRendererAccessor",
     "mtrpatch.CustomResourceLoaderMixin",
     "mtrpatch.CustomResourceToolsMixin",
     "mtrpatch.LiftMixin",
-    "mtrpatch.LiftTrackFloorScreenMixin",
     "mtrpatch.MainRendererMixin",
     "mtrpatch.ObjectResourceSchemaMixin",
-    "mtrpatch.OptimizedRendererAccessorMixin",
-    "mtrpatch.OptimizedRendererMixin",
-    "mtrpatch.OptimizedRendererWrapperAccessorMixin",
     "mtrpatch.RailMathAccessor",
     "mtrpatch.RailMathMixin",
-    "mtrpatch.RawMeshMixin",
     "mtrpatch.RenderRailsMixin",
-    "mtrpatch.RenderRailwaySignMixin",
-    "mtrpatch.RenderVehiclesMixin",
     "mtrpatch.SignResourceSchemaMixin",
-    "mtrpatch.VehicleResourceMixin",
-    "mtrpatch.VehicleSelectorScreenMixin",
-    "mtrpatch.WidgetMapMixin"
+    "mtrpatch.SignResourceMixin",
+    "mtrpatch.SignPoleNeighborUpdateMixin",
+    "mtrpatch.HideRidingVehicleMixin",
+    "mtrpatch.HideRidingBogieMixin"
   ],
   "injectors": {
     "defaultRequire": 1

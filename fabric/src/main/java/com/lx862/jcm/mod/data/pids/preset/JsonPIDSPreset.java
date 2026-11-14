@@ -16,16 +16,20 @@ import com.lx862.jcm.mod.data.pids.TextTranslationMode;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.data.IGui;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.data.IGui;
+import org.mtr.render.MainRenderer;
+import net.minecraft.client.renderer.RenderType;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.StoredMatrixTransformations;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 public class JsonPIDSPreset extends PIDSPresetBase {
     private static final int PIDS_MARGIN = 7;
@@ -35,7 +39,7 @@ public class JsonPIDSPreset extends PIDSPresetBase {
     private static final String ICON_WEATHER_RAINY = Constants.MOD_ID + ":textures/block/pids/weather_rainy.png";
     private static final String ICON_WEATHER_THUNDER = Constants.MOD_ID + ":textures/block/pids/weather_thunder.png";
     private static final String TEXTURE_PLATFORM_CIRCLE = Constants.MOD_ID + ":textures/block/pids/plat_circle.png";
-    private final Identifier background;
+    private final ResourceLocation background;
     private final String fontId;
     private final TextOverflowMode textOverflowMode;
     private final boolean showClock;
@@ -45,7 +49,7 @@ public class JsonPIDSPreset extends PIDSPresetBase {
     private final int textColor;
     private final boolean[] rowHidden;
 
-    public JsonPIDSPreset(String id, @Nullable String name, Identifier thumbnail, List<String> blacklist, Identifier background, @Nullable String fontId, TextOverflowMode textOverflowMode, boolean[] rowHidden, boolean showClock, boolean showWeather, boolean topPadding, boolean builtin, boolean hidePlatform, int textColor) {
+    public JsonPIDSPreset(String id, @Nullable String name, ResourceLocation thumbnail, List<String> blacklist, ResourceLocation background, @Nullable String fontId, TextOverflowMode textOverflowMode, boolean[] rowHidden, boolean showClock, boolean showWeather, boolean topPadding, boolean builtin, boolean hidePlatform, int textColor) {
         super(id, name, thumbnail, blacklist, false, builtin);
         this.background = background;
         this.showClock = showClock;
@@ -61,8 +65,8 @@ public class JsonPIDSPreset extends PIDSPresetBase {
     public static JsonPIDSPreset parse(JsonObject rootJsonObject) {
         final String id = rootJsonObject.get("id").getAsString();
         final String name = rootJsonObject.has("name") ? rootJsonObject.get("name").getAsString() : id;
-        final Identifier background = rootJsonObject.has("background") ? new Identifier(rootJsonObject.get("background").getAsString()) : null;
-        final Identifier thumbnail = rootJsonObject.has("thumbnail") ? new Identifier(rootJsonObject.get("thumbnail").getAsString()) : background;
+        final ResourceLocation background = rootJsonObject.has("background") ? ResourceLocation.parse(rootJsonObject.get("background").getAsString()) : null;
+        final ResourceLocation thumbnail = rootJsonObject.has("thumbnail") ? ResourceLocation.parse(rootJsonObject.get("thumbnail").getAsString()) : background;
         final String font = rootJsonObject.has("fonts") ? rootJsonObject.get("fonts").getAsString() : null;
         final TextOverflowMode textOverflowMode = rootJsonObject.has("textOverflowMode") ? TextOverflowMode.valueOf(rootJsonObject.get("textOverflowMode").getAsString()) : TextOverflowMode.STRETCH;
         final boolean builtin = rootJsonObject.has("builtin") && rootJsonObject.get("builtin").getAsBoolean();
@@ -98,19 +102,26 @@ public class JsonPIDSPreset extends PIDSPresetBase {
         return new JsonPIDSPreset(id, name, thumbnail, blackList, background, font, textOverflowMode, rowHidden, showClock, showWeather, topPadding, builtin, hidePlatform, textColor);
     }
 
+    /** Render-thread scratch: reuses the immediate buffer across frames
+     * instead of allocating a fresh ByteBufferBuilder per PIDS per frame. */
+    private static final ThreadLocal<net.minecraft.client.renderer.MultiBufferSource.BufferSource> jcm$TEXT_IMMEDIATE =
+            ThreadLocal.withInitial(() -> net.minecraft.client.renderer.MultiBufferSource.immediate(new com.mojang.blaze3d.vertex.ByteBufferBuilder(256)));
+
     @Override
-    public void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, World world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light) {
-        MainRenderer.scheduleRender(QueuedRenderLayer.TEXT, (graphicsHolderNew, offset) -> {
-//            graphicsHolderNew.push(); // Applied with storedMatrixTransformations.transform
-            storedMatrixTransformations.transform(graphicsHolderNew, offset);
-            graphicsHolderNew.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
+    public void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, Level world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light) {
+        MainRenderer.scheduleTextRender((poseStack, offset) -> {
+            storedMatrixTransformations.transform(poseStack, offset);
+            final net.minecraft.client.renderer.MultiBufferSource.BufferSource immediate = jcm$TEXT_IMMEDIATE.get();
+            final GraphicsHolder graphicsHolderNew = new GraphicsHolder(poseStack, immediate);
+            try {
+                graphicsHolderNew.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
             int headerHeight = topPadding ? HEADER_HEIGHT : 0;
             int startX = PIDS_MARGIN;
             int contentWidth = width - (PIDS_MARGIN * 2);
             int contentHeight = height - headerHeight - 3;
 
             // Draw Background
-            graphicsHolderNew.createVertexConsumer(RenderLayer.getText(background));
+            graphicsHolderNew.createVertexConsumer(RenderType.text(background));
             RenderHelper.drawTexture(graphicsHolderNew, background, x, y, 0, width, height, facing, ARGB_WHITE, MAX_RENDER_LIGHT);
 
             graphicsHolderNew.translate(startX, 0, -0.05);
@@ -127,7 +138,10 @@ public class JsonPIDSPreset extends PIDSPresetBase {
                 graphicsHolderNew.pop();
             }
             graphicsHolderNew.pop();
-            graphicsHolderNew.pop();
+            } finally {
+                immediate.endBatch();
+                poseStack.popPose();
+            }
         });
     }
 

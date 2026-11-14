@@ -1,6 +1,6 @@
 package com.lx862.jcm.nativeapi;
 
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -30,7 +30,7 @@ final class NativeStringCache {
         int hash;
         byte[] bytes;
         String string;
-        Identifier identifier;
+        ResourceLocation identifier;
     }
 
     private static final int SET_COUNT = 16;
@@ -135,10 +135,10 @@ final class NativeStringCache {
 
     /** Parsed identifier for an arena range; parsed exactly once per
      *  distinct content. */
-    static Identifier identifier(ByteBuffer arena, int offset, int length) {
+    static ResourceLocation identifier(ByteBuffer arena, int offset, int length) {
         final Entry entry = find(arena, offset, length);
         if (entry.identifier == null) {
-            entry.identifier = new Identifier(entry.string);
+            entry.identifier = ResourceLocation.parse(entry.string);
         }
         return entry.identifier;
     }

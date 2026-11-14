@@ -2,7 +2,7 @@ package com.lx862.jcm.mod.data;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
 import java.awt.*;
@@ -86,7 +86,7 @@ public class KVPair {
      * @param str Key
      * @return The identifier, or null if the key does not exist
      */
-    public @Nullable Identifier getIdentifier(String str) {
-        return map.containsKey(str) ? new Identifier((String)map.get(str)) : null;
+    public @Nullable ResourceLocation getIdentifier(String str) {
+        return map.containsKey(str) ? ResourceLocation.parse((String)map.get(str)) : null;
     }
 }

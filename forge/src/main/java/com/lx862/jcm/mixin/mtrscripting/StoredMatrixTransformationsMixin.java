@@ -2,8 +2,8 @@ package com.lx862.jcm.mixin.mtrscripting;
 
 import com.lx862.jcm.nativeapi.NativeTransformScope;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.StoredMatrixTransformations;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

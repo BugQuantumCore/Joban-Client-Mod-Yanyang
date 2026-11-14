@@ -1,27 +1,24 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
 import com.lx862.jcm.mod.scripting.psd.PSDScriptRenderer;
-import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.MainRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.world.phys.Vec3;
+import org.mtr.render.MainRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Yanyang/PSD: drives the PSD script render pass at the head of MTR's frame
- * render — every draw (the pane backing included) is SCHEDULED onto MTR's
- * queued layers here and joins the queued-layer flush at the end of that
- * same render call, after the block-entity phase drew (and, for bound
- * tops, was cancelled by {@link RenderRouteBaseMixin}) and before
- * vehicles. Camera anchoring is supplied to each scheduled callback at
- * flush time (see {@code PSDScriptRenderer#drawBacking}).
+ * Drives PSD screen-door scripts once per frame from MTR 4.1's
+ * {@code MainRenderer.render(PoseStack, MultiBufferSource, Vec3)} (the
+ * GraphicsHolder-based signature is gone).
  */
 @Mixin(value = MainRenderer.class, remap = false)
 public class MainRendererPSDMixin {
-    @Inject(method = "render(Lorg/mtr/mapping/mapper/GraphicsHolder;Lorg/mtr/mapping/holder/Vector3d;)V", at = @At("HEAD"))
-    private static void jsblock$renderPsdScripts(GraphicsHolder graphicsHolder, Vector3d offset, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("HEAD"))
+    private static void jsblock$renderPsdScripts(PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, Vec3 cameraShakeOffset, CallbackInfo ci) {
         PSDScriptRenderer.renderAll();
     }
 }

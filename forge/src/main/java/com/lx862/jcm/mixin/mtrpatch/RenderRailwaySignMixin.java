@@ -2,12 +2,12 @@ package com.lx862.jcm.mixin.mtrpatch;
 
 import com.lx862.jcm.mod.extra.SignExtraAccessor;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.RenderRailwaySign;
-import org.mtr.mod.render.StoredMatrixTransformations;
-import org.mtr.mod.resource.SignResource;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.RenderRailwaySign;
+import org.mtr.render.StoredMatrixTransformations;
+import org.mtr.resource.SignResource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;

@@ -3,22 +3,21 @@ package com.lx862.jcm.mod.item;
 import com.lx862.jcm.mod.gui.screen.PSDScriptSelectionScreen;
 import com.lx862.jcm.mod.scripting.psd.PSDRuns;
 import com.lx862.jcm.mod.scripting.psd.PSDWrapper;
-import org.mtr.mapping.holder.ActionResult;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.ItemSettings;
-import org.mtr.mapping.holder.ItemUsageContext;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.ItemExtension;
-import org.mtr.mod.block.BlockPSDAPGBase;
-import org.mtr.mod.block.BlockPSDAPGGlassBase;
-import org.mtr.mod.block.BlockPSDTop;
-import org.mtr.mod.block.IBlock;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.Item.Properties;
+import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
+import org.mtr.block.BlockPSDAPGBase;
+import org.mtr.block.BlockPSDAPGGlassBase;
+import org.mtr.block.BlockPSDTop;
+import org.mtr.block.IBlock;
 
 import java.util.List;
+import net.minecraft.world.item.Item;
 
 /**
  * The "PSD Script Editor" (屏蔽门脚本编辑器) — right-click any platform screen
@@ -36,47 +35,47 @@ import java.util.List;
  * halves, and trying to unbind from any other block of the same glass left
  * the (visually merged) script running with no way to remove it.</p>
  */
-public class ItemPSDScriptEditor extends ItemExtension {
+public class ItemPSDScriptEditor extends Item {
 
-    public ItemPSDScriptEditor(ItemSettings itemSettings) {
-        super(itemSettings.maxCount(1));
+    public ItemPSDScriptEditor(Item.Properties itemSettings) {
+        super(itemSettings.stacksTo(1));
     }
 
     @Override
-    public ActionResult useOnBlock2(ItemUsageContext context) {
-        final World world = context.getWorld();
-        final BlockPos pos = context.getBlockPos();
+    public InteractionResult useOn(UseOnContext context) {
+        final Level world = context.getLevel();
+        final BlockPos pos = context.getClickedPos();
         final BlockState state = world.getBlockState(pos);
-        final Object block = state.getBlock().data;
+        final Object block = state.getBlock();
 
         if (block instanceof BlockPSDAPGGlassBase) {
-            if (world.isClient()) {
-                final Direction facing = IBlock.getStatePropertySafe(state, BlockPSDAPGBase.FACING);
+            if (world.isClientSide()) {
+                final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
                 /* The segment is identified by its LOWER row — clicking
                    either half of any column resolves to the same segment. */
                 BlockPos base = pos;
-                final BlockState lowerState = world.getBlockState(pos.down());
+                final BlockState lowerState = world.getBlockState(pos.below());
                 if (IBlock.getStatePropertySafe(state, IBlock.HALF) == IBlock.DoubleBlockHalf.UPPER
                         && PSDRuns.isGlass(lowerState)
                         && IBlock.getStatePropertySafe(lowerState, IBlock.HALF) == IBlock.DoubleBlockHalf.LOWER
-                        && IBlock.getStatePropertySafe(lowerState, BlockPSDAPGBase.FACING) == facing) {
-                    base = pos.down();
+                        && IBlock.getStatePropertySafe(lowerState, com.lx862.jcm.mod.data.BlockProperties.FACING) == facing) {
+                    base = pos.below();
                 }
                 final PSDRuns.Run run = PSDRuns.glassRun(world, base, facing);
                 final List<BlockPos> positions = PSDRuns.glassRunPositions(world, run, facing);
-                MinecraftClient.getInstance().openScreen(new Screen(new PSDScriptSelectionScreen(positions, PSDWrapper.PSDType.GLASS)));
+                Minecraft.getInstance().setScreen(new PSDScriptSelectionScreen(positions, PSDWrapper.PSDType.GLASS));
             }
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
         if (block instanceof BlockPSDTop) {
-            if (world.isClient()) {
-                final Direction facing = IBlock.getStatePropertySafe(state, BlockPSDTop.FACING);
+            if (world.isClientSide()) {
+                final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
                 final PSDRuns.Run run = PSDRuns.topRun(world, pos, facing);
                 final List<BlockPos> positions = PSDRuns.topRunPositions(run, facing);
-                MinecraftClient.getInstance().openScreen(new Screen(new PSDScriptSelectionScreen(positions, PSDWrapper.PSDType.TOP)));
+                Minecraft.getInstance().setScreen(new PSDScriptSelectionScreen(positions, PSDWrapper.PSDType.TOP));
             }
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
-        return super.useOnBlock2(context);
+        return super.useOn(context);
     }
 }

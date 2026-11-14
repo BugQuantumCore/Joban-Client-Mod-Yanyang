@@ -1,4 +1,6 @@
 package com.lx862.jcm.mod.util;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.Block;
 
 public enum TextCategory {
     /** Block name */

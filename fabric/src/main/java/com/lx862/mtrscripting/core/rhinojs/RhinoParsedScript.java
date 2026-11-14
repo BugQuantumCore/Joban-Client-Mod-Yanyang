@@ -9,7 +9,7 @@ import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
 import com.lx862.mtrscripting.core.util.TimingJS;
 import com.lx862.mtrscripting.lib.org.mozilla.javascript.*;
 import com.lx862.mtrscripting.mod.MTRScriptingMod;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -52,7 +52,7 @@ public class RhinoParsedScript extends ParsedScript {
             scriptManager.parseScriptEvent.invoke(e -> e.accept(contextName, this));
 
             for(ScriptContent scriptEntry : scriptContents) {
-                final Identifier scriptLocation = scriptEntry.location();
+                final ResourceLocation scriptLocation = scriptEntry.location();
                 final String scriptContent = scriptEntry.content();
 
                 ScriptResourceUtil.executeScript(this, scriptLocation, scriptContent);

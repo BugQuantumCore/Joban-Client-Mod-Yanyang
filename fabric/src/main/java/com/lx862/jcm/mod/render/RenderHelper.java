@@ -2,10 +2,10 @@ package com.lx862.jcm.mod.render;
 
 import com.lx862.jcm.mod.JCMClient;
 import com.lx862.jcm.mod.data.Pair;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
 public interface RenderHelper {
     int MAX_RENDER_LIGHT = 0xF000F0;
@@ -14,11 +14,11 @@ public interface RenderHelper {
     int ARGB_RED = 0xFF0000FF;
     int lineHeight = 9;
 
-    static void drawText(GraphicsHolder graphicsHolder, MutableText text, int x, int y, int textColor) {
+    static void drawText(GraphicsHolder graphicsHolder, MutableComponent text, int x, int y, int textColor) {
         graphicsHolder.drawText(text, x, y, textColor, false, MAX_RENDER_LIGHT);
     }
 
-    static void drawCenteredText(GraphicsHolder graphicsHolder, MutableText text, int x, int y, int textColor) {
+    static void drawCenteredText(GraphicsHolder graphicsHolder, MutableComponent text, int x, int y, int textColor) {
         int w = GraphicsHolder.getTextWidth(text);
         graphicsHolder.drawText(text, x - (w / 2), y, textColor, false, MAX_RENDER_LIGHT);
     }
@@ -45,7 +45,7 @@ public interface RenderHelper {
      * Draw a texture to the world, it will automatically look up for mcmeta data and set the appropriate UV.<br>
      * Use this method if you need support for drawing animated McMeta textures
      */
-    static void drawTexture(GraphicsHolder graphicsHolder, Identifier textureId, float x, float y, float z, float width, float height, Direction facing, int color, int light) {
+    static void drawTexture(GraphicsHolder graphicsHolder, ResourceLocation textureId, float x, float y, float z, float width, float height, Direction facing, int color, int light) {
         Pair<Float, Float> uv = JCMClient.getMcMetaManager().getUV(textureId);
         drawTextureRaw(graphicsHolder, x, y, z, x + width, y + height, z, 0, uv.getLeft(), 1, uv.getRight(), facing, color, light);
     }

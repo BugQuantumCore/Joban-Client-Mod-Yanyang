@@ -2,9 +2,9 @@ package com.lx862.jcm.mod.block.entity;
 
 import com.lx862.jcm.mod.registry.BlockEntities;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.CompoundTag;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.nbt.CompoundTag;
 
 public class PIDSProjectorBlockEntity extends PIDSBlockEntity {
     private double x;
@@ -27,8 +27,8 @@ public class PIDSProjectorBlockEntity extends PIDSBlockEntity {
     }
 
     @Override
-    public void readCompoundTag(CompoundTag compoundTag) {
-        super.readCompoundTag(compoundTag);
+    public void readNbt(CompoundTag compoundTag) {
+        super.readNbt(compoundTag);
         this.x = compoundTag.getDouble("x1");
         this.y = compoundTag.getDouble("y1");
         this.z = compoundTag.getDouble("z1");
@@ -39,8 +39,8 @@ public class PIDSProjectorBlockEntity extends PIDSBlockEntity {
     }
 
     @Override
-    public void writeCompoundTag(CompoundTag compoundTag) {
-        super.writeCompoundTag(compoundTag);
+    public void writeNbt(CompoundTag compoundTag) {
+        super.writeNbt(compoundTag);
         compoundTag.putDouble("x1", this.x);
         compoundTag.putDouble("y1", this.y);
         compoundTag.putDouble("z1", this.z);
@@ -79,7 +79,7 @@ public class PIDSProjectorBlockEntity extends PIDSBlockEntity {
         this.rotateX = rotateX;
         this.rotateY = rotateY;
         this.rotateZ = rotateZ;
-        this.markDirty2();
+        this.setChanged();
     }
 
     public double getOffsetX() { return x; }

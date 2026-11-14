@@ -2,7 +2,7 @@ package com.lx862.jcm.nativeapi;
 
 import com.google.gson.*;
 import com.lx862.mtrscripting.lib.org.mozilla.javascript.NativeObject;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.lang.reflect.*;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +10,15 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import com.lx862.jcm.mod.render.mesh.RawModel;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.TickableSoundInstance;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import org.joml.Vector3f;
 
 /** Direct access to the same Java objects used by JS, without evaluating scripts. */
 public final class NativeApiSession {
@@ -39,12 +48,12 @@ public final class NativeApiSession {
             register(name, "com.lx862.mtrscripting.core.integration." + name + "Wrapper");
         }
         for (String name : new String[]{"Text", "Texture", "Rectangle"}) register(name, "com.lx862.jcm.mod.scripting.pids." + name + "Wrapper");
-        register("MTRClientData", "org.mtr.mod.client.MinecraftClientData");
+        register("MTRClientData", "org.mtr.client.MinecraftClientData");
         register("MTR", "com.lx862.mtrscripting.mod.impl.mtr.util.MTRWrapperJS");
         register("TextUtil", "com.lx862.mtrscripting.mod.impl.mtr.util.TextUtilJS");
-        for (String name : new String[]{"TransportMode", "Route", "RouteType", "Station", "StationExit", "Siding", "Platform", "SimplifiedRoute", "SimplifiedRoutePlatform", "VehicleExtraData", "PathData", "Rail", "Position"}) register(name, "org.mtr.core.data." + name);
+        for (String name : new String[]{"TransportMode", "Route", "RouteType", "Station", "StationExit", "Siding", "Platform", "SimplifiedRoute", "SimplifiedRoutePlatform", "VehicleExtraData", "PathData", "Rail", "Position"}) register(name, "org.mtr.core." + name);
         register("Vector", "org.mtr.core.tool.Vector");
-        register("Direction", "org.mtr.mapping.holder.Direction");
+        register("Direction", "net.minecraft.core.Direction");
         register("DisplayHelper", "com.lx862.jcm.nativeapi.NativeDisplayHelper");
         register("RenderManager", util + "render.ScriptRenderManager");
         register("SoundManager", util + "sound.ScriptSoundManager");
@@ -207,9 +216,9 @@ public final class NativeApiSession {
         if (!op.equals("call")) throw new IllegalArgumentException("Unknown native API operation: " + op);
         // Native libraries have a declared resource base, unlike the JS parse stack.
         if (target instanceof Class<?> && ((Class<?>)target).getName().equals(TYPES.get("Resources")) && (member.equals("idr") || member.equals("idRelative"))) {
-            Identifier base = new Identifier(resourceBase);
+            ResourceLocation base = ResourceLocation.parse(resourceBase);
             String path = request.getAsJsonArray("args").get(0).getAsString();
-            return encode(new Identifier(base.getNamespace() + ":" + java.nio.file.Path.of(base.getPath()).resolveSibling(path).normalize().toString().replace('\\', '/')));
+            return encode(ResourceLocation.parse(base.getNamespace() + ":" + java.nio.file.Path.of(base.getPath()).resolveSibling(path).normalize().toString().replace('\\', '/')));
         }
         List<Method> methods = METHODS.get(type).getOrDefault(member, Collections.emptyList());
         JsonArray args = request.getAsJsonArray("args");

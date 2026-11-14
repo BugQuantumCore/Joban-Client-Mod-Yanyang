@@ -16,11 +16,10 @@ import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
 import folk.sisby.kaleido.lib.quiltconfig.api.values.TrackedValue;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.CheckboxWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import com.lx862.amberui.gui.widget.Button;
+import com.lx862.amberui.gui.widget.Checkbox;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -30,27 +29,34 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import net.minecraft.Util;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 
 public class ClientConfigScreen extends TitledScreen implements GuiHelper {
-    private static final Identifier TEXTURE_BACKGROUND = new Identifier("jsblock:textures/gui/config_screen/bg.png");
-    private static final Identifier TEXTURE_STAR = new Identifier("jsblock:textures/gui/config_screen/stars.png");
-    private static final Identifier TEXTURE_TERRAIN = new Identifier("jsblock:textures/gui/config_screen/terrain.png");
+    private static final ResourceLocation TEXTURE_BACKGROUND = ResourceLocation.parse("jsblock:textures/gui/config_screen/bg.png");
+    private static final ResourceLocation TEXTURE_STAR = ResourceLocation.parse("jsblock:textures/gui/config_screen/stars.png");
+    private static final ResourceLocation TEXTURE_TERRAIN = ResourceLocation.parse("jsblock:textures/gui/config_screen/terrain.png");
     private static final int STAR_ROTATION_LENGTH = 260 * 1000;
 
     private final WidgetSet bottomRowWidget;
-    private final CheckboxWidgetExtension disableRenderingButton;
-    private final CheckboxWidgetExtension disableRailRenderingButton;
-    private final CheckboxWidgetExtension hideRidingVehicleButton;
-    private final CheckboxWidgetExtension allowCameraLoweringButton;
-    private final CheckboxWidgetExtension debugModeButton;
-    private final CheckboxWidgetExtension disableScriptingButton;
-    private final CheckboxWidgetExtension disableScriptingClassRestrictionButton;
-    private final CheckboxWidgetExtension scriptDebugModeButton;
-    private final CheckboxWidgetExtension scriptShowLogSourceButton;
-    private final ButtonWidgetExtension javaCppCommunicationButton;
-    private MutableText javaCppCommunicationDescription;
+    private final Checkbox disableRenderingButton;
+    private final Checkbox disableRailRenderingButton;
+    private final Checkbox hideRidingVehicleButton;
+    private final Checkbox allowCameraLoweringButton;
+    private final Checkbox debugModeButton;
+    private final Checkbox disableScriptingButton;
+    private final Checkbox disableScriptingClassRestrictionButton;
+    private final Checkbox scriptDebugModeButton;
+    private final Checkbox scriptShowLogSourceButton;
+    private final Button javaCppCommunicationButton;
+    private MutableComponent javaCppCommunicationDescription;
     private JCMClientConfig.JavaCppCommunication javaCppCommunication;
-    private final Map<CheckboxWidgetExtension, TrackedValue<Boolean>> linkedConfig;
+    private final Map<Checkbox, TrackedValue<Boolean>> linkedConfig;
 
     private boolean discardConfig = false;
 
@@ -68,7 +74,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
         this.disableScriptingButton = checkboxForConfig(JCMClientConfig.INSTANCE.scripting.skipScriptParsing);
         this.disableScriptingClassRestrictionButton = checkboxForConfig(JCMClientConfig.INSTANCE.scripting.disableScriptRestrictions, (bool, trackedValue) -> {
             if(bool) {
-                MinecraftClient.getInstance().openScreen(new Screen(new ScriptRestrictionWarningScreen(() -> trackedValue.setOverride(true)).withPreviousScreen(new Screen(this))));
+                Minecraft.getInstance().setScreen(new ScriptRestrictionWarningScreen(() -> trackedValue.setOverride(true)).withPreviousScreen(this));
             } else {
                 JCMClientConfig.INSTANCE.scripting.disableScriptRestrictions.setOverride(false);
             }
@@ -79,9 +85,9 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
 
         this.javaCppCommunication = JCMClientConfig.INSTANCE.scripting.javaCppCommunication.value();
         /* Width MUST be non-zero: ListViewWidget anchors the widget at
-         * entryX - getWidth() and a zero-width button is both invisible and
+         * entryX - width and a zero-width button is both invisible and
          * unclickable — the row showed no value and could not be changed. */
-        this.javaCppCommunicationButton = new ButtonWidgetExtension(0, 0, 60, 20,
+        this.javaCppCommunicationButton = new Button(0, 0, 60, 20,
                 TextUtil.translatable(TextCategory.GUI, "config.java_cpp_communication.shared_memory"), (btn) -> cycleJavaCppCommunication());
         refreshJavaCppCommunication();
     }
@@ -98,20 +104,20 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
 
     private void refreshJavaCppCommunication() {
         final String key = "config.java_cpp_communication." + javaCppCommunication.name().toLowerCase(java.util.Locale.ROOT);
-        javaCppCommunicationButton.setMessage2(Text.cast(TextUtil.translatable(TextCategory.GUI, key)));
+        javaCppCommunicationButton.setMessage((TextUtil.translatable(TextCategory.GUI, key)));
         javaCppCommunicationDescription = TextUtil.translatable(TextCategory.GUI, key + ".desc");
     }
 
-    private CheckboxWidgetExtension checkboxForConfig(TrackedValue<Boolean> trackedValue) {
+    private Checkbox checkboxForConfig(TrackedValue<Boolean> trackedValue) {
         return checkboxForConfig(trackedValue, null);
     }
 
-    private CheckboxWidgetExtension checkboxForConfig(TrackedValue<Boolean> trackedValue, BiConsumer<Boolean, TrackedValue<Boolean>> customCallback) {
-        CheckboxWidgetExtension checkboxWidgetExtension = new CheckboxWidgetExtension(0, 0, 20, 20, false, (bl) -> {
+    private Checkbox checkboxForConfig(TrackedValue<Boolean> trackedValue, BiConsumer<Boolean, TrackedValue<Boolean>> customCallback) {
+        Checkbox checkboxWidgetExtension = new Checkbox(0, 0, 20, 20, false, (bl) -> {
             if(customCallback == null) {
-                trackedValue.setOverride(bl);
+                trackedValue.setOverride(bl.isChecked());
             } else {
-                customCallback.accept(bl, trackedValue);
+                customCallback.accept(bl.isChecked(), trackedValue);
             }
         });
         linkedConfig.put(checkboxWidgetExtension, trackedValue);
@@ -119,18 +125,18 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return TextUtil.translatable(TextCategory.GUI, "brand");
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.translatable(TextCategory.GUI, "config.version", JCM.buildMetadata.version);
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
         bottomRowWidget.reset();
 
         int contentWidth = (int)Math.min((width * 0.75), MAX_CONTENT_WIDTH);
@@ -143,8 +149,8 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
         ListViewWidget listViewWidget = new ListViewWidget();
         addConfigEntries(listViewWidget);
         addBottomButtons(this.bottomRowWidget);
-        addChild(new ClickableWidget(listViewWidget));
-        addChild(new ClickableWidget(this.bottomRowWidget));
+        addRenderableWidget(listViewWidget);
+        addRenderableWidget(this.bottomRowWidget);
         listViewWidget.setXYSize(startX, startY, contentWidth, listViewHeight);
         bottomRowWidget.setXYSize(startX, startY + listViewHeight + BOTTOM_ROW_MARGIN, contentWidth, bottomEntryHeight);
     }
@@ -158,7 +164,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
     private void addConfigEntries(ListViewWidget listViewWidget) {
         setEntryStateFromClientConfig();
 
-        linkedConfig.keySet().forEach(btn -> addChild(new ClickableWidget(btn)));
+        linkedConfig.keySet().forEach(btn -> addRenderableWidget(btn));
 
         // General
         listViewWidget.addCategory(TextUtil.translatable(TextCategory.GUI, "config.listview.category.general"));
@@ -183,7 +189,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
          * SoundLooperScreen etc.) is registered via addChild — the cycling
          * button used to be added to the list only, so it was drawn but
          * clicks never reached it and the value could not be changed. */
-        addChild(new ClickableWidget(javaCppCommunicationButton));
+        addRenderableWidget(javaCppCommunicationButton);
         listViewWidget.add(TextUtil.translatable(TextCategory.GUI, "config.listview.title.java_cpp_communication"), new MappedWidget(javaCppCommunicationButton));
         /* The per-option description line follows the current selection. */
         listViewWidget.add(new DynamicTextItem(() -> javaCppCommunicationDescription, 12));
@@ -191,24 +197,24 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
 
 
     private void addBottomButtons(WidgetSet bottomRowWidget) {
-        ButtonWidgetExtension latestLogButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.latest_log"), (btn) -> {
+        Button latestLogButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.latest_log"), (btn) -> {
             openLatestLog();
         });
 
-        ButtonWidgetExtension crashLogButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.crash_log"), (btn) -> {
+        Button crashLogButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.crash_log"), (btn) -> {
             openLatestCrashReport();
         });
 
-        ButtonWidgetExtension saveButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.save"), (btn) -> {
-            onClose2();
+        Button saveButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.save"), (btn) -> {
+            onClose();
         });
 
-        ButtonWidgetExtension discardButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.discard"), (btn) -> {
+        Button discardButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.discard"), (btn) -> {
             discardConfig = true;
-            onClose2();
+            onClose();
         });
 
-        ButtonWidgetExtension resetButton = new ButtonWidgetExtension(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.reset"), (btn) -> {
+        Button resetButton = new Button(0, 0, 0, 20, TextUtil.translatable(TextCategory.GUI, "config.reset"), (btn) -> {
             for(TrackedValue value : JCMClientConfig.INSTANCE.values()) {
                 value.setValue(value.getDefaultValue());
             }
@@ -217,12 +223,12 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
             refreshJavaCppCommunication();
         });
 
-        addChild(new ClickableWidget(latestLogButton));
-        addChild(new ClickableWidget(crashLogButton));
+        addRenderableWidget(latestLogButton);
+        addRenderableWidget(crashLogButton);
 
-        addChild(new ClickableWidget(saveButton));
-        addChild(new ClickableWidget(discardButton));
-        addChild(new ClickableWidget(resetButton));
+        addRenderableWidget(saveButton);
+        addRenderableWidget(discardButton);
+        addRenderableWidget(resetButton);
 
         bottomRowWidget.addWidget(latestLogButton);
         bottomRowWidget.addWidget(crashLogButton);
@@ -234,7 +240,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
 
     @Override
     public void drawBackground(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        double terrainHeight = (getWidthMapped() / 3.75);
+        double terrainHeight = (width / 3.75);
         double starSize = Math.max(width, height) * 4;
         float starUVSize = (float) (starSize / 384F);
         double translateY = height * (1 - animationProgress);
@@ -242,11 +248,11 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
         GuiHelper.drawTexture(guiDrawing, TEXTURE_BACKGROUND, 0, 0, width, height);
         graphicsHolder.push();
         graphicsHolder.translate(0, translateY * 0.2f, 0);
-        graphicsHolder.translate(getWidthMapped() / 2.0, getHeightMapped() / 2.0, 0);
+        graphicsHolder.translate(width / 2.0, height / 2.0, 0);
 
         float starRot = (System.currentTimeMillis() % STAR_ROTATION_LENGTH) / (float)STAR_ROTATION_LENGTH;
         graphicsHolder.rotateZDegrees(starRot * 360);
-        graphicsHolder.translate(-getWidthMapped() / 2.0, -getHeightMapped() / 2.0, 0);
+        graphicsHolder.translate(-width / 2.0, -height / 2.0, 0);
         GuiHelper.drawTexture(guiDrawing, TEXTURE_STAR, 0, 0, starSize, starSize, 0, 0, starUVSize, starUVSize);
         graphicsHolder.pop();
 
@@ -254,7 +260,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
     }
 
     @Override
-    public void onClose2() {
+    public void onClose() {
         if(!closing) {
             if (!discardConfig) {
                 // Apply and clear all overriden value (Pending changes)
@@ -287,18 +293,18 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
             }
         }
 
-        super.onClose2();
+        super.onClose();
     }
 
     public static void openLatestLog() {
-        File latestLog = Paths.get(MinecraftClient.getInstance().getRunDirectoryMapped().toString(), "logs", "latest.log").toFile();
+        File latestLog = Paths.get(Minecraft.getInstance().gameDirectory.toString(), "logs", "latest.log").toFile();
         if(latestLog.exists()) {
-            Util.getOperatingSystem().open(latestLog);
+            Util.getPlatform().openFile(latestLog);
         }
     }
 
     public static void openLatestCrashReport() {
-        File crashReportDir = Paths.get(MinecraftClient.getInstance().getRunDirectoryMapped().toString(), "crash-reports").toFile();
+        File crashReportDir = Paths.get(Minecraft.getInstance().gameDirectory.toString(), "crash-reports").toFile();
 
         if(crashReportDir.exists()) {
             File[] crashReports = crashReportDir.listFiles();
@@ -321,7 +327,7 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
                 });
 
                 JCMLogger.debug("Latest crash report is: " + crashReports[0].getName());
-                Util.getOperatingSystem().open(crashReports[0]);
+                Util.getPlatform().openFile(crashReports[0]);
             }
         }
     }

@@ -3,11 +3,23 @@ package com.lx862.jcm.mod.block.base;
 import com.lx862.jcm.mod.block.behavior.HorizontalDoubleBlockBehavior;
 import com.lx862.jcm.mod.block.behavior.VerticallyAttachedBlock;
 import com.lx862.jcm.mod.data.BlockProperties;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.tool.HolderBase;
-import org.mtr.mod.block.IBlock;
+import com.lx862.jcm.mod.render.HolderBase;
+import org.mtr.block.IBlock;
 
 import java.util.List;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.Property;
 
 public abstract class CeilingAttachedDirectional2Block extends CeilingAttachedDirectionalBlock implements HorizontalDoubleBlockBehavior {
     public static final int width = 2;
@@ -15,46 +27,46 @@ public abstract class CeilingAttachedDirectional2Block extends CeilingAttachedDi
     private final boolean canAttachTop;
     private final boolean canAttachBottom;
 
-    public CeilingAttachedDirectional2Block(BlockSettings settings, boolean canAttachTop, boolean canAttachBottom, boolean enforceLogicalPattern) {
+    public CeilingAttachedDirectional2Block(BlockBehaviour.Properties settings, boolean canAttachTop, boolean canAttachBottom, boolean enforceLogicalPattern) {
         super(settings, enforceLogicalPattern);
         this.canAttachTop = canAttachTop;
         this.canAttachBottom = canAttachBottom;
     }
 
-    public boolean canPlace(BlockState state, BlockPos pos, ItemPlacementContext ctx) {
+    public boolean canPlace(BlockState state, BlockPos pos, BlockPlaceContext ctx) {
         boolean canPlaceHorizontally = HorizontalDoubleBlockBehavior.canBePlaced(ctx);
-        boolean canPlaceVertically = VerticallyAttachedBlock.canPlace(canAttachTop, canAttachBottom, ctx) && VerticallyAttachedBlock.canPlace(canAttachTop, canAttachBottom, pos.offset(IBlock.getStatePropertySafe(state, FACING).rotateYClockwise()), ctx);
+        boolean canPlaceVertically = VerticallyAttachedBlock.canPlace(canAttachTop, canAttachBottom, ctx) && VerticallyAttachedBlock.canPlace(canAttachTop, canAttachBottom, pos.relative(IBlock.getStatePropertySafe(state, FACING).getClockWise()), ctx);
         return this.enforceLogicalPattern ? canPlaceHorizontally && canPlaceVertically : canPlaceHorizontally;
     }
 
     @Override
-    public BlockState getPlacementState2(ItemPlacementContext ctx) {
-        return canPlace(super.getPlacementState2(ctx), ctx.getBlockPos(), ctx) ? super.getPlacementState2(ctx) : null;
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        return canPlace(super.getStateForPlacement(ctx), ctx.getClickedPos(), ctx) ? super.getStateForPlacement(ctx) : null;
     }
 
-    public void onPlaced2(World world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack itemStack) {
-        HorizontalDoubleBlockBehavior.placeBlock(world, pos, state, IS_LEFT, Direction.convert(state.get(new Property<>(FACING.data))).rotateYClockwise(), width);
+    public void setPlacedBy(Level world, BlockPos pos, BlockState state, LivingEntity placer, ItemStack itemStack) {
+        HorizontalDoubleBlockBehavior.placeBlock(world, pos, state, IS_LEFT, (state.getValue(FACING)).getClockWise(), width);
     }
 
     @Override
-    public void onBreak2(World world, BlockPos breakPos, BlockState breakState, PlayerEntity player) {
+    public BlockState playerWillDestroy(Level world, BlockPos breakPos, BlockState breakState, Player player) {
         breakWithoutDropIfCreative(world, breakPos, breakState, player, this, HorizontalDoubleBlockBehavior::getLootDropPos);
-        super.onBreak2(world, breakPos, breakState, player);
+        return super.playerWillDestroy(world, breakPos, breakState, player);
     }
 
     @Override
-    public BlockState getStateForNeighborUpdate2(BlockState state, Direction direction, BlockState neighborState, WorldAccess world, BlockPos pos, BlockPos neighborPos) {
+    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
         boolean isLeft = IBlock.getStatePropertySafe(state, IS_LEFT);
 
         if(!HorizontalDoubleBlockBehavior.blockIsValid(pos, state, direction, world, isLeft)) {
-            return Blocks.getAirMapped().getDefaultState();
+            return Blocks.AIR.defaultBlockState();
         }
 
-        return super.getStateForNeighborUpdate2(state, direction, neighborState, world, pos, neighborPos);
+        return super.updateShape(state, direction, neighborState, world, pos, neighborPos);
     }
 
     @Override
-    public void addBlockProperties(List<HolderBase<?>> properties) {
+    public void addBlockProperties(List<Property<?>> properties) {
         super.addBlockProperties(properties);
         properties.add(IS_LEFT);
     }

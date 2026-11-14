@@ -23,29 +23,31 @@ import org.mtr.core.data.Platform;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Axis;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.ClientPlayerEntity;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.block.BlockPSDAPGBase;
-import org.mtr.mod.block.BlockPSDAPGGlassBase;
-import org.mtr.mod.block.BlockPSDTop;
-import org.mtr.mod.block.IBlock;
-import org.mtr.mod.data.ArrivalsCacheClient;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction.Axis;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.MTRClient;
+import org.mtr.block.BlockPSDAPGBase;
+import org.mtr.block.BlockPSDAPGGlassBase;
+import org.mtr.block.BlockPSDTop;
+import org.mtr.block.IBlock;
+import org.mtr.data.ArrivalsCacheClient;
+import org.mtr.render.MainRenderer;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.lx862.jcm.mod.render.RenderHelper.MAX_RENDER_LIGHT;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.nbt.CompoundTag;
 
 /**
  * One script canvas per bound glass segment or top-panel group.
@@ -76,8 +78,8 @@ public final class PSDScriptRenderer implements RenderHelper {
     private static final float GLASS_BACKING_OFFSET = 0.45F / 16;
     private static final float GLASS_SCRIPT_OFFSET = 0.25F / 16;
     private static final float MIN_WINDOW = 0.05F;
-    private static final org.mtr.mapping.holder.Identifier BACKING_TEXTURE =
-            new org.mtr.mapping.holder.Identifier("jsblock", "textures/block/white.png");
+    private static final net.minecraft.resources.ResourceLocation BACKING_TEXTURE =
+            net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("jsblock", "textures/block/white.png");
     private static final int BACKING_COLOR = 0xFF000000;
     private static final int SHADER_BACKING_COLOR = 0xFF0A0A0A;
     private static final int TRACK_SIDE_COLOR = 0xFFFFFFFF;
@@ -106,11 +108,11 @@ public final class PSDScriptRenderer implements RenderHelper {
 
     /** Schedule into MTR's queues before MainRenderer flushes them. */
     public static void renderAll() {
-        final MinecraftClient minecraftClient = MinecraftClient.getInstance();
+        final Minecraft minecraftClient = Minecraft.getInstance();
         /* MTR's mapping wrappers are unrelated types — ClientWorld reaches the
            World-typed helpers (native driver, InitClient) through World.cast. */
-        final World world = World.cast(minecraftClient.getWorldMapped());
-        final ClientPlayerEntity player = minecraftClient.getPlayerMapped();
+        final Level world = (Level)minecraftClient.level;
+        final LocalPlayer player = minecraftClient.player;
         if (world == null || player == null) return;
         if (PSDClientBindings.isEmpty()) return;
 
@@ -122,10 +124,10 @@ public final class PSDScriptRenderer implements RenderHelper {
         final boolean shaderPack = !shadowPass && ShaderDetector.isShaderPackInUse();
         // Use the rendered camera, not the player body: third-person and
         // detached cameras can be on the opposite side of the glass.
-        final org.mtr.mapping.holder.Vector3d camera = minecraftClient.getGameRendererMapped().getCamera().getPos();
-        final double cameraX = camera.getXMapped();
-        final double cameraY = camera.getYMapped();
-        final double cameraZ = camera.getZMapped();
+        final net.minecraft.world.phys.Vec3 camera = minecraftClient.gameRenderer.getMainCamera().getPosition();
+        final double cameraX = camera.x();
+        final double cameraY = camera.y();
+        final double cameraZ = camera.z();
 
         /* One canvas per wall section per pass (yanyang.6): the editor binds
            EVERY block of a glass segment / psd_top group, and legacy worlds
@@ -144,7 +146,7 @@ public final class PSDScriptRenderer implements RenderHelper {
             if (dx * dx + dy * dy + dz * dz > MAX_DISTANCE_SQ) return;
 
             final BlockState state = world.getBlockState(pos);
-            final Object block = state.getBlock().data;
+            final Object block = state.getBlock();
             if (binding.type == PSDWrapper.PSDType.TOP) {
                 if (block instanceof BlockPSDTop) {
                     renderTop(binding, pos, state, world, shadowPass, renderedSections);
@@ -161,8 +163,8 @@ public final class PSDScriptRenderer implements RenderHelper {
     /* Glass                                                                 */
     /* ==================================================================== */
 
-    private static void renderGlass(PSDBinding binding, BlockPos pos, BlockState state, World world, boolean shadowPass, boolean shaderPack, Set<BlockPos> renderedSections, double cameraX, double cameraZ) {
-        final Direction facing = IBlock.getStatePropertySafe(state, BlockPSDAPGBase.FACING);
+    private static void renderGlass(PSDBinding binding, BlockPos pos, BlockState state, Level world, boolean shadowPass, boolean shaderPack, Set<BlockPos> renderedSections, double cameraX, double cameraZ) {
+        final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
         final boolean upper = IBlock.getStatePropertySafe(state, IBlock.HALF) == IBlock.DoubleBlockHalf.UPPER;
 
         /* Yanyang.6: the segment is identified by its LOWER row — a binding
@@ -172,8 +174,8 @@ public final class PSDScriptRenderer implements RenderHelper {
            two-block glass displayed the script TWICE (once per half) —
            the two halves are ONE glass and now share one canvas. */
         BlockPos base = pos;
-        if (upper && isMatchingGlass(world.getBlockState(pos.down()), facing, IBlock.DoubleBlockHalf.LOWER)) {
-            base = pos.down();
+        if (upper && isMatchingGlass(world.getBlockState(pos.below()), facing, IBlock.DoubleBlockHalf.LOWER)) {
+            base = pos.below();
         }
         final PSDRuns.Run run = PSDRuns.glassRun(world, base, facing);
         if (!renderedSections.add(run.start)) {
@@ -214,7 +216,7 @@ public final class PSDScriptRenderer implements RenderHelper {
         float paneAlong = Float.NEGATIVE_INFINITY;
         boolean allUppers = true;
         for (int i = 0; i < width; i++) {
-            final BlockPos lowerPos = run.start.offset(facing.rotateYClockwise(), i);
+            final BlockPos lowerPos = run.start.relative(facing.getClockWise(), i);
             renderedSections.add(lowerPos);
             final PSDWindowBounds.Bounds lowerBounds = PSDWindowBounds.window(world.getBlockState(lowerPos), facing);
             lowerTop[i] = Math.min(lowerBounds.top, 1);
@@ -238,10 +240,10 @@ public final class PSDScriptRenderer implements RenderHelper {
                yanyang.4 user pack's full-height screen doors) flips this
                gate and the full column becomes one display. */
             boolean includable = false;
-            final BlockState upperState = world.getBlockState(lowerPos.up());
-            final Object upperBlock = upperState.getBlock().data;
+            final BlockState upperState = world.getBlockState(lowerPos.above());
+            final Object upperBlock = upperState.getBlock();
             if ((!upper || !base.equals(pos)) && isMatchingGlass(upperState, facing, IBlock.DoubleBlockHalf.UPPER)) {
-                renderedSections.add(lowerPos.up());
+                renderedSections.add(lowerPos.above());
                 final PSDWindowBounds.Bounds upperBounds = PSDWindowBounds.window(upperState, facing);
                 final boolean drlUpper = upperBlock instanceof APGGlassDRL || upperBlock instanceof APGGlassEndDRL;
                 includable = !drlUpper || upperBounds.visibleGeometry;
@@ -301,7 +303,7 @@ public final class PSDScriptRenderer implements RenderHelper {
            BLOCK-SPACE EDGES [left, right] along the pane's horizontal
            axis (block X when the wall faces Z, block Z when it faces X).
            This loop maps those edges into RUN coordinates: the canvas
-           frame's +X runs along facing.rotateYClockwise(), so when that
+           frame's +X runs along facing.getClockWise(), so when that
            walk OPPOSES the block's horizontal axis (SOUTH / WEST walls)
            the block-space window maps as [i+(1-right), i+(1-left)],
            otherwise as [i+left, i+right]. The canvas then maps onto the
@@ -324,8 +326,8 @@ public final class PSDScriptRenderer implements RenderHelper {
            position: the 2026-11-08 「位置完全跑偏，比例完全错误」
            report.) Falls back to the full run (the pre-scan behaviour)
            when no span of MIN_WINDOW survives. */
-        final Direction hWalk = facing.rotateYClockwise();
-        final boolean hMirror = (facing.getAxis() == Axis.Z ? hWalk.getOffsetX() : hWalk.getOffsetZ()) < 0;
+        final Direction hWalk = facing.getClockWise();
+        final boolean hMirror = (facing.getAxis() == Axis.Z ? hWalk.getStepX() : hWalk.getStepZ()) < 0;
         float segLeft = 0;
         float segRight = width;
         {
@@ -373,7 +375,7 @@ public final class PSDScriptRenderer implements RenderHelper {
 
         if (!Float.isFinite(paneAlong)) paneAlong = PSDWindowBounds.DEFAULT_PANE_ALONG;
         final float scriptZ = paneAlong + GLASS_SCRIPT_OFFSET;
-        final org.mtr.mapping.holder.Vector3i normal = facing.getVector();
+        final net.minecraft.core.Vec3i normal = facing.getNormal();
         final boolean trackSide = PSDBackingGeometry.isTrackSide(cameraX, cameraZ,
                 run.start.getX(), run.start.getZ(), normal.getX(), normal.getZ(), scriptZ);
 
@@ -393,8 +395,8 @@ public final class PSDScriptRenderer implements RenderHelper {
                 // scripts cannot delay a side change or lose the solid panel.
                 final StoredMatrixTransformations backingSide = glassTransform(run.start, facing, scriptZ, frameHeight);
                 if (trackSide) {
-                    backingSide.add(graphicsHolder -> graphicsHolder.translate(width, 0, TRACK_BACK_Z));
-                    backingSide.add(graphicsHolder -> graphicsHolder.rotateYDegrees(180));
+                    backingSide.add(poseStack -> poseStack.translate(width, 0, TRACK_BACK_Z));
+                    backingSide.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(180)));
                 }
                 backingCalls.invoke(world, backingSide, trackSide ? facing : facing.getOpposite(), MAX_RENDER_LIGHT);
                 logShaderBacking(trackSide);
@@ -422,7 +424,7 @@ public final class PSDScriptRenderer implements RenderHelper {
         // not an occlusion guarantee across different shader render layers.
         if (!shaderPack || !trackSide) {
             final StoredMatrixTransformations scriptSide = glassTransform(run.start, facing, scriptZ, frameHeight);
-            scriptSide.add(graphicsHolder -> graphicsHolder.translate(canvasLeft, canvasTop, 0));
+            scriptSide.add(poseStack -> poseStack.translate(canvasLeft, canvasTop, 0));
             replayScript(binding, pos, world, scriptSide, facing.getOpposite());
         }
         if (!shadowPass) {
@@ -432,7 +434,7 @@ public final class PSDScriptRenderer implements RenderHelper {
 
     private static boolean isMatchingGlass(BlockState state, Direction facing, IBlock.DoubleBlockHalf half) {
         return PSDRuns.isGlass(state)
-                && IBlock.getStatePropertySafe(state, BlockPSDAPGBase.FACING) == facing
+                && IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING) == facing
                 && IBlock.getStatePropertySafe(state, IBlock.HALF) == half;
     }
 
@@ -448,10 +450,10 @@ public final class PSDScriptRenderer implements RenderHelper {
      */
     private static StoredMatrixTransformations glassTransform(BlockPos pos, Direction facing, float z, float frameHeight) {
         final StoredMatrixTransformations transform = new StoredMatrixTransformations(0.5 + pos.getX(), pos.getY(), 0.5 + pos.getZ());
-        transform.add(graphicsHolder -> graphicsHolder.rotateYDegrees(-facing.asRotation()));
-        transform.add(graphicsHolder -> graphicsHolder.translate(0, frameHeight, 0));
-        transform.add(graphicsHolder -> graphicsHolder.rotateZDegrees(180));
-        transform.add(graphicsHolder -> graphicsHolder.translate(-0.5, 0, z));
+        transform.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-facing.toYRot())));
+        transform.add(poseStack -> poseStack.translate(0, frameHeight, 0));
+        transform.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180)));
+        transform.add(poseStack -> poseStack.translate(-0.5, 0, z));
         return transform;
     }
 
@@ -468,16 +470,16 @@ public final class PSDScriptRenderer implements RenderHelper {
         /* Carrier B — RenderRouteBase's exact recipe: the KEYED EXTERIOR
            queue pre-creates the cached entity-cutout consumer; the
            callback only transforms, draws and pops. */
-        MainRenderer.scheduleRender(BACKING_TEXTURE, false, QueuedRenderLayer.EXTERIOR, (graphicsHolderNew, offset) -> {
+        MainRenderer.scheduleRender(BACKING_TEXTURE, false, QueuedRenderLayer.EXTERIOR, (poseStack, vertexConsumer, offset) -> {
             try {
-                transform.transform(graphicsHolderNew, offset);
+                transform.transform(poseStack, offset);
                 try {
                     /* Platform-facing BLACK. */
-                    graphicsHolderNew.drawTextureInWorld(left, y + height, CARRIER_B_Z, right, y + height, CARRIER_B_Z, right, y, CARRIER_B_Z, left, y, CARRIER_B_Z, 0, 0, 1, 1, facing.getOpposite(), BACKING_COLOR, MAX_RENDER_LIGHT);
+                    org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer, left, y + height, CARRIER_B_Z, right, y + height, CARRIER_B_Z, right, y, CARRIER_B_Z, left, y, CARRIER_B_Z, 0, 0, 1, 1, facing.getOpposite(), BACKING_COLOR, MAX_RENDER_LIGHT);
                     /* Track-facing WHITE, a hair deeper. */
-                    graphicsHolderNew.drawTextureInWorld(left, y, TRACK_BACK_Z + CARRIER_B_Z, right, y, TRACK_BACK_Z + CARRIER_B_Z, right, y + height, TRACK_BACK_Z + CARRIER_B_Z, left, y + height, TRACK_BACK_Z + CARRIER_B_Z, 0, 0, 1, 1, facing, TRACK_SIDE_COLOR, MAX_RENDER_LIGHT);
+                    org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer, left, y, TRACK_BACK_Z + CARRIER_B_Z, right, y, TRACK_BACK_Z + CARRIER_B_Z, right, y + height, TRACK_BACK_Z + CARRIER_B_Z, left, y + height, TRACK_BACK_Z + CARRIER_B_Z, 0, 0, 1, 1, facing, TRACK_SIDE_COLOR, MAX_RENDER_LIGHT);
                 } finally {
-                    graphicsHolderNew.pop();
+                    poseStack.popPose();
                 }
                 if (!BACKING_B_OK) {
                     BACKING_B_OK = true;
@@ -521,8 +523,8 @@ public final class PSDScriptRenderer implements RenderHelper {
     /* Top panel                                                             */
     /* ==================================================================== */
 
-    private static void renderTop(PSDBinding binding, BlockPos pos, BlockState state, World world, boolean shadowPass, Set<BlockPos> renderedSections) {
-        final Direction facing = IBlock.getStatePropertySafe(state, BlockPSDTop.FACING);
+    private static void renderTop(PSDBinding binding, BlockPos pos, BlockState state, Level world, boolean shadowPass, Set<BlockPos> renderedSections) {
+        final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
         final boolean persistent = IBlock.getStatePropertySafe(state, BlockPSDTop.PERSISTENT) != BlockPSDTop.EnumPersistent.NONE;
         final float additionalOffset = persistent ? BlockPSDTop.PERSISTENT_OFFSET_SMALL : 0;
 
@@ -538,14 +540,14 @@ public final class PSDScriptRenderer implements RenderHelper {
             return; // another binding of this group already rendered it
         }
         for (int i = 0; i < run.width; i++) {
-            renderedSections.add(run.start.offset(facing.rotateYClockwise(), i));
+            renderedSections.add(run.start.relative(facing.getClockWise(), i));
         }
         final StoredMatrixTransformations transform = new StoredMatrixTransformations(0.5 + run.start.getX(), pos.getY(), 0.5 + run.start.getZ());
-        transform.add(graphicsHolder -> graphicsHolder.rotateYDegrees(-facing.asRotation()));
-        transform.add(graphicsHolder -> graphicsHolder.translate(0, 1, 0));
-        transform.add(graphicsHolder -> graphicsHolder.rotateZDegrees(180));
-        transform.add(graphicsHolder -> graphicsHolder.translate(-0.5, -additionalOffset, TOP_DISPLAY_Z - SMALL_OFFSET));
-        transform.add(graphicsHolder -> graphicsHolder.translate(TOP_SIDE_PADDING, TOP_TOP_PADDING, 0));
+        transform.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-facing.toYRot())));
+        transform.add(poseStack -> poseStack.translate(0, 1, 0));
+        transform.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(180)));
+        transform.add(poseStack -> poseStack.translate(-0.5, -additionalOffset, TOP_DISPLAY_Z - SMALL_OFFSET));
+        transform.add(poseStack -> poseStack.translate(TOP_SIDE_PADDING, TOP_TOP_PADDING, 0));
 
         final int canvasWidth = Math.round((run.width - TOP_SIDE_PADDING * 2) * 96);
         final int canvasHeight = Math.round((1 - TOP_TOP_PADDING - TOP_BOTTOM_PADDING) * 96);
@@ -563,7 +565,7 @@ public final class PSDScriptRenderer implements RenderHelper {
     /* Script driving (once per frame) and replay (once per face)            */
     /* ==================================================================== */
 
-    private static void driveScript(PSDBinding binding, BlockPos pos, World world, int canvasWidth, int canvasHeight) {
+    private static void driveScript(PSDBinding binding, BlockPos pos, Level world, int canvasWidth, int canvasHeight) {
         final boolean runNative = NativeScriptManager.isLoaded(binding.scriptId);
         if (binding.pidsPreset) {
             final PIDSPresetBase preset = PIDSManager.getPreset(binding.scriptId);
@@ -614,7 +616,7 @@ public final class PSDScriptRenderer implements RenderHelper {
         }
     }
 
-    private static void replayScript(PSDBinding binding, BlockPos pos, World world, StoredMatrixTransformations transform, Direction drawDirection) {
+    private static void replayScript(PSDBinding binding, BlockPos pos, Level world, StoredMatrixTransformations transform, Direction drawDirection) {
         if (binding.pidsPreset) {
             final PIDSPresetBase preset = PIDSManager.getPreset(binding.scriptId);
             if (!(preset instanceof ScriptPIDSPreset)) return;
@@ -650,7 +652,7 @@ public final class PSDScriptRenderer implements RenderHelper {
         }
     }
 
-    private static void replaySoundsOnce(PSDBinding binding, BlockPos pos, World world) {
+    private static void replaySoundsOnce(PSDBinding binding, BlockPos pos, Level world) {
         if (binding.pidsPreset) {
             if (NativeScriptManager.isLoaded(binding.scriptId)) {
                 NativeContentDriver.psdPidsReplaySounds(binding.scriptId, pos, world);
@@ -701,9 +703,9 @@ public final class PSDScriptRenderer implements RenderHelper {
         final AtomicReference<Platform> result = new AtomicReference<>();
         // psd_top blocks sit three above the platform; glass sits directly on it.
         final int primaryOffset = type == PSDWrapper.PSDType.TOP ? 3 : 1;
-        InitClient.findClosePlatform(pos.down(primaryOffset), 5, result::set);
+        MTRClient.findClosePlatform(pos.below(primaryOffset), 5, result::set);
         if (result.get() == null && primaryOffset != 1) {
-            InitClient.findClosePlatform(pos.down(1), 5, result::set);
+            MTRClient.findClosePlatform(pos.below(1), 5, result::set);
         }
         return result.get();
     }

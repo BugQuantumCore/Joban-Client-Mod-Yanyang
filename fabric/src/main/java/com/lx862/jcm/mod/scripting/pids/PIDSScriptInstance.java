@@ -10,7 +10,7 @@ import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.mod.gui.hud.SortableScriptInstance;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.util.Objects;
 
@@ -46,15 +46,15 @@ public class PIDSScriptInstance extends ScriptInstance<PIDSWrapper> implements S
     }
 
     public boolean shouldInvalidate() {
-        boolean beRemoved = blockEntity.getWorld2().getBlockEntity(blockEntity.getPos2()) == null;
+        boolean beRemoved = blockEntity.getLevel().getBlockEntity(blockEntity.getBlockPos()) == null;
         boolean presetChanged = !Objects.equals(blockEntity.getPresetId(), getContextObject().getName());
-        boolean notInGame = MinecraftClient.getInstance().getWorldMapped() == null;
+        boolean notInGame = Minecraft.getInstance().level == null;
         boolean shouldInvalidate = notInGame || beRemoved || presetChanged;
         return shouldInvalidate;
     }
 
     @Override
     public int getSortScore() {
-        return (int)(MinecraftClientWrapper.localPlayer().pos().distance(new ScriptVector3f(blockEntity.getPos2())) * 1000);
+        return (int)(MinecraftClientWrapper.localPlayer().pos().distance(new ScriptVector3f(blockEntity.getBlockPos())) * 1000);
     }
 }

@@ -1,16 +1,16 @@
 package com.lx862.amberui.gui.screen;
 
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mapping.mapper.ScreenExtension;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 /**
  * Generic GUI Screen, use {@link ScreenBase#withPreviousScreen} to reference the previously opened screen that would be opened again after closing.
  */
-public abstract class ScreenBase extends ScreenExtension {
+public abstract class ScreenBase extends Screen {
     private Screen previousScreen = null;
     public ScreenBase() {
-        super();
+        super(Component.empty());
     }
     public ScreenBase withPreviousScreen(Screen screen) {
         this.previousScreen = screen;
@@ -18,7 +18,7 @@ public abstract class ScreenBase extends ScreenExtension {
     }
 
     @Override
-    public void onClose2() {
-        MinecraftClient.getInstance().openScreen(previousScreen);
+    public void onClose() {
+        Minecraft.getInstance().setScreen(previousScreen);
     }
 }

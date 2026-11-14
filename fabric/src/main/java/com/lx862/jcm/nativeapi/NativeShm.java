@@ -18,6 +18,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import com.mojang.blaze3d.platform.Window;
 
 /**
  * NativeShm — the file-backed shared memory region behind the

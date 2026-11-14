@@ -8,11 +8,11 @@ import com.lx862.jcm.mod.data.pids.preset.components.base.TextComponent;
 import org.mtr.core.data.Route;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.generated.lang.TranslationProvider;
+import net.minecraft.core.Direction;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.MTRClient;
+import org.mtr.generated.lang.TranslationProvider;
 
 public class DestinationMessageComponent extends TextComponent {
     private final int arrivalIndex;
@@ -42,7 +42,7 @@ public class DestinationMessageComponent extends TextComponent {
 
     public PIDSDisplay getDisplayString(ArrivalResponse arrival) {
         String customMessage = customMessageOverride == null ? "" : customMessageOverride;
-        final int languageTicks = (int) Math.floor(InitClient.getGameTick()) / TextComponent.SWITCH_LANG_DURATION;
+        final int languageTicks = (int) Math.floor(MTRClient.getGameTick()) / TextComponent.SWITCH_LANG_DURATION;
         final String[] destinationSplit;
         final String[] customMessageSplit = customMessage.split("\\|", -1);
         final String[] tempDestinationSplit = arrival.getDestination().split("\\|", -1);

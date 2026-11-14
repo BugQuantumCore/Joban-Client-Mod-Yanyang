@@ -1,9 +1,9 @@
 package com.lx862.jcm.mod.block.entity;
 
 import com.lx862.jcm.mod.registry.BlockEntities;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.CompoundTag;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.nbt.CompoundTag;
 
 public class SubsidyMachineBlockEntity extends JCMBlockEntityBase {
     private int subsidyAmount = 10;
@@ -13,15 +13,15 @@ public class SubsidyMachineBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void readCompoundTag(CompoundTag compoundTag) {
-        super.readCompoundTag(compoundTag);
+    public void readNbt(CompoundTag compoundTag) {
+        super.readNbt(compoundTag);
         this.subsidyAmount = compoundTag.getInt("price_per_click");
         this.cooldown = compoundTag.getInt("timeout");
     }
 
     @Override
-    public void writeCompoundTag(CompoundTag compoundTag) {
-        super.writeCompoundTag(compoundTag);
+    public void writeNbt(CompoundTag compoundTag) {
+        super.writeNbt(compoundTag);
         compoundTag.putInt("price_per_click", subsidyAmount);
         compoundTag.putInt("timeout", cooldown);
     }
@@ -29,7 +29,7 @@ public class SubsidyMachineBlockEntity extends JCMBlockEntityBase {
     public void setData(int pricePerUse, int cooldown) {
         this.subsidyAmount = pricePerUse;
         this.cooldown = cooldown;
-        this.markDirty2();
+        this.setChanged();
     }
 
     public int getSubsidyAmount() {

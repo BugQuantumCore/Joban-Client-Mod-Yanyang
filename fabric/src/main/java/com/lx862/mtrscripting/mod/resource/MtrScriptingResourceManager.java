@@ -10,14 +10,19 @@ import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.ante.ConfigResponderS
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.core.util.ConsoleJS;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.Init;
-import org.mtr.mod.client.CustomResourceLoader;
+import org.mtr.resource.ResourceManagerHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.MTR;
+import org.mtr.client.CustomResourceLoader;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 
 public class MtrScriptingResourceManager {
     public static final VehicleResourceProvider vehicle = new VehicleResourceProvider();
@@ -36,11 +41,11 @@ public class MtrScriptingResourceManager {
         NativeScriptManager.setDebugNotifier(message -> {
             if (!JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) return;
             MTRContentScripting.getScriptManager().scriptErrorNotifier.queue(() -> {
-                final ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
+                final LocalPlayer player = Minecraft.getInstance().player;
                 if (player != null) {
-                    player.sendMessage(Text.cast(TextHelper.setStyle(
+                    player.displayClientMessage((TextHelper.setStyle(
                             TextHelper.literal("[C++] " + message),
-                            Style.getEmptyMapped().withColor(TextFormatting.YELLOW))), false);
+                            Style.EMPTY.withColor(ChatFormatting.YELLOW))), false);
                 }
             });
         });
@@ -58,7 +63,6 @@ public class MtrScriptingResourceManager {
         if(JCMClientConfig.INSTANCE.scripting.skipScriptParsing.value()) {
             MTRScriptingModClient.LOGGER.info("[MTR Scripting via JCM] Scripting has been disabled, not parsing any script.");
         } else {
-            CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.beginReload();
             ConsoleJS consoleJS = new ConsoleJS();
             if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) {
                 consoleJS.time("MTR Script Load Time");
@@ -71,13 +75,12 @@ public class MtrScriptingResourceManager {
             if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) {
                 consoleJS.timeEnd("MTR Script Load Time");
             }
-            CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.finishReload();
             /* Yanyang: one-line census of the C++ modules after discovery, so a
                "nothing renders" report can be triaged from the log. */
             com.lx862.jcm.nativeapi.NativeScriptManager.logCensus();
         }
 
-        if(MinecraftClient.getInstance().getPlayerMapped() != null) {
+        if(Minecraft.getInstance().player != null) {
             MTRContentScripting.getScriptManager().scriptErrorNotifier.flush();
         }
     }
@@ -85,7 +88,7 @@ public class MtrScriptingResourceManager {
     private static void parseCustomResources(boolean pendingMigration) {
         String fileName = pendingMigration ? CustomResourceLoader.CUSTOM_RESOURCES_PENDING_MIGRATION_ID + ".json" : CustomResourceLoader.CUSTOM_RESOURCES_ID + ".json";
 
-        ResourceManagerHelper.readAllResources(new Identifier(Init.MOD_ID, fileName), (inputStream) -> {
+        ResourceManagerHelper.readAllResources(ResourceLocation.fromNamespaceAndPath(MTR.MOD_ID, fileName), (inputStream) -> {
             try(InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                 final JsonObject rootObject = new JsonParser().parse(reader).getAsJsonObject();
                 final boolean isLegacyResource = rootObject.has("custom_trains") || rootObject.has("custom_signs");

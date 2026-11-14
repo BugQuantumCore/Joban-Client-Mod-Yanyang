@@ -1,7 +1,7 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
 import org.mtr.mapping.mapper.OptimizedModel;
-import org.mtr.mod.resource.OptimizedModelWrapper;
+import org.mtr.resource.OptimizedModelWrapper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;

@@ -24,14 +24,14 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.holder.WorldSavePath;
-import org.mtr.mapping.mapper.MinecraftServerHelper;
-import org.mtr.mod.Init;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
+import com.lx862.jcm.mod.compat.MinecraftServerHelper;
+import org.mtr.MTR;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -50,6 +50,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Stream;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.ChunkAccess;
 
 /**
  * The server half of the door-opening-direction feature — the "learn once,
@@ -124,7 +128,7 @@ import java.util.stream.Stream;
  *
  * <h2>Startup robustness</h2>
  * <b>Every early-out is visible.</b> This handler previously depended on
- * MTR's core ({@code org.mtr.mod.Init#main}) already existing when the
+ * MTR's core ({@code org.mtr.MTR#main}) already existing when the
  * server-started event fired, and silently did nothing otherwise — the
  * entire feature no-oped without a single log line, which is exactly what
  * field logs from the first test builds showed. Now:
@@ -258,14 +262,14 @@ public final class DoorDirectionManager {
      * (the core not existing yet when it fired) costs at most a few ticks
      * instead of disabling the feature for the whole session.
      */
-    public static void onWorldTick(ServerWorld serverWorld) {
+    public static void onWorldTick(ServerLevel serverWorld) {
         if(serverThread == null) serverThread = Thread.currentThread();
-        final WorldState state = WORLDS_BY_RAW.get(serverWorld.data);
+        final WorldState state = WORLDS_BY_RAW.get(serverWorld);
         if(state != null) {
             state.tick(state.world);
             return;
         }
-        if(WORLDS_WITHOUT_SIMULATOR.contains(serverWorld.data)) return;
+        if(WORLDS_WITHOUT_SIMULATOR.contains(serverWorld)) return;
         final MinecraftServer minecraftServer = server;
         if(minecraftServer == null) return;
         if(startedAtMillis == 0) {
@@ -278,7 +282,7 @@ public final class DoorDirectionManager {
             final long now = System.currentTimeMillis();
             if(now - lastCoreMissingWarnAt >= CORE_MISSING_WARN_MILLIS) {
                 lastCoreMissingWarnAt = now;
-                MTRScriptingMod.LOGGER.warn("[MTR Scripting via JCM] Door directions: MTR core still not available ({}); retrying on later world ticks", serverWorld.data.getClass().getName());
+                MTRScriptingMod.LOGGER.warn("[MTR Scripting via JCM] Door directions: MTR core still not available ({}); retrying on later world ticks", serverWorld.getClass().getName());
             }
             return;
         }
@@ -328,20 +332,20 @@ public final class DoorDirectionManager {
      * the marker state and the stored file count — so the boot log always
      * shows the feature's state for this dimension.
      */
-    private static WorldState initWorld(MinecraftServer minecraftServer, Object2ObjectOpenHashMap<String, Simulator> simulators, ServerWorld serverWorld, String context) {
-        final String dimension = Init.getWorldId(new World(serverWorld.data));
+    private static WorldState initWorld(MinecraftServer minecraftServer, Object2ObjectOpenHashMap<String, Simulator> simulators, ServerLevel serverWorld, String context) {
+        final String dimension = MTR.getWorldId(serverWorld);
         final Simulator simulator = simulators.get(dimension);
         if(simulator == null) {
-            WORLDS_WITHOUT_SIMULATOR.add(serverWorld.data);
+            WORLDS_WITHOUT_SIMULATOR.add(serverWorld);
             if(WARNED_NO_SIMULATOR.add(dimension)) {
                 MTRScriptingMod.LOGGER.warn("[MTR Scripting via JCM] Door directions: no MTR simulator for dimension \"{}\" ({}); known dimensions: {} — this world's door sides are not tracked", dimension, context, String.join(", ", simulators.keySet()));
             }
             return null;
         }
-        final Path mtrRoot = minecraftServer.getSavePath(WorldSavePath.getRootMapped()).resolve("mtr");
+        final Path mtrRoot = minecraftServer.getWorldPath(LevelResource.ROOT).resolve("mtr");
         final WorldState state = new WorldState(dimension, simulator, mtrRoot.resolve(dimension), serverWorld);
         WORLDS.put(dimension, state);
-        WORLDS_BY_RAW.put(serverWorld.data, state);
+        WORLDS_BY_RAW.put(serverWorld, state);
         state.loadFromDisk();
         if(state.scanned) {
             MTRScriptingMod.LOGGER.info("[MTR Scripting via JCM] Door directions: dimension {} online ({}): scan marker present, {} stored route file(s) loaded", dimension, context, state.routes.size());
@@ -391,12 +395,12 @@ public final class DoorDirectionManager {
      * scanned, otherwise an empty "incomplete" one while a one-route scan
      * is scheduled — a client retry a few seconds later finds the data.
      */
-    public static void handleQuery(MinecraftServer minecraftServer, ServerPlayerEntity player, long routeId) {
+    public static void handleQuery(MinecraftServer minecraftServer, ServerPlayer player, long routeId) {
         if(routeId == 0) {
             send(minecraftServer, player, DoorDirectionsS2CPacket.empty(routeId));
             return;
         }
-        final WorldState state = WORLDS.get(Init.getWorldId(player.getEntityWorld()));
+        final WorldState state = WORLDS.get(MTR.getWorldId(player.level()));
         if(state == null) {
             send(minecraftServer, player, DoorDirectionsS2CPacket.empty(routeId));
             return;
@@ -422,8 +426,8 @@ public final class DoorDirectionManager {
         }
     }
 
-    private static void send(MinecraftServer minecraftServer, ServerPlayerEntity player, DoorDirectionsS2CPacket packet) {
-        minecraftServer.submit(() -> com.lx862.jcm.mod.registry.Networking.sendPacketToClient(PlayerEntity.cast(player), packet));
+    private static void send(MinecraftServer minecraftServer, ServerPlayer player, DoorDirectionsS2CPacket packet) {
+        minecraftServer.submit(() -> com.lx862.jcm.mod.registry.Networking.sendPacketToClient((Player)player, packet));
     }
 
     /* ==================================================================== */
@@ -435,7 +439,7 @@ public final class DoorDirectionManager {
         final Simulator simulator;
         final Path root;
         /** Holder-wrapped world, cached once — it only wraps the raw instance. */
-        final World world;
+        final Level world;
 
         /** Route id → platform id → canonical sides {@code [left, right]}. */
         final Long2ObjectOpenHashMap<RouteData> routes = new Long2ObjectOpenHashMap<>();
@@ -476,11 +480,11 @@ public final class DoorDirectionManager {
         Long2ObjectOpenHashMap<PlatformSnapshot> platformById = new Long2ObjectOpenHashMap<>();
         Long2ObjectOpenHashMap<LongOpenHashSet> chunkToPlatforms = new Long2ObjectOpenHashMap<>();
 
-        WorldState(String dimension, Simulator simulator, Path dimensionRoot, ServerWorld serverWorld) {
+        WorldState(String dimension, Simulator simulator, Path dimensionRoot, ServerLevel serverWorld) {
             this.dimension = dimension;
             this.simulator = simulator;
             this.root = dimensionRoot.resolve(FOLDER_NAME);
-            this.world = new World(serverWorld.data);
+            this.world = serverWorld;
         }
 
         /* ---------------------------------------------------------------- */
@@ -547,7 +551,7 @@ public final class DoorDirectionManager {
         /* Tick                                                              */
         /* ---------------------------------------------------------------- */
 
-        void tick(World world) {
+        void tick(Level world) {
             ticksSinceIndex++;
             /* The full scan's universe must come from a snapshot taken at
                least FULL_SCAN_START_DELAY_MILLIS after server start, so it
@@ -800,7 +804,7 @@ public final class DoorDirectionManager {
         /* Scanning (server thread, world block reads may chunk-load)        */
         /* ---------------------------------------------------------------- */
 
-        private void processScanQueue(World world, long deadline) {
+        private void processScanQueue(Level world, long deadline) {
             int processed = 0;
             while(scanCursor < scanQueue.size() && processed < SCAN_ITEMS_PER_TICK && System.nanoTime() < deadline) {
                 final PlatformWork work = scanQueue.get(scanCursor);
@@ -849,7 +853,7 @@ public final class DoorDirectionManager {
         }
 
         /** Scans a platform's rails now, unions the sides, and stores them into every route serving the platform. */
-        private boolean[] applyPlatformSides(World world, PlatformSnapshot snapshot) {
+        private boolean[] applyPlatformSides(Level world, PlatformSnapshot snapshot) {
             boolean left = false;
             boolean right = false;
             for(final Rail rail : snapshot.rails) {
@@ -900,7 +904,7 @@ public final class DoorDirectionManager {
             }
         }
 
-        private void processPendingRescans(World world, long deadline) {
+        private void processPendingRescans(Level world, long deadline) {
             int processed = 0;
             final var iterator = pendingRescans.iterator();
             while(iterator.hasNext() && processed < RESCANS_PER_TICK && System.nanoTime() < deadline) {

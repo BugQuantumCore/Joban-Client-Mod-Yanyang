@@ -3,14 +3,19 @@ package com.lx862.jcm.mod.registry;
 import com.lx862.jcm.mod.network.block.*;
 import com.lx862.jcm.mod.network.gui.*;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.block.Block;
+import org.mtr.registry.RegistryClient;
+import org.mtr.registry.RegistryServer;
 
 public class Networking {
     private static final List<String> registeredPackets = new ArrayList<>();
@@ -55,14 +60,14 @@ public class Networking {
             JCMLogger.warn("Non-registered packets is sent: " + data.getClass().getName());
             JCMLogger.warn("Consider registering in method: mod/registry/Networking.register()");
         }
-        JCMRegistryClient.REGISTRY_CLIENT.sendPacketToServer(data);
+        RegistryClient.sendPacketToServer(data);
     }
 
-    public static <T extends PacketHandler> void sendPacketToClient(PlayerEntity player, T data) {
+    public static <T extends PacketHandler> void sendPacketToClient(Player player, T data) {
         if(!registeredPackets.contains(data.getClass().getName())) {
             JCMLogger.warn("Non-registered packets is sent: " + data.getClass().getName());
             JCMLogger.warn("Consider registering in method: mod/registry/Networking.register()");
         }
-        JCMRegistry.REGISTRY.sendPacketToClient(ServerPlayerEntity.cast(player), data);
+        RegistryServer.sendPacketToClient((ServerPlayer)player, data);
     }
 }

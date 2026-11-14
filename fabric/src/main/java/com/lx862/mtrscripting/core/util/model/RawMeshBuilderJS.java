@@ -1,16 +1,15 @@
 package com.lx862.mtrscripting.core.util.model;
 
-import com.lx862.jcm.mixin.mtrscripting.VertexAttributeStateAccessor;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.Vector3f;
-import org.mtr.mapping.render.batch.MaterialProperties;
-import org.mtr.mapping.render.model.Face;
-import org.mtr.mapping.render.model.RawMesh;
-import org.mtr.mapping.render.model.RawModel;
-import org.mtr.mapping.render.vertex.Vertex;
+import net.minecraft.resources.ResourceLocation;
+import org.joml.Vector3f;
+import com.lx862.jcm.mod.render.mesh.MaterialProperties;
+import com.lx862.jcm.mod.render.mesh.Face;
+import com.lx862.jcm.mod.render.mesh.RawMesh;
+import com.lx862.jcm.mod.render.mesh.RawModel;
+import com.lx862.jcm.mod.render.mesh.Vertex;
 
 import java.util.stream.IntStream;
 
@@ -25,9 +24,9 @@ public class RawMeshBuilderJS {
         this(faceSize, renderType, JSUtil.parseId(textureId));
     }
 
-    public RawMeshBuilderJS(int faceSize, String renderType, Identifier textureId) {
+    public RawMeshBuilderJS(int faceSize, String renderType, ResourceLocation textureId) {
         this.faceSize = faceSize;
-        this.mesh = new RawMesh(new MaterialProperties(RawModelJS.stringToRenderStage(renderType).shaderType, textureId, 0xFFFFFFFF));
+        this.mesh = new RawMesh(new MaterialProperties(com.lx862.jcm.mod.render.mesh.ShaderType.fromRenderStage(RawModelJS.stringToRenderStage(renderType)), textureId, 0xFFFFFFFF));
     }
 
     public RawMesh getMesh() {
@@ -66,7 +65,7 @@ public class RawMeshBuilderJS {
     }
 
     public RawMeshBuilderJS color(int r, int g, int b, int a) {
-        ((VertexAttributeStateAccessor)(Object)mesh.materialProperties.vertexAttributeState).setColor((r << 24) + (g << 16) + (b << 8) + a);
+        mesh.materialProperties.setColor((r << 24) + (g << 16) + (b << 8) + a);
         return this;
     }
 

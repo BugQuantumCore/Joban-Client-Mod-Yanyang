@@ -9,8 +9,8 @@ import org.mtr.core.data.Station;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mod.InitClient;
+import net.minecraft.core.BlockPos;
+import org.mtr.MTRClient;
 
 public class PIDSWrapper {
     private final boolean[] rowHidden;
@@ -31,7 +31,7 @@ public class PIDSWrapper {
     @ApiInternal
     public PIDSWrapper(PIDSBlockEntity be, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivalsResponse, int width, int height) {
         this(
-                be.getPIDSType(), be.getRowAmount(), be.getPos2(), targetPlatformIds, arrivalsResponse, width, height,
+                be.getPIDSType(), be.getRowAmount(), be.getBlockPos(), targetPlatformIds, arrivalsResponse, width, height,
                 be.platformNumberHidden(), be.getPlatformIds().isEmpty(), be.isKeyBlock(), be.getRowHidden(), be.getCustomMessages()
         );
         /* The BE-derived constructor keeps its own reference so future getters
@@ -94,7 +94,7 @@ public class PIDSWrapper {
     }
 
     public @ValueNullable Station station() {
-        return InitClient.findStation(this.blockPos);
+        return org.mtr.MTRClient.findStation(this.blockPos);
     }
 
     public ArrivalsWrapper arrivals() {

@@ -1,8 +1,8 @@
 package com.lx862.jcm.mixin;
 
 import com.lx862.jcm.mod.block.PIDS1ABlock;
-import org.mtr.mapping.holder.Block;
-import org.mtr.mod.block.BlockPIDSPole;
+import net.minecraft.world.level.block.Block;
+import org.mtr.block.BlockPIDSPole;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,6 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class BlockPIDSPoleMixin {
     @Inject(method = "isBlock", at = @At("HEAD"), cancellable = true)
     public void checkForPIDS1A(Block block, CallbackInfoReturnable<Boolean> cir) {
-        if(block.data instanceof PIDS1ABlock) cir.setReturnValue(true);
+        if(block instanceof PIDS1ABlock) cir.setReturnValue(true);
     }
 }

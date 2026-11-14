@@ -1,22 +1,27 @@
 package com.lx862.jcm.mod.block.behavior;
 
 import com.lx862.jcm.mod.data.BlockProperties;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.block.IBlock;
+import org.mtr.block.IBlock;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 
 public interface PowerableBlockBehavior  {
     BooleanProperty UNPOWERED = BlockProperties.UNPOWERED;
 
-    default void updateRedstone(World world, BlockPos pos, Block block, BlockState state) {
-        world.updateNeighbors(pos, block);
-        world.updateNeighbors(pos.offset(IBlock.getStatePropertySafe(state, BlockProperties.FACING)), block);
+    default void updateRedstone(Level world, BlockPos pos, Block block, BlockState state) {
+        world.updateNeighborsAt(pos, block);
+        world.updateNeighborsAt(pos.relative(IBlock.getStatePropertySafe(state, BlockProperties.FACING)), block);
     }
 
-    default void updateAllRedstone(World world, BlockPos pos, Block block, BlockState state) {
-        world.updateNeighbors(pos, block);
+    default void updateAllRedstone(Level world, BlockPos pos, Block block, BlockState state) {
+        world.updateNeighborsAt(pos, block);
 
         for(Direction direction : Direction.values()) {
-            world.updateNeighbors(pos.offset(direction), block);
+            world.updateNeighborsAt(pos.relative(direction), block);
         }
     }
 }

@@ -14,11 +14,10 @@ import com.lx862.mtrscripting.mod.resource.VehicleResourceProvider;
 import org.mtr.core.data.VehicleCar;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.*;
-import org.mtr.mod.resource.VehicleResource;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.*;
+import org.mtr.resource.VehicleResource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -28,11 +27,15 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(value = RenderVehicles.class, remap = false)
 public class RenderVehiclesMixin {
     @Inject(method = "render(JLorg/mtr/mapping/holder/Vector3d;)V", at = @At(value = "INVOKE", target = "Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectArraySet;forEach(Ljava/util/function/Consumer;)V"))
-    private static void jsblock$executeScript(long millisElapsed, Vector3d cameraShakeOffset, CallbackInfo ci) {
+    private static void jsblock$executeScript(long millisElapsed, Vec3 cameraShakeOffset, CallbackInfo ci) {
         /* Yanyang: Iris/OptiFine shadow passes re-run RenderVehicles.render;
            without this guard every script ran TWICE per frame (two snapshot
            marshals, two whole-canvas repaints, two texture uploads per car). */
@@ -124,7 +127,7 @@ public class RenderVehiclesMixin {
     }
 
     @Inject(method = "lambda$render$5", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILSOFT)
-    private static void jsblock$drawBogieScript(Vector3d offsetVector, Double offsetRotation, PositionAndRotation ridingCarPositionAndRotation, Vector3d cameraShakeOffset, VehicleResource vehicleResource, VehicleExtension vehicle, PositionAndRotation absoluteVehicleCarPositionAndRotation, int carNumber, int[] scrollingDisplayIndexTracker, boolean fromResourcePackCreator, int bogieIndex, PositionAndRotation absoluteBogiePositionAndRotation, CallbackInfo ci, PositionAndRotation bogieRenderingPositionAndRotation, StoredMatrixTransformations storedMatrixTransformations) {
+    private static void jsblock$drawBogieScript(Vec3 offsetVector, Double offsetRotation, PositionAndRotation ridingCarPositionAndRotation, Vec3 cameraShakeOffset, VehicleResource vehicleResource, VehicleExtension vehicle, PositionAndRotation absoluteVehicleCarPositionAndRotation, int carNumber, int[] scrollingDisplayIndexTracker, boolean fromResourcePackCreator, int bogieIndex, PositionAndRotation absoluteBogiePositionAndRotation, CallbackInfo ci, PositionAndRotation bogieRenderingPositionAndRotation, StoredMatrixTransformations storedMatrixTransformations) {
         VehicleCar vehicleCar = vehicle.vehicleExtraData.immutableVehicleCars.get(carNumber);
         String scriptGroupId = MtrScriptingResourceManager.vehicle.getVehicleScriptEntryId(vehicleCar.getVehicleId());
         if(scriptGroupId == null) return;
@@ -133,7 +136,7 @@ public class RenderVehiclesMixin {
         ScriptInstance<?> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("vehicle", vehicle.getHexId(), scriptGroupId));
         if(!(scriptInstance instanceof VehicleScriptInstance)) return;
 
-        World world = World.cast(MinecraftClient.getInstance().getWorldMapped());
+        Level world = Level.cast(Minecraft.getInstance().level);
         List<ScriptRenderManager> bogieRenderManagers = ((VehicleScriptInstance)scriptInstance).capturedScriptCalls.carBogieRenderers.get(carNumber);
         if(bogieRenderManagers != null && bogieIndex < bogieRenderManagers.size()) {
             bogieRenderManagers.get(bogieIndex).invoke(world, storedMatrixTransformations.copy(), Direction.NORTH, absoluteVehicleCarPositionAndRotation.light);

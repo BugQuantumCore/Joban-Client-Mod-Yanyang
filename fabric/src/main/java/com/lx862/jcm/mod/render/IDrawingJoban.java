@@ -2,14 +2,14 @@ package com.lx862.jcm.mod.render;
 
 import org.mtr.libraries.it.unimi.dsi.fastutil.booleans.BooleanArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.LightmapTextureManager;
-import org.mtr.mapping.holder.OrderedText;
-import org.mtr.mapping.holder.Style;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.config.Config;
-import org.mtr.mod.data.IGui;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.network.chat.Style;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.compat.TextHelper;
+import org.mtr.config.Config;
+import org.mtr.data.IGui;
 
 import javax.annotation.Nullable;
 
@@ -17,20 +17,20 @@ import javax.annotation.Nullable;
  * Copied from MTR's IDrawing, but just for rendering with a specific font other than the hardcoded mtr one
  */
 public interface IDrawingJoban {
-    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, Identifier font, float x, float y, int light) {
+    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, ResourceLocation font, float x, float y, int light) {
         drawStringWithFont(graphicsHolder, text, font, IGui.HorizontalAlignment.CENTER, IGui.VerticalAlignment.CENTER, x, y, -1, -1, 1, IGui.ARGB_WHITE, true, light, null);
     }
 
-    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, Identifier font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColor, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
+    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, ResourceLocation font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColor, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
         drawStringWithFont(graphicsHolder, text, font, horizontalAlignment, verticalAlignment, horizontalAlignment, x, y, maxWidth, maxHeight, scale, textColor, shadow, light, drawingCallback);
     }
 
-    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, Identifier font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, IGui.HorizontalAlignment xAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColor, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
+    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, ResourceLocation font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, IGui.HorizontalAlignment xAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColor, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
         drawStringWithFont(graphicsHolder, text, font, horizontalAlignment, verticalAlignment, xAlignment, x, y, maxWidth, maxHeight, scale, textColor, textColor, 2, shadow, light, drawingCallback);
     }
 
-    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, Identifier font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, IGui.HorizontalAlignment xAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColorCjk, int textColor, float fontSizeRatio, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
-        final Style style = Config.getClient().getUseMTRFont() ? Style.getEmptyMapped().withFont(font) : Style.getEmptyMapped();
+    static void drawStringWithFont(GraphicsHolder graphicsHolder, String text, ResourceLocation font, IGui.HorizontalAlignment horizontalAlignment, IGui.VerticalAlignment verticalAlignment, IGui.HorizontalAlignment xAlignment, float x, float y, float maxWidth, float maxHeight, float scale, int textColorCjk, int textColor, float fontSizeRatio, boolean shadow, int light, @Nullable DrawingCallback drawingCallback) {
+        final Style style = Config.getClient().getUseMTRFont() ? Style.EMPTY.withFont(font) : Style.EMPTY;
 
         while (text.contains("||")) {
             text = text.replace("||", "|");
@@ -38,13 +38,13 @@ public interface IDrawingJoban {
         final String[] stringSplit = text.split("\\|");
 
         final BooleanArrayList isCJKList = new BooleanArrayList();
-        final ObjectArrayList<OrderedText> orderedTexts = new ObjectArrayList<>();
+        final ObjectArrayList<FormattedCharSequence> orderedTexts = new ObjectArrayList<>();
         int totalHeight = 0, totalWidth = 0;
         for (final String stringSplitPart : stringSplit) {
             final boolean isCJK = IGui.isCjk(stringSplitPart);
             isCJKList.add(isCJK);
 
-            final OrderedText orderedText = TextHelper.mutableTextToOrderedText(TextHelper.setStyle(TextHelper.literal(stringSplitPart), style));
+            final FormattedCharSequence orderedText = TextHelper.mutableTextToOrderedText(TextHelper.setStyle(TextHelper.literal(stringSplitPart), style));
             orderedTexts.add(orderedText);
 
             totalHeight += Math.round(IGui.LINE_HEIGHT * (isCJK ? fontSizeRatio : 1));
@@ -82,7 +82,7 @@ public interface IDrawingJoban {
 
             final float xOffset = horizontalAlignment.getOffset(xAlignment.getOffset(x * scaleX, totalWidth), GraphicsHolder.getTextWidth(orderedTexts.get(i)) * extraScale - totalWidth);
 
-            final float shade = light == GraphicsHolder.getDefaultLight() ? 1 : Math.min(LightmapTextureManager.getBlockLightCoordinates(light) / 16F * 0.1F + 0.7F, 1);
+            final float shade = light == GraphicsHolder.getDefaultLight() ? 1 : Math.min(net.minecraft.client.renderer.LightTexture.block(light) / 16F * 0.1F + 0.7F, 1);
             final int a = ((isCJK ? textColorCjk : textColor) >> 24) & 0xFF;
             final int r = (int) ((((isCJK ? textColorCjk : textColor) >> 16) & 0xFF) * shade);
             final int g = (int) ((((isCJK ? textColorCjk : textColor) >> 8) & 0xFF) * shade);

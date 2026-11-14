@@ -1,17 +1,17 @@
 package com.lx862.mtrscripting.core.primitive;
 
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 @ApiInternal
-public record ScriptContent(Identifier location, String content) {
+public record ScriptContent(ResourceLocation location, String content) {
     /**
      * Create a new script content for parsing
      *
      * @param location The location source of the script, used for tracing back script errors in stacktraces.
      * @param content  The plain text content of the script
      */
-    public ScriptContent(Identifier location, String content) {
+    public ScriptContent(ResourceLocation location, String content) {
         this.location = location;
         this.content = content;
         if (this.location == null) throw new IllegalArgumentException("Script location must not be null!");

@@ -1,21 +1,22 @@
 package com.lx862.jcm.mod.util;
 
 import com.lx862.jcm.mod.Constants;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.PlayerEntity;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
 
 public class JCMUtil {
     /**
      * Whether the player is holding an MTR Brush / An item used for configuring blocks
      */
-    public static boolean playerHoldingBrush(PlayerEntity player) {
-        return player.isHolding(org.mtr.mod.Items.BRUSH.get());
+    public static boolean playerHoldingBrush(Player player) {
+        return player.isHolding(org.mtr.registry.Items.BRUSH.get());
     }
 
     /**
      * For block ID migration only, returns an identifier with the latest block id.
      */
-    public static Identifier getMigrationId(Identifier checkId) {
+    public static ResourceLocation getMigrationId(ResourceLocation checkId) {
         if (checkId.getNamespace().equals("jsblock")) {
             switch (checkId.getPath()) {
                 case "bufferstop_1":

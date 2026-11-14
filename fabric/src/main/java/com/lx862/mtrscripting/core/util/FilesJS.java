@@ -2,7 +2,7 @@ package com.lx862.mtrscripting.core.util;
 
 import org.apache.commons.io.FileUtils;
 import org.mtr.libraries.kotlin.text.Charsets;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -11,7 +11,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class FilesJS {
-    private static final Path rootMinecraftPath = MinecraftClient.getInstance().getRunDirectoryMapped().toPath().toAbsolutePath().normalize();
+    private static final Path rootMinecraftPath = Minecraft.getInstance().gameDirectory.toPath().toAbsolutePath().normalize();
     private static final Path dataPath = rootMinecraftPath.resolve("data").resolve("mtrscripting");
 
     private FilesJS() {

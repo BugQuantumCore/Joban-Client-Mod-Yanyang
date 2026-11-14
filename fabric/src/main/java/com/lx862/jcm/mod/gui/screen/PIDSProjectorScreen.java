@@ -7,8 +7,12 @@ import com.lx862.jcm.mod.registry.Blocks;
 import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.*;
-
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.level.block.entity.BlockEntity;
 public class PIDSProjectorScreen extends PIDSScreen {
 
     private final DoubleTextField xField;
@@ -33,21 +37,21 @@ public class PIDSProjectorScreen extends PIDSScreen {
         this.rotateZField = new DoubleTextField(0, 0, 40, 20, -359, 360, 0);
         this.scaleField = new DoubleTextField(0, 0, 40, 20, 0, 30, 0);
 
-        this.xField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.yField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.zField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.rotateXField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.rotateYField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.rotateZField.setChangedListener2(newVal -> sendClientPreview(false));
-        this.scaleField.setChangedListener2(newVal -> sendClientPreview(false));
+        this.xField.setResponder(newVal -> sendClientPreview(false));
+        this.yField.setResponder(newVal -> sendClientPreview(false));
+        this.zField.setResponder(newVal -> sendClientPreview(false));
+        this.rotateXField.setResponder(newVal -> sendClientPreview(false));
+        this.rotateYField.setResponder(newVal -> sendClientPreview(false));
+        this.rotateZField.setResponder(newVal -> sendClientPreview(false));
+        this.scaleField.setResponder(newVal -> sendClientPreview(false));
 
-        xField.setText2(String.valueOf(x));
-        yField.setText2(String.valueOf(y));
-        zField.setText2(String.valueOf(z));
-        rotateXField.setText2(String.valueOf(rotateX));
-        rotateYField.setText2(String.valueOf(rotateY));
-        rotateZField.setText2(String.valueOf(rotateZ));
-        scaleField.setText2(String.valueOf(scale));
+        xField.setValue(String.valueOf(x));
+        yField.setValue(String.valueOf(y));
+        zField.setValue(String.valueOf(z));
+        rotateXField.setValue(String.valueOf(rotateX));
+        rotateYField.setValue(String.valueOf(rotateY));
+        rotateZField.setValue(String.valueOf(rotateZ));
+        scaleField.setValue(String.valueOf(scale));
 
         this.originalX = x;
         this.originalY = y;
@@ -60,7 +64,7 @@ public class PIDSProjectorScreen extends PIDSScreen {
     }
 
     @Override
-    public MutableText getScreenTitle() {
+    public MutableComponent getScreenTitle() {
         return Blocks.PIDS_PROJECTOR.get().getName();
     }
 
@@ -69,15 +73,15 @@ public class PIDSProjectorScreen extends PIDSScreen {
         WidgetSet positionFields = new WidgetSet(20, 0);
         WidgetSet rotationFields = new WidgetSet(20, 0);
 
-        addChild(new ClickableWidget(xField));
-        addChild(new ClickableWidget(yField));
-        addChild(new ClickableWidget(zField));
-        addChild(new ClickableWidget(rotateXField));
-        addChild(new ClickableWidget(rotateYField));
-        addChild(new ClickableWidget(rotateZField));
-        addChild(new ClickableWidget(scaleField));
-        addChild(new ClickableWidget(positionFields));
-        addChild(new ClickableWidget(rotationFields));
+        addRenderableWidget(xField);
+        addRenderableWidget(yField);
+        addRenderableWidget(zField);
+        addRenderableWidget(rotateXField);
+        addRenderableWidget(rotateYField);
+        addRenderableWidget(rotateZField);
+        addRenderableWidget(scaleField);
+        addRenderableWidget(positionFields);
+        addRenderableWidget(rotationFields);
 
         positionFields.addWidget(new MappedWidget(xField));
         positionFields.addWidget(new MappedWidget(yField));
@@ -98,11 +102,11 @@ public class PIDSProjectorScreen extends PIDSScreen {
     }
 
     private void sendClientPreview(boolean discard) {
-        ClientWorld clientWorld = MinecraftClient.getInstance().getWorldMapped();
+        ClientLevel clientWorld = Minecraft.getInstance().level;
         if(clientWorld != null) {
             BlockEntity clientBE = clientWorld.getBlockEntity(blockPos);
-            if(clientBE != null && clientBE.data instanceof PIDSProjectorBlockEntity) {
-                PIDSProjectorBlockEntity blockEntity = (PIDSProjectorBlockEntity)clientBE.data;
+            if(clientBE != null && clientBE instanceof PIDSProjectorBlockEntity) {
+                PIDSProjectorBlockEntity blockEntity = (PIDSProjectorBlockEntity)clientBE;
                 double x = discard ? originalX : xField.getNumber();
                 double y = discard ? originalY : yField.getNumber();
                 double z = discard ? originalZ : zField.getNumber();
@@ -121,13 +125,13 @@ public class PIDSProjectorScreen extends PIDSScreen {
         boolean[] rowHidden = new boolean[rowHiddenWidgets.length];
 
         for(int i = 0; i < customMessagesWidgets.length; i++) {
-            customMessages[i] = this.customMessagesWidgets[i].getText2();
+            customMessages[i] = this.customMessagesWidgets[i].getValue();
         }
         for(int i = 0; i < rowHiddenWidgets.length; i++) {
-            rowHidden[i] = this.rowHiddenWidgets[i].isChecked2();
+            rowHidden[i] = this.rowHiddenWidgets[i].isChecked();
         }
 
-        Networking.sendPacketToServer(new PIDSProjectorUpdatePacket(blockPos, filteredPlatforms, customMessages, rowHidden, hidePlatformNumber.isChecked2(), presetId, xField.getNumber(), yField.getNumber(), zField.getNumber(), rotateXField.getNumber(), rotateYField.getNumber(), rotateZField.getNumber(), scaleField.getNumber()));
+        Networking.sendPacketToServer(new PIDSProjectorUpdatePacket(blockPos, filteredPlatforms, customMessages, rowHidden, hidePlatformNumber.isChecked(), presetId, xField.getNumber(), yField.getNumber(), zField.getNumber(), rotateXField.getNumber(), rotateYField.getNumber(), rotateZField.getNumber(), scaleField.getNumber()));
     }
 
     @Override

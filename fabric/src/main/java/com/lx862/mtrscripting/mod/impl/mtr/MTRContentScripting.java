@@ -13,14 +13,16 @@ import com.lx862.mtrscripting.mod.impl.mtr.util.TextUtilJS;
 import com.lx862.mtrscripting.core.ScriptManager;
 import com.lx862.mtrscripting.core.api.ClassRule;
 import com.lx862.mtrscripting.core.api.MTRScriptingAPI;
-import org.mtr.mod.Keys;
-import org.mtr.mod.client.MinecraftClientData;
+import org.mtr.Keys;
+import org.mtr.client.MinecraftClientData;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import com.lx862.jcm.mod.compat.SoundHelper;
+import net.minecraft.world.level.block.Block;
 
 public class MTRContentScripting {
     private static final int EXECUTOR_AMOUNT = 4;

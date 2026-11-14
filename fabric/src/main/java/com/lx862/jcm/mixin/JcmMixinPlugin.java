@@ -19,7 +19,7 @@ import java.util.Set;
  * {@code mtrpatch.CachedResourceMixin} (memory-leak fix) which
  * {@code @Shadow}s {@code CACHED_RESOURCES} /
  * {@code canFetchCache} and injects into {@code getData} /
- * {@code tick} of {@code org.mtr.mod.resource.CachedResource}.
+ * {@code tick} of {@code org.mtr.resource.CachedResource}.
  * {@code @Shadow} matching requires the field <b>descriptor</b> to
  * match, not just the name: official MTR 4.0.x declares
  * {@code ObjectArrayList<CachedResource<?>> CACHED_RESOURCES}, while
@@ -99,7 +99,7 @@ public class JcmMixinPlugin implements IMixinConfigPlugin {
     }
 
     /**
-     * Checks that {@code org.mtr.mod.resource.CachedResource} carries the
+     * Checks that {@code org.mtr.resource.CachedResource} carries the
      * members the patch mixins reference. Runs once per config; the
      * verdict is cached.
      */

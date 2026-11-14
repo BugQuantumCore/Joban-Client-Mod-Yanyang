@@ -4,9 +4,9 @@ import com.lx862.mtrscripting.core.annotation.ValueNullable;
 import com.lx862.mtrscripting.core.api.ScriptResultCall;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.Matrices;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import org.mtr.render.StoredMatrixTransformations;
 
 public abstract class RenderDrawCall<T extends RenderDrawCall<?>> implements ScriptResultCall {
     protected StoredMatrixTransformations storedMatrixTransformations;
@@ -40,11 +40,11 @@ public abstract class RenderDrawCall<T extends RenderDrawCall<?>> implements Scr
     }
 
     @ApiInternal
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         if (this.storedMatrixTransformations != null) {
-            storedMatrixTransformations.add(graphicsHolder -> graphicsHolder.rotateXDegrees(180));
+            storedMatrixTransformations.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(180)));
             storedMatrixTransformations.add(this.storedMatrixTransformations);
-            storedMatrixTransformations.add(graphicsHolder -> graphicsHolder.rotateXDegrees(-180));
+            storedMatrixTransformations.add(poseStack -> poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-180)));
         }
     }
 }

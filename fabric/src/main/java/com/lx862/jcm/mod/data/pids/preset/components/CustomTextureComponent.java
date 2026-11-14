@@ -5,18 +5,18 @@ import com.lx862.jcm.mod.data.KVPair;
 import com.lx862.jcm.mod.data.pids.preset.PIDSContext;
 import com.lx862.jcm.mod.data.pids.preset.components.base.PIDSComponent;
 import com.lx862.jcm.mod.data.pids.preset.components.base.TextureComponent;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 public class CustomTextureComponent extends TextureComponent {
-    protected final Identifier texture;
+    protected final ResourceLocation texture;
     private final int color;
     public CustomTextureComponent(double x, double y, double width, double height, KVPair additionalParam) {
         super(x, y, width, height, additionalParam);
         this.color = additionalParam.getColor("tint", 0xFFFFFF);
-        this.texture = Identifier.tryParse(additionalParam.get("textureId", ""));
+        this.texture = ResourceLocation.tryParse(additionalParam.get("textureId", ""));
     }
 
     @Override

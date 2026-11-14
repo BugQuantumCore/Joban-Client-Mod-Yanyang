@@ -18,15 +18,16 @@ import org.mtr.core.operation.CarDetails;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mod.data.ArrivalsCacheClient;
-import org.mtr.mod.client.MinecraftClientData;
+import net.minecraft.core.BlockPos;
+import org.mtr.data.ArrivalsCacheClient;
+import org.mtr.client.MinecraftClientData;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import net.minecraft.network.chat.Component;
 
 /**
  * The script wrapper for a platform screen door glass or top-panel binding —

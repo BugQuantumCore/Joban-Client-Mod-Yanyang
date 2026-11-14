@@ -4,27 +4,42 @@ import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.jcm.mod.data.BlockProperties;
 import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.BlockEntityExtension;
-import org.mtr.mapping.mapper.BlockEntityRenderer;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.block.IBlock;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import org.mtr.block.BlockEntityExtension;
+import org.mtr.block.IBlock;
+import org.mtr.render.BlockEntityRendererExtension;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
-import javax.annotation.Nonnull;
-
-public abstract class JCMBlockEntityRenderer<T extends BlockEntityExtension> extends BlockEntityRenderer<T> implements RenderHelper {
-    public JCMBlockEntityRenderer(Argument dispatcher) {
-        super(dispatcher);
+public abstract class JCMBlockEntityRenderer<T extends BlockEntityExtension> extends BlockEntityRendererExtension<T> implements RenderHelper {
+    public JCMBlockEntityRenderer(BlockEntityRendererProvider.Context dispatcher) {
     }
 
+    /**
+     * MTR 4.1 render entry point. Bridges into the legacy JCM
+     * {@link GraphicsHolder} surface so subclass renderers keep working
+     * unmodified.
+     */
     @Override
-    public void render(@Nonnull T blockEntity, float tickDelta, @Nonnull GraphicsHolder graphicsHolder, int light, int i1) {
+    public final void render(T blockEntity, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, ClientLevel world, LocalPlayer player, float tickDelta, int light, int overlay) {
+        render(blockEntity, tickDelta, new GraphicsHolder(matrixStack, vertexConsumerProvider), light, overlay);
+    }
+
+    /**
+     * Legacy JCM render hook: same parameter order the 4.0-era mapping layer
+     * provided, minus the world/player arguments the curated hook re-derives.
+     */
+    public void render(T blockEntity, float tickDelta, GraphicsHolder graphicsHolder, int light, int i1) {
         try {
-            World world = blockEntity.getWorld2();
-            BlockPos pos = blockEntity.getPos2();
+            Level world = blockEntity.getLevel();
+            BlockPos pos = blockEntity.getBlockPos();
             if(JCMClientConfig.INSTANCE.disableRendering.value() || world == null) return;
 
             BlockState state = world.getBlockState(pos); /* one lookup: this fetched the same state twice per BE per frame */
@@ -41,13 +56,14 @@ public abstract class JCMBlockEntityRenderer<T extends BlockEntityExtension> ext
     /**
      * Same as the default block entity render method, but only called in safe condition and when rendering are not disabled
      */
-    public abstract void renderCurated(T blockEntity, GraphicsHolder graphicsHolder, World world, BlockState state, BlockPos pos, float tickDelta, int light, int i1);
+    public abstract void renderCurated(T blockEntity, GraphicsHolder graphicsHolder, Level world, BlockState state, BlockPos pos, float tickDelta, int light, int i1);
+
     public void rotateToBlockDirection(GraphicsHolder graphicsHolder, T blockEntity) {
-        World world = blockEntity.getWorld2();
+        Level world = blockEntity.getLevel();
         if(world != null) {
-            BlockState state = world.getBlockState(blockEntity.getPos2());
+            BlockState state = world.getBlockState(blockEntity.getBlockPos());
             Direction facing = IBlock.getStatePropertySafe(state, BlockProperties.FACING);
-            graphicsHolder.rotateYDegrees(-facing.asRotation());
+            graphicsHolder.rotateYDegrees(-facing.toYRot());
         }
     }
 }

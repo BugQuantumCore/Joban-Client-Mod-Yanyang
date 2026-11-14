@@ -5,13 +5,15 @@ import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.tool.TextCase;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.gui.screens.Screen;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.TextCase;
 
 import javax.annotation.Nonnull;
 import java.math.BigDecimal;
+import net.minecraft.network.chat.Component;
+import com.lx862.jcm.mod.render.TextCase;
 
 /**
  * Text Field Widget that is specifically designed for entering number only
@@ -30,7 +32,7 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
         this.defaultValue = defaultValue;
     }
 
-    public DoubleTextField(int x, int y, int width, int height, double min, double max, double defaultValue, MutableText prefix) {
+    public DoubleTextField(int x, int y, int width, int height, double min, double max, double defaultValue, MutableComponent prefix) {
         this(x, y, width, height, min, max, defaultValue, prefix.getString());
     }
 
@@ -39,22 +41,22 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
     }
 
     @Override
-    public boolean charTyped2(char chr, int modifiers) {
-        String prevValue = getText2();
-        boolean bl = super.charTyped2(chr, modifiers);
+    public boolean charTyped(char chr, int modifiers) {
+        String prevValue = getValue();
+        boolean bl = super.charTyped(chr, modifiers);
 
-        String newString = getText2();
+        String newString = getValue();
         if(newString.equals("-")) return bl;
 
         try {
             double val = Double.parseDouble(newString);
             if(val < min || val > max) {
                 JCMLogger.debug("DoubleTextField: Value too large or small");
-                setText2(prevValue);
+                setValue(prevValue);
                 return false;
             }
         } catch (Exception e) {
-            setText2(prevValue);
+            setValue(prevValue);
             return false;
         }
 
@@ -62,8 +64,10 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+    public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+    
+        super.renderWidget(guiGraphics, mouseX, mouseY, tickDelta);
 
         if(prefix != null) {
             drawPrefix(graphicsHolder);
@@ -74,8 +78,8 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
 
     protected void drawPrefix(GraphicsHolder graphicsHolder) {
         int prefixWidth = GraphicsHolder.getTextWidth(prefix);
-        int prefixX = getX2() - prefixWidth;
-        int prefixY = getY2() + (getHeight2() / 2) - (9 / 2);
+        int prefixX = getX() - prefixWidth;
+        int prefixY = getY() + (getHeight() / 2) - (9 / 2);
 
         graphicsHolder.drawText(prefix, prefixX, prefixY, 0xFFFFFFFF, true, MAX_RENDER_LIGHT);
     }
@@ -92,19 +96,19 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
     }
 
     @Override
-    public boolean mouseScrolled2(double mouseX, double mouseY, double amount) {
-        if(visible && active && isFocused2()) {
-            if(amount > 0) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if(visible && active && isFocused()) {
+            if(scrollY > 0) {
                 increment();
             } else {
                 decrement();
             }
         }
-        return super.mouseScrolled2(mouseX, mouseY, amount);
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
-    public boolean mouseClicked2(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
 //        MutableText upArrow = TextUtil.translatable(TextCategory.GUI, "widget.numeric_text_field.increment");
 //        MutableText dnArrow = TextUtil.translatable(TextCategory.GUI, "widget.numeric_text_field.decrement");
 //        int fontHeight = 9;
@@ -120,12 +124,12 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
 //            decrement();
 //        }
 
-        return super.mouseClicked2(mouseX, mouseY, button);
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
     public double getNumber() {
         try {
-            return Double.parseDouble(getText2());
+            return Double.parseDouble(getValue());
         } catch (Exception e) {
             return defaultValue;
         }
@@ -133,12 +137,12 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
 
     public void setValue(double value) {
         if(value < min || value > max) return;
-        setText2(String.valueOf(value));
+        setValue(String.valueOf(value));
     }
 
     private void increment() {
         try {
-            BigDecimal result = new BigDecimal(getText2()).add(new BigDecimal(getStep()));
+            BigDecimal result = new BigDecimal(getValue()).add(new BigDecimal(getStep()));
             setValue(result.doubleValue());
         } catch (Exception e) {
             setValue(defaultValue);
@@ -147,7 +151,7 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
 
     private void decrement() {
         try {
-            BigDecimal result = new BigDecimal(getText2()).subtract(new BigDecimal(getStep()));
+            BigDecimal result = new BigDecimal(getValue()).subtract(new BigDecimal(getStep()));
             setValue(result.doubleValue());
         } catch (Exception e) {
             setValue(defaultValue);

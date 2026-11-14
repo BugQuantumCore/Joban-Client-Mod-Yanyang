@@ -15,13 +15,18 @@ import com.lx862.mtrscripting.mod.impl.mtr.server.PSDServerBindings;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.ServerDoorDirections;
 import com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleDataCache;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.TextHelper;
+import org.mtr.registry.EventRegistryServer;
+import org.mtr.registry.EventRegistryClient;
+import com.lx862.jcm.mod.compat.TextHelper;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 
 public class Events {
     public static void register() {
         // Start Tick Event for counting tick
-        JCMRegistry.REGISTRY.eventRegistry.registerStartServerTick(JCMServerStats::incrementGameTick);
+        EventRegistryServer.registerStartServerTick(JCMServerStats::incrementGameTick);
 
         /* Yanyang: server-side door-opening-direction memory (the migrated
            self-learning). First start with this version scans every
@@ -30,18 +35,18 @@ public class Events {
            scan so later boots never rescan, re-scans incrementally when
            platform blocks change (batch-tool safe), and answers client
            queries from the stored data. */
-        JCMRegistry.REGISTRY.eventRegistry.registerServerStarted(DoorDirectionManager::onServerStarted);
-        JCMRegistry.REGISTRY.eventRegistry.registerServerStopping(DoorDirectionManager::onServerStopping);
-        JCMRegistry.REGISTRY.eventRegistry.registerEndWorldTick(DoorDirectionManager::onWorldTick);
+        EventRegistryServer.registerServerStarted(DoorDirectionManager::onServerStarted);
+        EventRegistryServer.registerServerStopping(DoorDirectionManager::onServerStopping);
+        EventRegistryServer.registerEndWorldTick(DoorDirectionManager::onWorldTick);
 
         /* Yanyang/PSD: server-side PSD script binding storage — loads per
            dimension on first use, batches changes per tick and saves at shutdown. */
-        JCMRegistry.REGISTRY.eventRegistry.registerStartServerTick(PSDServerBindings::onServerTick);
-        JCMRegistry.REGISTRY.eventRegistry.registerServerStopping(PSDServerBindings::onServerStopping);
+        EventRegistryServer.registerStartServerTick(PSDServerBindings::onServerTick);
+        EventRegistryServer.registerServerStopping(PSDServerBindings::onServerStopping);
     }
 
     public static void registerClient() {
-        JCMRegistryClient.REGISTRY_CLIENT.eventRegistryClient.registerStartClientTick(() -> {
+        EventRegistryClient.registerStartClientTick(() -> {
             JCMClient.getMcMetaManager().tick();
             JCMScripting.tick();
             MTRContentScripting.tick();
@@ -49,7 +54,7 @@ public class Events {
             JCMPatchForMTR.tick();
             com.lx862.jcm.mod.scripting.psd.PSDClientBindings.tick();
 
-            if(MinecraftClient.getInstance().getWorldMapped() == null) {
+            if(Minecraft.getInstance().level == null) {
                 VehicleDataCache.clearData();
                 com.lx862.jcm.mod.scripting.psd.PSDWallScanner.reset();
                 com.lx862.jcm.mod.scripting.psd.PSDRouteStopCache.reset();
@@ -63,33 +68,33 @@ public class Events {
             }
         });
 
-        JCMRegistryClient.REGISTRY_CLIENT.eventRegistryClient.registerClientJoin(() -> {
+        EventRegistryClient.registerClientJoin(() -> {
             /* On behalf of MTR Scripting */
             MTRContentScripting.getScriptManager().scriptErrorNotifier.flush();
             JCMScripting.getScriptManager().scriptErrorNotifier.flush();
             JCMPatchForMTR.clearClientCaches();
         });
 
-        JCMRegistryClient.REGISTRY_CLIENT.eventRegistryClient.registerEndClientTick(() -> {
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_PREV.wasPressed()) {
+        EventRegistryClient.registerEndClientTick(() -> {
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_PREV.isDown()) {
                 MTRScriptDebugOverlay.previousSource();
             }
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_NEXT.wasPressed()) {
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_NEXT.isDown()) {
                 MTRScriptDebugOverlay.nextSource();
             }
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_RELOAD.wasPressed()) {
-                boolean isShiftPressed = MinecraftClient.getInstance().getOptionsMapped().getKeySneakMapped().isPressed();
-                boolean isCtrlPressed = MinecraftClient.getInstance().getOptionsMapped().getKeySprintMapped().isPressed();
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_RELOAD.isDown()) {
+                boolean isShiftPressed = Minecraft.getInstance().options.keyShift.isDown();
+                boolean isCtrlPressed = Minecraft.getInstance().options.keySprint.isDown();
                 if(!isShiftPressed && !isCtrlPressed) return;
                 boolean shouldReloadJCM = isShiftPressed;
 
-                if(MinecraftClient.getInstance().getPlayerMapped() != null) {
-                    MutableText prefix = TextUtil.literal("[JCM] ").formatted(TextFormatting.AQUA);
+                if(Minecraft.getInstance().player != null) {
+                    MutableComponent prefix = TextUtil.literal("[JCM] ").withStyle(ChatFormatting.AQUA);
 
                     if(shouldReloadJCM) {
-                        MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(TextHelper.append(prefix, TextUtil.literal("Reloading all JCM PIDS Scripts...").formatted(TextFormatting.YELLOW))), false);
+                        Minecraft.getInstance().player.displayClientMessage((TextHelper.append(prefix, TextUtil.literal("Reloading all JCM PIDS Scripts...").withStyle(ChatFormatting.YELLOW))), false);
                     } else {
-                        MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(TextHelper.append(prefix, TextUtil.literal("Reloading all MTR Scripts...").formatted(TextFormatting.YELLOW))), false);
+                        Minecraft.getInstance().player.displayClientMessage((TextHelper.append(prefix, TextUtil.literal("Reloading all MTR Scripts...").withStyle(ChatFormatting.YELLOW))), false);
                     }
                 }
 
@@ -114,8 +119,8 @@ public class Events {
             }
         });
 
-        JCMRegistryClient.REGISTRY_CLIENT.eventRegistryClient.registerGuiRendering(graphicsHolder -> {
-            MTRScriptDebugOverlay.render(graphicsHolder);
+        EventRegistryClient.registerHudLayerRenderEvent(guiGraphics -> {
+            MTRScriptDebugOverlay.render(new com.lx862.jcm.mod.render.GraphicsHolder(guiGraphics));
         });
     }
 

@@ -1,29 +1,34 @@
 package com.lx862.jcm.mod.block.base;
 
 import com.lx862.jcm.mod.data.BlockProperties;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.tool.HolderBase;
+import com.lx862.jcm.mod.render.HolderBase;
 
 import java.util.List;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.Property;
 
 public abstract class DirectionalBlock extends JCMBlock {
     public static final DirectionProperty FACING = BlockProperties.FACING;
 
-    public DirectionalBlock(BlockSettings settings) {
+    public DirectionalBlock(BlockBehaviour.Properties settings) {
         super(settings);
-        setDefaultState2(getDefaultState2().with(new Property<>(FACING.data), Direction.NORTH.data));
+        registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH));
     }
 
     @Override
-    public void addBlockProperties(List<HolderBase<?>> properties) {
+    public void addBlockProperties(List<Property<?>> properties) {
         super.addBlockProperties(properties);
         properties.add(FACING);
     }
 
     @Override
-    public BlockState getPlacementState2(ItemPlacementContext ctx) {
-        BlockState superState = super.getPlacementState2(ctx);
+    public BlockState getStateForPlacement(BlockPlaceContext ctx) {
+        BlockState superState = super.getStateForPlacement(ctx);
         if(superState == null) return null;
-        return superState.with(new Property<>(FACING.data), Direction.fromHorizontal(ctx.getPlayerFacing().getHorizontal()).data);
+        return superState.setValue(FACING, Direction.from2DDataValue(ctx.getNearestLookingDirection().get2DDataValue()));
     }
 }

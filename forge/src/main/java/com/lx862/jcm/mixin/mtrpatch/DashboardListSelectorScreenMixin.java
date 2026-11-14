@@ -1,9 +1,9 @@
 package com.lx862.jcm.mixin.mtrpatch;
 
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongCollection;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mod.screen.DashboardListItem;
-import org.mtr.mod.screen.DashboardListSelectorScreen;
+import net.minecraft.client.gui.screens.Screen;
+import org.mtr.screen.DashboardListItem;
+import org.mtr.screen.DashboardListSelectorScreen;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

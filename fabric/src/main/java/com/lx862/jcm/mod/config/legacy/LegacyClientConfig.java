@@ -4,14 +4,14 @@ import com.google.gson.JsonObject;
 import com.lx862.jcm.mapping.LoaderImpl;
 import com.lx862.jcm.mod.config.JCMClientConfig;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.nio.file.Path;
 
 @Deprecated
 public class LegacyClientConfig extends LegacyConfig {
 
-    private static final Path CONFIG_PATH = MinecraftClient.getInstance().getRunDirectoryMapped().toPath().resolve("config").resolve("jsblock_client.json");
+    private static final Path CONFIG_PATH = Minecraft.getInstance().gameDirectory.toPath().resolve("config").resolve("jsblock_client.json");
     private static final Path NEW_CONFIG_PATH = LoaderImpl.getConfigPath().resolve("jsblock").resolve("client.toml");
     public boolean disableRendering;
     public boolean debug;

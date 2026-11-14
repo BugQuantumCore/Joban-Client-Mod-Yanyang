@@ -3,9 +3,9 @@ package com.lx862.jcm.mod.data;
 import com.google.gson.*;
 import com.lx862.jcm.mod.Constants;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.WorldSavePath;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.storage.LevelResource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,15 +18,15 @@ public class TransactionHistoryManager {
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
     private static final JsonParser jsonParser = new JsonParser();
 
-    public static void appendEntry(PlayerEntity player, TransactionEntry newEntry) {
+    public static void appendEntry(Player player, TransactionEntry newEntry) {
         List<TransactionEntry> newEntries = getLogs(player);
         newEntries.add(newEntry);
         saveLogs(newEntries, player);
     }
 
-    private static void saveLogs(List<TransactionEntry> entries, PlayerEntity player) {
+    private static void saveLogs(List<TransactionEntry> entries, Player player) {
         try {
-            Path savePath = getSavePath(player.getServer(), player.getUuidAsString());
+            Path savePath = getWorldPath(player.getServer(), player.getStringUUID());
             savePath.getParent().toFile().mkdirs();
 
             entries.sort((a, b) -> Long.compare(b.time(), a.time()));
@@ -50,8 +50,8 @@ public class TransactionHistoryManager {
         }
     }
 
-    public static List<TransactionEntry> getLogs(PlayerEntity player) {
-        Path savePath = getSavePath(player.getServer(), player.getUuidAsString());
+    public static List<TransactionEntry> getLogs(Player player) {
+        Path savePath = getWorldPath(player.getServer(), player.getStringUUID());
         savePath.getParent().toFile().mkdirs();
 
         List<TransactionEntry> entries = new ArrayList<>();
@@ -72,8 +72,8 @@ public class TransactionHistoryManager {
         return entries;
     }
 
-    public static Path getSavePath(MinecraftServer server, String playerUuid) {
-        Path saveDirectory = server.getSavePath(WorldSavePath.getRootMapped()).resolve(Constants.MOD_ID).resolve("player_data");
+    public static Path getWorldPath(MinecraftServer server, String playerUuid) {
+        Path saveDirectory = server.getWorldPath(LevelResource.ROOT).resolve(Constants.MOD_ID).resolve("player_data");
         saveDirectory.toFile().mkdirs();
         return saveDirectory.resolve(playerUuid + ".json");
     }

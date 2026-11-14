@@ -1,7 +1,7 @@
 package com.lx862.mtrscripting.core.util;
 
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -26,31 +26,31 @@ public class Matrices {
     }
 
     public void translate(float x, float y, float z) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.translate(x, y, z));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.translate(x, y, z));
     }
 
     public void rotateX(float xRad) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateXRadians(xRad));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.XP.rotation(xRad)));
     }
 
     public void rotateY(float yRad) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateYRadians(yRad));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.YP.rotation(yRad)));
     }
 
     public void rotateZ(float zRad) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateZRadians(zRad));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.ZP.rotation(zRad)));
     }
 
     public void rotateXDegrees(float xDeg) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateXDegrees(xDeg));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(xDeg)));
     }
 
     public void rotateYDegrees(float yDeg) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateYDegrees(yDeg));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yDeg)));
     }
 
     public void rotateZDegrees(float zDeg) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.rotateZDegrees(zDeg));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(zDeg)));
     }
 
     public void rotate(float x, float y, float z, float radian) {
@@ -63,7 +63,7 @@ public class Matrices {
     }
 
     public void scale(float x, float y, float z) {
-        this.storedMatrixTransformations.peek().add(graphicsHolder -> graphicsHolder.scale(x, y, z));
+        this.storedMatrixTransformations.peek().add(matrixStack -> matrixStack.scale(x, y, z));
     }
 
     public void popPose() {

@@ -6,22 +6,22 @@ import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.amberui.gui.screen.AnimatedScreen;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mod.data.IGui;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import org.mtr.data.IGui;
 
 import java.text.SimpleDateFormat;
 import java.util.List;
 
 public class RVEnquiryScreen extends AnimatedScreen {
-    private static final Identifier cardScreenTexture = Constants.id("textures/enquiry/card.png");
-    private static final Identifier balanceTexture = Constants.id("textures/enquiry/transactions.png");
-    private static final Identifier octopusCardTexture = Constants.id("textures/enquiry/octopus_card.png");
-    private static final Identifier font = new Identifier("mtr", "mtr");
+    private static final ResourceLocation cardScreenTexture = Constants.id("textures/enquiry/card.png");
+    private static final ResourceLocation balanceTexture = Constants.id("textures/enquiry/transactions.png");
+    private static final ResourceLocation octopusCardTexture = Constants.id("textures/enquiry/octopus_card.png");
+    private static final ResourceLocation font = ResourceLocation.fromNamespaceAndPath("mtr", "mtr");
     private static final SimpleDateFormat TIME_FORMATTER = new SimpleDateFormat("dd/MM/yyyy HH:mm");
     private final List<TransactionEntry> entries;
     private final BlockPos pos;
@@ -37,18 +37,19 @@ public class RVEnquiryScreen extends AnimatedScreen {
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
-        super.renderBackground(graphicsHolder);
+    public void render(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        super.renderBackground(guiGraphics, mouseX, mouseY, tickDelta);
 
-        int screenWidth = MinecraftClient.getInstance().getWindow().getScaledWidth();
-        int screenHeight = MinecraftClient.getInstance().getWindow().getScaledHeight();
+        int screenWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int screenHeight = Minecraft.getInstance().getWindow().getGuiScaledHeight();
 
         GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
 
-        super.render(graphicsHolder, mouseX, mouseY, tickDelta);
+        super.render(guiGraphics, mouseX, mouseY, tickDelta);
         int baseWidth = 427;
-        double scaledWidth = getWidthMapped();
-        double scaledHeight = getHeightMapped();
+        double scaledWidth = width;
+        double scaledHeight = height;
         int startX = 20;
         int startY = 70;
 
@@ -71,7 +72,7 @@ public class RVEnquiryScreen extends AnimatedScreen {
             int renderY = startY;
 
             graphicsHolder.push();
-            graphicsHolder.scale((float)(double)getWidthMapped() / baseWidth, (float)(double)getWidthMapped() / baseWidth, (float)(double)getWidthMapped() / baseWidth);
+            graphicsHolder.scale((float)(double)width / baseWidth, (float)(double)width / baseWidth, (float)(double)width / baseWidth);
 
             graphicsHolder.drawText(TextUtil.withFont(TextUtil.translatable(TextCategory.GUI, "rvenquiry_screen.balance"), font), startX, 20, 0, false, GraphicsHolder.getDefaultLight());
             graphicsHolder.drawText(TextUtil.withFont(TextUtil.literal("Octopus"), font), startX + 305, 75, 0, false, GraphicsHolder.getDefaultLight());
@@ -81,7 +82,7 @@ public class RVEnquiryScreen extends AnimatedScreen {
             graphicsHolder.drawText(TextUtil.withFont(TextUtil.literal(processorId), font), startX + 305, 95, 0, false, GraphicsHolder.getDefaultLight());
 
             for (int i = 0; i < 10; i++) {
-                MutableText renderText = getEntryText(i);
+                MutableComponent renderText = getEntryText(i);
                 if(renderText == null) continue;
 
                 graphicsHolder.drawText(TextUtil.withFont(renderText, font), startX, renderY, 0, false, GraphicsHolder.getDefaultLight());
@@ -116,7 +117,7 @@ public class RVEnquiryScreen extends AnimatedScreen {
         }
     }
 
-    private MutableText getEntryText(int i) {
+    private MutableComponent getEntryText(int i) {
         if(i >= entries.size()) return null;
         TransactionEntry transactionEntry = entries.get(i);
         String renderTextString;
@@ -131,7 +132,7 @@ public class RVEnquiryScreen extends AnimatedScreen {
     }
 
     @Override
-    public boolean isPauseScreen2() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

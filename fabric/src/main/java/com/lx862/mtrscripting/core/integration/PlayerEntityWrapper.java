@@ -2,14 +2,16 @@ package com.lx862.mtrscripting.core.integration;
 
 import com.lx862.jcm.mapping.LoaderImpl;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
-import org.mtr.mapping.holder.*;
-
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 public class PlayerEntityWrapper extends EntityWrapper {
-    private final PlayerEntity playerEntity;
+    private final Player playerEntity;
 
     @ApiInternal
-    public PlayerEntityWrapper(PlayerEntity player) {
-        super(Entity.cast(player));
+    public PlayerEntityWrapper(Player player) {
+        super((Entity)player);
         this.playerEntity = player;
     }
 
@@ -30,7 +32,7 @@ public class PlayerEntityWrapper extends EntityWrapper {
     }
 
     public boolean isSneaking() {
-        return playerEntity.isSneaking();
+        return playerEntity.isShiftKeyDown();
     }
 
     public boolean isSprinting() {
@@ -41,18 +43,18 @@ public class PlayerEntityWrapper extends EntityWrapper {
         return playerEntity.isSwimming();
     }
 
-    public boolean isHoldingItem(Identifier id) {
+    public boolean isHoldingItem(ResourceLocation id) {
         Item itm = LoaderImpl.getItemFromId(id);
         if(itm == null) return false;
         return playerEntity.isHolding(itm);
     }
 
     public ItemStackWrapper mainHandItem() {
-        return new ItemStackWrapper(playerEntity.getMainHandStack());
+        return new ItemStackWrapper(playerEntity.getMainHandItem());
     }
 
     public ItemStackWrapper offHandItem() {
-        return new ItemStackWrapper(playerEntity.getOffHandStack());
+        return new ItemStackWrapper(playerEntity.getOffhandItem());
     }
 
     public ItemStackWrapper activeItem() {

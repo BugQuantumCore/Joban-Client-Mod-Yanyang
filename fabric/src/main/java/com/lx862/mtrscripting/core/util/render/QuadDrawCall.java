@@ -2,18 +2,19 @@ package com.lx862.mtrscripting.core.util.render;
 
 import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.data.IGui;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.MoreRenderLayers;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.data.IGui;
+import org.mtr.render.MainRenderer;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
-    private static final Identifier WHITE_TEXTURE = new Identifier("mtr", "textures/block/white.png");
+    private static final ResourceLocation WHITE_TEXTURE = ResourceLocation.fromNamespaceAndPath("mtr", "textures/block/white.png");
     private final QuadDefinition quadDefinition;
     private Direction normalOverride = null;
-    private Identifier textureId;
+    private ResourceLocation textureId;
     private QueuedRenderLayer renderType;
     private int color = 0xFFFFFF;
     private float u1 = 0;
@@ -80,10 +81,10 @@ public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
     }
 
     public QuadDrawCall texture(String id) {
-        return texture(new Identifier(id));
+        return texture(ResourceLocation.parse(id));
     }
 
-    public QuadDrawCall texture(Identifier id) {
+    public QuadDrawCall texture(ResourceLocation id) {
         this.textureId = id;
         return this;
     }
@@ -94,7 +95,7 @@ public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
     }
 
     public QuadDrawCall normal(int x, int y, int z) {
-        this.normalOverride = Direction.fromVector(x, y, z);
+        this.normalOverride = Direction.fromDelta(x, y, z);
         return this;
     }
 
@@ -119,59 +120,33 @@ public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
     }
 
     @Override
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         super.run(world, storedMatrixTransformations, facing, light);
 
-        MainRenderer.scheduleRender(renderType, (graphicsHolderNew, offset) -> {
-            graphicsHolderNew.createVertexConsumer(getRenderType(textureId));
-            storedMatrixTransformations.transform(graphicsHolderNew, offset);
-            graphicsHolderNew.rotateXDegrees(-180);
+        final boolean renderTypeIsInterior = this.renderType == QueuedRenderLayer.INTERIOR || this.renderType == QueuedRenderLayer.INTERIOR_TRANSLUCENT;
+        final int color = 0xFF000000 | this.color;
+        final int drawLight = renderTypeIsInterior ? IGui.MAX_LIGHT_INTERIOR : light;
+        final Direction direction = this.normalOverride != null ? this.normalOverride : facing;
 
-            boolean renderTypeIsInterior = this.renderType == QueuedRenderLayer.INTERIOR || this.renderType == QueuedRenderLayer.INTERIOR_TRANSLUCENT;
+        MainRenderer.scheduleRender(textureId, false, renderType, (poseStack, vertexConsumer, offset) -> {
+            storedMatrixTransformations.transform(poseStack, offset);
+            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-180));
 
-            graphicsHolderNew.drawTextureInWorld(
-                    quadDefinition.x2,
-                    quadDefinition.y2,
-                    quadDefinition.z2,
-                    quadDefinition.x3,
-                    quadDefinition.y3,
-                    quadDefinition.z3,
-                    quadDefinition.x4,
-                    quadDefinition.y4,
-                    quadDefinition.z4,
-                    quadDefinition.x1,
-                    quadDefinition.y1,
-                    quadDefinition.z1,
-                    u1,
-                    v1,
-                    u2,
-                    v2,
-                    this.normalOverride != null ? this.normalOverride : facing,
-                    RenderHelper.ARGB_BLACK + this.color,
-                    renderTypeIsInterior ? IGui.MAX_LIGHT_INTERIOR : light
+            org.mtr.client.IDrawing.drawTexture(
+                    poseStack, vertexConsumer,
+                    quadDefinition.x2, quadDefinition.y2, quadDefinition.z2,
+                    quadDefinition.x3, quadDefinition.y3, quadDefinition.z3,
+                    quadDefinition.x4, quadDefinition.y4, quadDefinition.z4,
+                    quadDefinition.x1, quadDefinition.y1, quadDefinition.z1,
+                    u1, v1, u2, v2,
+                    direction,
+                    color,
+                    drawLight
             );
-            graphicsHolderNew.pop();
+            poseStack.popPose();
         });
     }
 
-    private RenderLayer getRenderType(Identifier textureId) {
-        if(this.renderType == QueuedRenderLayer.EXTERIOR) {
-            return MoreRenderLayers.getExterior(textureId);
-        } else if(this.renderType == QueuedRenderLayer.EXTERIOR_TRANSLUCENT) {
-            return MoreRenderLayers.getExteriorTranslucent(textureId);
-        } else if(this.renderType == QueuedRenderLayer.INTERIOR) {
-            return MoreRenderLayers.getInterior(textureId);
-        } else if(this.renderType == QueuedRenderLayer.INTERIOR_TRANSLUCENT) {
-            return MoreRenderLayers.getInteriorTranslucent(textureId);
-        } else if(this.renderType == QueuedRenderLayer.LIGHT) {
-            return MoreRenderLayers.getLight(textureId, false);
-        } else if(this.renderType == QueuedRenderLayer.LIGHT_TRANSLUCENT) {
-            return MoreRenderLayers.getLight(textureId, true);
-        } else if(this.renderType == QueuedRenderLayer.LIGHT_2) {
-            return MoreRenderLayers.getLight2(textureId);
-        }
-        throw new IllegalStateException("Unknown render type: " + this.renderType);
-    }
 
     @Override
     public void validate() {

@@ -10,10 +10,11 @@ import com.lx862.amberui.gui.widget.ListViewWidget;
 import com.lx862.amberui.gui.widget.MappedWidget;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.tool.TextCase;
+import net.minecraft.core.BlockPos;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.TextCase;
+import com.lx862.jcm.mod.render.TextCase;
 
 public class FareSaverScreen extends BlockConfigListScreen {
     private long discount;
@@ -26,22 +27,22 @@ public class FareSaverScreen extends BlockConfigListScreen {
     }
 
     @Override
-    public MutableText getScreenTitle() {
-        return Blocks.FARE_SAVER.get().getName();
+    public MutableComponent getScreenTitle() {
+        return com.lx862.jcm.mod.registry.Blocks.FARE_SAVER.get().getName();
     }
 
     @Override
     public void addConfigEntries(ListViewWidget listViewWidget) {
         AlwaysRenderedTextField prefixTextField = new AlwaysRenderedTextField(0, 0, 60, 20, 4, TextCase.DEFAULT, null, "$");
-        prefixTextField.setChangedListener2(newValue -> this.prefix = newValue);
-        prefixTextField.setText2(this.prefix);
+        prefixTextField.setResponder(newValue -> this.prefix = newValue);
+        prefixTextField.setValue(this.prefix);
 
         IntegerTextField discountTextField = new IntegerTextField(0, 0, 60, 20, 0, 1000000, 2);
         discountTextField.onChange(newValue -> this.discount = newValue);
         discountTextField.setValue(this.discount);
 
-        addChild(new ClickableWidget(prefixTextField));
-        addChild(new ClickableWidget(discountTextField));
+        addRenderableWidget(prefixTextField);
+        addRenderableWidget(discountTextField);
         listViewWidget.add(TextUtil.translatable(TextCategory.GUI, "faresaver.prefix"), new MappedWidget(prefixTextField));
         listViewWidget.add(TextUtil.translatable(TextCategory.GUI, "faresaver.discount"), new MappedWidget(discountTextField));
     }

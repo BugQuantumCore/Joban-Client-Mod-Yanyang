@@ -1,8 +1,7 @@
 package com.lx862.jcm.mod.util;
 
-import org.mtr.mapping.render.shader.ModShaderHandler;
-
 import java.lang.reflect.Method;
+import com.lx862.jcm.mod.extra.JCMPatchForMTR;
 
 /**
  * Optional Iris queries without a compile-time dependency on the shader mod.
@@ -54,7 +53,7 @@ public final class ShaderDetector {
      */
     public static boolean isRenderingShadowPass() {
         final Boolean result = query(IRIS_IS_RENDERING_SHADOW_PASS);
-        return result != null ? result : ModShaderHandler.renderingShadows();
+        return result != null ? result : JCMPatchForMTR.isRenderingShadow();
     }
 
     private static Boolean query(Method method) {

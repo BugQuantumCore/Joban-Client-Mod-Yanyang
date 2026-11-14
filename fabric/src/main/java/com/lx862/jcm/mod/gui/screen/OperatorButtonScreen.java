@@ -10,16 +10,21 @@ import com.lx862.amberui.gui.widget.WidgetSet;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mapping.tool.ColorHelper;
-import org.mtr.mod.data.IGui;
-import org.mtr.mod.item.ItemDriverKey;
+import com.lx862.amberui.gui.widget.Button;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import com.lx862.jcm.mod.compat.TextHelper;
+import net.minecraft.util.FastColor;
+import org.mtr.data.IGui;
+import org.mtr.item.ItemDriverKey;
 
 import java.util.function.Consumer;
+import net.minecraft.ChatFormatting;
+import com.lx862.amberui.gui.widget.Button;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 
 public class OperatorButtonScreen extends BlockConfigScreen {
     private static final int KEY_BUTTON_SIZE = 50;
@@ -32,69 +37,70 @@ public class OperatorButtonScreen extends BlockConfigScreen {
     }
 
     @Override
-    public void init2() {
-        super.init2();
-        int centerX = getWidthMapped() / 2;
+    public void init() {
+        super.init();
+        int centerX = width / 2;
         int contentWidth = getContentWidth();
         int startX = (width - contentWidth) / 2;
-        int startY = (int)(getHeightMapped() / 2.5f);
+        int startY = (int)(height / 2.5f);
 
         int keyRowWidth = (KEY_BUTTON_SIZE * OperatorButtonBlock.ACCEPTED_KEYS.length) + ((OperatorButtonBlock.ACCEPTED_KEYS.length-1) * 10);
         WidgetSet keyRow = new WidgetSet(KEY_BUTTON_SIZE, 10);
 
         for(int i = 0; i < OperatorButtonBlock.ACCEPTED_KEYS.length; i++) {
             final int keyIdx = i;
-            KeyToggleButton keyToggleButton = new KeyToggleButton((ItemDriverKey) OperatorButtonBlock.ACCEPTED_KEYS[keyIdx].get().data, keyRequirements[keyIdx], (itm) -> {
+            KeyToggleButton keyToggleButton = new KeyToggleButton((ItemDriverKey) OperatorButtonBlock.ACCEPTED_KEYS[keyIdx].get(), keyRequirements[keyIdx], (itm) -> {
                 hoveredButton = itm;
             }, 0, 0, KEY_BUTTON_SIZE, KEY_BUTTON_SIZE, (btn) -> {
-                keyRequirements[keyIdx] = ((KeyToggleButton)btn.data).isAllowed();
+                keyRequirements[keyIdx] = ((KeyToggleButton)btn).isAllowed();
             });
             keyRow.addWidget(keyToggleButton);
-            addChild(new ClickableWidget(keyToggleButton));
+            addRenderableWidget(keyToggleButton);
         }
         keyRow.setXYSize(centerX - (keyRowWidth / 2), startY - (KEY_BUTTON_SIZE / 2), keyRowWidth, KEY_BUTTON_SIZE);
-        addChild(new ClickableWidget(keyRow));
+        addRenderableWidget(keyRow);
 
-        addBottomRowEntry(startX, getHeightMapped() - 40, contentWidth, 40);
+        addBottomRowEntry(startX, height - 40, contentWidth, 40);
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float delta) {
-        super.render(graphicsHolder, mouseX, mouseY, delta);
-        int startY = (int)(getHeightMapped() / 2.5f);
+    public void render(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        super.render(guiGraphics, mouseX, mouseY, delta);
+        int startY = (int)(height / 2.5f);
 
-        MutableText allowedKeyText = TextUtil.translatable(TextCategory.GUI, "operator_button.keys_title").formatted(TextFormatting.UNDERLINE);
+        MutableComponent allowedKeyText = TextUtil.translatable(TextCategory.GUI, "operator_button.keys_title").withStyle(ChatFormatting.UNDERLINE);
         graphicsHolder.push();
-        graphicsHolder.translate(getWidthMapped() / 2d, startY - 45, 0);
+        graphicsHolder.translate(width / 2d, startY - 45, 0);
         graphicsHolder.scale(1.5f, 1.5f, 1.5f);
         graphicsHolder.drawCenteredText(allowedKeyText, 0, 0, 0xFFFFFFFF);
         graphicsHolder.pop();
 
         if(hoveredButton != null) {
             ItemDriverKey key = hoveredButton.getKeyItem();
-            MutableText itemText = TextUtil.translatable(key.getTranslationKey2());
-            MutableText prefixTick = TextUtil.literal("✔ ").formatted(TextFormatting.DARK_GREEN);
-            MutableText prefixCross = TextUtil.literal("✗ ").formatted(TextFormatting.DARK_RED);
+            MutableComponent itemText = TextUtil.translatable(key.getDescriptionId());
+            MutableComponent prefixTick = TextUtil.literal("✔ ").withStyle(ChatFormatting.DARK_GREEN);
+            MutableComponent prefixCross = TextUtil.literal("✗ ").withStyle(ChatFormatting.DARK_RED);
 
             graphicsHolder.push();
-            graphicsHolder.translate(getWidthMapped() / 2d, startY + 40, 0);
+            graphicsHolder.translate(width / 2d, startY + 40, 0);
             graphicsHolder.translate(0, 0, 0);
             graphicsHolder.scale(1.5f, 1.5f, 1.5f);
-            graphicsHolder.drawCenteredText(TextHelper.append((hoveredButton.isAllowed() ? prefixTick : prefixCross), itemText.formatted(TextFormatting.WHITE)), 0, 0, key.color);
+            graphicsHolder.drawCenteredText(TextHelper.append((hoveredButton.isAllowed() ? prefixTick : prefixCross), itemText.withStyle(ChatFormatting.WHITE)), 0, 0, key.color);
             graphicsHolder.pop();
 
             graphicsHolder.push();
-            graphicsHolder.translate(getWidthMapped() / 2d, startY + 60, 0);
+            graphicsHolder.translate(width / 2d, startY + 60, 0);
 
-            MutableText canDrive = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.drivable").formatted(TextFormatting.YELLOW), getBooleanText(key.canDrive));
+            MutableComponent canDrive = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.drivable").withStyle(ChatFormatting.YELLOW), getBooleanText(key.canDrive));
             graphicsHolder.drawCenteredText(canDrive, 0, 0, IGui.ARGB_WHITE);
             graphicsHolder.translate(0, 10, 0);
 
-            MutableText canOpenDoor = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.door").formatted(TextFormatting.YELLOW), getBooleanText(key.canOpenDoors));
+            MutableComponent canOpenDoor = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.door").withStyle(ChatFormatting.YELLOW), getBooleanText(key.canOpenDoors));
             graphicsHolder.drawCenteredText(canOpenDoor, 0, 0, IGui.ARGB_WHITE);
             graphicsHolder.translate(0, 10, 0);
 
-            MutableText canBoardVehicles = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.board").formatted(TextFormatting.YELLOW), getBooleanText(key.canBoardAnyVehicle));
+            MutableComponent canBoardVehicles = TextHelper.append(TextUtil.translatable(TextCategory.GUI, "operator_button.key.board").withStyle(ChatFormatting.YELLOW), getBooleanText(key.canBoardAnyVehicle));
             graphicsHolder.drawCenteredText(canBoardVehicles, 0, 0, IGui.ARGB_WHITE);
 
             graphicsHolder.pop();
@@ -102,8 +108,8 @@ public class OperatorButtonScreen extends BlockConfigScreen {
     }
 
     @Override
-    public MutableText getScreenTitle() {
-        return Blocks.OPERATOR_BUTTON.get().getName();
+    public MutableComponent getScreenTitle() {
+        return com.lx862.jcm.mod.registry.Blocks.OPERATOR_BUTTON.get().getName();
     }
 
     @Override
@@ -111,13 +117,13 @@ public class OperatorButtonScreen extends BlockConfigScreen {
         Networking.sendPacketToServer(new OperatorButtonUpdatePacket(blockPos, keyRequirements));
     }
 
-    private MutableText getBooleanText(boolean bl) {
-        MutableText text = TextUtil.translatable(bl ? "gui.yes" : "gui.no");
-        return text.formatted(bl ? TextFormatting.GREEN : TextFormatting.RED);
+    private MutableComponent getBooleanText(boolean bl) {
+        MutableComponent text = TextUtil.translatable(bl ? "gui.yes" : "gui.no");
+        return text.withStyle(bl ? ChatFormatting.GREEN : ChatFormatting.RED);
     }
 
-    static class KeyToggleButton extends ButtonWidgetExtension {
-        private static final Identifier KEY_TEXTURE = new Identifier("mtr:textures/item/driver_key.png");
+    static class KeyToggleButton extends Button {
+        private static final ResourceLocation KEY_TEXTURE = ResourceLocation.parse("mtr:textures/item/driver_key.png");
         private static final int BORDER_PADDING = 8;
         private static final int SELECTED_COLOR = 0xFF00FF00;
         private static final int DESELECTED_COLOR = 0xFFFF0000;
@@ -126,30 +132,32 @@ public class OperatorButtonScreen extends BlockConfigScreen {
         private boolean allowed;
         private boolean lastHovered;
 
-        public KeyToggleButton(ItemDriverKey keyItem, boolean allowed, Consumer<KeyToggleButton> hoverCallback, int x, int y, int width, int height, org.mtr.mapping.holder.PressAction onPress) {
-            super(x, y, width, height, onPress);
+        public KeyToggleButton(ItemDriverKey keyItem, boolean allowed, Consumer<KeyToggleButton> hoverCallback, int x, int y, int width, int height, net.minecraft.client.gui.components.Button.OnPress onPress) {
+            super(x, y, width, height, net.minecraft.network.chat.Component.empty(), onPress);
             this.keyItem = keyItem;
             this.hoverCallback = hoverCallback;
             this.allowed = allowed;
         }
 
         @Override
-        public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float delta) {
-            super.render(graphicsHolder, mouseX, mouseY, delta);
+        public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+            final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+
+            super.renderWidget(guiGraphics, mouseX, mouseY, delta);
 
             if (this.visible) {
                 GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
-                ColorHelper.unpackColor(GuiHelper.MAX_ALPHA | keyItem.color, (a, r, g, b) -> {
-                    RenderSystem.setShaderColor(r / 255f, g / 255f, b / 255f, a / 255f);
-                    GuiHelper.drawTexture(guiDrawing, KEY_TEXTURE, getX2() + BORDER_PADDING, getY2() + BORDER_PADDING, getWidth2() - (BORDER_PADDING * 2), getHeight2() - (BORDER_PADDING * 2));
-                    RenderSystem.setShaderColor(1, 1, 1, 1);
-                });
+                final int argb = GuiHelper.MAX_ALPHA | keyItem.color;
+                final int a = (argb >>> 24) & 0xFF, r = (argb >>> 16) & 0xFF, g = (argb >>> 8) & 0xFF, b = argb & 0xFF;
+                RenderSystem.setShaderColor(r / 255f, g / 255f, b / 255f, a / 255f);
+                GuiHelper.drawTexture(guiDrawing, KEY_TEXTURE, getX() + BORDER_PADDING, getY() + BORDER_PADDING, getWidth() - (BORDER_PADDING * 2), getHeight() - (BORDER_PADDING * 2));
+                RenderSystem.setShaderColor(1, 1, 1, 1);
 
                 int borderColor = allowed ? SELECTED_COLOR : DESELECTED_COLOR;
-                GuiHelper.drawRectangle(guiDrawing, getX2(), getY2(), getWidth2(), 1, borderColor);
-                GuiHelper.drawRectangle(guiDrawing, getX2(), getY2() + getHeight2()-1, getWidth2(), 1, borderColor);
-                GuiHelper.drawRectangle(guiDrawing, getX2(), getY2(), 1, getHeight2(), borderColor);
-                GuiHelper.drawRectangle(guiDrawing, getX2() + getWidth2()-1, getY2(), 1, getHeight2(), borderColor);
+                GuiHelper.drawRectangle(guiDrawing, getX(), getY(), width, 1, borderColor);
+                GuiHelper.drawRectangle(guiDrawing, getX(), getY() + height-1, width, 1, borderColor);
+                GuiHelper.drawRectangle(guiDrawing, getX(), getY(), 1, height, borderColor);
+                GuiHelper.drawRectangle(guiDrawing, getX() + width-1, getY(), 1, height, borderColor);
 
                 if(this.lastHovered != isHovered()) {
                     hoverCallback.accept(isHovered() ? this : null);
@@ -159,9 +167,9 @@ public class OperatorButtonScreen extends BlockConfigScreen {
         }
 
         @Override
-        public void onPress2() {
+        public void onPress() {
             this.allowed = !this.allowed;
-            super.onPress2();
+            super.onPress();
         }
 
         public ItemDriverKey getKeyItem() {

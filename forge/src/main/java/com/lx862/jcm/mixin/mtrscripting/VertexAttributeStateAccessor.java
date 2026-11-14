@@ -1,6 +1,6 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
-import org.mtr.mapping.render.vertex.VertexAttributeState;
+import com.lx862.jcm.mod.render.mesh.VertexAttributeState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;

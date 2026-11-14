@@ -1,88 +1,87 @@
 package com.lx862.amberui.gui.widget;
 
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.mapper.ClickableWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import net.minecraft.core.BlockPos;
+import net.minecraft.client.gui.components.AbstractWidget;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
 import java.util.function.Consumer;
 
-public class BlockPosWidget extends ClickableWidgetExtension implements WidgetsWrapper {
+public class BlockPosWidget extends AbstractWidget implements WidgetsWrapper {
     private final CoordTextField posXTextField;
     private final CoordTextField posYTextField;
     private final CoordTextField posZTextField;
     public BlockPosWidget(int x, int y, int width, int height) {
-        super(x, y, width, height);
+        super(x, y, width, height, net.minecraft.network.chat.Component.empty());
         this.posXTextField = new CoordTextField(0, 0, width / 3, height, -29999999, 29999999, 0);
         this.posYTextField = new CoordTextField(width / 3, 0, width / 3, height, -29999999, 29999999, 0);
         this.posZTextField = new CoordTextField((width / 3) * 2, 0, width / 3, height, -29999999, 29999999, 0);
 
-        this.posXTextField.setChangedListener2(this::setPosition);
-        this.posYTextField.setChangedListener2(this::setPosition);
-        this.posZTextField.setChangedListener2(this::setPosition);
+        this.posXTextField.setResponder(this::setPosition);
+        this.posYTextField.setResponder(this::setPosition);
+        this.posZTextField.setResponder(this::setPosition);
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float delta) {
-        this.posXTextField.render(graphicsHolder, mouseX, mouseY, delta);
-        this.posYTextField.render(graphicsHolder, mouseX, mouseY, delta);
-        this.posZTextField.render(graphicsHolder, mouseX, mouseY, delta);
+    public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+    
+        this.posXTextField.render(guiGraphics, mouseX, mouseY, delta);
+        this.posYTextField.render(guiGraphics, mouseX, mouseY, delta);
+        this.posZTextField.render(guiGraphics, mouseX, mouseY, delta);
     }
 
     @Override
     public void setAllX(int newX) {
-        super.setX2(newX);
+        super.setX(newX);
         positionWidgets();
     }
 
     @Override
     public void setAllY(int newY) {
-        super.setY2(newY);
+        super.setY(newY);
         positionWidgets();
     }
 
-    @Override
-    public void setActiveMapped(boolean active) {
-        this.posXTextField.setEditable2(active);
-        this.posYTextField.setEditable2(active);
-        this.posZTextField.setEditable2(active);
-        this.posXTextField.setActiveMapped(active);
-        this.posYTextField.setActiveMapped(active);
-        this.posZTextField.setActiveMapped(active);
-        super.setActiveMapped(active);
+    public void setActive(boolean active) {
+        this.posXTextField.setEditable(active);
+        this.posYTextField.setEditable(active);
+        this.posZTextField.setEditable(active);
+        this.posXTextField.active = active;
+        this.posYTextField.active = active;
+        this.posZTextField.active = active;
+        super.active = active;
     }
 
-    @Override
-    public void setVisibleMapped(boolean visible) {
-        this.posXTextField.setVisible2(visible);
-        this.posYTextField.setVisible2(visible);
-        this.posZTextField.setVisible2(visible);
-        super.setVisibleMapped(visible);
+    public void setVisible(boolean visible) {
+        this.posXTextField.visible = visible;
+        this.posYTextField.visible = visible;
+        this.posZTextField.visible = visible;
+        super.visible = visible;
     }
 
     public void positionWidgets() {
-        int perWidth = getWidth2() / 3;
-        this.posXTextField.setX2(getX2());
-        this.posYTextField.setX2(getX2() + perWidth);
-        this.posZTextField.setX2(getX2() + perWidth + perWidth);
-        this.posXTextField.setY2(getY2());
-        this.posYTextField.setY2(getY2());
-        this.posZTextField.setY2(getY2());
-        this.posXTextField.setWidth2(perWidth);
-        this.posYTextField.setWidth2(perWidth);
-        this.posZTextField.setWidth2(perWidth);
+        int perWidth = getWidth() / 3;
+        this.posXTextField.setX(getX());
+        this.posYTextField.setX(getX() + perWidth);
+        this.posZTextField.setX(getX() + perWidth + perWidth);
+        this.posXTextField.setY(getY());
+        this.posYTextField.setY(getY());
+        this.posZTextField.setY(getY());
+        this.posXTextField.setWidth(perWidth);
+        this.posYTextField.setWidth(perWidth);
+        this.posZTextField.setWidth(perWidth);
     }
 
-    public void addWidget(Consumer<ClickableWidget> callback) {
-        callback.accept(new ClickableWidget(posXTextField));
-        callback.accept(new ClickableWidget(posYTextField));
-        callback.accept(new ClickableWidget(posZTextField));
+    public void addWidget(Consumer<AbstractWidget> callback) {
+        callback.accept(posXTextField);
+        callback.accept(posYTextField);
+        callback.accept(posZTextField);
     }
 
     public void setBlockPos(BlockPos newPos) {
-        this.posXTextField.setValue(newPos.getX());
-        this.posYTextField.setValue(newPos.getY());
-        this.posZTextField.setValue(newPos.getZ());
+        this.posXTextField.setValue(String.valueOf(newPos.getX()));
+        this.posYTextField.setValue(String.valueOf(newPos.getY()));
+        this.posZTextField.setValue(String.valueOf(newPos.getZ()));
     }
 
     public BlockPos getBlockPos() {
@@ -102,10 +101,14 @@ public class BlockPosWidget extends ClickableWidgetExtension implements WidgetsW
 
                 try {
                     int parsed = Integer.parseInt(strSplit[i]);
-                    if(field != null) field.setValue(parsed);
+                    if(field != null) field.setValue(String.valueOf(parsed));
                 } catch (NumberFormatException ignored) {
                 }
             }
         }
     }
+
+	@Override
+	public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+	}
 }

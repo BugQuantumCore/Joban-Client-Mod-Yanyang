@@ -12,13 +12,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public class MigrateMapping {
     @SubscribeEvent
     public void migrate(RegistryEvent.MissingMappings<Block> event) {
         event.getAllMappings().forEach(entry -> {
-            ResourceLocation newId = JCMUtil.getMigrationId(new Identifier(entry.key)).data;
+            ResourceLocation newId = JCMUtil.getMigrationId(ResourceLocation.parse(entry.key));
             if(!newId.equals(entry.key)) {
                 entry.remap(ForgeRegistries.BLOCKS.getValue(newId));
             }
@@ -34,13 +34,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.MissingMappingsEvent;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 public class MigrateMapping {
     @SubscribeEvent
     public void migrate(MissingMappingsEvent event) {
-        event.getAllMappings(ForgeRegistries.BLOCKS.getRegistryKey()).forEach(entry -> {
-            ResourceLocation newId = JCMUtil.getMigrationId(new Identifier(entry.getKey())).data;
+        event.getAllMappings(ForgeRegistries.BLOCKS.dimension()).forEach(entry -> {
+            ResourceLocation newId = JCMUtil.getMigrationId(ResourceLocation.parse(entry.getKey()));
             if(!newId.equals(entry.getKey())) {
                 entry.remap(ForgeRegistries.BLOCKS.getValue(newId));
             }

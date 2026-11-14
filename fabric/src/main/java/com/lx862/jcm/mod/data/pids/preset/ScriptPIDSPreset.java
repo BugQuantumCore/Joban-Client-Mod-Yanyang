@@ -22,22 +22,29 @@ import com.lx862.mtrscripting.mod.util.JsonUtil;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.resource.ResourceManagerHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
+import org.mtr.render.StoredMatrixTransformations;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.extra.JCMPatchForMTR;
 
 public class ScriptPIDSPreset extends PIDSPresetBase {
-    private static final Identifier DEFAULT_THUMBNAIL = Constants.id("textures/gui/pids_preview_js.png");
+    private static final ResourceLocation DEFAULT_THUMBNAIL = Constants.id("textures/gui/pids_preview_js.png");
     public final ParsedScript parsedScripts;
 
-    private ScriptPIDSPreset(String id, @Nullable String name, Identifier thumbnail, List<String> blacklist, boolean outOfBound, boolean builtin, ParsedScript parsedScripts) {
+    private ScriptPIDSPreset(String id, @Nullable String name, ResourceLocation thumbnail, List<String> blacklist, boolean outOfBound, boolean builtin, ParsedScript parsedScripts) {
         super(id, name, thumbnail, blacklist, outOfBound, builtin);
         this.parsedScripts = parsedScripts;
     }
@@ -61,7 +68,7 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
         final String name = rootJsonObject.has("name") ? rootJsonObject.get("name").getAsString() : null;
         final boolean builtin = JsonUtil.getBoolean("builtin", false, rootJsonObject);
         final boolean outOfBound = JsonUtil.getBoolean("outOfBound", false, rootJsonObject);
-        final Identifier thumbnail = rootJsonObject.has("thumbnail") ? new Identifier(rootJsonObject.get("thumbnail").getAsString()) : DEFAULT_THUMBNAIL;
+        final ResourceLocation thumbnail = rootJsonObject.has("thumbnail") ? ResourceLocation.parse(rootJsonObject.get("thumbnail").getAsString()) : DEFAULT_THUMBNAIL;
         List<String> blackList = new ArrayList<>();
         if(rootJsonObject.has("blacklist")) {
             JsonArray blacklistedPIDS = rootJsonObject.getAsJsonArray("blacklist");
@@ -109,14 +116,14 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
            preset stays native-only. */
         if(!jsFiles.isEmpty() || hasTexts) {
             if(inputElement != null) {
-                Identifier scriptLocationSource = Constants.id("internal/pids/internal_script_input/" + id);
+                ResourceLocation scriptLocationSource = Constants.id("internal/pids/internal_script_input/" + id);
                 scripts.add(new ScriptContent(scriptLocationSource, "const SCRIPT_INPUT = " + inputElement.toString() + ";"));
             }
 
             if(hasTexts) {
                 JsonArray scriptTextArray = rootJsonObject.get("scriptTexts").getAsJsonArray();
                 for(int i = 0; i < scriptTextArray.size(); i++) {
-                    Identifier scriptLocationSource = Constants.id("internal/pids/internal_script_texts/" + id + "/line" + i);
+                    ResourceLocation scriptLocationSource = Constants.id("internal/pids/internal_script_texts/" + id + "/line" + i);
                     scripts.add(new ScriptContent(scriptLocationSource, scriptTextArray.get(i).getAsString()));
                 }
             }
@@ -170,7 +177,7 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
             JCMLogger.warn("Unsupported non-string script location {} in PIDS preset \"{}\"!", entryElement, id);
             return;
         }
-        Identifier scriptLocationSource = new Identifier(entryElement.getAsString());
+        ResourceLocation scriptLocationSource = ResourceLocation.parse(entryElement.getAsString());
         String scriptText = ResourceManagerHelper.readResource(scriptLocationSource);
         if(scriptText.isEmpty()) {
             JCMLogger.warn("Script {}:{} is either missing, or the file content is empty!", scriptLocationSource.getNamespace(), scriptLocationSource.getPath());
@@ -181,14 +188,14 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
     }
 
     @Override
-    public void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, World world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light) {
+    public void render(PIDSBlockEntity be, GraphicsHolder graphicsHolder, StoredMatrixTransformations storedMatrixTransformations, Level world, BlockPos pos, Direction facing, LongImmutableList targetPlatformIds, ObjectArrayList<ArrivalResponse> arrivals, boolean[] rowHidden, float tickDelta, int x, int y, int width, int height, int light) {
         /* Yanyang: mixed entries run the C++ modules first, then the JS part
            below — each side captures into its own replay managers, so their
            draw calls never collide. A failed or platform-skipped native part
            simply doesn't run; a failed JS part keeps the native side alive.
            Shadow passes skip the native drive — same contract as the JS-only
            path (replay managers keep the last frame's calls). */
-        if(!OptimizedRenderer.renderingShadows()) {
+        if(!JCMPatchForMTR.isRenderingShadow()) {
             if (com.lx862.jcm.nativeapi.NativeScriptManager.isLoaded(getId())) {
                 PIDSWrapper pidsWrapper = new PIDSWrapper(be, targetPlatformIds, arrivals, width, height);
                 com.lx862.jcm.nativeapi.NativeContentDriver.pids(getId(), pidsWrapper, world, storedMatrixTransformations, facing, light);
@@ -203,7 +210,7 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
             PIDSScriptInstance pidsScriptInstance = (PIDSScriptInstance) scriptInstance;
             PIDSScriptContext scriptContext = (PIDSScriptContext)scriptInstance.getContextObject();
 
-            if(!OptimizedRenderer.renderingShadows()) {
+            if(!JCMPatchForMTR.isRenderingShadow()) {
                 PIDSWrapper pidsWrapper = new PIDSWrapper(be, targetPlatformIds, arrivals, width, height);
                 scriptInstance.setWrapperObject(pidsWrapper);
                 scriptInstance.getScript().invokeRenderFunctions(scriptInstance, () -> {
@@ -234,8 +241,8 @@ public class ScriptPIDSPreset extends PIDSPresetBase {
             JCMLogger.error("[JCM] Error while " + action + "!", e);
 
             JCMScripting.getScriptManager().scriptErrorNotifier.queue(() -> {
-                MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(VanillaTextWrapper.literal("[JCM] Error while " + action + "!").withColor("RED").withHoverText(VanillaTextWrapper.literal(e.getMessage()).withColor("RED")).impl()), false);
-                MinecraftClient.getInstance().getPlayerMapped().sendMessage(Text.cast(TextHelper.setStyle(TextHelper.literal("See Console for details."), Style.getEmptyMapped().withColor(TextFormatting.RED))), false);
+                Minecraft.getInstance().player.displayClientMessage((VanillaTextWrapper.literal("[JCM] Error while " + action + "!").withColor("RED").withHoverText(VanillaTextWrapper.literal(e.getMessage()).withColor("RED")).impl()), false);
+                Minecraft.getInstance().player.displayClientMessage((TextHelper.setStyle(TextHelper.literal("See Console for details."), Style.EMPTY.withColor(ChatFormatting.RED))), false);
             });
         } else {
             JCMLogger.error("[JCM] Error while " + action + ": " + e.getMessage());

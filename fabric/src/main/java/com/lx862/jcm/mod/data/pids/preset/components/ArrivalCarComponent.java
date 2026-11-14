@@ -9,10 +9,10 @@ import com.lx862.jcm.mod.render.text.TextInfo;
 import com.lx862.jcm.mod.util.TextUtil;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 public class ArrivalCarComponent extends TextComponent {
     private final int arrivalIndex;
@@ -27,7 +27,7 @@ public class ArrivalCarComponent extends TextComponent {
         if(arrivalIndex >= arrivals.size()) return;
 
         ArrivalResponse arrival = arrivals.get(arrivalIndex);
-        final MutableText text = TextUtil.literal(arrival.getCarCount() + cycleString("卡", arrival.getCarCount() > 1 ? "-cars" : "-car"));
+        final MutableComponent text = TextUtil.literal(arrival.getCarCount() + cycleString("卡", arrival.getCarCount() > 1 ? "-cars" : "-car"));
 
         drawText(graphicsHolder, guiDrawing, facing, new TextInfo(text));
     }

@@ -65,3 +65,5 @@ native/bench/smoke_test
 # Pinned MTR 4.1 dependency downloads (CI only)
 dependencies/
 neoforge/run/
+local-maven/
+dependencies/*-compile.jar

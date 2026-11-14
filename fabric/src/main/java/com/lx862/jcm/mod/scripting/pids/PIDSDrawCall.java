@@ -3,10 +3,10 @@ package com.lx862.jcm.mod.scripting.pids;
 import com.lx862.jcm.mod.data.pids.preset.PIDSPresetBase;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.render.RenderDrawCall;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.function.Consumer;
 
@@ -25,15 +25,15 @@ public abstract class PIDSDrawCall<T extends PIDSDrawCall<?>> extends RenderDraw
      * per-run lambda was one of the steady per-frame allocations behind the
      * periodic GC stutter.
      */
-    private final Consumer<GraphicsHolder> jcm$position = graphicsHolder -> {
-        graphicsHolder.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
-        graphicsHolder.translate(PIDSDrawCall.this.x, PIDSDrawCall.this.y, 0);
+    private final Consumer<com.mojang.blaze3d.vertex.PoseStack> jcm$position = poseStack -> {
+        poseStack.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
+        poseStack.translate(PIDSDrawCall.this.x, PIDSDrawCall.this.y, 0);
     };
 
     /** Z-offset consumer for auto z-ordering; fields set by
      *  {@link #incrementZOrder(int, double)} each frame, allocated once. */
-    private final Consumer<GraphicsHolder> jcm$zOffset = graphicsHolder ->
-            graphicsHolder.translate(0, 0, -PIDSDrawCall.this.jcm$zValue * PIDSDrawCall.this.jcm$zStep);
+    private final Consumer<com.mojang.blaze3d.vertex.PoseStack> jcm$zOffset = poseStack ->
+            poseStack.translate(0, 0, -PIDSDrawCall.this.jcm$zValue * PIDSDrawCall.this.jcm$zStep);
     private double jcm$zValue;
     private double jcm$zStep;
     private boolean jcm$hasZOrder;
@@ -76,7 +76,7 @@ public abstract class PIDSDrawCall<T extends PIDSDrawCall<?>> extends RenderDraw
     }
 
     @Override
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         super.run(world, storedMatrixTransformations, facing, light);
         if (this.jcm$hasZOrder) {
             // RenderDrawCall converts script matrices with Rx(180) M Rx(-180).

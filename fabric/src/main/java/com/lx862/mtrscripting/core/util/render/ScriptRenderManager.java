@@ -5,9 +5,9 @@ import com.lx862.mtrscripting.core.annotation.ValueNullable;
 import com.lx862.mtrscripting.core.util.Matrices;
 import com.lx862.mtrscripting.core.util.model.DynamicModelHolderJS;
 import com.lx862.mtrscripting.core.util.model.ModelJS;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,7 +67,7 @@ public class ScriptRenderManager {
      * in this pass, matching the old snapshot-copy semantics exactly.
      */
     @ApiInternal
-    public synchronized void invoke(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public synchronized void invoke(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         /* synchronized: the JS capture path (executor threads) swaps this
            manager's backing list via takeFrom() while the render thread
            replays it — without a common monitor the swap could land between

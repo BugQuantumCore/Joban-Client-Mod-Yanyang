@@ -1,12 +1,13 @@
 package com.lx862.jcm.mod.block.entity;
 
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
-import org.mtr.mapping.holder.BlockEntityType;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.CompoundTag;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.nbt.CompoundTag;
 
 import java.util.ArrayList;
+import net.minecraft.world.level.block.Block;
 
 public abstract class PIDSBlockEntity extends JCMBlockEntityBase {
     private final String[] customMessages;
@@ -22,8 +23,8 @@ public abstract class PIDSBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void readCompoundTag(CompoundTag compoundTag) {
-        super.readCompoundTag(compoundTag);
+    public void readNbt(CompoundTag compoundTag) {
+        super.readNbt(compoundTag);
         for(int i = 0; i < getRowAmount(); i++) {
             this.customMessages[i] = compoundTag.getString("message" + i);
             this.rowHidden[i] = compoundTag.getBoolean("hide_arrival" + i);
@@ -40,8 +41,8 @@ public abstract class PIDSBlockEntity extends JCMBlockEntityBase {
     }
 
     @Override
-    public void writeCompoundTag(CompoundTag compoundTag) {
-        super.writeCompoundTag(compoundTag);
+    public void writeNbt(CompoundTag compoundTag) {
+        super.writeNbt(compoundTag);
         for(int i = 0; i < getRowAmount(); i++) {
             String customMessage = this.customMessages[i] == null ? "" : this.customMessages[i];
             boolean rowHidden = this.rowHidden[i];
@@ -77,7 +78,7 @@ public abstract class PIDSBlockEntity extends JCMBlockEntityBase {
         this.pidsPresetId = pidsPresetId;
         this.platformIds.clear();
         this.platformIds.addAll(filteredPlatforms);
-        this.markDirty2();
+        this.setChanged();
     }
 
     public String getPresetId() {

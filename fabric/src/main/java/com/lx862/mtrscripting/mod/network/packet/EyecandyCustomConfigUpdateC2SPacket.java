@@ -4,14 +4,18 @@ import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.JCMBlockEyecandyExtra
 import com.lx862.jcm.mod.network.PacketValidator;
 import com.lx862.jcm.mod.util.BlockUtil;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.block.BlockEyeCandy;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import org.mtr.block.BlockEyeCandy;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class EyecandyCustomConfigUpdateC2SPacket extends PacketHandler {
     private final Map<String, String> entries;
@@ -21,7 +25,7 @@ public class EyecandyCustomConfigUpdateC2SPacket extends PacketHandler {
     public EyecandyCustomConfigUpdateC2SPacket(PacketBufferReceiver packetBufferReceiver) {
         this.entries = new HashMap<>();
         this.modelId = packetBufferReceiver.readString();
-        this.blockPos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
         int size = packetBufferReceiver.readInt();
 
         for(int i = 0; i < size; i++) {
@@ -52,17 +56,17 @@ public class EyecandyCustomConfigUpdateC2SPacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
-        World world = serverPlayerEntity.getEntityWorld();
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
+        Level world = serverPlayerEntity.level();
         BlockEntity be = BlockUtil.getBlockEntityOrNull(world, blockPos);
-        if(be == null || !(be.data instanceof BlockEyeCandy.BlockEntity)) return;
+        if(be == null || !(be instanceof BlockEyeCandy.EyeCandyBlockEntity)) return;
 
         if(!PacketValidator.canConfigureBlock(serverPlayerEntity)) {
             JCMLogger.warn("Player {} attempted to write Eyecandy custom config at {} {} {} without permission.", serverPlayerEntity.getGameProfile().getName(), blockPos.getX(), blockPos.getY(), blockPos.getZ());
             return;
         }
 
-        BlockEyeCandy.BlockEntity eyecandyBE = (BlockEyeCandy.BlockEntity)be.data;
+        BlockEyeCandy.EyeCandyBlockEntity eyecandyBE = (BlockEyeCandy.EyeCandyBlockEntity)be;
         ((JCMBlockEyecandyExtra)eyecandyBE).jsblock$updateCustomConfig(this.entries);
     }
 }

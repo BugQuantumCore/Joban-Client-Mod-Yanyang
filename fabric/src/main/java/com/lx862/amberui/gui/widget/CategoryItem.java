@@ -1,9 +1,9 @@
 package com.lx862.amberui.gui.widget;
 
 import com.lx862.amberui.gui.GuiHelper;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
 
 import java.util.Objects;
 
@@ -11,15 +11,15 @@ import java.util.Objects;
  * Represent a row in {@link ListViewWidget}
  */
 public class CategoryItem extends AbstractListItem {
-    public final MutableText title;
+    public final MutableComponent title;
     private final int height;
 
-    public CategoryItem(MutableText title, int height) {
+    public CategoryItem(MutableComponent title, int height) {
         this.height = height;
         this.title = title;
     }
 
-    public CategoryItem(MutableText title) {
+    public CategoryItem(MutableComponent title) {
         this.height = 22;
         this.title = title;
     }

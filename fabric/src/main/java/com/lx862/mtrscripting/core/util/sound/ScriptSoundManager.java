@@ -2,10 +2,11 @@ package com.lx862.mtrscripting.core.util.sound;
 
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.*;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.Level;
 
 public class ScriptSoundManager {
     private List<SoundCall> soundCalls;
@@ -22,32 +23,32 @@ public class ScriptSoundManager {
         playLocalSound(JSUtil.parseId(id), volume, pitch);
     }
 
-    public void playLocalSound(Identifier id, float volume, float pitch) {
-        queue(new NonPositionedSoundCall(id, SoundCategory.getMasterMapped(), volume, pitch));
+    public void playLocalSound(ResourceLocation id, float volume, float pitch) {
+        queue(new NonPositionedSoundCall(id, SoundSource.MASTER, volume, pitch));
     }
 
     public void playLocalSound(String id, float volume, float pitch, String soundCategory) {
         playLocalSound(JSUtil.parseId(id), volume, pitch, soundCategory);
     }
 
-    public void playLocalSound(Identifier id, float volume, float pitch, String soundCategory) {
-        queue(new NonPositionedSoundCall(id, SoundCategory.valueOf(soundCategory), volume, pitch));
+    public void playLocalSound(ResourceLocation id, float volume, float pitch, String soundCategory) {
+        queue(new NonPositionedSoundCall(id, SoundSource.valueOf(soundCategory), volume, pitch));
     }
 
     public void playSound(String id, ScriptVector3f pos, float volume, float pitch) {
         playSound(JSUtil.parseId(id), pos, volume, pitch);
     }
 
-    public void playSound(Identifier id, ScriptVector3f pos, float volume, float pitch) {
-        queue(new PositionedSoundCall(id, SoundCategory.getMasterMapped(), pos.x(), pos.y(), pos.z(), volume, pitch));
+    public void playSound(ResourceLocation id, ScriptVector3f pos, float volume, float pitch) {
+        queue(new PositionedSoundCall(id, SoundSource.MASTER, pos.x(), pos.y(), pos.z(), volume, pitch));
     }
 
     public void playSound(String id, ScriptVector3f pos, float volume, float pitch, String soundCategory) {
         playSound(JSUtil.parseId(id), pos, volume, pitch, soundCategory);
     }
 
-    public void playSound(Identifier id, ScriptVector3f pos, float volume, float pitch, String soundCategory) {
-        queue(new PositionedSoundCall(id, SoundCategory.valueOf(soundCategory), pos.x(), pos.y(), pos.z(), volume, pitch));
+    public void playSound(ResourceLocation id, ScriptVector3f pos, float volume, float pitch, String soundCategory) {
+        queue(new PositionedSoundCall(id, SoundSource.valueOf(soundCategory), pos.x(), pos.y(), pos.z(), volume, pitch));
     }
 
     @Deprecated
@@ -70,7 +71,7 @@ public class ScriptSoundManager {
         this.soundCalls.add(soundCall);
     }
 
-    public synchronized void invoke(World world, ScriptVector3f basePos) {
+    public synchronized void invoke(Level world, ScriptVector3f basePos) {
         /* synchronized: same cross-thread pair as ScriptRenderManager — the
            JS capture path (executor threads) swaps/appends this manager's
            list while the render thread replays it. */

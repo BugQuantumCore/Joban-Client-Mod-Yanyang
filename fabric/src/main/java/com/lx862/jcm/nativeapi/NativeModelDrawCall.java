@@ -2,10 +2,10 @@ package com.lx862.jcm.nativeapi;
 
 import com.lx862.mtrscripting.core.util.model.ModelJS;
 import com.lx862.mtrscripting.core.util.render.RenderDrawCall;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -73,7 +73,32 @@ public final class NativeModelDrawCall extends RenderDrawCall<NativeModelDrawCal
     private boolean inPool;
 
     /** Reads one 16-float matrix block from the owning call's store. */
-    private static final class NativePose implements Consumer<GraphicsHolder> {
+
+    /* Same matrix application as GraphicsHolderMatrixMixin's
+       jcm$multiplyNativeMatrix, against a bare PoseStack: pooled JOML scratch,
+       no per-call allocation. */
+    private static final ThreadLocal<org.joml.Matrix4f> jcm$ScratchM4 =
+            ThreadLocal.withInitial(org.joml.Matrix4f::new);
+    private static final ThreadLocal<org.joml.Matrix3f> jcm$ScratchM3 =
+            ThreadLocal.withInitial(org.joml.Matrix3f::new);
+    private static final ThreadLocal<float[]> jcm$ScratchArr =
+            ThreadLocal.withInitial(() -> new float[16]);
+
+    private static void jcm$applyNativeMatrix(com.mojang.blaze3d.vertex.PoseStack poseStack, float[] values, int floatOffset) {
+        final float[] scratch = jcm$ScratchArr.get();
+        System.arraycopy(values, floatOffset, scratch, 0, 16);
+        final org.joml.Matrix4f matrix = jcm$ScratchM4.get();
+        matrix.set(scratch);
+        final org.joml.Matrix3f normal = jcm$ScratchM3.get();
+        normal.set(matrix.m00(), matrix.m01(), matrix.m02(),
+                matrix.m10(), matrix.m11(), matrix.m12(),
+                matrix.m20(), matrix.m21(), matrix.m22());
+        normal.invert().transpose();
+        poseStack.last().pose().mul(matrix);
+        poseStack.last().normal().mul(normal);
+    }
+
+    private static final class NativePose implements Consumer<com.mojang.blaze3d.vertex.PoseStack> {
         private final NativeModelDrawCall owner;
         private final int slot;
 
@@ -83,9 +108,8 @@ public final class NativeModelDrawCall extends RenderDrawCall<NativeModelDrawCal
         }
 
         @Override
-        public void accept(GraphicsHolder graphicsHolder) {
-            ((NativeMatrixApplier) (Object) graphicsHolder)
-                    .jcm$multiplyNativeMatrix(owner.poseMatrices, slot * POSE_FLOATS);
+        public void accept(com.mojang.blaze3d.vertex.PoseStack poseStack) {
+            jcm$applyNativeMatrix(poseStack, owner.poseMatrices, slot * POSE_FLOATS);
         }
     }
 
@@ -156,7 +180,7 @@ public final class NativeModelDrawCall extends RenderDrawCall<NativeModelDrawCal
     }
 
     @Override
-    public void run(World world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
+    public void run(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         super.run(world, storedMatrixTransformations, facing, light);
         final ModelJS model = NativeHost.get().model(modelHandle);
         if (model == null) return;   /* instance rebuilt between capture and replay */

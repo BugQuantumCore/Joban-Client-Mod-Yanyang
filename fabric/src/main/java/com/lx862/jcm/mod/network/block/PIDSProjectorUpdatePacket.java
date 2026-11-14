@@ -5,9 +5,13 @@ import com.lx862.jcm.mod.network.PacketValidator;
 import com.lx862.jcm.mod.util.BlockUtil;
 import com.lx862.jcm.mod.util.JCMLogger;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongAVLTreeSet;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class PIDSProjectorUpdatePacket extends PIDSUpdatePacket {
     private final double x;
@@ -53,17 +57,17 @@ public class PIDSProjectorUpdatePacket extends PIDSUpdatePacket {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
-        World world = serverPlayerEntity.getEntityWorld();
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
+        Level world = serverPlayerEntity.level();
         BlockEntity be = BlockUtil.getBlockEntityOrNull(world, blockPos);
 
-        if(be != null && be.data instanceof PIDSProjectorBlockEntity) {
+        if(be != null && be instanceof PIDSProjectorBlockEntity) {
             if(!PacketValidator.canConfigureBlock(serverPlayerEntity)) {
                 JCMLogger.warn("Player {} attempted to configure PIDS Projector at {} {} {} without permission.", serverPlayerEntity.getGameProfile().getName(), blockPos.getX(), blockPos.getY(), blockPos.getZ());
                 return;
             }
 
-            ((PIDSProjectorBlockEntity)be.data).setData(customMessages, filteredPlatforms, rowHidden, hidePlatformNumber, presetId, x, y, z, rotateX, rotateY, rotateZ, scale);
+            ((PIDSProjectorBlockEntity)be).setData(customMessages, filteredPlatforms, rowHidden, hidePlatformNumber, presetId, x, y, z, rotateX, rotateY, rotateZ, scale);
         }
     }
 }

@@ -9,15 +9,21 @@ import com.lx862.jcm.mod.data.BlockProperties;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.lx862.mtrscripting.mod.resource.MtrScriptingResourceManager;
-import org.mtr.mapping.holder.*;
-import org.mtr.mod.block.BlockEyeCandy;
-import org.mtr.mod.block.IBlock;
+import org.mtr.block.BlockEyeCandy;
+import org.mtr.block.IBlock;
 
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 public class EyecandyBlockEntityWrapper {
-    private final BlockEyeCandy.BlockEntity be;
+    private final BlockEyeCandy.EyeCandyBlockEntity be;
 
     private final Map<String, String> customConfigs;
 
@@ -41,7 +47,7 @@ public class EyecandyBlockEntityWrapper {
     @Deprecated
     public final boolean fullLight;
 
-    public EyecandyBlockEntityWrapper(BlockEyeCandy.BlockEntity be) {
+    public EyecandyBlockEntityWrapper(BlockEyeCandy.EyeCandyBlockEntity be) {
         this.be = be;
         this.prefabId = be.getModelId();
         this.translateX = be.getTranslateX();
@@ -50,7 +56,7 @@ public class EyecandyBlockEntityWrapper {
         this.rotateX = be.getRotateX();
         this.rotateY = be.getRotateY();
         this.rotateZ = be.getRotateZ();
-        this.fullLight = be.getFullBrightness();
+        this.fullLight = be.isFullBrightness();
         this.customConfigs = new HashMap<>(((JCMBlockEyecandyExtra)be).jsblock$getCustomConfig());
         this.legacyDefaultConfig = new HashMap<>();
 
@@ -95,37 +101,36 @@ public class EyecandyBlockEntityWrapper {
     }
 
     public ScriptVector3f pos() {
-        ScriptVector3f realPos = new ScriptVector3f(be.getPos2());
+        ScriptVector3f realPos = new ScriptVector3f(be.getBlockPos());
         realPos.add(getTranslateX(), getTranslateY(), getTranslateZ());
         return realPos;
     }
 
     public ScriptVector3f blockPos() {
-        return new ScriptVector3f(be.getPos2());
+        return new ScriptVector3f(be.getBlockPos());
     }
 
     public Direction facing() {
-        return IBlock.getStatePropertySafe(be.getCachedState2(), BlockProperties.FACING);
+        return IBlock.getStatePropertySafe(be.getBlockState(), BlockProperties.FACING);
     }
 
     public float facingAngle() {
-        return facing().asRotation();
+        return facing().toYRot();
     }
 
     public boolean isCrosshairTarget() {
-        HitResult hitResult = MinecraftClient.getInstance().getCrosshairTargetMapped();
-
-        if(BlockHitResult.isInstance(hitResult)) {
-            return BlockHitResult.cast(hitResult).getBlockPos().equals(be.getPos2());
+        HitResult hitResult = Minecraft.getInstance().hitResult;
+        if(hitResult instanceof BlockHitResult) {
+            return ((BlockHitResult)hitResult).getBlockPos().equals(be.getBlockPos());
         }
         return false;
     }
 
     public int redstoneLevel() {
-        World world = be.getWorld2();
+        Level world = be.getLevel();
         if(world == null) return 0;
 
-        return LoaderImpl.getRedstoneLevel(World.cast(MinecraftClient.getInstance().getWorldMapped()), blockPos().rawBlockPos());
+        return LoaderImpl.getRedstoneLevel((Level)Minecraft.getInstance().level, blockPos().rawBlockPos());
     }
 
     public String getCustomConfig(String key) {
@@ -187,6 +192,6 @@ public class EyecandyBlockEntityWrapper {
        NativeContentDriver still invalidates eyecandy instances through it. */
     @ApiInternal
     public boolean removed() {
-        return be.isRemoved2() || be.getWorld2().getBlockEntity(blockPos().rawBlockPos()) == null;
+        return be.isRemoved() || be.getLevel().getBlockEntity(blockPos().rawBlockPos()) == null;
     }
 }

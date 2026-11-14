@@ -3,9 +3,9 @@ package com.lx862.mtrscripting.core.integration;
 import com.lx862.jcm.mapping.LoaderImplClient;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
-import org.mtr.mapping.holder.Entity;
-import org.mtr.mapping.holder.LivingEntity;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.client.Minecraft;
 
 public class EntityWrapper {
     private final Entity entity;
@@ -24,38 +24,38 @@ public class EntityWrapper {
     }
 
     public String uuid() {
-        return this.entity.getUuidAsString();
+        return this.entity.getStringUUID();
     }
 
     public boolean hasPermissionLevel(int permLevel) {
-        return this.entity.hasPermissionLevel(permLevel);
+        return this.entity.hasPermissions(permLevel);
     }
 
     public ScriptVector3f pos() {
-        return new ScriptVector3f(this.entity.getPos());
+        return new ScriptVector3f(this.entity.position());
     }
 
     public ScriptVector3f smoothPos() {
-        ScriptVector3f vec = new ScriptVector3f(this.entity.getCameraPosVec(MinecraftClient.getInstance().isPaused() ? 0 : MinecraftClient.getInstance().getTickDelta()));
-        vec.sub(new ScriptVector3f(0, entity.getStandingEyeHeight(), 0));
+        ScriptVector3f vec = new ScriptVector3f(this.entity.getEyePosition(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false)));
+        vec.sub(new ScriptVector3f(0, entity.getEyeHeight(), 0));
         return vec;
     }
 
     public ScriptVector3f blockPos() {
-        return new ScriptVector3f(this.entity.getBlockPos());
+        return new ScriptVector3f(this.entity.blockPosition());
     }
 
     public float yaw() {
-        return entity.getYaw(MinecraftClient.getInstance().isPaused() ? 0 : MinecraftClient.getInstance().getTickDelta());
+        return entity.getViewYRot(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
     }
 
     public float pitch() {
-        return entity.getPitch(MinecraftClient.getInstance().isPaused() ? 0 : MinecraftClient.getInstance().getTickDelta());
+        return entity.getViewXRot(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
     }
 
     public float bodyYaw() {
-        LivingEntity livingEntity = LivingEntity.cast(entity);
-        return livingEntity.getBodyYawMapped();
+        LivingEntity livingEntity = (LivingEntity)entity;
+        return livingEntity.yBodyRot;
     }
 
     public ScriptVector3f velocity() {

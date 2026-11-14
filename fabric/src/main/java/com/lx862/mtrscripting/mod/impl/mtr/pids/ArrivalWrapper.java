@@ -7,8 +7,8 @@ import org.mtr.core.data.Route;
 import org.mtr.core.data.SimplifiedRoute;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.core.operation.CarDetails;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.data.ArrivalsCacheClient;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.data.ArrivalsCacheClient;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -5,9 +5,9 @@ package com.lx862.jcm.mixin.mtrpatch;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import org.mtr.mapping.render.model.Face;
-import org.mtr.mapping.render.model.RawMesh;
-import org.mtr.mapping.render.vertex.Vertex;
+import com.lx862.jcm.mod.render.mesh.Face;
+import com.lx862.jcm.mod.render.mesh.RawMesh;
+import com.lx862.jcm.mod.render.mesh.Vertex;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,6 +16,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
+import com.lx862.jcm.mod.render.mesh.Mesh;
 
 @Mixin(value = RawMesh.class, remap = false)
 public class RawMeshMixin {

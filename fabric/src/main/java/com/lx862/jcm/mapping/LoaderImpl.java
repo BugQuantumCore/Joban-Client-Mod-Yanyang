@@ -1,28 +1,31 @@
 package com.lx862.jcm.mapping;
 
+import com.lx862.jcm.mod.compat.SoundHelper;
 import net.fabricmc.loader.api.FabricLoader;
-#if MC_VERSION >= "11903"
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
-#else
-import net.minecraft.network.packet.s2c.play.PlaySoundIdS2CPacket;
-#endif
-
-import net.minecraft.state.property.Property;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.SoundHelper;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 
 import java.nio.file.Path;
 import java.util.Optional;
 
 /**
- * Fabric implementation via Yarn mapping
+ * Fabric implementation, Mojang mappings (1.21.x)
  */
 public class LoaderImpl {
-    public static boolean isRainingAt(World world, BlockPos pos) {
-        return world.data.hasRain(pos.data);
+    public static boolean isRainingAt(Level world, BlockPos pos) {
+        return world.isRainingAt(pos);
     }
 
     public static Path getConfigPath() {
@@ -30,64 +33,52 @@ public class LoaderImpl {
     }
 
     /** Get a block settings forcing it to be solid, as we don't want water to break our block. */
-    public static BlockSettings getSolidBlockSettings(BlockSettings settings) {
-        #if MC_VERSION >= "12001"
-            return new BlockSettings(settings.data.solid());
-        #else
+    public static net.minecraft.world.level.block.state.BlockBehaviour.Properties getSolidBlockSettings(net.minecraft.world.level.block.state.BlockBehaviour.Properties settings) {
         return settings;
-        #endif
     }
 
-    public static Item getItemFromId(Identifier id) {
-        final Optional<net.minecraft.item.Item> itm;
-        #if MC_VERSION < "11903"
-            itm = net.minecraft.util.registry.Registry.ITEM.getOrEmpty(id.data);
-        #else
-            itm = net.minecraft.registry.Registries.ITEM.getOrEmpty(id.data);
-        #endif
-        return itm.map(Item::new).orElse(null);
+    public static Item getItemFromId(ResourceLocation id) {
+        final Optional<Item> itm = Optional.ofNullable(BuiltInRegistries.ITEM.get(id));
+        return itm.orElse(null);
     }
 
-    public static Identifier getIdFromItem(Item itm) {
-        #if MC_VERSION < "11903"
-            return new Identifier(net.minecraft.util.registry.Registry.ITEM.getId(itm.data));
-        #else
-            return new Identifier(net.minecraft.registry.Registries.ITEM.getId(itm.data));
-        #endif
+    public static ResourceLocation getIdFromItem(Item itm) {
+        return BuiltInRegistries.ITEM.getKey(itm);
     }
 
-    public static int getRedstoneLevel(World world, BlockPos blockPos) {
-        return world.data.getReceivedRedstonePower(blockPos.data);
+    public static int getRedstoneLevel(Level world, BlockPos blockPos) {
+        return world.getBestNeighborSignal(blockPos);
     }
 
     public static Style withClipboardContentText(Style style, String content) {
-        return new Style(style.data.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, content)));
+        return style.withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, content));
     }
 
     public static Style withURLContentText(Style style, String urlContent) {
-        return new Style(style.data.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, urlContent)));
+        return style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, urlContent));
     }
 
-    public static Style withHoverContentText(Style style, MutableText content) {
-        return new Style(style.data.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, content.data)));
+    public static Style withHoverContentText(Style style, MutableComponent content) {
+        return style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, content));
     }
 
-    public static void playSound(World world, ServerPlayerEntity playerEntity, Identifier soundId, SoundCategory soundCategory, BlockPos blockPos, float volume, float pitch) {
-        #if MC_VERSION >= "11903"
-        SoundEvent event = SoundHelper.createSoundEvent(soundId);
-        playerEntity.data.networkHandler.sendPacket(
-                new PlaySoundS2CPacket(RegistryEntry.of(event.data), soundCategory.data, blockPos.getX(), blockPos.getY(), blockPos.getZ(), volume, pitch, world.getRandom().data.nextLong())
+    public static void playSound(Level world, ServerPlayer playerEntity, ResourceLocation soundId, SoundSource soundCategory, BlockPos blockPos, float volume, float pitch) {
+        final SoundEvent event = SoundHelper.createSoundEvent(soundId);
+        playerEntity.connection.send(
+                new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                        net.minecraft.core.Holder.direct(event), soundCategory, blockPos.getX(), blockPos.getY(), blockPos.getZ(), volume, pitch, world.getRandom().nextLong())
         );
-        #elif MC_VERSION >= "11900"
-        playerEntity.data.networkHandler.sendPacket(new PlaySoundIdS2CPacket(soundId.data, soundCategory.data, new net.minecraft.util.math.Vec3d(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1, world.getRandom().data.nextLong()));
-        #else
-        playerEntity.data.networkHandler.sendPacket(new PlaySoundIdS2CPacket(soundId.data, soundCategory.data, new net.minecraft.util.math.Vec3d(blockPos.getX(), blockPos.getY(), blockPos.getZ()), volume, 1));
-        #endif
     }
 
     public static String getBlockStateValue(BlockState blockState, String stateName) {
-        Property property = blockState.getBlock().data.getStateManager().getProperty(stateName);
-        if(property == null) return null;
-        return property.name(blockState.data.get(property));
+        Property<?> property = blockState.getBlock().getStateDefinition().getProperty(stateName);
+        if (property == null) return null;
+        return getNameFromProperty(blockState, property);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static String getNameFromProperty(BlockState blockState, Property property) {
+        final Comparable<?> value = blockState.getValue(property);
+        return property.getName(value);
     }
 }

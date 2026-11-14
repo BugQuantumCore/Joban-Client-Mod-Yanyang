@@ -1,9 +1,9 @@
 package com.lx862.jcm.mod.block.entity;
 
 import com.lx862.jcm.mod.registry.BlockEntities;
-import org.mtr.mapping.holder.BlockEntityType;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class StaticSignalLightBlockEntity extends JCMBlockEntityBase {
     public StaticSignalLightBlockEntity(SignalType type, BlockPos blockPos, BlockState blockState) {

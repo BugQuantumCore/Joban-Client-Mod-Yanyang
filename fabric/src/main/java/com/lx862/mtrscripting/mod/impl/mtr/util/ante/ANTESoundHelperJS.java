@@ -1,7 +1,7 @@
 package com.lx862.mtrscripting.mod.impl.mtr.util.ante;
 
 import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
-import org.mtr.mapping.holder.SoundCategory;
+import net.minecraft.sounds.SoundSource;
 
 @Deprecated
 public class ANTESoundHelperJS {
@@ -19,7 +19,7 @@ public class ANTESoundHelperJS {
         dummySoundManager.stop(tickableSoundInstance.tickableSoundInstanceJS);
     }
 
-    public static SoundCategory getSoundSource(String str) {
-        return SoundCategory.valueOf(str);
+    public static SoundSource getSoundSource(String str) {
+        return SoundSource.valueOf(str);
     }
 }

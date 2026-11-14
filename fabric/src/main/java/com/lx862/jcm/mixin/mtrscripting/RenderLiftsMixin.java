@@ -15,31 +15,38 @@ import org.mtr.core.data.Lift;
 import org.mtr.libraries.com.logisticscraft.occlusionculling.util.Vec3d;
 import org.mtr.libraries.it.unimi.dsi.fastutil.ints.IntObjectImmutablePair;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.client.VehicleRidingMovement;
-import org.mtr.mod.render.PositionAndRotation;
-import org.mtr.mod.render.RenderLifts;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.client.VehicleRidingMovement;
+import org.mtr.render.PositionAndRotation;
+import org.mtr.render.RenderLifts;
+import org.mtr.render.StoredMatrixTransformations;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import com.lx862.jcm.mod.extra.JCMPatchForMTR;
 
 @Mixin(value = RenderLifts.class, remap = false)
 public class RenderLiftsMixin {
-    @Inject(method = "render(JLorg/mtr/mapping/holder/Vector3d;)V", at = @At(value = "INVOKE", target = "Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectCollection;forEach(Ljava/util/function/Consumer;)V"))
-    private static void jsblock$executeScript(long millisElapsed, Vector3d cameraShakeOffset, CallbackInfo ci) {
-        if(OptimizedRenderer.renderingShadows()) return; /* Yanyang: cached via OptimizedRendererMixin redirect */
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectCollection;forEach(Ljava/util/function/Consumer;)V"))
+    private static void jsblock$executeScript(long millisElapsed, Vec3 cameraShakeOffset, CallbackInfo ci) {
+        if(JCMPatchForMTR.isRenderingShadow()) return; /* Yanyang: cached via OptimizedRendererMixin redirect */
         for(MinecraftClientData.LiftWrapper liftWrapper : MinecraftClientData.getInstance().liftWrapperList.values()) {
             String style = liftWrapper.getLift().getStyle();
 
             LiftResourceProvider.LiftScriptConfiguration scriptEntry = MtrScriptingResourceManager.lift.getScriptEntry(style);
             if(scriptEntry == null) continue;
 
-            LiftWrapper wrapperObject = new LiftWrapper(liftWrapper, World.cast(MinecraftClient.getInstance().getWorldMapped()));
+            LiftWrapper wrapperObject = new LiftWrapper(liftWrapper, (Level)Minecraft.getInstance().level);
             String nativeId=MtrScriptingResourceManager.lift.getScriptEntryId(style);
             if(com.lx862.jcm.nativeapi.NativeScriptManager.isLoaded(nativeId)) {
                 com.lx862.jcm.nativeapi.NativeContentDriver.lift(nativeId,wrapperObject,liftWrapper.getLift());
@@ -62,8 +69,14 @@ public class RenderLiftsMixin {
         }
     }
 
-    @Inject(method = "lambda$render$6", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/model/ModelLift1;render(Lorg/mtr/mod/render/StoredMatrixTransformations;Lorg/mtr/core/data/NameColorDataBase;Lorg/mtr/mapping/holder/Identifier;IFFZIIZZZZZ)V"), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
-    private static void jsblock$drawScript(boolean isHoldingRefresher, ClientWorld clientWorld, ObjectArrayList cullingTasks, Vec3d camera, Vector3d cameraShakeOffset, boolean canRide, ClientPlayerEntity clientPlayerEntity, long millisElapsed, MinecraftClientData.LiftWrapper liftWrapper, CallbackInfo ci, Lift lift, PositionAndRotation absolutePositionAndRotation, IntObjectImmutablePair ridingVehicleCarNumberAndOffset, PositionAndRotation ridingCarPositionAndRotation, Vector3d offsetVector, Double offsetRotation, PositionAndRotation renderingPositionAndRotation, ObjectArrayList floorsAndDoorways, ObjectArrayList openDoorways, Box doorway1, Box doorway2, boolean doorway1Open, boolean doorway2Open, StoredMatrixTransformations storedMatrixTransformations) {
+    /**
+     * Per-lift draw hook, ported to MTR 4.1's RenderLifts: the per-lift body
+     * now lives in {@code lambda$render$0} (parameters matched by signature,
+     * the lift / transform locals captured at the method tail — both stable
+     * without any Minecraft-mapped reference in the injection targets).
+     */
+    @Inject(method = "lambda$render$0", at = @At("RETURN"), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
+    private static void jsblock$drawScript(boolean isHoldingRefresher, ClientLevel clientWorld, ObjectArrayList cullingTasks, Vec3d camera, Vec3 cameraShakeOffset, boolean canRide, LocalPlayer clientPlayerEntity, long millisElapsed, MinecraftClientData.LiftWrapper liftWrapper, CallbackInfo ci, Lift lift, PositionAndRotation absolutePositionAndRotation, IntObjectImmutablePair ridingVehicleCarNumberAndOffset, PositionAndRotation ridingCarPositionAndRotation, Vec3 offsetVector, Double offsetRotation, PositionAndRotation renderingPositionAndRotation, ObjectArrayList floorsAndDoorways, ObjectArrayList openDoorways, AABB doorway1, AABB doorway2, boolean doorway1Open, boolean doorway2Open, StoredMatrixTransformations storedMatrixTransformations) {
         /* Yanyang: C++ lift scripts share the same script-controlled + riding
            semantics as JS. Mixed entries (JS + C++ under one script id) run
            the native modules AND the JS script: the built-in renderer is
@@ -72,20 +85,20 @@ public class RenderLiftsMixin {
         String nativeId=MtrScriptingResourceManager.lift.getScriptEntryId(lift.getStyle());
         boolean nativeLoaded = com.lx862.jcm.nativeapi.NativeScriptManager.isLoaded(nativeId);
         if(nativeLoaded) {
-            com.lx862.jcm.nativeapi.NativeContentDriver.invokeLift(nativeId,lift.getId(),World.cast(clientWorld),storedMatrixTransformations.copy(),absolutePositionAndRotation.light,
-                new ScriptVector3f((float)absolutePositionAndRotation.position.x,(float)absolutePositionAndRotation.position.y,(float)absolutePositionAndRotation.position.z));
+            com.lx862.jcm.nativeapi.NativeContentDriver.invokeLift(nativeId,lift.getId(),(Level)clientWorld,storedMatrixTransformations.copy(),absolutePositionAndRotation.light,
+                new ScriptVector3f((float)absolutePositionAndRotation.position.x(),(float)absolutePositionAndRotation.position.y(),(float)absolutePositionAndRotation.position.z()));
         }
 
         ScriptInstance<?> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("lift", lift.getHexId()));
         if(scriptInstance instanceof LiftScriptInstance) {
-            World world = World.cast(MinecraftClient.getInstance().getWorldMapped());
+            Level world = (Level)Minecraft.getInstance().level;
             ScriptRenderManager scriptRenderManager = ((LiftScriptInstance)scriptInstance).getRenderManager();
             ScriptSoundManager scriptSoundManager = ((LiftScriptInstance)scriptInstance).getSoundManager();
             scriptRenderManager.invoke(world, storedMatrixTransformations.copy(), Direction.NORTH, absolutePositionAndRotation.light);
             /* Float, not int: the int casts snapped JS lift sound origins to
                block corners (up to half a block off); the native path already
                used floats. */
-            scriptSoundManager.invoke(world, new ScriptVector3f((float)absolutePositionAndRotation.position.x, (float)absolutePositionAndRotation.position.y, (float)absolutePositionAndRotation.position.z));
+            scriptSoundManager.invoke(world, new ScriptVector3f((float)absolutePositionAndRotation.position.x(), (float)absolutePositionAndRotation.position.y(), (float)absolutePositionAndRotation.position.z()));
         }
 
         boolean skipBuiltinRenderer = MtrScriptingResourceManager.lift.isScriptControlledRendering(lift.getStyle());

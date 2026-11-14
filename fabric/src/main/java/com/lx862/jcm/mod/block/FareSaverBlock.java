@@ -7,57 +7,67 @@ import com.lx862.jcm.mod.registry.Networking;
 import com.lx862.jcm.mod.util.JCMUtil;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.BlockEntityExtension;
-import org.mtr.mapping.mapper.BlockWithEntity;
-import org.mtr.mod.block.IBlock;
+import net.minecraft.world.level.block.EntityBlock;
+import org.mtr.block.IBlock;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
-public class FareSaverBlock extends Vertical3Block implements BlockWithEntity {
+public class FareSaverBlock extends Vertical3Block implements EntityBlock {
     public static final Map<UUID, Integer> discountList = new HashMap<>();
 
-    public FareSaverBlock(BlockSettings settings) {
+    public FareSaverBlock(BlockBehaviour.Properties settings) {
         super(settings);
     }
 
     @Override
-    public VoxelShape getOutlineShape2(BlockState state, BlockView view, BlockPos pos, ShapeContext context) {
+    public VoxelShape getShape(BlockState state, BlockGetter view, BlockPos pos, CollisionContext context) {
         return IBlock.getVoxelShapeByDirection(3, 0, 6.5, 13, 16, 9.5, IBlock.getStatePropertySafe(state, FACING));
     }
 
     @Override
-    public ActionResult onUse2(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        if(world.isClient()) return ActionResult.SUCCESS;
+    public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        if(world.isClientSide()) return InteractionResult.SUCCESS;
 
-        UUID playerUuid = player.getUuid();
-        FareSaverBlockEntity be = (FareSaverBlockEntity)world.getBlockEntity(pos).data;
+        UUID playerUuid = player.getUUID();
+        FareSaverBlockEntity be = (FareSaverBlockEntity)world.getBlockEntity(pos);
         int discount = be.getDiscount();
 
         if (JCMUtil.playerHoldingBrush(player)) {
             Networking.sendPacketToClient(player, new FareSaverGUIPacket(pos, be.getPrefix(), discount));
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
 
         if(discountList.containsKey(playerUuid)) {
-            player.sendMessage(Text.cast(TextUtil.translatable(TextCategory.HUD, "faresaver.fail", discountList.get(playerUuid))), true);
+            player.displayClientMessage((TextUtil.translatable(TextCategory.HUD, "faresaver.fail", discountList.get(playerUuid))), true);
         } else {
             discountList.put(playerUuid, discount);
 
             if(discount > 0) {
-                player.sendMessage(Text.cast(TextUtil.translatable(TextCategory.HUD, "faresaver.success", discount)), true);
+                player.displayClientMessage((TextUtil.translatable(TextCategory.HUD, "faresaver.success", discount)), true);
             } else {
-                player.sendMessage(Text.cast(TextUtil.translatable(TextCategory.HUD, "faresaver.success.sarcasm", discount)), true);
+                player.displayClientMessage((TextUtil.translatable(TextCategory.HUD, "faresaver.success.sarcasm", discount)), true);
             }
         }
 
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
     @Override
-    public BlockEntityExtension createBlockEntity(BlockPos blockPos, BlockState blockState) {
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
         return new FareSaverBlockEntity(blockPos, blockState);
     }
 }

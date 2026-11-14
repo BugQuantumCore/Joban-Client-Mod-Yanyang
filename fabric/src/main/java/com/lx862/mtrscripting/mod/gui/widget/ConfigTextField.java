@@ -5,15 +5,16 @@ import com.lx862.amberui.mapping.LoaderImplGUI;
 import com.lx862.amberui.gui.ClipStack;
 import com.lx862.amberui.gui.widget.AlwaysRenderedTextField;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.EyecandyCustomConfig;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.OrderedText;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.GuiDrawing;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mapping.tool.TextCase;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.FormattedCharSequence;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.render.GuiDrawing;
+import com.lx862.jcm.mod.compat.TextHelper;
+import com.lx862.jcm.mod.render.TextCase;
 
 import java.util.Objects;
 import java.util.function.Consumer;
+import com.lx862.jcm.mod.render.TextCase;
 
 public class ConfigTextField extends AlwaysRenderedTextField implements ValidatableWidget {
     private final EyecandyCustomConfig.Entry.ValidationCallback validationCallback;
@@ -24,7 +25,7 @@ public class ConfigTextField extends AlwaysRenderedTextField implements Validata
     public ConfigTextField(int x, int y, int width, int height, int maxLength, TextCase textCase, String filter, String suggestion, EyecandyCustomConfig.Entry.ValidationCallback validationCallback) {
         super(x, y, width, height, maxLength, textCase, filter, suggestion);
         this.validationCallback = validationCallback;
-        setChangedListener2((newStr) -> {
+        setResponder((newStr) -> {
             if(changedListener != null) {
                 changedListener.accept(newStr);
             }
@@ -42,24 +43,25 @@ public class ConfigTextField extends AlwaysRenderedTextField implements Validata
     }
 
     @Override
-    public void setText2(String str) {
-        super.setText2(str);
+    public void setValue(String str) {
+        super.setValue(str);
         updateValidation(str);
     }
 
     @Override
-    public void render(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float delta) {
+    public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
         ClipStack.ensureStateCorrect();
-        super.render(graphicsHolder, mouseX, mouseY, delta);
+        super.renderWidget(guiGraphics, mouseX, mouseY, delta);
 
-        String content = getText2();
+        String content = getValue();
         if(!this.result.success() && isHovered()) {
             #if MC_VERSION >= "11903"
-                OrderedText orderedText = LoaderImplGUI.asOrderedText(this.result.validationMessage());
-                LoaderImplGUI.setTooltip(MinecraftClient.getInstance().getCurrentScreenMapped(), orderedText);
+                FormattedCharSequence orderedText = LoaderImplGUI.asOrderedText(this.result.validationMessage());
+                LoaderImplGUI.setTooltip(Minecraft.getInstance().screen, orderedText);
             #endif
         } else if(!Objects.equals(this.originalValue, content)) {
-            GuiHelper.drawBorder(graphicsHolder, getX2(), getY2(), getWidth2(), getHeight2(), 0xFFFFFF88);
+            GuiHelper.drawBorder(graphicsHolder, getX(), getY(), getWidth(), getHeight(), 0xFFFFFF88);
         }
     }
 
@@ -71,6 +73,6 @@ public class ConfigTextField extends AlwaysRenderedTextField implements Validata
     private void updateValidation(String str) {
         EyecandyCustomConfig.Entry.ValidationResult result = validationCallback == null ? new EyecandyCustomConfig.Entry.ValidationResult(null) : validationCallback.validate(str);
         this.result = result;
-        setEditableColor2(this.result.success() ? 0xFFFFFFFF : (0xFF000000 | 0xFF4444));
+        setTextColor(this.result.success() ? 0xFFFFFFFF : (0xFF000000 | 0xFF4444));
     }
 }

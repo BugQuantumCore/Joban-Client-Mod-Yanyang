@@ -7,7 +7,7 @@ import com.lx862.mtrscripting.core.util.model.ModelJS;
 import com.lx862.mtrscripting.core.util.model.ModelManagerJS;
 import com.lx862.mtrscripting.core.util.model.RawMeshBuilderJS;
 import com.lx862.mtrscripting.core.util.model.RawModelJS;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -330,7 +330,7 @@ public final class NativeHost {
      * model re-upload.
      */
     private ModelJS buildQuad(float[] verts, int quadIndex, float[] uv, int uvIndex,
-                              int stage, Identifier texture) {
+                              int stage, ResourceLocation texture) {
         if (verts == null || verts.length < (quadIndex + 1) * 12) return null;
         if (uv == null || uv.length < (uvIndex + 1) * 8) return null;
 
@@ -437,7 +437,7 @@ public final class NativeHost {
      */
     private final Map<String, java.util.Set<Integer>> externalModels = new java.util.HashMap<>();
     public int acquireModel(String path) {
-        com.lx862.mtrscripting.core.util.model.RawModelJS raw = ModelManagerJS.loadModel(new Identifier(path));
+        com.lx862.mtrscripting.core.util.model.RawModelJS raw = ModelManagerJS.loadModel(ResourceLocation.parse(path));
         if(raw==null) return -1;
         ModelJS model=ModelJS.uploadRawModel(raw);
         int handle=nextHandle.getAndIncrement(); modelsByHandle.put(handle,model);

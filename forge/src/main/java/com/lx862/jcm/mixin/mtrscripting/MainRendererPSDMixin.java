@@ -1,13 +1,14 @@
 package com.lx862.jcm.mixin.mtrscripting;
 
 import com.lx862.jcm.mod.scripting.psd.PSDScriptRenderer;
-import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.render.MainRenderer;
+import net.minecraft.world.phys.Vec3;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.render.MainRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import net.minecraft.client.Camera;
 
 /**
  * Yanyang/PSD: drives the PSD script render pass at the head of MTR's frame
@@ -21,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = MainRenderer.class, remap = false)
 public class MainRendererPSDMixin {
     @Inject(method = "render(Lorg/mtr/mapping/mapper/GraphicsHolder;Lorg/mtr/mapping/holder/Vector3d;)V", at = @At("HEAD"))
-    private static void jsblock$renderPsdScripts(GraphicsHolder graphicsHolder, Vector3d offset, CallbackInfo ci) {
+    private static void jsblock$renderPsdScripts(GraphicsHolder graphicsHolder, Vec3 offset, CallbackInfo ci) {
         PSDScriptRenderer.renderAll();
     }
 }

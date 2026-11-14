@@ -5,11 +5,11 @@ import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.amberui.gui.screen.TitledScreen;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.ClickableWidget;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.TextFormatting;
-import org.mtr.mapping.mapper.ButtonWidgetExtension;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.ChatFormatting;
+import com.lx862.amberui.gui.widget.Button;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
 public class ScriptRestrictionWarningScreen extends TitledScreen implements RenderHelper, GuiHelper {
     private final Runnable acknowledgeWarningCallback;
@@ -19,30 +19,30 @@ public class ScriptRestrictionWarningScreen extends TitledScreen implements Rend
     }
 
     @Override
-    public MutableText getScreenTitle() {
-        return TextUtil.translatable(TextCategory.GUI, "script_restriction.title").formatted(TextFormatting.YELLOW);
+    public MutableComponent getScreenTitle() {
+        return TextUtil.translatable(TextCategory.GUI, "script_restriction.title").withStyle(ChatFormatting.YELLOW);
     }
 
     @Override
-    public MutableText getScreenSubtitle() {
+    public MutableComponent getScreenSubtitle() {
         return TextUtil.translatable(TextCategory.GUI, "script_restriction.subtitle");
     }
 
     @Override
-    protected void init2() {
-        super.init2();
+    protected void init() {
+        super.init();
 
-        ButtonWidgetExtension yesButton = new ButtonWidgetExtension(0, height - 30, 150, 20, TextUtil.translatable("gui.yes"), (b) -> {
+        Button yesButton = new Button(0, height - 30, 150, 20, TextUtil.translatable("gui.yes"), (b) -> {
                 acknowledgeWarningCallback.run();
-                onClose2();
+                onClose();
             }
         );
-        yesButton.setX2((getWidthMapped() / 2) - (TEXT_PADDING/2) - yesButton.getWidth2());
-        addChild(new ClickableWidget(yesButton));
+        yesButton.setX((width / 2) - (TEXT_PADDING/2) - yesButton.getWidth());
+        addRenderableWidget(yesButton);
 
-        ButtonWidgetExtension noButton = new ButtonWidgetExtension(0, height - 30, 150, 20, TextUtil.translatable("gui.no"), (b) -> onClose2());
-        noButton.setX2((getWidthMapped() / 2) + (TEXT_PADDING/2));
-        addChild(new ClickableWidget(noButton));
+        Button noButton = new Button(0, height - 30, 150, 20, TextUtil.translatable("gui.no"), (b) -> onClose());
+        noButton.setX((width / 2) + (TEXT_PADDING/2));
+        addRenderableWidget(noButton);
     }
 
     @Override
@@ -56,7 +56,7 @@ public class ScriptRestrictionWarningScreen extends TitledScreen implements Rend
         graphicsHolder.translate(width / 2.0, height / 2.0, 0);
         graphicsHolder.translate(0, -(lines * lineHeight) / 2.0, 0);
         RenderHelper.drawCenteredText(graphicsHolder, TextUtil.translatable(TextCategory.GUI, "script_restriction.about"), 0, 0, ARGB_WHITE);
-        RenderHelper.drawCenteredText(graphicsHolder, TextUtil.translatable(TextCategory.GUI, "script_restriction.consequence").formatted(TextFormatting.UNDERLINE), 0, 10, ARGB_WHITE);
+        RenderHelper.drawCenteredText(graphicsHolder, TextUtil.translatable(TextCategory.GUI, "script_restriction.consequence").withStyle(ChatFormatting.UNDERLINE), 0, 10, ARGB_WHITE);
         graphicsHolder.translate(0, lineHeight, 0);
         RenderHelper.drawCenteredText(graphicsHolder, TextUtil.translatable(TextCategory.GUI, "script_restriction.note"), 0, 20, ARGB_WHITE);
         RenderHelper.drawCenteredText(graphicsHolder, TextUtil.translatable(TextCategory.GUI, "script_restriction.caution"), 0, 30, ARGB_WHITE);
@@ -64,7 +64,7 @@ public class ScriptRestrictionWarningScreen extends TitledScreen implements Rend
     }
 
     @Override
-    public boolean isPauseScreen2() {
+    public boolean isPauseScreen() {
         return false;
     }
 }

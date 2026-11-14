@@ -1,16 +1,16 @@
 package com.lx862.jcm.mod.network.gui;
 
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
 
 public class ButterflyLightGUIPacket extends PacketHandler {
     private final BlockPos blockPos;
     private final int secondsToBlink;
 
     public ButterflyLightGUIPacket(PacketBufferReceiver packetBufferReceiver) {
-        this.blockPos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
         this.secondsToBlink = packetBufferReceiver.readInt();
     }
 

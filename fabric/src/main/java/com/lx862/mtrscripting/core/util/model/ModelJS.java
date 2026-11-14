@@ -1,115 +1,76 @@
 package com.lx862.mtrscripting.core.util.model;
 
-import com.lx862.jcm.mixin.mtrscripting.OptimizedModelAccessor;
-import com.lx862.jcm.mixin.mtrscripting.OptimizedModelWrapperAccessor;
-import com.lx862.jcm.mixin.mtrscripting.GlStateTrackerAccessor;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.OptimizedModel;
-import org.mtr.mapping.mapper.OptimizedRenderer;
-import org.mtr.mapping.render.batch.MaterialProperties;
-import org.mtr.mapping.render.model.RawModel;
-import org.mtr.mapping.render.object.VertexArray;
-import org.mtr.mapping.render.tool.GlStateTracker;
-import org.mtr.mod.client.CustomResourceLoader;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
-import org.mtr.mod.resource.OptimizedModelWrapper;
+import com.lx862.jcm.mod.render.mesh.OptimizedModelWrapper;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.render.StoredMatrixTransformations;
 
-import java.util.List;
-
+/**
+ * An uploaded, GPU-resident model built from a {@link RawModelJS}. Ported to
+ * the MTR 4.1 batched-model pipeline: uploading goes through
+ * {@link RawModel#upload()} (NewOptimizedModelGroup), rendering through
+ * {@link OptimizedModelWrapper#queue} (MainRenderer.renderModel).
+ *
+ * <p>Because 4.1's {@code NewOptimizedModel} texture is immutable, the
+ * {@code replaceTexture} family re-uploads the (mutated) raw model.</p>
+ */
 public class ModelJS {
-    private final OptimizedModelWrapper model;
 
-    private ModelJS(OptimizedModelWrapper model) {
-        this.model = model;
-    }
+        private final RawModelJS sourceModel;
+        private OptimizedModelWrapper model;
 
-    @ApiInternal
-    public static ModelJS uploadRawModel(RawModelJS rawModelJS) {
-        // Native scripts upload during RenderVehicles.render(), outside MTR's
-        // resource-reload scope. VertexArray/VertexBuffer require protection
-        // even on the render thread. Leave an existing outer scope intact.
-        final boolean ownsProtection = !GlStateTrackerAccessor.isStateProtected();
-        if (ownsProtection) GlStateTracker.capture();
-        try {
-            RawModel rawModel = rawModelJS.rawModel;
-            List<VertexArray> vertexArrays = rawModel.upload(OptimizedModelAccessor.getDefaultMapping());
-            OptimizedModel optimizedModel = new OptimizedModel(vertexArrays);
-            return new ModelJS(OptimizedModelWrapperAccessor.createNew(optimizedModel));
-        } finally {
-            if (ownsProtection) GlStateTracker.restore();
+        private ModelJS(RawModelJS sourceModel, OptimizedModelWrapper model) {
+                this.sourceModel = sourceModel;
+                this.model = model;
         }
-    }
 
-    public ModelJS copyForMaterialChanges() {
-        OptimizedModel optimizedModel = ((OptimizedModelWrapperAccessor)(Object)model).getOptimizedModel();
-        List<VertexArray> vertexArrays =
-                ((OptimizedModelAccessor)(Object)optimizedModel).getUploadedParts().stream().map(e -> {
-                    MaterialProperties newProp = new MaterialProperties(e.materialProperties.shaderType, e.materialProperties.getTexture(), e.materialProperties.vertexAttributeState.color);
-                    return new VertexArray(e, newProp);
-                }).toList();
-
-        OptimizedModel newModel = new OptimizedModel(vertexArrays);
-        OptimizedModelWrapper wrapper = OptimizedModelWrapperAccessor.createNew(newModel);
-        return new ModelJS(wrapper);
-    }
-
-    public void replaceTexture(String oldTexture, String newTexture) {
-        replaceTexture(oldTexture, JSUtil.parseId(newTexture));
-    }
-
-    public void replaceTexture(String oldTexture, Identifier newTexture) {
-        OptimizedModel optimizedModel = ((OptimizedModelWrapperAccessor)(Object)model).getOptimizedModel();
-        List<VertexArray> vertexArrays = ((OptimizedModelAccessor)(Object)optimizedModel).getUploadedParts();
-
-        vertexArrays.forEach(e -> {
-            Identifier id = e.materialProperties.getTexture();
-            if (id == null) return;
-
-            String oldPath = id.getPath();
-            if (oldPath.substring(oldPath.lastIndexOf("/") + 1).equals(oldTexture)) {
-                e.materialProperties.setTexture(newTexture);
-            }
-        });
-    }
-
-    public void replaceAllTexture(String id) {
-        replaceAllTexture(JSUtil.parseId(id));
-    }
-
-    public void replaceAllTexture(Identifier id) {
-        OptimizedModel optimizedModel = ((OptimizedModelWrapperAccessor)(Object)model).getOptimizedModel();
-        List<VertexArray> vertexArrays = ((OptimizedModelAccessor)(Object)optimizedModel).getUploadedParts();
-
-        vertexArrays.forEach(e -> {
-            e.materialProperties.setTexture(id);
-        });
-    }
-
-    @ApiInternal
-    public void draw(StoredMatrixTransformations storedMatrixTransformations, int light) {
-        if(OptimizedRenderer.hasOptimizedRendering()) {
-            if(this.model != null) {
-                MainRenderer.scheduleRender(QueuedRenderLayer.TEXT, (graphicsHolder, offset) -> {
-                    storedMatrixTransformations.transform(graphicsHolder, offset);
-                    CustomResourceLoader.OPTIMIZED_RENDERER_WRAPPER.queue(this.model, graphicsHolder, light);
-                    graphicsHolder.pop();
-                });
-            }
+        @ApiInternal
+        public static ModelJS uploadRawModel(RawModelJS rawModelJS) {
+                return new ModelJS(rawModelJS, new OptimizedModelWrapper(rawModelJS.rawModel.upload()));
         }
-    }
 
-    @ApiInternal
-    public OptimizedModelWrapper getUnderlyingModel() {
-        return this.model;
-    }
+        public ModelJS copyForMaterialChanges() {
+                final RawModelJS copy = sourceModel.copyForMaterialChanges();
+                return new ModelJS(copy, new OptimizedModelWrapper(copy.rawModel.upload()));
+        }
 
-    public void close() {
-        OptimizedModel optimizedModel = ((OptimizedModelWrapperAccessor)(Object)model).getOptimizedModel();
-        List<VertexArray> vertexArrays = ((OptimizedModelAccessor)(Object)optimizedModel).getUploadedParts();
-        vertexArrays.forEach(VertexArray::close);
-    }
+        public void replaceTexture(String oldTexture, String newTexture) {
+                replaceTexture(oldTexture, JSUtil.parseId(newTexture));
+        }
+
+        public void replaceTexture(String oldTexture, ResourceLocation newTexture) {
+                sourceModel.replaceTexture(oldTexture, newTexture);
+                reupload();
+        }
+
+        public void replaceAllTexture(String id) {
+                replaceAllTexture(JSUtil.parseId(id));
+        }
+
+        public void replaceAllTexture(ResourceLocation id) {
+                sourceModel.replaceAllTexture(id);
+                reupload();
+        }
+
+        @ApiInternal
+        public void draw(StoredMatrixTransformations storedMatrixTransformations, int light) {
+                model.queue(storedMatrixTransformations, light);
+        }
+
+        @ApiInternal
+        public OptimizedModelWrapper getUnderlyingModel() {
+                return this.model;
+        }
+
+        /** Re-uploads the (mutated) source model into fresh GPU meshes, closing the previous ones. */
+        private void reupload() {
+                final OptimizedModelWrapper previous = this.model;
+                this.model = new OptimizedModelWrapper(sourceModel.rawModel.upload());
+                previous.close();
+        }
+
+        public void close() {
+                model.close();
+        }
 }

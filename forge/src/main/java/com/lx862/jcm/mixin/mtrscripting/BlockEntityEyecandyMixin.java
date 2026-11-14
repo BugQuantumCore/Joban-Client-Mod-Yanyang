@@ -3,8 +3,8 @@ package com.lx862.jcm.mixin.mtrscripting;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTEStringMapSerializer;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.JCMBlockEyecandyExtra;
-import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mod.block.BlockEyeCandy;
+import net.minecraft.nbt.CompoundTag;
+import org.mtr.block.BlockEyeCandy;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 @Mixin(value = BlockEyeCandy.BlockEntity.class, remap = false)
 public abstract class BlockEntityEyecandyMixin implements JCMBlockEyecandyExtra {
@@ -53,6 +54,6 @@ public abstract class BlockEntityEyecandyMixin implements JCMBlockEyecandyExtra 
     public void jsblock$updateCustomConfig(Map<String, String> newConfig) {
         jsblock$eyecandyCustomConfig.clear();
         jsblock$eyecandyCustomConfig.putAll(new HashMap<>(newConfig));
-        ((BlockEyeCandy.BlockEntity)(Object)this).markDirty2();
+        ((BlockEyeCandy.BlockEntity)(Object)this).setChanged();
     }
 }

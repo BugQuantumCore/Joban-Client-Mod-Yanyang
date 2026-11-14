@@ -26,7 +26,7 @@ package com.lx862.mtrscripting.core.util;
 
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 @SuppressWarnings("unused")
 public class TimingJS {
@@ -36,7 +36,7 @@ public class TimingJS {
 
     @ApiInternal
     public static void update(double elapsed) {
-        totalRunningTime += MinecraftClient.getInstance().isPaused() ? 0 : elapsed / 1000.0;
+        totalRunningTime += Minecraft.getInstance().isPaused() ? 0 : elapsed / 1000.0;
     }
 
     @ApiInternal

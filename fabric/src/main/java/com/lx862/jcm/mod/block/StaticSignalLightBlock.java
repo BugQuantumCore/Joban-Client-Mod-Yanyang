@@ -1,24 +1,30 @@
 package com.lx862.jcm.mod.block;
 
 import com.lx862.jcm.mod.block.entity.StaticSignalLightBlockEntity;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.BlockEntityExtension;
-import org.mtr.mod.block.BlockSignalLightBase;
+import org.mtr.block.BlockSignalLightBase;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 
 public abstract class StaticSignalLightBlock extends BlockSignalLightBase {
-    public StaticSignalLightBlock(BlockSettings settings, int shapeX, int shapeHeight) {
+    public StaticSignalLightBlock(BlockBehaviour.Properties settings, int shapeX, int shapeHeight) {
         super(settings, shapeX, shapeHeight);
     }
 
     @Override
-    public ActionResult onUse2(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        return ActionResult.PASS;
+    public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        return InteractionResult.PASS;
     }
 
     public abstract StaticSignalLightBlockEntity.SignalType getSignalType();
 
     @Override
-    public BlockEntityExtension createBlockEntity(BlockPos blockPos, BlockState blockState) {
+    public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState) {
         return new StaticSignalLightBlockEntity(getSignalType(), blockPos, blockState);
     }
 }

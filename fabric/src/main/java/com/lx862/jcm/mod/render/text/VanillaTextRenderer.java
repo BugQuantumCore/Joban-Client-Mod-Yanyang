@@ -1,8 +1,8 @@
 package com.lx862.jcm.mod.render.text;
 
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.mapper.GraphicsHolder;
+import net.minecraft.network.chat.MutableComponent;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
 /**
  * Wrapper around vanilla text rendering
@@ -20,7 +20,7 @@ public class VanillaTextRenderer implements RenderHelper {
         if(text.isForScrollingText()) {
             drawScrollingText(graphicsHolder, text, finalX, y);
         } else {
-            MutableText finalText = text.toMutableText();
+            MutableComponent finalText = text.toMutableText();
             graphicsHolder.drawText(finalText, (int)finalX, (int)y, text.getTextColor(), false, MAX_RENDER_LIGHT);
         }
     }

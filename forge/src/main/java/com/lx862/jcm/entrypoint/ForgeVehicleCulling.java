@@ -4,6 +4,7 @@ import com.lx862.jcm.mixin.mtrscripting.LevelRendererCullingAccessor;
 import com.lx862.jcm.nativeapi.NativeCullFrustum;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.culling.Frustum;
 
 /**
  * Forge half of native vehicle-script frustum culling.
@@ -32,7 +33,7 @@ public final class ForgeVehicleCulling {
        render pass): the raw frustum instance is stable for a whole pass, so
        the MTR holder wrap happens once per frame, not once per vehicle. */
     private static Object lastRaw;
-    private static org.mtr.mapping.holder.Frustum lastHolder;
+    private static net.minecraft.client.renderer.culling.Frustum lastHolder;
 
     public static void init() {
         NativeCullFrustum.setLive(() -> {
@@ -44,7 +45,7 @@ public final class ForgeVehicleCulling {
                 if (raw == null) return null;
                 if (raw != lastRaw) {
                     lastRaw = raw;
-                    lastHolder = new org.mtr.mapping.holder.Frustum(raw);
+                    lastHolder = new com.mojang.blaze3d.culling.Frustum(raw);
                 }
                 return lastHolder;
             } catch(Throwable t) {

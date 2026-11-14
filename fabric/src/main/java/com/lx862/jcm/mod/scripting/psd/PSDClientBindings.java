@@ -2,10 +2,10 @@ package com.lx862.jcm.mod.scripting.psd;
 
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.network.packet.psd.RequestPSDScriptsC2SPacket;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.Init;
+import net.minecraft.core.BlockPos;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
+import org.mtr.MTR;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +28,7 @@ public final class PSDClientBindings {
 
     private static final Map<BlockPos, PSDBinding> BINDINGS = new HashMap<>();
     private static String currentDimension;
-    /* Raw world reference for identity-only change detection — getWorldMapped()
+    /* Raw world reference for identity-only change detection — getLevel()
        allocates a wrapper and Init.getWorldId formats a string, neither of
        which belongs in a per-tick check. */
     private static Object lastWorldData;
@@ -92,7 +92,7 @@ public final class PSDClientBindings {
         dimension switch, and retries when no server ever answered (a vanilla
         server without this mod simply never replies). */
     public static void tick() {
-        final org.mtr.mapping.holder.ClientWorld clientWorld = MinecraftClient.getInstance().getWorldMapped();
+        final net.minecraft.client.multiplayer.ClientLevel clientWorld = Minecraft.getInstance().level;
         if (clientWorld == null) {
             if (currentDimension != null || !BINDINGS.isEmpty()) {
                 currentDimension = null;
@@ -103,9 +103,9 @@ public final class PSDClientBindings {
             return;
         }
 
-        if (clientWorld.data != lastWorldData) {
-            lastWorldData = clientWorld.data;
-            currentDimension = Init.getWorldId(World.cast(clientWorld));
+        if (clientWorld != lastWorldData) {
+            lastWorldData = clientWorld;
+            currentDimension = MTR.getWorldId((Level)clientWorld);
             BINDINGS.clear();
             request(currentDimension);
             return;

@@ -2,7 +2,7 @@ package com.lx862.jcm.nativeapi;
 
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
-import org.mtr.mapping.holder.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -48,7 +48,7 @@ final class NativeFontRenderer {
     private Font font(String path, double size) {
         Font base = baseFonts.get(path);
         if (base == null) {
-            base = ScriptResourceUtil.readFont(new Identifier(path));
+            base = ScriptResourceUtil.readFont(ResourceLocation.parse(path));
             if (base == null) {
                 JCMLogger.warn("Native font {} is unavailable; using bundled Noto Sans.", path);
                 base = ScriptResourceUtil.getSystemFont("Noto Sans");

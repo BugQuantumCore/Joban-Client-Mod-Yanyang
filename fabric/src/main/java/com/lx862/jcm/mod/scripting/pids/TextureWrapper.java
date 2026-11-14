@@ -3,18 +3,18 @@ package com.lx862.jcm.mod.scripting.pids;
 import com.lx862.jcm.mod.render.RenderHelper;
 import com.lx862.jcm.mod.util.CachedIdentifiers;
 import com.lx862.mtrscripting.mod.util.JSUtil;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mod.render.MainRenderer;
-import org.mtr.mod.render.QueuedRenderLayer;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.render.MainRenderer;
+import org.mtr.render.QueuedRenderLayer;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.util.ArrayDeque;
 
 import static com.lx862.jcm.mod.render.RenderHelper.*;
 
 public class TextureWrapper extends PIDSDrawCall<TextureWrapper> {
-    protected Identifier textureId;
+    protected ResourceLocation textureId;
     protected int color;
     protected boolean naturalLight = false;
     protected float u1;
@@ -89,7 +89,7 @@ public class TextureWrapper extends PIDSDrawCall<TextureWrapper> {
         return texture(id.startsWith("./") ? JSUtil.parseId(id) : CachedIdentifiers.of(id));
     }
 
-    public TextureWrapper texture(Identifier id) {
+    public TextureWrapper texture(ResourceLocation id) {
         this.textureId = id;
         return this;
     }
@@ -132,11 +132,14 @@ public class TextureWrapper extends PIDSDrawCall<TextureWrapper> {
 
     @Override
     protected void drawTransformed(StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
-        MainRenderer.scheduleRender(this.textureId, false, this.renderType, (graphicsHolderNew, offset) -> {
-//          graphicsHolderNew.push(); // Applied with storedMatrixTransformations.transform
-            storedMatrixTransformations.transform(graphicsHolderNew, offset);
-            RenderHelper.drawTexture(graphicsHolderNew, 0, 0, 0, (float)this.w, (float)this.h, this.u1, this.v1, this.u2, this.v2, facing, ARGB_BLACK + this.color, this.naturalLight ? light : MAX_RENDER_LIGHT);
-            graphicsHolderNew.pop();
+        MainRenderer.scheduleRender(this.textureId, false, this.renderType, (poseStack, vertexConsumer, offset) -> {
+            storedMatrixTransformations.transform(poseStack, offset);
+            org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer,
+                    0, (float)this.h, 0, (float)this.w, (float)this.h, 0,
+                    (float)this.w, 0, 0, 0, 0, 0,
+                    this.u1, this.v1, this.u2, this.v2,
+                    facing, ARGB_BLACK | this.color, this.naturalLight ? light : MAX_RENDER_LIGHT);
+            poseStack.popPose();
         });
     }
 }

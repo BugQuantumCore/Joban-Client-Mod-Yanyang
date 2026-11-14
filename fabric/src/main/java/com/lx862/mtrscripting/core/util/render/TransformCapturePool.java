@@ -1,7 +1,9 @@
 package com.lx862.mtrscripting.core.util.render;
 
 import com.lx862.jcm.nativeapi.NativeTransformScope;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import org.mtr.render.StoredMatrixTransformations;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Recycled per-draw-call transform snapshots for {@link ScriptRenderManager#invoke}.

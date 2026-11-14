@@ -2,7 +2,7 @@ package com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.ante;
 
 import com.lx862.mtrscripting.core.integration.VanillaTextWrapper;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.EyecandyCustomConfig;
-import org.mtr.mapping.mapper.TextHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
 
 import java.util.*;
 import java.util.function.Function;

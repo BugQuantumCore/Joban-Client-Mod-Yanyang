@@ -8,8 +8,8 @@ import com.lx862.jcm.mod.resource.mcmeta.McMetaManager;
 import com.lx862.jcm.mod.scripting.JCMScripting;
 import com.lx862.jcm.nativeapi.NativeChannel;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
-import org.mtr.mapping.holder.Screen;
-import org.mtr.mapping.holder.ScreenAbstractMapping;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.Screen;
 
 public class JCMClient {
     private static final McMetaManager mcMetaManager = new McMetaManager();
@@ -37,7 +37,7 @@ public class JCMClient {
         NativeChannel.configure(selected);
     }
 
-    public static ScreenAbstractMapping getClientConfigScreen(Screen previousScreen) {
+    public static Screen getClientConfigScreen(Screen previousScreen) {
         return new ClientConfigScreen().withPreviousScreen(previousScreen);
     }
 

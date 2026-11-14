@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import net.minecraft.network.chat.Component;
 
 /**
  * Parses the {@code psdScripts} category of {@code mtr_custom_resources.json}

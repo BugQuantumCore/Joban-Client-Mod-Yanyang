@@ -1,7 +1,7 @@
 package com.lx862.amberui.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import org.mtr.mapping.holder.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -63,8 +63,8 @@ public class ClipStack {
      * @param height Height of your rectangle
      */
     private static void enableClip(int x, int y, int width, int height) {
-        double scale = MinecraftClient.getInstance().getWindow().getScaleFactor();
-        int windowHeight = MinecraftClient.getInstance().getWindow().getFramebufferHeight();
+        double scale = Minecraft.getInstance().getWindow().getGuiScale();
+        int windowHeight = Minecraft.getInstance().getWindow().getHeight();
         RenderSystem.enableScissor((int)(x * scale), (int)(windowHeight - (y + height) * scale), (int)(width * scale), (int)(height * scale));
     }
 

@@ -1,13 +1,13 @@
 package com.lx862.jcm.mod.render.text;
 
 import com.lx862.jcm.mod.util.TextUtil;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.MutableText;
-import org.mtr.mapping.holder.TextFormatting;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.ChatFormatting;
 
 public class TextInfo {
     private final String content;
-    private Identifier fontId;
+    private ResourceLocation fontId;
     private TextAlignment textAlignment = TextAlignment.LEFT;
     private int textColor;
     private boolean forScrollingText = false;
@@ -16,7 +16,7 @@ public class TextInfo {
         this.content = content;
     }
 
-    public TextInfo(MutableText text) {
+    public TextInfo(MutableComponent text) {
         this.content = text.getString();
     }
 
@@ -52,16 +52,16 @@ public class TextInfo {
     }
 
     public TextInfo withFont(String font) {
-        return withFont(new Identifier(font));
+        return withFont(ResourceLocation.parse(font));
     }
 
-    public TextInfo withFont(Identifier fontId) {
+    public TextInfo withFont(ResourceLocation fontId) {
         this.fontId = fontId;
         return this;
     }
 
-    public MutableText toMutableText() {
-        MutableText text = TextUtil.literal(content);
+    public MutableComponent toMutableText() {
+        MutableComponent text = TextUtil.literal(content);
         if(fontId != null) {
             text = TextUtil.withFont(text, fontId);
         }

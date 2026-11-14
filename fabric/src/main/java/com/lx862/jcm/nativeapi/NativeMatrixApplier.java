@@ -1,4 +1,5 @@
 package com.lx862.jcm.nativeapi;
+import com.lx862.jcm.mod.render.GraphicsHolder;
 
 public interface NativeMatrixApplier {
     void jcm$multiplyNativeMatrix(float[] matrix);
@@ -21,9 +22,5 @@ public interface NativeMatrixApplier {
      * {@code PSDScriptRenderer#drawBacking}) without losing the flush-time
      * camera matrices. Implemented by the {@code GraphicsHolderMatrixMixin}.
      */
-#if LOADER == "fabric"
-    net.minecraft.client.util.math.MatrixStack jcm$getMatrixStack();
-#else
     com.mojang.blaze3d.vertex.PoseStack jcm$getMatrixStack();
-#endif
 }

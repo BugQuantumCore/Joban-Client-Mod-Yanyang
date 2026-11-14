@@ -11,11 +11,10 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.doubles.DoubleDoubleImmutablePair
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mapping.mapper.MinecraftClientHelper;
-import org.mtr.mod.client.MinecraftClientData;
-import org.mtr.mod.render.RenderRails;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import com.lx862.jcm.mod.compat.MinecraftClientHelper;
+import org.mtr.client.MinecraftClientData;
+import org.mtr.render.RenderRails;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -24,6 +23,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(value = RenderRails.class, remap = false)
 public class RenderRailsMixin {
@@ -46,27 +56,27 @@ public class RenderRailsMixin {
     }
 
     @Inject(method = "lambda$render$5", at = @At("HEAD"), cancellable = true)
-    private static void jsblock$cancelRailRendering(boolean holdingRailRelated, ObjectArraySet hoverRails, ClientWorld clientWorld, Rail rail, CallbackInfo ci) {
+    private static void jsblock$cancelRailRendering(boolean holdingRailRelated, ObjectArraySet hoverRails, ClientLevel clientWorld, Rail rail, CallbackInfo ci) {
         if(JCMClientConfig.INSTANCE.mtrPatch.disableRailRendering.value()) ci.cancel();
     }
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/render/RenderRails;renderRailStats(Lorg/mtr/mapping/holder/BlockPos;Lorg/mtr/mapping/holder/BlockPos;DDD)V", ordinal = 0), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
-    private static void jsblock$captureRail1(CallbackInfo ci, MinecraftClient minecraftClient, ClientWorld clientWorld, ClientPlayerEntity clientPlayerEntity, ObjectArrayList cullingTasks, Vector3d cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ObjectObjectImmutablePair railAndBlockPos, Rail rail, BlockPos blockPos, Rail newRail, DoubleDoubleImmutablePair railRadii) {
+    private static void jsblock$captureRail1(CallbackInfo ci, Minecraft minecraftClient, ClientLevel clientWorld, LocalPlayer clientPlayerEntity, ObjectArrayList cullingTasks, Vec3 cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ObjectObjectImmutablePair railAndBlockPos, Rail rail, BlockPos blockPos, Rail newRail, DoubleDoubleImmutablePair railRadii) {
         jsblock$capturedRailMath = newRail.railMath;
     }
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/render/RenderRails;renderRailStats(Lorg/mtr/mapping/holder/BlockPos;Lorg/mtr/mapping/holder/BlockPos;DDD)V", ordinal = 1), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
-    private static void jsblock$captureRail2(CallbackInfo ci, MinecraftClient minecraftClient, ClientWorld clientWorld, ClientPlayerEntity clientPlayerEntity, ObjectArrayList cullingTasks, Vector3d cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ObjectObjectImmutablePair railAndBlockPos, Rail rail, BlockPos blockPos, DoubleDoubleImmutablePair railRadii) {
+    private static void jsblock$captureRail2(CallbackInfo ci, Minecraft minecraftClient, ClientLevel clientWorld, LocalPlayer clientPlayerEntity, ObjectArrayList cullingTasks, Vec3 cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ObjectObjectImmutablePair railAndBlockPos, Rail rail, BlockPos blockPos, DoubleDoubleImmutablePair railRadii) {
         jsblock$capturedRailMath = rail.railMath;
     }
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/render/RenderRails;renderRailStats(Lorg/mtr/mapping/holder/BlockPos;Lorg/mtr/mapping/holder/BlockPos;DDD)V", ordinal = 2), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
-    private static void jsblock$captureRail3(CallbackInfo ci, MinecraftClient minecraftClient, ClientWorld clientWorld, ClientPlayerEntity clientPlayerEntity, ObjectArrayList cullingTasks, Vector3d cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ItemStack itemStack, Item item, HitResult hitResult, Vector3d hitPos, BlockPos posStart, CompoundTag compoundTag, BlockPos posEnd, BlockState blockStateEnd, BlockState blockStateStart, float angleEnd, ObjectObjectImmutablePair angles, Rail rail, Rail newRail, double railLength, DoubleDoubleImmutablePair railRadii) {
+    private static void jsblock$captureRail3(CallbackInfo ci, Minecraft minecraftClient, ClientLevel clientWorld, LocalPlayer clientPlayerEntity, ObjectArrayList cullingTasks, Vec3 cameraPosition, Vec3d camera, boolean holdingRailRelated, ObjectArrayList railsToRender, ObjectArraySet hoverRails, ItemStack itemStack, Item item, HitResult hitResult, Vec3 hitPos, BlockPos posStart, CompoundTag compoundTag, BlockPos posEnd, BlockState blockStateEnd, BlockState blockStateStart, float angleEnd, ObjectObjectImmutablePair angles, Rail rail, Rail newRail, double railLength, DoubleDoubleImmutablePair railRadii) {
         jsblock$capturedRailMath = rail.railMath;
     }
 
     @Inject(method="lambda$renderRailStats$24", at = @At(value = "INVOKE", target = "Lorg/mtr/mapping/mapper/GraphicsHolder;pop()V"), locals = LocalCapture.CAPTURE_FAILSOFT)
-    private static void jsblock$showMidGradient(BlockPos renderPos, double textOffset, BlockPos otherPos, String textXYZOffsetLabel, String textXYZOffset, String textXZRadius, String textXZRadiusLabel, String textLengthLabel, String textLength, GraphicsHolder graphicsHolder, Vector3d offset, CallbackInfo ci, int line) {
+    private static void jsblock$showMidGradient(BlockPos renderPos, double textOffset, BlockPos otherPos, String textXYZOffsetLabel, String textXYZOffset, String textXZRadius, String textXZRadiusLabel, String textLengthLabel, String textLength, GraphicsHolder graphicsHolder, Vec3 offset, CallbackInfo ci, int line) {
         if(jsblock$capturedRailMath != null) {
             double railLength = jsblock$capturedRailMath.getLength();
             double p1 = ((RailMathAccessor)jsblock$capturedRailMath).invokeGetPositionY((railLength / 2) - 0.5);
@@ -83,7 +93,7 @@ public class RenderRailsMixin {
         if(!overrideDefaultBehaviour) return;
 
         Box railCullingBoundary = JCMPatchForMTR.clampBoundingBoxToRenderDistance(
-                new Vector3d(camera.getX(), camera.getY(), camera.getZ()),
+                new Vec3(camera.getX(), camera.getY(), camera.getZ()),
                 MinecraftClientHelper.getRenderDistance(),
                 railWrapper.startVector.x, railWrapper.startVector.y, railWrapper.startVector.z,
                 railWrapper.endVector.x, railWrapper.endVector.y, railWrapper.endVector.z

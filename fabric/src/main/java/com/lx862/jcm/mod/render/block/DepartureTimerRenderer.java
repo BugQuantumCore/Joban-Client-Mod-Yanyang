@@ -9,32 +9,33 @@ import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.mapper.GraphicsHolder;
-import org.mtr.mod.InitClient;
-import org.mtr.mod.block.IBlock;
-import org.mtr.mod.data.ArrivalsCacheClient;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.MTRClient;
+import org.mtr.block.IBlock;
+import org.mtr.data.ArrivalsCacheClient;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
 public class DepartureTimerRenderer extends JCMBlockEntityRenderer<DepartureTimerBlockEntity> {
-    public DepartureTimerRenderer(Argument dispatcher) {
+    public DepartureTimerRenderer(BlockEntityRendererProvider.Context dispatcher) {
         super(dispatcher);
     }
 
     @Override
-    public void renderCurated(DepartureTimerBlockEntity blockEntity, GraphicsHolder graphicsHolder, World world, BlockState state, BlockPos pos, float tickDelta, int light, int i1) {
+    public void renderCurated(DepartureTimerBlockEntity blockEntity, GraphicsHolder graphicsHolder, Level world, BlockState state, BlockPos pos, float tickDelta, int light, int i1) {
         Direction facing = IBlock.getStatePropertySafe(state, BlockProperties.FACING);
 
         /* Data lookups BEFORE the push: three early returns below used to skip
            the matching pop(), leaking one matrix-stack entry per frame per
            timer and corrupting every block entity rendered after it. */
         List<Platform> closestPlatforms = new ArrayList<>();
-        InitClient.findClosePlatform(pos, 5, closestPlatforms::add);
+        MTRClient.findClosePlatform(pos, 5, closestPlatforms::add);
         Platform closestPlatform = !closestPlatforms.isEmpty() ? closestPlatforms.get(0) : null;
         if (closestPlatform == null) return;
 

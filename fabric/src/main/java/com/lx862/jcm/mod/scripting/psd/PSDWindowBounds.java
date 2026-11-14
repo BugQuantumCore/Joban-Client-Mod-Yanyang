@@ -3,19 +3,23 @@ package com.lx862.jcm.mod.scripting.psd;
 #if MC_VERSION >= "12001"
 #if LOADER == "fabric"
 import com.lx862.jcm.mixin.mtrscripting.SpriteContentsAccessor;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.model.BakedModel;
-import net.minecraft.client.render.model.BakedQuad;
-import net.minecraft.client.texture.NativeImage;
-import net.minecraft.client.texture.Sprite;
-import net.minecraft.client.texture.SpriteContents;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.random.Random;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.SpriteContents;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import com.mojang.blaze3d.platform.NativeImage;
+import com.mojang.blaze3d.platform.Window;
+import net.minecraft.core.Direction.Axis;
+import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
 #endif
 #endif
 
@@ -148,11 +152,11 @@ final class PSDWindowBounds {
          *  (Z when facing X, X when facing Z) — the geometric bound of the
          *  horizontal window scan. */
         final float hMin, hMax;
-        final Sprite sprite;
+        final TextureAtlasSprite sprite;
         final int frameWidth, frameHeight;
 
         Quad(BakedQuad baked, Direction platform, Direction facing) {
-            final int[] data = baked.getVertexData();
+            final int[] data = baked.getVertices();
             for (int i = 0; i < 4; i++) {
                 px[i] = Float.intBitsToFloat(data[i * 8]);
                 py[i] = Float.intBitsToFloat(data[i * 8 + 1]);
@@ -180,7 +184,7 @@ final class PSDWindowBounds {
             if (len < 1e-6F) {
                 throw new IllegalArgumentException("degenerate");
             }
-            final float dotPlatform = (tx * platform.getOffsetX() + ty * platform.getOffsetY() + tz * platform.getOffsetZ()) / len;
+            final float dotPlatform = (tx * platform.getStepX() + ty * platform.getStepY() + tz * platform.getStepZ()) / len;
             if (Math.abs(dotPlatform) < 0.9F) {
                 throw new IllegalArgumentException("not pane-parallel");
             }
@@ -197,7 +201,7 @@ final class PSDWindowBounds {
             cx = cx / 4 - 0.5F;
             cy = cy / 4 - 0.5F;
             cz = cz / 4 - 0.5F;
-            along = cx * facing.getOffsetX() + cy * facing.getOffsetY() + cz * facing.getOffsetZ();
+            along = cx * facing.getStepX() + cy * facing.getStepY() + cz * facing.getStepZ();
             if (facing.getAxis() == Direction.Axis.X) {
                 area = (max(pz) - min(pz)) * (yMax - yMin);
             } else if (facing.getAxis() == Direction.Axis.Z) {
@@ -216,7 +220,7 @@ final class PSDWindowBounds {
             this.yMin = yMin;
             this.yMax = yMax;
             sprite = baked.getSprite();
-            SpriteContents contents = sprite == null ? null : sprite.getContents();
+            SpriteContents contents = sprite == null ? null : sprite.contents();
             NativeImage image = contents == null ? null : ((SpriteContentsAccessor) (Object) contents).jsblock$getImage();
             if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
                 throw new IllegalArgumentException("no image");
@@ -233,14 +237,14 @@ final class PSDWindowBounds {
         /** Sprite row (frame-local) → atlas v coordinate. */
         float rowToV(int row) {
             final float local = (row + 0.5F) / frameHeight;
-            return sprite.getMinV() + local * (sprite.getMaxV() - sprite.getMinV());
+            return sprite.getV0() + local * (sprite.getV1() - sprite.getV0());
         }
 
         /** Sprite column (frame-local) → atlas u coordinate (yanyang.10,
          *  the horizontal twin of {@link #rowToV}). */
         float columnToU(int col) {
             final float local = (col + 0.5F) / frameWidth;
-            return sprite.getMinU() + local * (sprite.getMaxU() - sprite.getMinU());
+            return sprite.getU0() + local * (sprite.getU1() - sprite.getU0());
         }
     }
 
@@ -331,13 +335,13 @@ final class PSDWindowBounds {
      * The block's derived pane geometry (see the class javadoc). Never
      * null; falls back to {@link Bounds#FULL_FACE}.
      */
-    static Bounds window(org.mtr.mapping.holder.BlockState state, org.mtr.mapping.holder.Direction facing) {
-        final BlockState nativeState = (BlockState) state.data;
+    static Bounds window(net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.Direction facing) {
+        final BlockState nativeState = (BlockState) state;
         final Bounds cached = CACHE.get(nativeState);
         if (cached != null) {
             return cached;
         }
-        final Bounds computed = compute(nativeState, (Direction) facing.data);
+        final Bounds computed = compute(nativeState, (Direction) facing);
         if (CACHE.size() > CACHE_LIMIT) {
             CACHE.clear();
         }
@@ -347,17 +351,17 @@ final class PSDWindowBounds {
 
     private static Bounds compute(BlockState state, Direction facing) {
         try {
-            final MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.getBlockRenderManager() == null) {
+            final Minecraft client = Minecraft.getInstance();
+            if (client == null || client.getBlockRenderer() == null) {
                 return Bounds.FULL_FACE;
             }
-            final BakedModel model = client.getBlockRenderManager().getModel(state);
+            final BakedModel model = client.getBlockRenderer().getBlockModel(state);
             if (model == null) {
                 return Bounds.FULL_FACE;
             }
 
             final Direction platform = facing.getOpposite();
-            final Random random = Random.create();
+            final RandomSource random = RandomSource.create();
 
             /* Collect pane-parallel quads. */
             final java.util.ArrayList<Quad> quads = new java.util.ArrayList<>();
@@ -529,7 +533,7 @@ final class PSDWindowBounds {
      *  when the quad's sampled region is majority-frame as a whole, its full
      *  horizontal extent — vertical stile strips) as occluded. */
     private static void markOcclusionH(Quad quad, boolean[] occluded, int frameThreshold) {
-        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.getContents()).jsblock$getImage();
+        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.contents()).jsblock$getImage();
         final int[][] rect = sampleRect(quad);
         final int xFrom = rect[0][0], xTo = rect[0][1], yFrom = rect[1][0], yTo = rect[1][1];
         final int rowStep = Math.max(1, (yTo - yFrom) / 16);
@@ -540,7 +544,7 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int y = yFrom; y <= yTo; y += rowStep) {
                 total++;
-                if ((image.getOpacity(x, y) & 0xFF) >= frameThreshold) {
+                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) >= frameThreshold) {
                     frame++;
                 }
             }
@@ -594,13 +598,13 @@ final class PSDWindowBounds {
 
     /** Whether the quad's sampled region contains ANY visible pixel. */
     private static boolean scanVisible(Quad quad) {
-        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.getContents()).jsblock$getImage();
+        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.contents()).jsblock$getImage();
         final int[][] rect = sampleRect(quad);
         final int xFrom = rect[0][0], xTo = rect[0][1], yFrom = rect[1][0], yTo = rect[1][1];
         final int columnStep = Math.max(1, (xTo - xFrom) / 16);
         for (int y = yFrom; y <= yTo; y += Math.max(1, (yTo - yFrom) / 32)) {
             for (int x = xFrom; x <= xTo; x += columnStep) {
-                if ((image.getOpacity(x, y) & 0xFF) > 0) {
+                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) > 0) {
                     return true;
                 }
             }
@@ -613,7 +617,7 @@ final class PSDWindowBounds {
      *  (and, when the quad's sampled region is majority-frame as a whole,
      *  its full extent — small frame strips) as occluded. */
     private static void markOcclusion(Quad quad, boolean[] occluded, int frameThreshold) {
-        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.getContents()).jsblock$getImage();
+        final NativeImage image = ((SpriteContentsAccessor) (Object) quad.sprite.contents()).jsblock$getImage();
         final int[][] rect = sampleRect(quad);
         final int xFrom = rect[0][0], xTo = rect[0][1], yFrom = rect[1][0], yTo = rect[1][1];
         final int columnStep = Math.max(1, (xTo - xFrom) / 16);
@@ -624,7 +628,7 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int x = xFrom; x <= xTo; x += columnStep) {
                 total++;
-                if ((image.getOpacity(x, y) & 0xFF) >= frameThreshold) {
+                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) >= frameThreshold) {
                     frame++;
                 }
             }
@@ -660,15 +664,15 @@ final class PSDWindowBounds {
 
     /** The quad's sampled pixel rectangle in the sprite's frame-0 image. */
     private static int[][] sampleRect(Quad quad) {
-        final float uSpan = quad.sprite.getMaxU() - quad.sprite.getMinU();
-        final float vSpan = quad.sprite.getMaxV() - quad.sprite.getMinV();
+        final float uSpan = quad.sprite.getU1() - quad.sprite.getU0();
+        final float vSpan = quad.sprite.getV1() - quad.sprite.getV0();
         if (uSpan <= 0 || vSpan <= 0) {
             throw new IllegalArgumentException("degenerate sprite");
         }
-        final float suMin = clamp01((min(quad.pu) - quad.sprite.getMinU()) / uSpan);
-        final float suMax = clamp01((max(quad.pu) - quad.sprite.getMinU()) / uSpan);
-        final float svMin = clamp01((min(quad.pv) - quad.sprite.getMinV()) / vSpan);
-        final float svMax = clamp01((max(quad.pv) - quad.sprite.getMinV()) / vSpan);
+        final float suMin = clamp01((min(quad.pu) - quad.sprite.getU0()) / uSpan);
+        final float suMax = clamp01((max(quad.pu) - quad.sprite.getU0()) / uSpan);
+        final float svMin = clamp01((min(quad.pv) - quad.sprite.getV0()) / vSpan);
+        final float svMax = clamp01((max(quad.pv) - quad.sprite.getV0()) / vSpan);
         return new int[][]{
                 {(int) Math.floor(suMin * (quad.frameWidth - 1)), (int) Math.ceil(suMax * (quad.frameWidth - 1))},
                 {(int) Math.floor(svMin * (quad.frameHeight - 1)), (int) Math.ceil(svMax * (quad.frameHeight - 1))}
@@ -736,7 +740,7 @@ final class PSDWindowBounds {
 
     static final float MIN_WINDOW = 0.05F;
 
-    static Bounds window(org.mtr.mapping.holder.BlockState state, org.mtr.mapping.holder.Direction facing) {
+    static Bounds window(net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.Direction facing) {
         return Bounds.FULL_FACE;
     }
 #endif
@@ -763,7 +767,7 @@ final class PSDWindowBounds {
 
     static final float MIN_WINDOW = 0.05F;
 
-    static Bounds window(org.mtr.mapping.holder.BlockState state, org.mtr.mapping.holder.Direction facing) {
+    static Bounds window(net.minecraft.world.level.block.state.BlockState state, net.minecraft.core.Direction facing) {
         return Bounds.FULL_FACE;
     }
 #endif

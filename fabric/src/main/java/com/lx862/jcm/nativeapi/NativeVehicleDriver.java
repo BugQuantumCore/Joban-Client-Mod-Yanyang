@@ -10,11 +10,11 @@ import org.mtr.core.data.VehicleCar;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.StoredMatrixTransformations;
+import net.minecraft.core.Direction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.StoredMatrixTransformations;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.client.renderer.culling.Frustum;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * NativeVehicleDriver — one frame of a NATIVE vehicle script.
@@ -401,18 +403,18 @@ public final class NativeVehicleDriver {
         if (existing != null && existing.frame == frame) return;
         CarPositions pos = CAR_POSITIONS.computeIfAbsent(vehicle.getHexId(), k -> new CarPositions());
         if (pos.xyz.length < carCount * 3) pos.xyz = new float[Math.max(carCount * 3, 12)];
-        final ObjectArrayList<ObjectObjectImmutablePair<VehicleCar, ObjectArrayList<ObjectObjectImmutablePair<Vector, Vector>>>> cars =
+        final ObjectArrayList<ObjectObjectImmutablePair<VehicleCar, ObjectArrayList<org.mtr.core.data.Vehicle.BogiePosition>>> cars =
                 vehicle.getVehicleCarsAndPositions();
         for (int car = 0; car < carCount && car < cars.size(); car++) {
-            final ObjectArrayList<ObjectObjectImmutablePair<Vector, Vector>> positions = cars.get(car).right();
+            final ObjectArrayList<org.mtr.core.data.Vehicle.BogiePosition> positions = cars.get(car).right();
             double x = 0, y = 0, z = 0;
             int count = 0;
             if (positions != null) {
                 for (int p = 0; p < positions.size(); p++) {
-                    final ObjectObjectImmutablePair<Vector, Vector> pair = positions.get(p);
+                    final org.mtr.core.data.Vehicle.BogiePosition pair = positions.get(p);
                     if (pair == null) continue;
-                    final Vector left = pair.left();
-                    final Vector right = pair.right();
+                    final Vector left = pair.positionAndTiltAngle1().position();
+                    final Vector right = pair.positionAndTiltAngle2().position();
                     if (left != null) { x += left.x(); y += left.y(); z += left.z(); count++; }
                     if (right != null) { x += right.x(); y += right.y(); z += right.z(); count++; }
                 }
@@ -626,7 +628,7 @@ public final class NativeVehicleDriver {
                     /* Interned: the same sound id string is emitted every frame —
                        the old path allocated a fresh byte[] + String + parsed
                        Identifier per sound record per car per frame. */
-                    org.mtr.mapping.holder.Identifier sound=NativeStringCache.identifier(frame.stringArena,offset,length);
+                    net.minecraft.resources.ResourceLocation sound=NativeStringCache.identifier(frame.stringArena,offset,length);
                     if(kind==5) { if(riding) context.playAnnSound(sound,records.getFloat(pos+24),records.getFloat(pos+28)); }
                     else context.playCarSound(sound,records.get(pos+8)&255,records.getFloat(pos+12),records.getFloat(pos+16),records.getFloat(pos+20),records.getFloat(pos+24),records.getFloat(pos+28));
                     any=true;
@@ -673,7 +675,7 @@ public final class NativeVehicleDriver {
         final ScriptRenderManager manager =
                 NativeDrawRegistry.get(vehicle.getHexId(), scriptId, carNumber);
         if (manager == null) return;
-        final World world = World.cast(MinecraftClient.getInstance().getWorldMapped());
+        final Level world = (Level)Minecraft.getInstance().level;
         if (world == null) return;
         if (!TRACED.contains(TRACE_REPLAYING)) traceOnce(TRACE_REPLAYING, "id=" + vehicle.getHexId(), "car=" + carNumber);
         final StoredMatrixTransformations transform = storedMatrixTransformations.copy();
@@ -873,7 +875,7 @@ public final class NativeVehicleDriver {
 
     public static void invokeBogie(VehicleExtension vehicle,String scriptId,int car,int bogie,StoredMatrixTransformations transforms,int light) {
         State state=STATES.get(key(vehicle.getHexId(),scriptId)); if(state==null) return;
-        World world=World.cast(MinecraftClient.getInstance().getWorldMapped()); if(world==null) return;
+        Level world=(Level)Minecraft.getInstance().level; if(world==null) return;
         for(VehicleScriptContext ctx:state.contexts.values()) {
             var manager=ctx.getCarBogieRenderManager(car,bogie); if(manager!=null) manager.invoke(world,transforms.copy(),Direction.NORTH,light);
         }

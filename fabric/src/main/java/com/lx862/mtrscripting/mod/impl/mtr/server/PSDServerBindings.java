@@ -9,18 +9,18 @@ import com.lx862.jcm.mod.scripting.psd.PSDBinding;
 import com.lx862.jcm.mod.scripting.psd.PSDWrapper;
 import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.network.packet.psd.PSDScriptsS2CPacket;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.PlayerEntity;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mapping.holder.World;
-import org.mtr.mapping.holder.WorldSavePath;
-import org.mtr.mod.Init;
-import org.mtr.mod.block.BlockPSDAPGGlassBase;
-import org.mtr.mod.block.BlockPSDTop;
-import org.mtr.mapping.mapper.MinecraftServerHelper;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.LevelResource;
+import org.mtr.MTR;
+import org.mtr.block.BlockPSDAPGGlassBase;
+import org.mtr.block.BlockPSDTop;
+import com.lx862.jcm.mod.compat.MinecraftServerHelper;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -78,13 +78,13 @@ public final class PSDServerBindings {
     private static final class DimensionState {
         final String dimension;
         final Path file;
-        final World world;
+        final Level world;
         final Map<BlockPos, PSDBinding> bindings = new HashMap<>();
         boolean dirty;
         boolean broadcastPending;
         long retrySaveAt;
 
-        DimensionState(String dimension, Path file, World world) {
+        DimensionState(String dimension, Path file, Level world) {
             this.dimension = dimension;
             this.file = file;
             this.world = world;
@@ -121,23 +121,23 @@ public final class PSDServerBindings {
     /* Packet handlers (server thread)                                       */
     /* ==================================================================== */
 
-    public static void handleQuery(MinecraftServer minecraftServer, ServerPlayerEntity player, String requestedDimension) {
+    public static void handleQuery(MinecraftServer minecraftServer, ServerPlayer player, String requestedDimension) {
         /* SECURITY: never trust the client-supplied dimension string — it is
            only used to build the storage path. The answer always describes
            the player's ACTUAL current dimension, derived server-side. */
-        final World world = player.getEntityWorld();
-        final String dimension = Init.getWorldId(world);
+        final Level world = player.level();
+        final String dimension = MTR.getWorldId(world);
         final DimensionState state = ensureLoaded(minecraftServer, dimension, world);
-        SUBSCRIBERS.computeIfAbsent(dimension, key -> Collections.newSetFromMap(new WeakHashMap<>())).add(player.data);
-        send(minecraftServer, PlayerEntity.cast(player), new PSDScriptsS2CPacket(dimension, snapshot(state)));
+        SUBSCRIBERS.computeIfAbsent(dimension, key -> Collections.newSetFromMap(new WeakHashMap<>())).add(player);
+        send(minecraftServer, (Player)player, new PSDScriptsS2CPacket(dimension, snapshot(state)));
     }
 
-    public static void handleBind(MinecraftServer minecraftServer, ServerPlayerEntity player, int x, int y, int z, String scriptId, boolean pidsPreset, String typeName) {
-        final World world = player.getEntityWorld();
-        final String dimension = Init.getWorldId(world);
+    public static void handleBind(MinecraftServer minecraftServer, ServerPlayer player, int x, int y, int z, String scriptId, boolean pidsPreset, String typeName) {
+        final Level world = player.level();
+        final String dimension = MTR.getWorldId(world);
 
         // The editor item is the permission token — it only exists as a creative tool.
-        if (!player.isHolding(Items.PSD_SCRIPT_EDITOR.get())) {
+        if (!player.isHolding(com.lx862.jcm.mod.registry.Items.PSD_SCRIPT_EDITOR.get())) {
             JCMLogger.warn("Player {} tried to bind a PSD script without holding the PSD Script Editor", player.getName().getString());
             return;
         }
@@ -151,14 +151,14 @@ public final class PSDServerBindings {
         }
 
         final BlockPos pos = new BlockPos(x, y, z);
-        final BlockPos playerPos = player.getBlockPos();
+        final BlockPos playerPos = player.blockPosition();
         final double dx = (double) x - playerPos.getX();
         final double dy = (double) y - playerPos.getY();
         final double dz = (double) z - playerPos.getZ();
         // Reject remote edits before getBlockState can synchronously load chunks.
-        if (dx * dx + dy * dy + dz * dz > MAX_EDIT_DISTANCE_SQ || !world.isChunkLoaded(x >> 4, z >> 4)) return;
+        if (dx * dx + dy * dy + dz * dz > MAX_EDIT_DISTANCE_SQ || !world.getChunkSource().hasChunk(x >> 4, z >> 4)) return;
         final BlockState state = world.getBlockState(pos);
-        final Object block = state.getBlock().data;
+        final Object block = state.getBlock();
         final boolean blockMatches = type == PSDWrapper.PSDType.TOP
                 ? block instanceof BlockPSDTop
                 : block instanceof BlockPSDAPGGlassBase; // glass + glass end, PSD and APG alike
@@ -183,7 +183,7 @@ public final class PSDServerBindings {
     /* Sync                                                                  */
     /* ==================================================================== */
 
-    static void send(MinecraftServer minecraftServer, PlayerEntity player, PSDScriptsS2CPacket packet) {
+    static void send(MinecraftServer minecraftServer, Player player, PSDScriptsS2CPacket packet) {
         com.lx862.jcm.mod.registry.Networking.sendPacketToClient(player, packet);
     }
 
@@ -191,9 +191,9 @@ public final class PSDServerBindings {
         final Set<Object> subscribers = SUBSCRIBERS.get(dimension);
         if (subscribers == null || subscribers.isEmpty()) return;
         final PSDScriptsS2CPacket packet = new PSDScriptsS2CPacket(dimension, snapshot(state));
-        MinecraftServerHelper.iteratePlayers(ServerWorld.cast(state.world), player -> {
-            if (subscribers.contains(player.data)) {
-                com.lx862.jcm.mod.registry.Networking.sendPacketToClient(PlayerEntity.cast(player), packet);
+        MinecraftServerHelper.iteratePlayers((ServerLevel)state.world, player -> {
+            if (subscribers.contains(player)) {
+                com.lx862.jcm.mod.registry.Networking.sendPacketToClient((Player)player, packet);
             }
         });
     }
@@ -206,10 +206,10 @@ public final class PSDServerBindings {
     /* Storage                                                               */
     /* ==================================================================== */
 
-    private static DimensionState ensureLoaded(MinecraftServer minecraftServer, String dimension, World world) {
+    private static DimensionState ensureLoaded(MinecraftServer minecraftServer, String dimension, Level world) {
         DimensionState state = DIMENSIONS.get(dimension);
         if (state == null) {
-            final Path file = minecraftServer.getSavePath(WorldSavePath.getRootMapped())
+            final Path file = minecraftServer.getWorldPath(LevelResource.ROOT)
                     .resolve("mtr").resolve(dimension).resolve("psd-scripts").resolve("bindings.json");
             state = new DimensionState(dimension, file, world);
             load(state);

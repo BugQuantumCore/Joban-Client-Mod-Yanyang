@@ -5,17 +5,21 @@ import com.lx862.jcm.mod.block.entity.ButterflyLightBlockEntity;
 import com.lx862.jcm.mod.network.PacketValidator;
 import com.lx862.jcm.mod.util.BlockUtil;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.*;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import org.mtr.packet.PacketHandler;
+import org.mtr.packet.PacketBufferReceiver;
+import org.mtr.packet.PacketBufferSender;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class ButterflyLightUpdatePacket extends PacketHandler {
     private final BlockPos blockPos;
     private final int startBlinkingSeconds;
 
     public ButterflyLightUpdatePacket(PacketBufferReceiver packetBufferReceiver) {
-        this.blockPos = BlockPos.fromLong(packetBufferReceiver.readLong());
+        this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
         this.startBlinkingSeconds = packetBufferReceiver.readInt();
     }
 
@@ -25,18 +29,18 @@ public class ButterflyLightUpdatePacket extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer minecraftServer, ServerPlayerEntity serverPlayerEntity) {
-        World world = serverPlayerEntity.getEntityWorld();
+    public void runServer(MinecraftServer minecraftServer, ServerPlayer serverPlayerEntity) {
+        Level world = serverPlayerEntity.level();
         BlockState state = BlockUtil.getBlockState(world, blockPos);
-        if(state == null || !(state.getBlock().data instanceof JCMBlock)) return;
+        if(state == null || !(state.getBlock() instanceof JCMBlock)) return;
         if(!PacketValidator.canConfigureBlock(serverPlayerEntity)) {
             JCMLogger.warn("Player {} attempted to configure Butterfly Light at {} {} {} without permission.", serverPlayerEntity.getGameProfile().getName(), blockPos.getX(), blockPos.getY(), blockPos.getZ());
             return;
         }
 
-        ((JCMBlock)state.getBlock().data).loopStructure(state, world, blockPos, (bs, be) -> {
-            if(be.data instanceof ButterflyLightBlockEntity) {
-                ((ButterflyLightBlockEntity)be.data).setData(startBlinkingSeconds);
+        ((JCMBlock)state.getBlock()).loopStructure(state, world, blockPos, (bs, be) -> {
+            if(be instanceof ButterflyLightBlockEntity) {
+                ((ButterflyLightBlockEntity)be).setData(startBlinkingSeconds);
             }
         });
     }

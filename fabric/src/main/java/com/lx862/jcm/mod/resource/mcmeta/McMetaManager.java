@@ -3,8 +3,8 @@ package com.lx862.jcm.mod.resource.mcmeta;
 import com.google.gson.JsonParser;
 import com.lx862.jcm.mod.data.Pair;
 import com.lx862.jcm.mod.util.JCMLogger;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.resource.ResourceManagerHelper;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -16,8 +16,8 @@ import java.util.function.Consumer;
  * Class to handle McMeta animated textures, as I couldn't figure out how MC does it :D
  */
 public class McMetaManager {
-    private final HashMap<Identifier, McMeta> mcMetaList = new HashMap<>();
-    private final java.util.Set<Identifier> failed = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private final HashMap<ResourceLocation, McMeta> mcMetaList = new HashMap<>();
+    private final java.util.Set<ResourceLocation> failed = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public void reset() {
         mcMetaList.clear();
@@ -28,13 +28,13 @@ public class McMetaManager {
      * Try to load an animated mcmeta file if it exists, will do nothing otherwise
      * @param imagePath The identifier path that leads to the png file
      */
-    public void load(Identifier imagePath) {
+    public void load(ResourceLocation imagePath) {
         if(mcMetaList.containsKey(imagePath)) return;
         /* Negative cache: a failed/absent mcmeta was re-read from the resource
            manager on EVERY load() call (i.e. per frame for per-frame queried
            textures) because only successes populate mcMetaList. */
         if(failed.contains(imagePath)) return;
-        Identifier mcmetaFile = new Identifier(imagePath.getNamespace(), imagePath.getPath() + ".mcmeta");
+        ResourceLocation mcmetaFile = ResourceLocation.fromNamespaceAndPath(imagePath.getNamespace(), imagePath.getPath() + ".mcmeta");
 
         String str = ResourceManagerHelper.readResource(mcmetaFile);
         if(str.isEmpty()) {
@@ -69,12 +69,12 @@ public class McMetaManager {
      * @param id Identifier of the texture
      * @return The starting and the end V, default to 0.0 and 1.0 (Full Texture) if the texture is not a mcmeta animation loaded to this manager
      */
-    public Pair<Float, Float> getUV(Identifier id) {
+    public Pair<Float, Float> getUV(ResourceLocation id) {
         if(!mcMetaList.containsKey(id)) return new Pair<>(0F, 1F);
         return mcMetaList.get(id).getUV();
     }
 
-    private static void readImage(McMeta mcMeta, Identifier imageFile, Consumer<McMeta> callback) {
+    private static void readImage(McMeta mcMeta, ResourceLocation imageFile, Consumer<McMeta> callback) {
         ResourceManagerHelper.readResource(imageFile, (inputStream -> {
             try {
                 BufferedImage bufferedImage = ImageIO.read(inputStream);

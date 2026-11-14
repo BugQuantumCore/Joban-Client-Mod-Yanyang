@@ -14,14 +14,15 @@ import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.ante.ConfigResponderS
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.EyecandyCustomConfig;
 import com.lx862.mtrscripting.mod.util.JsonUtil;
 import org.apache.commons.io.FilenameUtils;
-import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.mapper.ResourceManagerHelper;
-import org.mtr.mapping.mapper.TextHelper;
-import org.mtr.mod.Init;
+import net.minecraft.resources.ResourceLocation;
+import org.mtr.resource.ResourceManagerHelper;
+import com.lx862.jcm.mod.compat.TextHelper;
+import org.mtr.MTR;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import net.minecraft.world.level.block.Block;
 
 public class EyecandyResourceProvider implements ScriptResourceProvider {
     private final Map<String, EyecandyScriptConfiguration> eyecandyScripts = new HashMap<>();
@@ -156,7 +157,7 @@ public class EyecandyResourceProvider implements ScriptResourceProvider {
         }
         if(rootObject.has(customConfigFileKey)) {
             String configLocation = rootObject.get(customConfigFileKey).getAsString();
-            DataReaderJS dataReader = ScriptResourceUtil.read(new Identifier(configLocation));
+            DataReaderJS dataReader = ScriptResourceUtil.read(ResourceLocation.parse(configLocation));
             if(dataReader == null) throw new IllegalStateException(String.format("Custom config location \"%s\" does not exists!", configLocation));
             String configContent = dataReader.asString();
 
@@ -194,7 +195,7 @@ public class EyecandyResourceProvider implements ScriptResourceProvider {
      */
     private void readLegacyEyecandy() {
         ResourceManagerHelper.readDirectory("eyecandies", (identifier, inputStream) -> {
-            boolean fileIsNteEyecandy = identifier.getNamespace().equals(Init.MOD_ID_NTE) && identifier.getPath().endsWith(".json");
+            boolean fileIsNteEyecandy = identifier.getNamespace().equals("mtrnte") && identifier.getPath().endsWith(".json");
             if (fileIsNteEyecandy) {
                 try(InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
                     final JsonObject rootObject = new JsonParser().parse(reader).getAsJsonObject();

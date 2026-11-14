@@ -1,15 +1,15 @@
 package com.lx862.jcm.mod.scripting.psd;
 
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.Direction;
-import org.mtr.mapping.holder.World;
-import org.mtr.mod.block.BlockPSDAPGBase;
-import org.mtr.mod.block.BlockPSDAPGDoorBase;
-import org.mtr.mod.block.BlockPSDAPGGlassBase;
-import org.mtr.mod.block.BlockPSDAPGGlassEndBase;
-import org.mtr.mod.block.BlockPSDTop;
-import org.mtr.mod.block.IBlock;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import org.mtr.block.BlockPSDAPGBase;
+import org.mtr.block.BlockPSDAPGDoorBase;
+import org.mtr.block.BlockPSDAPGGlassBase;
+import org.mtr.block.BlockPSDAPGGlassEndBase;
+import org.mtr.block.BlockPSDTop;
+import org.mtr.block.IBlock;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +42,10 @@ import java.util.function.Predicate;
  *
  * <h2>Anchor convention</h2>
  * Both render transforms (glass face, psd_top band) are anchored at a block
- * position and draw their canvas toward {@code facing.rotateYClockwise()}
+ * position and draw their canvas toward {@code facing.getClockWise()}
  * (the wall's "right", canvas +x); the canvas origin sits at the anchor
  * block's left edge. The anchor of a section is therefore its <b>left-most</b>
- * block — the last block reached walking {@code facing.rotateYCounterclockwise()}.</p>
+ * block — the last block reached walking {@code facing.getCounterClockWise()}.</p>
  * <p>Sections longer than 64 blocks are split at aligned 64-block boundaries
  * along that signed axis. Editing, rendering and top-panel suppression use
  * the same slice; shorter sections keep their original physical anchor.</p>
@@ -78,12 +78,12 @@ public final class PSDRuns {
      * the chain, so this is exactly the glass the brush merged between the
      * doors. The returned anchor is the segment's left-most block.
      */
-    public static Run glassRun(World world, BlockPos pos, Direction facing) {
+    public static Run glassRun(Level world, BlockPos pos, Direction facing) {
         final IBlock.DoubleBlockHalf half = IBlock.getStatePropertySafe(world.getBlockState(pos), IBlock.HALF);
         return walk(world, pos, facing, cursor -> {
             final BlockState state = world.getBlockState(cursor);
             return isGlassLike(state)
-                    && IBlock.getStatePropertySafe(state, BlockPSDAPGBase.FACING) == facing
+                    && IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING) == facing
                     && IBlock.getStatePropertySafe(state, IBlock.HALF) == half;
         });
     }
@@ -100,15 +100,15 @@ public final class PSDRuns {
      *  segment — the renderer merges the segment into one canvas, so a
      *  binding that only covers the clicked column left the rest of the
      *  segment unmanageable from any other block. */
-    public static List<BlockPos> glassRunPositions(World world, Run run, Direction facing) {
+    public static List<BlockPos> glassRunPositions(Level world, Run run, Direction facing) {
         final List<BlockPos> positions = new ArrayList<>();
         for (int i = 0; i < run.width; i++) {
-            final BlockPos lower = run.start.offset(facing.rotateYClockwise(), i);
+            final BlockPos lower = run.start.relative(facing.getClockWise(), i);
             positions.add(lower);
-            final BlockPos upper = lower.up();
+            final BlockPos upper = lower.above();
             final BlockState upperState = world.getBlockState(upper);
             if (isGlassLike(upperState)
-                    && IBlock.getStatePropertySafe(upperState, BlockPSDAPGBase.FACING) == facing
+                    && IBlock.getStatePropertySafe(upperState, com.lx862.jcm.mod.data.BlockProperties.FACING) == facing
                     && IBlock.getStatePropertySafe(upperState, IBlock.HALF) == IBlock.DoubleBlockHalf.UPPER) {
                 positions.add(upper);
             }
@@ -121,7 +121,7 @@ public final class PSDRuns {
     public static List<BlockPos> topRunPositions(Run run, Direction facing) {
         final List<BlockPos> positions = new ArrayList<>();
         for (int i = 0; i < run.width; i++) {
-            positions.add(run.start.offset(facing.rotateYClockwise(), i));
+            positions.add(run.start.relative(facing.getClockWise(), i));
         }
         return positions;
     }
@@ -135,13 +135,13 @@ public final class PSDRuns {
      * psd_tops without a PSD wall below fall back to the plain contiguous
      * psd_top run.
      */
-    public static Run topRun(World world, BlockPos pos, Direction facing) {
-        final SectionKind kind = sectionKind(world, pos.down());
+    public static Run topRun(Level world, BlockPos pos, Direction facing) {
+        final SectionKind kind = sectionKind(world, pos.below());
         final Predicate<BlockPos> chained;
         if (kind == SectionKind.OTHER) {
             chained = cursor -> isPsdTopFacing(world.getBlockState(cursor), facing);
         } else {
-            chained = cursor -> isPsdTopFacing(world.getBlockState(cursor), facing) && sectionKind(world, cursor.down()) == kind;
+            chained = cursor -> isPsdTopFacing(world.getBlockState(cursor), facing) && sectionKind(world, cursor.below()) == kind;
         }
         return walk(world, pos, facing, chained);
     }
@@ -154,12 +154,12 @@ public final class PSDRuns {
      * the neighboring groups above other doors and glass segments keep MTR's
      * own arrows and route maps.
      */
-    public static boolean topGroupHasScriptBinding(World world, BlockPos pos, Direction facing) {
+    public static boolean topGroupHasScriptBinding(Level world, BlockPos pos, Direction facing) {
         if (!isPsdTopFacing(world.getBlockState(pos), facing)) return false;
         if (hasTopBinding(pos)) return true;
         final Run run = topRun(world, pos, facing);
         for (int i = 0; i < run.width; i++) {
-            if (hasTopBinding(run.start.offset(facing.rotateYClockwise(), i))) return true;
+            if (hasTopBinding(run.start.relative(facing.getClockWise(), i))) return true;
         }
         return false;
     }
@@ -173,28 +173,28 @@ public final class PSDRuns {
      * binding in that interval then gets the same anchor without an unbounded
      * search for the physical wall's left end.
      */
-    private static Run walk(World world, BlockPos pos, Direction facing, Predicate<BlockPos> chained) {
+    private static Run walk(Level world, BlockPos pos, Direction facing, Predicate<BlockPos> chained) {
         if (!chained.test(pos)) {
             return new Run(pos, 1);
         }
         BlockPos start = pos;
         int width = 1;
 
-        BlockPos cursor = pos.offset(facing.rotateYCounterclockwise());
+        BlockPos cursor = pos.relative(facing.getCounterClockWise());
         while (width <= MAX_RUN_BLOCKS && chained.test(cursor)) {
             start = cursor;
             width++;
-            cursor = cursor.offset(facing.rotateYCounterclockwise());
+            cursor = cursor.relative(facing.getCounterClockWise());
         }
 
-        cursor = pos.offset(facing.rotateYClockwise());
+        cursor = pos.relative(facing.getClockWise());
         while (width <= MAX_RUN_BLOCKS && chained.test(cursor)) {
             width++;
-            cursor = cursor.offset(facing.rotateYClockwise());
+            cursor = cursor.relative(facing.getClockWise());
         }
         if (width <= MAX_RUN_BLOCKS) return new Run(start, width);
 
-        final Direction along = facing.rotateYClockwise();
+        final Direction along = facing.getClockWise();
         final long coordinate = along == Direction.EAST ? pos.getX()
                 : along == Direction.WEST ? -(long) pos.getX()
                 : along == Direction.SOUTH ? pos.getZ() : -(long) pos.getZ();
@@ -202,39 +202,39 @@ public final class PSDRuns {
         final int rightLimit = MAX_RUN_BLOCKS - 1 - leftLimit;
         start = pos;
         width = 1;
-        cursor = pos.offset(facing.rotateYCounterclockwise());
+        cursor = pos.relative(facing.getCounterClockWise());
         for (int i = 0; i < leftLimit && chained.test(cursor); i++) {
             start = cursor;
             width++;
-            cursor = cursor.offset(facing.rotateYCounterclockwise());
+            cursor = cursor.relative(facing.getCounterClockWise());
         }
-        cursor = pos.offset(along);
+        cursor = pos.relative(along);
         for (int i = 0; i < rightLimit && chained.test(cursor); i++) {
             width++;
-            cursor = cursor.offset(along);
+            cursor = cursor.relative(along);
         }
         return new Run(start, width);
     }
 
     /** The kind of wall section supporting a band column. */
-    private static SectionKind sectionKind(World world, BlockPos pos) {
-        final Object block = world.getBlockState(pos).getBlock().data;
+    private static SectionKind sectionKind(Level world, BlockPos pos) {
+        final Object block = world.getBlockState(pos).getBlock();
         if (block instanceof BlockPSDAPGDoorBase) return SectionKind.DOOR;
         if (block instanceof BlockPSDAPGGlassBase || block instanceof BlockPSDAPGGlassEndBase) return SectionKind.GLASS;
         return SectionKind.OTHER;
     }
 
     private static boolean isGlassLike(BlockState state) {
-        final Object block = state.getBlock().data;
+        final Object block = state.getBlock();
         return block instanceof BlockPSDAPGGlassBase || block instanceof BlockPSDAPGGlassEndBase;
     }
 
     private static boolean isPsdTop(BlockState state) {
-        return state.getBlock().data instanceof BlockPSDTop;
+        return state.getBlock() instanceof BlockPSDTop;
     }
 
     private static boolean isPsdTopFacing(BlockState state, Direction facing) {
-        return isPsdTop(state) && IBlock.getStatePropertySafe(state, BlockPSDTop.FACING) == facing;
+        return isPsdTop(state) && IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING) == facing;
     }
 
     private static boolean hasTopBinding(BlockPos pos) {

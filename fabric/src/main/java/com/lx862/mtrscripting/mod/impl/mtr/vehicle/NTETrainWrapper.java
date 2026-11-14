@@ -5,8 +5,8 @@ import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import org.mtr.core.data.PathData;
 import org.mtr.core.data.Siding;
 import org.mtr.core.data.TransportMode;
-import org.mtr.mod.data.VehicleExtension;
-import org.mtr.mod.render.PositionAndRotation;
+import org.mtr.data.VehicleExtension;
+import org.mtr.render.PositionAndRotation;
 
 import java.util.List;
 

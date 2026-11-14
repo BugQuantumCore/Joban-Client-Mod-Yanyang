@@ -8,17 +8,18 @@ import com.lx862.mtrscripting.core.util.sound.ScriptSoundManager;
 import com.lx862.mtrscripting.core.primitive.ParsedScript;
 import com.lx862.mtrscripting.core.primitive.ScriptInstance;
 import com.lx862.mtrscripting.mod.gui.hud.SortableScriptInstance;
-import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mod.block.BlockEyeCandy;
+import net.minecraft.client.Minecraft;
+import org.mtr.block.BlockEyeCandy;
 
 import java.util.Objects;
+import net.minecraft.world.level.block.entity.BlockEntity;
 
 public class EyeCandyScriptInstance extends ScriptInstance<EyecandyBlockEntityWrapper> implements SortableScriptInstance {
     private ScriptRenderManager renderManager;
     private ScriptSoundManager soundManager;
-    private final BlockEyeCandy.BlockEntity be;
+    private final BlockEyeCandy.EyeCandyBlockEntity be;
 
-    public EyeCandyScriptInstance(BlockEyeCandy.BlockEntity blockEntity, EyeCandyScriptContext context, ParsedScript script) {
+    public EyeCandyScriptInstance(BlockEyeCandy.EyeCandyBlockEntity blockEntity, EyeCandyScriptContext context, ParsedScript script) {
         super(context, script);
         this.be = blockEntity;
         this.soundManager = new ScriptSoundManager();
@@ -43,15 +44,15 @@ public class EyeCandyScriptInstance extends ScriptInstance<EyecandyBlockEntityWr
     }
 
     public boolean shouldInvalidate() {
-        boolean beRemoved = be.getWorld2().getBlockEntity(be.getPos2()) == null;
+        boolean beRemoved = be.getLevel().getBlockEntity(be.getBlockPos()) == null;
         boolean modelChanged = getWrapperObject() != null && getWrapperObject().modelChanged(getContextObject().getName());
-        boolean notInGame = MinecraftClient.getInstance().getWorldMapped() == null;
+        boolean notInGame = Minecraft.getInstance().level == null;
         boolean shouldInvalidate = notInGame || beRemoved || modelChanged;
         return shouldInvalidate;
     }
 
     @Override
     public int getSortScore() {
-        return (int)(MinecraftClientWrapper.localPlayer().pos().distance(new ScriptVector3f(be.getPos2())) * 1000);
+        return (int)(MinecraftClientWrapper.localPlayer().pos().distance(new ScriptVector3f(be.getBlockPos())) * 1000);
     }
 }

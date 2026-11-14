@@ -2,6 +2,7 @@ package com.lx862.jcm.mod.scripting.psd;
 
 import com.lx862.jcm.mod.scripting.pids.PIDSScriptContext;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
+import net.minecraft.network.chat.Component;
 
 /**
  * The {@code ctx} argument of PSD scripts. Extends the PIDS script context
