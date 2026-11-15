@@ -2,6 +2,22 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.119'
 }
 
+/*
+ * NeoForge module of the MTR 4.1 port.
+ *
+ * The mod sources live in ../fabric/src/main/java (loader-neutral since the
+ * 4.1 port); only the entrypoints and the two LoaderImpl bridges are
+ * loader-specific. Those fabric halves are excluded here and replaced by the
+ * sources under neoforge/src/main/java.
+ *
+ * The pinned MTR-Yanyang NeoForge jar links as-is: NeoForge 21.x compiles
+ * and runs on official Mojang mappings (the same namespace this module
+ * compiles in), and the jar's shadow layer already flattens - relocated
+ * under org.mtr.libraries.* - the Elementa / UniversalCraft / Kotlin stack
+ * referenced by org.mtr.screen signatures, so this loader needs no compile
+ * stubs at all (the fabric twin pulls the plain jars as compileOnly because
+ * loom does not expand MTR's nested jars onto the compile classpath).
+ */
 neoForge {
     version = project.properties["neoforge_version_${rootProject.minecraft_version}"]
     mods {
@@ -12,7 +28,10 @@ neoForge {
 sourceSets.main {
     java {
         srcDir '../fabric/src/main/java'
+        // Fabric-only halves, replaced by this module's own sources:
         exclude 'com/lx862/jcm/entrypoint/**'
+        exclude 'com/lx862/jcm/mapping/LoaderImpl.java'
+        exclude 'com/lx862/jcm/mapping/LoaderImplClient.java'
     }
     resources {
         srcDir '../fabric/src/main/resources'
@@ -23,7 +42,10 @@ sourceSets.main {
 dependencies {
     implementation files(rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-neoforge.jar"))
     annotationProcessor 'systems.manifold:manifold-preprocessor:2023.1.33'
-    jarJar 'folk.sisby:kaleido-config:0.3.3+1.3.2'
+    // kaleido-config is added as plain implementation by the root build;
+    // pulling it into shadowImplementation embeds its classes in the final
+    // jar (the fabric twin ships the same jar via loom's include JiJ).
+    shadowImplementation "folk.sisby:kaleido-config:${rootProject.properties.kaleido_version}"
 }
 
 java {
@@ -31,20 +53,27 @@ java {
     withSourcesJar()
 }
 
-// ModDev's jarJar supplies metadata while the shadow jar supplies the private
-// Rhino/OBJ implementations. Never embed MTR or TSC in the addon.
+// ModDevGradle's jarJar machinery is deliberately unused: the slim jar keeps
+// MDG's default wiring, and the user-facing artifact is the shadow jar -
+// JCM classes + relocated Rhino/OBJ + embedded kaleido - carrying the same
+// META-INF/neoforge.mods.toml, mixin configs and assets the fabric jar
+// ships under fabric.mod.json.
 tasks.named('jar') { archiveClassifier = 'slim' }
-tasks.named('shadowJar') { archiveClassifier = 'shadowed' }
-tasks.named('jarJar') {
-    dependsOn tasks.named('shadowJar')
+tasks.named('shadowJar') {
     archiveClassifier = ''
-    from(provider { zipTree(tasks.named('shadowJar').get().archiveFile.get().asFile) })
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-tasks.register('moveBuild', Copy) {
-    dependsOn tasks.named('jarJar')
-    from tasks.named('jarJar')
-    into rootProject.layout.buildDirectory
+tasks.register("moveBuild") {
+    dependsOn tasks.named('shadowJar')
+    doLast {
+        delete fileTree("../build").matching {
+            include "**/*neoforge*"
+        }
+        copy {
+            from tasks.named('shadowJar').get().archiveFile
+            into "../build"
+        }
+    }
 }
 tasks.named('build') { finalizedBy tasks.named('moveBuild') }

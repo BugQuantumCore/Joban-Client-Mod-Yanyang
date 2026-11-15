@@ -11,6 +11,12 @@ repositories {
         name = "Terraformers"
         url = "https://maven.terraformersmc.com/"
     }
+    // Hosts the Elementa / UniversalCraft artifacts referenced by the
+    // compileOnly stubs below.
+    maven {
+        name = "Essential"
+        url = "https://repo.essential.gg/repository/maven-public"
+    }
 }
 
 def yarn_version = project.properties["yarn_mappings_${rootProject.minecraft_version}"]
@@ -31,19 +37,19 @@ dependencies {
         mtrJar = rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-fabric.jar")
     }
     modImplementation files(mtrJar)
-    // MTR-Yanyang bundles Elementa / UniversalCraft / Kotlin as jar-in-jar;
-    // their classes appear in MTR screen signatures, so they must be on the
-    // compile classpath too (provided at runtime by MTR's JiJ).
-    // Elementa / UniversalCraft / Kotlin are provided at runtime as MTR's
-    // jar-in-jar dependencies. For compilation we keep locally pre-remapped
-    // (mojmap) copies on the compileOnly classpath: compileOnly keeps them
-    // OFF the remapJar classpath, where they would otherwise collide with
-    // the same classes loom extracts from MTR's nested META-INF/jars.
-    compileOnly files(
-        rootProject.file("dependencies/elementa-743-mojmap.jar"),
-        rootProject.file("dependencies/universalcraft-1.21-fabric-497-mojmap.jar"),
-        rootProject.file("dependencies/kotlin-stdlib-2.5.0-RC.jar"),
-    )
+    // Elementa / UniversalCraft / Kotlin are provided at runtime by MTR's
+    // jar-in-jar dependencies, but their classes appear in MTR screen
+    // signatures, so they must also be on the compile classpath. The
+    // published elementa jar is loader-neutral (it only reaches Minecraft
+    // through UniversalCraft), and the NEOFORGE UniversalCraft variant is
+    // published in official Mojang mappings - exactly the namespace this
+    // build compiles in - so it doubles as the mojmap compile stub here.
+    // compileOnly keeps them OFF the remapJar classpath, where they would
+    // otherwise collide with the same classes loom extracts from MTR's
+    // nested META-INF/jars (see the remapJar classpath filter below).
+    compileOnly "gg.essential:elementa:${project.elementa_version}"
+    compileOnly "gg.essential:universalcraft-${rootProject.universalcraft_minecraft}-neoforge:${project.universalcraft_version}"
+    compileOnly "org.jetbrains.kotlin:kotlin-stdlib:${project.kotlin_stdlib_version}"
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
     modApi "com.terraformersmc:modmenu:${mod_menu_version}"
