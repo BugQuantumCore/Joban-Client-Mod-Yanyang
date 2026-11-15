@@ -21,6 +21,7 @@ STUBS = {
 public record ResourceLocation(String path) {
         public String getPath() { return path; }
         public static ResourceLocation parse(String s) { return new ResourceLocation(s); }
+        @Override public String toString() { return path; }
 }''',
     'com/mojang/blaze3d/vertex/VertexFormat.java': '''package com.mojang.blaze3d.vertex;
 public class VertexFormat {
