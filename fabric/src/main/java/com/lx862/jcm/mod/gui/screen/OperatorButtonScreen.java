@@ -14,7 +14,6 @@ import com.lx862.amberui.gui.widget.Button;
 import com.lx862.jcm.mod.render.GraphicsHolder;
 import com.lx862.jcm.mod.render.GuiDrawing;
 import com.lx862.jcm.mod.compat.TextHelper;
-import net.minecraft.util.FastColor;
 import org.mtr.data.IGui;
 import org.mtr.item.ItemDriverKey;
 

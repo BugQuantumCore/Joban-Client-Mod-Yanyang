@@ -375,7 +375,11 @@ public final class PSDScriptRenderer implements RenderHelper {
 
         if (!Float.isFinite(paneAlong)) paneAlong = PSDWindowBounds.DEFAULT_PANE_ALONG;
         final float scriptZ = paneAlong + GLASS_SCRIPT_OFFSET;
+#if MC_VERSION == "12104"
+        final net.minecraft.core.Vec3i normal = facing.getUnitVec3i();
+#else
         final net.minecraft.core.Vec3i normal = facing.getNormal();
+#endif
         final boolean trackSide = PSDBackingGeometry.isTrackSide(cameraX, cameraZ,
                 run.start.getX(), run.start.getZ(), normal.getX(), normal.getZ(), scriptZ);
 

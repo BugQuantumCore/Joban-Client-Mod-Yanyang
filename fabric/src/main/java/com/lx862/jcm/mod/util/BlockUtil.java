@@ -6,6 +6,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -14,7 +15,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * Contains utilities method for block checking/manipulation
  */
 public class BlockUtil {
-    public static boolean canSurvive(Block instance, LevelAccessor world, BlockPos pos, Direction facing, int part, int totalWidthHeight) {
+    public static boolean canSurvive(Block instance, LevelReader world, BlockPos pos, Direction facing, int part, int totalWidthHeight) {
         boolean checkLeftOrBottom = part != 0;
         boolean checkRightOrTop = part != totalWidthHeight - 1;
         boolean canSurvive = true;

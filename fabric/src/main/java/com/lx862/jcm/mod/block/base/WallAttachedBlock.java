@@ -10,6 +10,11 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+#if MC_VERSION == "12104"
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.util.RandomSource;
+#endif
 
 public abstract class WallAttachedBlock extends DirectionalBlock implements WallAttachedBlockBehavior {
     public WallAttachedBlock(BlockBehaviour.Properties settings) {
@@ -29,12 +34,20 @@ public abstract class WallAttachedBlock extends DirectionalBlock implements Wall
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+    #if MC_VERSION == "12104"
+public BlockState updateShape(BlockState state, LevelReader world, ScheduledTickAccess tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, RandomSource random) {
+#else
+public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+#endif
         Direction facing = IBlock.getStatePropertySafe(state, FACING);
         if (!WallAttachedBlockBehavior.canBePlaced(pos, (Level)world, getWallDirection(facing))) {
             return Blocks.AIR.defaultBlockState();
         }
 
+#if MC_VERSION == "12104"
+        return super.updateShape(state, world, tickView, pos, direction, neighborPos, neighborState, random);
+#else
         return super.updateShape(state, direction, neighborState, world, pos, neighborPos);
+#endif
     }
 }

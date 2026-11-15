@@ -8,6 +8,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.renderer.GameRenderer;
+#if MC_VERSION == "12104"
+import net.minecraft.client.renderer.CoreShaders;
+#endif
 import net.minecraft.resources.ResourceLocation;
 import org.mtr.tool.Drawing;
 import com.lx862.jcm.mod.render.GraphicsHolder;
@@ -39,7 +42,11 @@ public final class GuiDrawing {
 
         public void drawRectangle(double x1, double y1, double z1, double x2, double y2, double z2, int color) {
                 final PoseStack matrixStack = graphicsHolder.getPoseStack();
+#if MC_VERSION == "12104"
+                RenderSystem.setShader(CoreShaders.POSITION_COLOR);
+#else
                 RenderSystem.setShader(() -> GameRenderer.getPositionColorShader());
+#endif
                 final BufferBuilder builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
                 new Drawing(matrixStack, builder)
                                 .setVertices(x1, y1, z1, x2, y1, z1, x2, y2, z2, x1, y2, z2)
@@ -55,7 +62,11 @@ public final class GuiDrawing {
         public void beginDrawingTexture(ResourceLocation texture) {
                 RenderSystem.enableBlend();
                 RenderSystem.defaultBlendFunc();
+#if MC_VERSION == "12104"
+                RenderSystem.setShader(CoreShaders.POSITION_TEX);
+#else
                 RenderSystem.setShader(() -> GameRenderer.getPositionTexShader());
+#endif
                 RenderSystem.setShaderTexture(0, texture);
         }
 

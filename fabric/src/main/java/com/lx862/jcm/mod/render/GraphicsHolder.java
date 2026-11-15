@@ -61,7 +61,10 @@ public final class GraphicsHolder {
          */
         public GraphicsHolder(GuiGraphics guiGraphics) {
                 this.poseStack = guiGraphics.pose();
-                this.vertexConsumerProvider = guiGraphics.bufferSource();
+                // GuiGraphics#bufferSource was renamed in 1.21.2; the render
+                // buffer source works on every supported version (this is
+                // the same source MTR's own GUI draw paths use).
+                this.vertexConsumerProvider = Minecraft.getInstance().renderBuffers().bufferSource();
                 this.guiGraphics = guiGraphics;
         }
 
@@ -227,6 +230,11 @@ public final class GraphicsHolder {
 
         public void renderEntity(Entity entity, double x, double y, double z, float yaw, float tickDelta, int light) {
                 final EntityRenderDispatcher entityRenderDispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+#if MC_VERSION == "12104"
+                // 1.21.2 removed the tickDelta parameter.
+                entityRenderDispatcher.render(entity, x, y, z, yaw, poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), light);
+#else
                 entityRenderDispatcher.render(entity, x, y, z, yaw, tickDelta, poseStack, Minecraft.getInstance().renderBuffers().bufferSource(), light);
+#endif
         }
 }

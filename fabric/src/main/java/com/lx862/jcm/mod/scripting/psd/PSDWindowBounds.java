@@ -544,7 +544,11 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int y = yFrom; y <= yTo; y += rowStep) {
                 total++;
-                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) >= frameThreshold) {
+                if (((#if MC_VERSION == "12104"
+                image.getPixel(x, y)
+#else
+                image.getPixelRGBA(x, y)
+#endif & 0xFF) & 0xFF) >= frameThreshold) {
                     frame++;
                 }
             }
@@ -604,7 +608,11 @@ final class PSDWindowBounds {
         final int columnStep = Math.max(1, (xTo - xFrom) / 16);
         for (int y = yFrom; y <= yTo; y += Math.max(1, (yTo - yFrom) / 32)) {
             for (int x = xFrom; x <= xTo; x += columnStep) {
-                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) > 0) {
+                if (((#if MC_VERSION == "12104"
+                image.getPixel(x, y)
+#else
+                image.getPixelRGBA(x, y)
+#endif & 0xFF) & 0xFF) > 0) {
                     return true;
                 }
             }
@@ -628,7 +636,11 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int x = xFrom; x <= xTo; x += columnStep) {
                 total++;
-                if (((image.getPixelRGBA(x, y) & 0xFF) & 0xFF) >= frameThreshold) {
+                if (((#if MC_VERSION == "12104"
+                image.getPixel(x, y)
+#else
+                image.getPixelRGBA(x, y)
+#endif & 0xFF) & 0xFF) >= frameThreshold) {
                     frame++;
                 }
             }

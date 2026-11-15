@@ -3,6 +3,7 @@ package com.lx862.jcm.mapping;
 import com.lx862.jcm.mod.compat.SoundHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
@@ -38,8 +39,13 @@ public class LoaderImpl {
     }
 
     public static Item getItemFromId(ResourceLocation id) {
+#if MC_VERSION == "12104"
+        // 1.21.2: Registry#get returns Optional<Holder.Reference>.
+        return BuiltInRegistries.ITEM.get(id).map(Holder.Reference::value).orElse(null);
+#else
         final Optional<Item> itm = Optional.ofNullable(BuiltInRegistries.ITEM.get(id));
         return itm.orElse(null);
+#endif
     }
 
     public static ResourceLocation getIdFromItem(Item itm) {

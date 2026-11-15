@@ -151,7 +151,11 @@ public class MinecraftClientWrapper {
             ParticleOptions particleEffect = MinecraftParticleData.getData(particleId);
             if(particleEffect != null) {
                 Minecraft.getInstance().submit(() -> {
+#if MC_VERSION == "12104"
+                    Minecraft.getInstance().level.addParticle(particleEffect, alwaysSpawn, false, pos.x(), pos.y(), pos.z(), velocity.x(), velocity.y(), velocity.z());
+#else
                     Minecraft.getInstance().level.addParticle(particleEffect, alwaysSpawn, pos.x(), pos.y(), pos.z(), velocity.x(), velocity.y(), velocity.z());
+#endif
                 });
             } else {
                 throw new IllegalArgumentException("Unknown particle " + particleId + "!");

@@ -125,7 +125,11 @@ public class GraphicsTexture implements Closeable {
             NativeImage nativeImage = dynamicTexture.getPixels();
             if(nativeImage != null) {
                 GlStateManager._bindTexture(dynamicTexture.getId());
+                #if MC_VERSION == "12104"
+                nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY, uploadWidth, uploadHeight, false);
+#else
                 nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY, uploadWidth, uploadHeight, false, false, false, false);
+#endif
             }
         });
     }
@@ -208,8 +212,13 @@ public class GraphicsTexture implements Closeable {
             NativeImage nativeImage = this.dynamicTexture.getPixels();
             if (nativeImage != null) {
                 GlStateManager._bindTexture(this.dynamicTexture.getId());
+#if MC_VERSION == "12104"
+                nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY,
+                        width, height, false);
+#else
                 nativeImage.upload(0, dstOffsetX, dstOffsetY, dstOffsetX, dstOffsetY,
                         width, height, false, false, false, false);
+#endif
             }
         });
     }

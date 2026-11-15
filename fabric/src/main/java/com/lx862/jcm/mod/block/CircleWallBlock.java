@@ -32,12 +32,20 @@ public class CircleWallBlock extends DirectionalBlock {
 
     // Why does light still pass through aaaaa
     @Override
+#if MC_VERSION == "12104"
+    public boolean propagatesSkylightDown(BlockState state) {
+#else
     public boolean propagatesSkylightDown(BlockState state, BlockGetter world, BlockPos pos) {
+#endif
         return false;
     }
 
     @Override
+#if MC_VERSION == "12104"
+    public VoxelShape getOcclusionShape(BlockState state) {
+#else
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter world, BlockPos pos) {
+#endif
         return IBlock.getVoxelShapeByDirection(0, 0, 0, 16, 16, 15, IBlock.getStatePropertySafe(state, FACING));
     }
 

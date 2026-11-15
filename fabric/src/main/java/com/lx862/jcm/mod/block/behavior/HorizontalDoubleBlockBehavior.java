@@ -13,6 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -27,7 +28,7 @@ public interface HorizontalDoubleBlockBehavior {
         world.setBlock(pos.relative(directionToPlace), state.setValue(isLeft, false), 3);
     }
 
-    static boolean blockIsValid(BlockPos pos, BlockState state, Direction updateFrom, LevelAccessor world, boolean thisBlockIsLeftPart) {
+    static boolean blockIsValid(BlockPos pos, BlockState state, Direction updateFrom, LevelReader world, boolean thisBlockIsLeftPart) {
         Direction dir = IBlock.getStatePropertySafe(state, FACING);
         Direction checkDir = thisBlockIsLeftPart ? dir.getClockWise() : dir.getCounterClockWise();
         BlockPos neighbourPos = pos.relative(checkDir);

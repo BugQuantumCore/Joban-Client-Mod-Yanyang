@@ -28,7 +28,11 @@ public class EntityWrapper {
     }
 
     public boolean hasPermissionLevel(int permLevel) {
+#if MC_VERSION == "12104"
+        return this.entity instanceof net.minecraft.world.entity.player.Player player && player.hasPermissions(permLevel);
+#else
         return this.entity.hasPermissions(permLevel);
+#endif
     }
 
     public ScriptVector3f pos() {
@@ -36,7 +40,7 @@ public class EntityWrapper {
     }
 
     public ScriptVector3f smoothPos() {
-        ScriptVector3f vec = new ScriptVector3f(this.entity.getEyePosition(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false)));
+        ScriptVector3f vec = new ScriptVector3f(this.entity.getEyePosition(Minecraft.getInstance().isPaused() ? 0 : partialTick()));
         vec.sub(new ScriptVector3f(0, entity.getEyeHeight(), 0));
         return vec;
     }
@@ -46,11 +50,11 @@ public class EntityWrapper {
     }
 
     public float yaw() {
-        return entity.getViewYRot(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        return entity.getViewYRot(Minecraft.getInstance().isPaused() ? 0 : partialTick());
     }
 
     public float pitch() {
-        return entity.getViewXRot(Minecraft.getInstance().isPaused() ? 0 : Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false));
+        return entity.getViewXRot(Minecraft.getInstance().isPaused() ? 0 : partialTick());
     }
 
     public float bodyYaw() {
@@ -60,5 +64,13 @@ public class EntityWrapper {
 
     public ScriptVector3f velocity() {
         return new ScriptVector3f(LoaderImplClient.getEntityVelocity(entity));
+    }
+
+    private static float partialTick() {
+#if MC_VERSION == "12104"
+        return Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+#else
+        return Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+#endif
     }
 }

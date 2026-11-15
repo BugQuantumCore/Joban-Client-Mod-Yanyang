@@ -28,7 +28,11 @@ public class LRTInterCarBarrierBlock extends DirectionalBlock {
     }
 
     @Override
+#if MC_VERSION == "12104"
+    public VoxelShape getOcclusionShape(BlockState state) {
+#else
     public VoxelShape getOcclusionShape(BlockState state, BlockGetter view, BlockPos pos) {
+#endif
         return Shapes.empty();
     }
 }

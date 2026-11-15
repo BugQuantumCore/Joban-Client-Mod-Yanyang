@@ -13,6 +13,11 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+#if MC_VERSION == "12104"
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.util.RandomSource;
+#endif
 
 public abstract class VerticallyAttachedBlock extends JCMBlock {
     public static final BooleanProperty TOP = BlockProperties.TOP;
@@ -36,14 +41,22 @@ public abstract class VerticallyAttachedBlock extends JCMBlock {
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+    #if MC_VERSION == "12104"
+public BlockState updateShape(BlockState state, LevelReader world, ScheduledTickAccess tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, RandomSource random) {
+#else
+public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+#endif
         BlockState attachedBlock = state.getValue(TOP) ? world.getBlockState(pos.above()) : world.getBlockState(pos.below());
 
         if (shouldBreakOnBlockUpdate() && attachedBlock.isAir()) {
             return Blocks.AIR.defaultBlockState();
         }
 
+#if MC_VERSION == "12104"
+        return super.updateShape(state, world, tickView, pos, direction, neighborPos, neighborState, random);
+#else
         return super.updateShape(state, direction, neighborState, world, pos, neighborPos);
+#endif
     }
 
     @Override

@@ -19,7 +19,9 @@ public class ItemStackWrapper {
     }
 
     public String translationId() {
-        return this.itemStack.getDescriptionId();
+        // ItemStack#getDescriptionId was removed in 1.21.2; the Item
+        // translation key is the same string on every version.
+        return this.itemStack.getItem().getDescriptionId();
     }
 
     public boolean empty() {

@@ -1,19 +1,21 @@
 package com.lx862.jcm.mod.data;
 
 import org.mtr.block.IBlock;
+import net.minecraft.core.Direction;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
 
 /**
  * Stores all block properties JCM uses. Block classes from JCM should reference the block properties in here
  */
 public final class BlockProperties {
-    public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+    // DirectionProperty was folded back into EnumProperty<Direction> in
+    // 1.21.4; the supertype keeps working on 1.21.1 too.
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty UNPOWERED = BooleanProperty.create("unpowered");
     public static final BooleanProperty HORIZONTAL_IS_LEFT = BooleanProperty.create("left");
     public static final EnumProperty<IBlock.DoubleBlockHalf> VERTICAL_2 = IBlock.HALF;

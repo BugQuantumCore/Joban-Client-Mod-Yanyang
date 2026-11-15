@@ -27,21 +27,25 @@ neoForge {
 
 sourceSets.main {
     java {
+        // Loader-neutral shared sources (the Fabric loader layer lives in
+        // fabric/src/loader, so no per-file excludes are needed here).
         srcDir '../fabric/src/main/java'
-        // Fabric-only halves, replaced by this module's own sources:
-        exclude 'com/lx862/jcm/entrypoint/**'
-        exclude 'com/lx862/jcm/mapping/LoaderImpl.java'
-        exclude 'com/lx862/jcm/mapping/LoaderImplClient.java'
     }
     resources {
+        // Shared assets/data/mixin configs; the Fabric metadata
+        // (fabric.mod.json) lives in fabric/src/loader/resources.
         srcDir '../fabric/src/main/resources'
-        exclude 'fabric.mod.json'
     }
 }
 
 dependencies {
     implementation files(rootProject.file("dependencies/mtr-${rootProject.minecraft_version}-neoforge.jar"))
+    // Manifold javac plugin (see the fabric module's note): activates the
+    // #if/#else preprocessor driven by -AMC_VERSION from the root build.
     annotationProcessor 'systems.manifold:manifold-preprocessor:2023.1.33'
+    annotationProcessor 'systems.manifold:manifold:2023.1.33'
+    annotationProcessor 'systems.manifold:manifold-util:2023.1.33'
+    annotationProcessor 'systems.manifold:manifold-rt:2023.1.33'
     // kaleido-config is added as plain implementation by the root build;
     // pulling it into shadowImplementation embeds its classes in the final
     // jar (the fabric twin ships the same jar via loom's include JiJ).

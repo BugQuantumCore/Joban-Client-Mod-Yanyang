@@ -14,6 +14,11 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
+#if MC_VERSION == "12104"
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.util.RandomSource;
+#endif
 
 /**
  * Cheap way for a horizontal multi block, with 2 same block facing each other.
@@ -44,7 +49,11 @@ public abstract class Horizontal2MirroredBlock extends DirectionalBlock {
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+    #if MC_VERSION == "12104"
+public BlockState updateShape(BlockState state, LevelReader world, ScheduledTickAccess tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, RandomSource random) {
+#else
+public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+#endif
         if(IBlock.getStatePropertySafe(state, FACING) == direction && !(neighborState.is(this))) {
             return Blocks.AIR.defaultBlockState();
         }

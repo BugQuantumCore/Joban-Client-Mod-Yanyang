@@ -95,7 +95,13 @@ public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
     }
 
     public QuadDrawCall normal(int x, int y, int z) {
+#if MC_VERSION == "12104"
+        // fromDelta was removed in 1.21.2; getNearest(int,int,int,Direction)
+        // takes the same axis deltas with an explicit zero-vector fallback.
+        this.normalOverride = Direction.getNearest(x, y, z, Direction.UP);
+#else
         this.normalOverride = Direction.fromDelta(x, y, z);
+#endif
         return this;
     }
 

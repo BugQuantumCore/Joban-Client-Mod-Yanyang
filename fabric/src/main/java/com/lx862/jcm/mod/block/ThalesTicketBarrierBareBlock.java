@@ -21,6 +21,11 @@ import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+#if MC_VERSION == "12104"
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.ScheduledTickAccess;
+import net.minecraft.util.RandomSource;
+#endif
 
 public class ThalesTicketBarrierBareBlock extends DirectionalBlock {
     public static final IntegerProperty FENCE_TYPE = BlockProperties.BARRIER_FENCE_TYPE;
@@ -70,7 +75,11 @@ public class ThalesTicketBarrierBareBlock extends DirectionalBlock {
     }
 
     @Override
-    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+    #if MC_VERSION == "12104"
+public BlockState updateShape(BlockState state, LevelReader world, ScheduledTickAccess tickView, BlockPos pos, Direction direction, BlockPos neighborPos, BlockState neighborState, RandomSource random) {
+#else
+public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
+#endif
         return getFenceState(neighborState, direction, state, (Level)world, pos);
     }
 

@@ -54,7 +54,11 @@ public class LightBlock extends JCMBlock {
     }
 
     @Override
+#if MC_VERSION == "12104"
+    public boolean propagatesSkylightDown(BlockState state) {
+#else
     public boolean propagatesSkylightDown(BlockState state, BlockGetter world, BlockPos pos) {
+#endif
         return true;
     }
 

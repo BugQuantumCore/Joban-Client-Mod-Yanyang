@@ -9,6 +9,7 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
@@ -32,7 +33,7 @@ public interface VerticalDoubleBlock {
         }
     }
 
-    static boolean blockNotValid(Block blockInstance, LevelAccessor world, BlockPos pos, BlockState state) {
+    static boolean blockNotValid(Block blockInstance, LevelReader world, BlockPos pos, BlockState state) {
         IBlock.DoubleBlockHalf thisPart = IBlock.getStatePropertySafe(state, HALF);
         int offset = thisPart == IBlock.DoubleBlockHalf.UPPER ? -1 : 1;
         return !world.getBlockState(pos.relative(Axis.Y, offset)).is(blockInstance);

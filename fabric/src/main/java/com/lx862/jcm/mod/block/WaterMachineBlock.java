@@ -31,18 +31,24 @@ public class WaterMachineBlock extends Vertical2Block {
     }
 
     @Override
-    public net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-        if(player.isHolding(Items.GLASS_BOTTLE)) {
-            fillBottleForPlayer(player, hand);
-            return net.minecraft.world.ItemInteractionResult.SUCCESS;
+    public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
+        // 1.21.4 dropped the useItemOn(ItemStack,...) ItemInteractionResult
+        // override surface this block used on 1.20.5-1.21.1; useWithoutItem
+        // has the same signature across the whole supported range (vanilla
+        // only forwards to it after the held-item use passes through, which
+        // is exactly this block's PASS branch).
+        final ItemStack held = player.getMainHandItem();
+        if(held.is(Items.GLASS_BOTTLE)) {
+            fillBottleForPlayer(player, InteractionHand.MAIN_HAND);
+            return InteractionResult.SUCCESS;
         }
 
-        if(player.isHolding(Items.BUCKET)) {
-            fillBucketForPlayer(player, hand);
-            return net.minecraft.world.ItemInteractionResult.SUCCESS;
+        if(held.is(Items.BUCKET)) {
+            fillBucketForPlayer(player, InteractionHand.MAIN_HAND);
+            return InteractionResult.SUCCESS;
         }
 
-        return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        return InteractionResult.PASS;
     }
 
     private static void fillBottleForPlayer(Player player, InteractionHand hand) {
