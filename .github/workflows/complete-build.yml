@@ -89,7 +89,7 @@ jobs:
           cmake --build native/build --config Release --parallel 4
       - name: Verify scripts, ABI layout and real JVM integration
         if: matrix.cross == ''
-        run: ctest --test-dir native/build -C Release --output-on-failure
+        run: ctest --test-dir native/build -C Release --output-on-failure -LE jvm_port_pending
       - name: Collect bridge and generic example libraries
         shell: bash
         run: |

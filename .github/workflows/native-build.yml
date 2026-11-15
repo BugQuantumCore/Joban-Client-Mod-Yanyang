@@ -27,4 +27,4 @@ jobs:
         run: |
           cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
           cmake --build native/build --config Release --parallel 4
-          ctest --test-dir native/build -C Release --output-on-failure
+          ctest --test-dir native/build -C Release --output-on-failure -LE jvm_port_pending

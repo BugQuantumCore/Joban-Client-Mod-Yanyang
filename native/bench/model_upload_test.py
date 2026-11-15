@@ -39,8 +39,10 @@ public interface VertexConsumer {
         default VertexConsumer setUv1(int u, int v) { return this; }
         default VertexConsumer setUv2(int u, int v) { return this; }
         default VertexConsumer setNormal(float x, float y, float z) { return this; }
-        default VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
-                return this;
+        /* Real MC 1.21.1 declares the packed 11-arg addVertex as VOID — the
+           descriptor must match or the jar's StoredVertexData.apply call site
+           dies with NoSuchMethodError at runtime. */
+        default void addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
         }
 }''',
     'com/mojang/blaze3d/vertex/BufferBuilder.java': '''package com.mojang.blaze3d.vertex;
@@ -59,9 +61,8 @@ public class BufferBuilder implements VertexConsumer {
         public final VertexFormat.Mode mode;
         public BufferBuilder(VertexFormat.Mode mode, VertexFormat format) { this.mode = mode; }
         @Override
-        public VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+        public void addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
                 recorded.add(new Vertex(x, y, z, color, u, v, overlay, light, nx, ny, nz));
-                return this;
         }
         public MeshData build() { return new MeshData(mode, recorded); }
 }''',
