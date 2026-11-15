@@ -33,7 +33,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class BuiltVehicleModelHolderMixin {
 
     @Inject(method = "render", at = @At("HEAD"))
-    private void jsblock$drawCarScript(StoredMatrixTransformations storedMatrixTransformations, org.mtr.data.VehicleExtension vehicle, int carNumber, boolean isWithinHalfRenderDistance, int[] scrollingDisplayIndexTracker, int light, Object openDoorways, boolean fromResourcePackCreator, CallbackInfo ci) {
+    private void jsblock$drawCarScript(StoredMatrixTransformations storedMatrixTransformations, org.mtr.data.VehicleExtension vehicle, int carNumber, boolean isWithinHalfRenderDistance, int[] scrollingDisplayIndexTracker, int light, org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList openDoorways, boolean fromResourcePackCreator, CallbackInfo ci) {
         /* The mtrpatch HideRidingVehicleMixin cancels the original render for
            the ridden car when hideRidingVehicle is on, but this handler still
            runs and would replay the scripted PIDS/LCD content floating in

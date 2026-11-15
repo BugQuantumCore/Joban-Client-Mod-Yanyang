@@ -19,10 +19,11 @@ import org.mtr.data.VehicleExtension;
 import org.mtr.render.*;
 import org.mtr.resource.VehicleResource;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+import com.llamalad7.mixinextras.sugar.Local;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -128,8 +129,43 @@ public class RenderVehiclesMixin {
         }
     }
 
-    @Inject(method = "lambda$render$5", at = @At("TAIL"), locals = LocalCapture.CAPTURE_FAILSOFT)
-    private static void jsblock$drawBogieScript(Vec3 offsetVector, Double offsetRotation, PositionAndRotation ridingCarPositionAndRotation, Vec3 cameraShakeOffset, VehicleResource vehicleResource, VehicleExtension vehicle, PositionAndRotation absoluteVehicleCarPositionAndRotation, int carNumber, int[] scrollingDisplayIndexTracker, boolean fromResourcePackCreator, int bogieIndex, PositionAndRotation absoluteBogiePositionAndRotation, CallbackInfo ci, PositionAndRotation bogieRenderingPositionAndRotation, StoredMatrixTransformations storedMatrixTransformations) {
+    /**
+     * MTR 4.1's bogie lambda (lambda$render$5) no longer receives the car
+     * number — it was a parameter of the 4.0-era lambda the 4.0 mixin hooked.
+     * The enclosing car-level lambda (lambda$render$3) still carries it as
+     * its 17th argument, so stash it here (HEAD runs right before that car's
+     * bogie loop) and read it back from jsblock$drawBogieScript. The two
+     * int locals in scope at HEAD are ridingCarNumber (ordinal 0) and
+     * carNumber (ordinal 1).
+     */
+    @Unique
+    private static int jsblock$currentCarNumber = -1;
+
+    @Inject(method = "lambda$render$3", at = @At("HEAD"))
+    private static void jsblock$trackCurrentCar(CallbackInfo ci, @Local(ordinal = 1) int carNumber) {
+        RenderVehiclesMixin.jsblock$currentCarNumber = carNumber;
+    }
+
+    /**
+     * Replays captured per-bogie script draw calls at the exact transform
+     * MTR 4.1 uses for the bogie. The 4.1 bogie lambda's real signature is
+     * (Vec3 offsetVector, Double offsetRotation, PositionAndRotation
+     * ridingCarPositionAndRotation, Vec3 cameraShakeOffset, VehicleResource
+     * vehicleResource, VehicleExtension vehicle, boolean
+     * isWithinHalfRenderDistance, PositionAndRotation
+     * absoluteVehicleCarPositionAndRotation, int bogieIndex,
+     * PositionAndRotation absoluteBogiePositionAndRotation).
+     *
+     * <p>Injected just before the queueBogie call so the
+     * StoredMatrixTransformations local (built from
+     * RenderVehicles#getStoredMatrixTransformations plus the 180°-X bogie
+     * rotation) is guaranteed live for @Local capture.</p>
+     */
+    @Inject(method = "lambda$render$5", at = @At(value = "INVOKE", target = "Lorg/mtr/resource/VehicleResource;queueBogie(ILorg/mtr/render/StoredMatrixTransformations;Lorg/mtr/data/VehicleExtension;ZI)V"))
+    private static void jsblock$drawBogieScript(Vec3 offsetVector, Double offsetRotation, PositionAndRotation ridingCarPositionAndRotation, Vec3 cameraShakeOffset, VehicleResource vehicleResource, VehicleExtension vehicle, boolean isWithinHalfRenderDistance, PositionAndRotation absoluteVehicleCarPositionAndRotation, int bogieIndex, PositionAndRotation absoluteBogiePositionAndRotation, CallbackInfo ci, @Local(ordinal = 0) StoredMatrixTransformations storedMatrixTransformations) {
+        int carNumber = jsblock$currentCarNumber;
+        if (carNumber < 0) return;
+
         VehicleCar vehicleCar = vehicle.vehicleExtraData.immutableVehicleCars.get(carNumber);
         String scriptGroupId = MtrScriptingResourceManager.vehicle.getVehicleScriptEntryId(vehicleCar.getVehicleId());
         if(scriptGroupId == null) return;

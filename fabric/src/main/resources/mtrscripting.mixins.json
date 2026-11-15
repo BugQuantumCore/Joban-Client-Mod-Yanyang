@@ -5,8 +5,7 @@
   "mixins": [
     "mtrscripting.BlockEntityEyecandyMixin",
     "mtrscripting.InitAccessorMixin",
-    "mtrscripting.MainAccessorMixin",
-    "mtrscripting.BuiltVehicleModelHolderMixin"
+    "mtrscripting.MainAccessorMixin"
   ],
   "client": [
     "mtrscripting.BlockEyecandyMixin",

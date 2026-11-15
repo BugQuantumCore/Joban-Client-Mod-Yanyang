@@ -41,7 +41,7 @@ public class SignResourceMixin {
         }
     }
 
-    @WrapOperation(method = "lambda$render$0", at = @At(value = "INVOKE", target = "Lorg/mtr/font/FontRenderHelper;render(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/lang/String;Lorg/mtr/font/FontRenderOptions;)Lorg/mtr/libraries/it/unimi/dsi/fastutil/doubles/FloatFloatImmutablePair;"))
+    @WrapOperation(method = "lambda$render$0", at = @At(value = "INVOKE", target = "Lorg/mtr/font/FontRenderHelper;render(Lcom/mojang/blaze3d/vertex/PoseStack;Ljava/lang/String;Lorg/mtr/font/FontRenderOptions;)Lorg/mtr/libraries/it/unimi/dsi/fastutil/floats/FloatFloatImmutablePair;"))
     private static FloatFloatImmutablePair jsblock$applyTextColor(PoseStack poseStack, String text, FontRenderOptions fontRenderOptions, Operation<FloatFloatImmutablePair> original, @Local(argsOnly = true) SignResource signResource) {
         final int textColor = ((SignExtraAccessor) (Object) signResource).jsblock$getSignTextColor();
         if (textColor != -1 && JSBLOCK_COLOR_FIELD != null) {

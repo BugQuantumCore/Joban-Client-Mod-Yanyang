@@ -12,7 +12,6 @@
     "TicketSystemMixin",
     "mtrpatch.BlockPoleCheckBaseMixin",
     "mtrpatch.BlockRailwaySignPoleMixin",
-    "mtrpatch.SignResourceMixin",
     "mtrpatch.SignPoleNeighborUpdateMixin"
   ],
   "client": [
@@ -28,7 +27,6 @@
     "mtrpatch.RenderRailsMixin",
     "mtrpatch.SignResourceSchemaMixin",
     "mtrpatch.SignResourceMixin",
-    "mtrpatch.SignPoleNeighborUpdateMixin",
     "mtrpatch.HideRidingVehicleMixin",
     "mtrpatch.HideRidingBogieMixin"
   ],

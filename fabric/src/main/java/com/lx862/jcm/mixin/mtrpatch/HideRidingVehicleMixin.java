@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = BuiltVehicleModelHolder.class, remap = false)
 public class HideRidingVehicleMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void jsblock$hideRidingTrainModel(StoredMatrixTransformations storedMatrixTransformations, VehicleExtension vehicle, int carNumber, boolean isWithinHalfRenderDistance, int[] scrollingDisplayIndexTracker, int light, Object openDoorways, boolean fromResourcePackCreator, CallbackInfo ci) {
+    private void jsblock$hideRidingTrainModel(StoredMatrixTransformations storedMatrixTransformations, VehicleExtension vehicle, int carNumber, boolean isWithinHalfRenderDistance, int[] scrollingDisplayIndexTracker, int light, org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList openDoorways, boolean fromResourcePackCreator, CallbackInfo ci) {
         if (JCMClientConfig.INSTANCE.mtrPatch.hideRidingVehicle.value() && VehicleRidingMovement.isRiding(vehicle.getId())) {
             ci.cancel();
         }

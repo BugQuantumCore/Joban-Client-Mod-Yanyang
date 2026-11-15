@@ -14,7 +14,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
@@ -85,7 +84,7 @@ public class BlockEyecandyMixin extends BlockWaterloggable {
     }
 
     @Inject(method = "useWithoutItem", at = @At("RETURN"), cancellable = true)
-    public void jcm$onEyecandyBlockUse(BlockState state, Level world, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
+    public void jcm$onEyecandyBlockUse(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit, CallbackInfoReturnable<InteractionResult> cir) {
         InteractionResult returnValue = cir.getReturnValue();
         if(returnValue == InteractionResult.SUCCESS) return;
 
@@ -96,10 +95,12 @@ public class BlockEyecandyMixin extends BlockWaterloggable {
                     ScriptInstance<?> scriptInstance = MTRContentScripting.getScriptManager().getInstanceManager().getInstance(new UniqueKey("eyecandy", ((BlockEyeCandy.EyeCandyBlockEntity)blockEntity).getModelId(), pos.getX(), pos.getY(), pos.getZ()));
                     /* Yanyang: mixed entries (JS + C++ under one script id) get
                        the use event on BOTH sides; the native modules are
-                       triggered inside blockUse, the JS part below. */
-                    boolean handled = com.lx862.jcm.nativeapi.NativeContentDriver.blockUse((BlockEyeCandy.EyeCandyBlockEntity)blockEntity,new BlockUseEvent(player,player.getItemInHand(hand)));
+                       triggered inside blockUse, the JS part below.
+                       1.21's useWithoutItem is the empty-hand interaction, so
+                       the "used" item is by definition the main-hand stack. */
+                    boolean handled = com.lx862.jcm.nativeapi.NativeContentDriver.blockUse((BlockEyeCandy.EyeCandyBlockEntity)blockEntity,new BlockUseEvent(player,player.getMainHandItem()));
                     if(scriptInstance != null && scriptInstance.getContextObject() instanceof EyeCandyScriptContext) {
-                        ((EyeCandyScriptContext)scriptInstance.getContextObject()).events().onBlockUse.trigger(new BlockUseEvent(player, player.getItemInHand(hand)));
+                        ((EyeCandyScriptContext)scriptInstance.getContextObject()).events().onBlockUse.trigger(new BlockUseEvent(player, player.getMainHandItem()));
                         handled = true;
                     }
                     if(handled) {

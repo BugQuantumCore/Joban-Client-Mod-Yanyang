@@ -128,7 +128,7 @@ public class RenderEyeCandyMixin {
         return cache.transform;
     }
 
-    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/mod/block/BlockEyeCandy$BlockEntity;getModelId()Ljava/lang/String;"), cancellable = true)
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lorg/mtr/block/BlockEyeCandy$EyeCandyBlockEntity;getModelId()Ljava/lang/String;"), cancellable = true)
     public void jsblock$executeAndRenderScript(BlockEyeCandy.EyeCandyBlockEntity blockEntity, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, ClientLevel clientWorld, LocalPlayer clientPlayer, float tickDelta, int light, int overlay, CallbackInfo ci) {
         Level world = blockEntity.getLevel();
         if(world == null) return;
