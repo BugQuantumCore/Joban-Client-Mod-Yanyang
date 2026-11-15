@@ -18,88 +18,121 @@ import urllib.request
 
 STUBS = {
     'net/minecraft/resources/ResourceLocation.java': '''package net.minecraft.resources;
-public record ResourceLocation(String path) {}''',
+public record ResourceLocation(String path) {
+        public String getPath() { return path; }
+        public static ResourceLocation parse(String s) { return new ResourceLocation(s); }
+}''',
     'com/mojang/blaze3d/vertex/VertexFormat.java': '''package com.mojang.blaze3d.vertex;
 public class VertexFormat {
-	public enum Mode { LINES, LINE_STRIP, DEBUG_LINES, DEBUG_LINE_STRIP, TRIANGLES, TRIANGLE_STRIP, QUADS }
+        public enum Mode { LINES, LINE_STRIP, DEBUG_LINES, DEBUG_LINE_STRIP, TRIANGLES, TRIANGLE_STRIP, QUADS }
 }''',
     'com/mojang/blaze3d/vertex/DefaultVertexFormat.java': '''package com.mojang.blaze3d.vertex;
 public final class DefaultVertexFormat {
-	public static final VertexFormat NEW_ENTITY = new VertexFormat();
-	private DefaultVertexFormat() {}
+        public static final VertexFormat NEW_ENTITY = new VertexFormat();
+        private DefaultVertexFormat() {}
 }''',
     'com/mojang/blaze3d/vertex/VertexConsumer.java': '''package com.mojang.blaze3d.vertex;
 public interface VertexConsumer {
-	default VertexConsumer addVertex(float x, float y, float z) { return this; }
-	default VertexConsumer setColor(int red, int green, int blue, int alpha) { return this; }
-	default VertexConsumer setUv(float u, float v) { return this; }
-	default VertexConsumer setUv1(int u, int v) { return this; }
-	default VertexConsumer setUv2(int u, int v) { return this; }
-	default VertexConsumer setNormal(float x, float y, float z) { return this; }
-	default VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
-		return this;
-	}
+        default VertexConsumer addVertex(float x, float y, float z) { return this; }
+        default VertexConsumer setColor(int red, int green, int blue, int alpha) { return this; }
+        default VertexConsumer setUv(float u, float v) { return this; }
+        default VertexConsumer setUv1(int u, int v) { return this; }
+        default VertexConsumer setUv2(int u, int v) { return this; }
+        default VertexConsumer setNormal(float x, float y, float z) { return this; }
+        default VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+                return this;
+        }
 }''',
     'com/mojang/blaze3d/vertex/BufferBuilder.java': '''package com.mojang.blaze3d.vertex;
 import java.util.ArrayList;
 import java.util.List;
 public class BufferBuilder implements VertexConsumer {
-	public static final class Vertex {
-		public final float x, y, z, u, v, nx, ny, nz;
-		public final int color, overlay, light;
-		public Vertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
-			this.x = x; this.y = y; this.z = z; this.color = color; this.u = u; this.v = v;
-			this.overlay = overlay; this.light = light; this.nx = nx; this.ny = ny; this.nz = nz;
-		}
-	}
-	public final List<Vertex> recorded = new ArrayList<>();
-	public final VertexFormat.Mode mode;
-	public BufferBuilder(VertexFormat.Mode mode, VertexFormat format) { this.mode = mode; }
-	@Override
-	public VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
-		recorded.add(new Vertex(x, y, z, color, u, v, overlay, light, nx, ny, nz));
-		return this;
-	}
-	public MeshData build() { return new MeshData(mode, recorded); }
+        public static final class Vertex {
+                public final float x, y, z, u, v, nx, ny, nz;
+                public final int color, overlay, light;
+                public Vertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+                        this.x = x; this.y = y; this.z = z; this.color = color; this.u = u; this.v = v;
+                        this.overlay = overlay; this.light = light; this.nx = nx; this.ny = ny; this.nz = nz;
+                }
+        }
+        public final List<Vertex> recorded = new ArrayList<>();
+        public final VertexFormat.Mode mode;
+        public BufferBuilder(VertexFormat.Mode mode, VertexFormat format) { this.mode = mode; }
+        @Override
+        public VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+                recorded.add(new Vertex(x, y, z, color, u, v, overlay, light, nx, ny, nz));
+                return this;
+        }
+        public MeshData build() { return new MeshData(mode, recorded); }
 }''',
     'com/mojang/blaze3d/vertex/MeshData.java': '''package com.mojang.blaze3d.vertex;
 import java.util.List;
 public final class MeshData {
-	public final VertexFormat.Mode mode;
-	public final List<BufferBuilder.Vertex> vertices;
-	public MeshData(VertexFormat.Mode mode, List<BufferBuilder.Vertex> vertices) { this.mode = mode; this.vertices = vertices; }
+        public final VertexFormat.Mode mode;
+        public final List<BufferBuilder.Vertex> vertices;
+        public MeshData(VertexFormat.Mode mode, List<BufferBuilder.Vertex> vertices) { this.mode = mode; this.vertices = vertices; }
 }''',
     'com/mojang/blaze3d/vertex/Tesselator.java': '''package com.mojang.blaze3d.vertex;
 public final class Tesselator {
-	private static final Tesselator INSTANCE = new Tesselator();
-	public static Tesselator getInstance() { return INSTANCE; }
-	public BufferBuilder begin(VertexFormat.Mode mode, VertexFormat format) { return new BufferBuilder(mode, format); }
+        private static final Tesselator INSTANCE = new Tesselator();
+        public static Tesselator getInstance() { return INSTANCE; }
+        public BufferBuilder begin(VertexFormat.Mode mode, VertexFormat format) { return new BufferBuilder(mode, format); }
 }''',
     'com/mojang/blaze3d/vertex/VertexBuffer.java': '''package com.mojang.blaze3d.vertex;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 public class VertexBuffer {
-	/** Every buffer ever created, in creation order (correlates to NewOptimizedModel instances). */
-	public static final List<VertexBuffer> ALL = Collections.synchronizedList(new ArrayList<>());
-	public enum Usage { STATIC }
-	public final List<MeshData> uploads = new ArrayList<>();
-	public int closeCount;
-	public VertexBuffer(Usage usage) { ALL.add(this); }
-	public void bind() {}
-	public void upload(MeshData meshData) { uploads.add(meshData); }
-	public void close() { closeCount++; }
-	public static void unbind() {}
+        /** Every buffer ever created, in creation order (correlates to NewOptimizedModel instances). */
+        public static final List<VertexBuffer> ALL = Collections.synchronizedList(new ArrayList<>());
+        public enum Usage { STATIC }
+        public final List<MeshData> uploads = new ArrayList<>();
+        public int closeCount;
+        public VertexBuffer(Usage usage) { ALL.add(this); }
+        public void bind() {}
+        public void upload(MeshData meshData) { uploads.add(meshData); }
+        public void close() { closeCount++; }
+        public static void unbind() {}
 }''',
     'net/minecraft/client/renderer/texture/OverlayTexture.java': '''package net.minecraft.client.renderer.texture;
 public final class OverlayTexture {
-	public static final int NO_OVERLAY = 0;
-	private OverlayTexture() {}
+        public static final int NO_OVERLAY = 0;
+        private OverlayTexture() {}
 }''',
     'net/minecraft/world/phys/AABB.java': '''package net.minecraft.world.phys;
 public class AABB {
-	public AABB(double x1, double y1, double z1, double x2, double y2, double z2) {}
+        public AABB(double x1, double y1, double z1, double x2, double y2, double z2) {}
 }''',
+    'net/minecraft/world/phys/Vec3.java': '''package net.minecraft.world.phys;
+public class Vec3 {
+        public final double x, y, z;
+        public Vec3(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
+}''',
+    'com/mojang/blaze3d/vertex/PoseStack.java': '''package com.mojang.blaze3d.vertex;
+import net.minecraft.world.phys.Vec3;
+public class PoseStack {
+        public static final class Pose { }
+        public void pushPose() {}
+        public void popPose() {}
+        public void translate(double x, double y, double z) {}
+        public Pose last() { return new Pose(); }
+        public Pose pose() { return new Pose(); }
+}''',
+    # The remaining Minecraft surface exists purely so javac can complete the
+    # real MTR classes' signatures (StoredVertexData.write, NewOptimizedModel.render,
+    # MainRenderer.render); none of it is exercised by the headless test.
+    'net/minecraft/client/model/geom/ModelPart.java': '''package net.minecraft.client.model.geom;
+public class ModelPart { }''',
+    'net/minecraft/client/renderer/RenderType.java': '''package net.minecraft.client.renderer;
+public abstract class RenderType {
+        public void draw(com.mojang.blaze3d.vertex.MeshData meshData) {}
+}''',
+    'net/minecraft/client/renderer/ShaderInstance.java': '''package net.minecraft.client.renderer;
+public class ShaderInstance { }''',
+    'net/minecraft/client/renderer/CompiledShaderProgram.java': '''package net.minecraft.client.renderer;
+public class CompiledShaderProgram { }''',
+    'net/minecraft/client/renderer/MultiBufferSource.java': '''package net.minecraft.client.renderer;
+public interface MultiBufferSource { }''',
     'org/mtr/mapping/tool/DummyClass.java': '''package org.mtr.mapping.tool;
 public class DummyClass { public static void logException(Exception e) {} }''',
     'com/lx862/jcm/mixin/mtrscripting/RawMeshAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
@@ -110,29 +143,29 @@ import com.lx862.jcm.mod.render.mesh.Vertex;
 import java.util.List;
 /** Headless stand-in for the mixin-woven accessor; the generated RawMesh fixture implements it. */
 public interface RawMeshAccessor {
-	void setMaterialProperties(MaterialProperties properties);
-	void setVertices(List<Vertex> vertices);
-	void setFaces(List<Face> faces);
+        void setMaterialProperties(MaterialProperties properties);
+        void setVertices(List<Vertex> vertices);
+        void setFaces(List<Face> faces);
 }''',
     'com/lx862/jcm/mod/util/JCMLogger.java': '''package com.lx862.jcm.mod.util;
 public final class JCMLogger {
-	public static void info(String s, Object... o) {}
-	public static void warn(String s, Object... o) {}
-	public static void error(String s, Object... o) {}
-	public static void error(String s, Throwable e) {}
-	public static void fatal(String s, Object... o) {}
-	public static void debug(String s, Object... o) {}
+        public static void info(String s, Object... o) {}
+        public static void warn(String s, Object... o) {}
+        public static void error(String s, Object... o) {}
+        public static void error(String s, Throwable e) {}
+        public static void fatal(String s, Object... o) {}
+        public static void debug(String s, Object... o) {}
 }''',
     'com/lx862/mtrscripting/core/annotation/ApiInternal.java': 'package com.lx862.mtrscripting.core.annotation; public @interface ApiInternal {}',
     'com/lx862/mtrscripting/core/util/ScriptVector3f.java': '''package com.lx862.mtrscripting.core.util;
 public record ScriptVector3f(float x, float y, float z) {
-	public org.joml.Vector3f rawVector3f() { return new org.joml.Vector3f(x, y, z); }
+        public org.joml.Vector3f rawVector3f() { return new org.joml.Vector3f(x, y, z); }
 }''',
     # The real one drags ScriptResourceUtil -> JCM/AWT/commons; parseId is a
     # plain passthrough onto the stubbed ResourceLocation record here.
     'com/lx862/mtrscripting/mod/util/JSUtil.java': '''package com.lx862.mtrscripting.mod.util;
 public class JSUtil {
-	public static net.minecraft.resources.ResourceLocation parseId(String str) { return new net.minecraft.resources.ResourceLocation(str); }
+        public static net.minecraft.resources.ResourceLocation parseId(String str) { return new net.minecraft.resources.ResourceLocation(str); }
 }''',
 }
 
@@ -148,13 +181,13 @@ FIXTURE_FIELDS = {
     'public final List<Face> faces = new ArrayList<>();': 'public List<Face> faces = new ArrayList<>();',
 }
 FIXTURE_METHODS = '''
-	/* Test fixture: the RawMeshAccessor mixin weaves these in production. */
-	@Override
-	public void setMaterialProperties(MaterialProperties properties) { this.materialProperties = properties; }
-	@Override
-	public void setVertices(List<Vertex> vertices) { this.vertices = vertices; }
-	@Override
-	public void setFaces(List<Face> faces) { this.faces = faces; }
+        /* Test fixture: the RawMeshAccessor mixin weaves these in production. */
+        @Override
+        public void setMaterialProperties(MaterialProperties properties) { this.materialProperties = properties; }
+        @Override
+        public void setVertices(List<Vertex> vertices) { this.vertices = vertices; }
+        @Override
+        public void setFaces(List<Face> faces) { this.faces = faces; }
 '''
 
 
