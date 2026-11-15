@@ -146,10 +146,15 @@ public final class ModelUploadTest {
 
                 model.replaceAllTexture("test:c");
                 final var after = model.getUnderlyingModel().getModels();
-                check(after.get(RenderStage.INTERIOR).size() == 2, "re-upload keeps two buckets");
-                for (final NewOptimizedModel replaced : after.get(RenderStage.INTERIOR)) {
-                        check(String.valueOf(replaced.texture).endsWith("test:c"), "replaced model draws the new texture");
-                }
+                // After the replace both meshes share one material, and the 4.1
+                // batched pipeline MERGES same-material meshes into a single bucket
+                // (one model, one buffer, both quads' vertices concatenated).
+                check(after.get(RenderStage.INTERIOR).size() == 1, "re-upload merges the now-identical materials into one bucket");
+                check(String.valueOf(after.get(RenderStage.INTERIOR).get(0).texture).endsWith("test:c"), "replaced model draws the new texture");
+                check(VertexBuffer.ALL.size() - base == 3, "re-upload creates exactly one merged buffer");
+                final VertexBuffer merged = VertexBuffer.ALL.get(base + 2);
+                check(merged.uploads.size() == 1 && merged.uploads.get(0).vertices.size() == 12,
+                                "the merged bucket carries both quads' six-vertex streams");
                 for (final VertexBuffer previous : previousBuffers) {
                         check(previous.closeCount == 1, "re-upload closes the previous generation exactly once");
                 }
@@ -159,7 +164,7 @@ public final class ModelUploadTest {
                 final ModelJS copy = model.copyForMaterialChanges();
                 final int copyBase = VertexBuffer.ALL.size();
                 copy.replaceAllTexture("test:d");
-                check(VertexBuffer.ALL.size() - copyBase == 2, "copy re-uploads both buckets");
+                check(VertexBuffer.ALL.size() - copyBase == 1, "copy re-uploads into one merged bucket");
                 check(String.valueOf(copy.getUnderlyingModel().getModels().get(RenderStage.INTERIOR).get(0).texture).endsWith("test:d"),
                                 "copy rebinds materials");
                 model.close();
