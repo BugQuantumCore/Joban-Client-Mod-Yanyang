@@ -1,5 +1,11 @@
 # 更新日志 / Changelog
 
+## port/mtr-4.1.0 分支（未发布）
+
+- 修复脚本模型四边形面渲染缺角：`RawMesh.upload()` 此前无视 `faces` 索引、按原始顶点流上传，而 `RawModel.upload()` 以 `VertexFormat.Mode.TRIANGLES` 构建——四边形（faceSize=4）网格只会画出第一个三角形。改为按面索引扇形三角化发射顶点（`Face.triangulate`），与旧 4.0 管线的六索引四边形行为一致；坐标约定不变（构建器翻转 + 上传翻转相消，脚本空间坐标原样进入 4.1 存储空间，与 `ObjModelLoader` 一致）。
+- 模型上传回归测试移植到 MTR 4.1 边界契约：4.1 移除了 `VertexArray`/`GlStateTracker`（GPU 上载已是 Minecraft 自身代码），测试改为用锁定 MTR-Yanyang jar 中的真实 `NewOptimizedModelGroup`/`NewOptimizedModel`/`StoredVertexData`，以桩实现的 Minecraft 顶点消费者记录顶点流，断言六顶点三角化、坐标/UV/颜色/全亮光照贴图、渲染阶段分桶与上传/重传/关闭生命周期；不再需要 xvfb / LWJGL / GL。
+- CI 补齐原生（C++）部分验证：push 构建工作流新增 natives 作业（CMake 配置 + 编译 + CTest，含 ABI 布局与真实 JVM 集成测试）；Complete Build 与 Release Build 的 build 作业从旧 1.17.1–1.20.4 矩阵移植到 1.21.1/1.21.4 × Fabric/NeoForge（`:loader:build` + `-Ptarget_loader` + 锁定 MTR 下载），API 覆盖审计改用锁定 jar 与 `neoforge/build/classes`；模型上传检查与发布管线的 MTR jar 改为哈希校验的锁定 4.1 构建（旧版引用 Modrinth 4.0.5+1.20.1，在移植分支必失败）；`verify_jar.py` 的 Minecraft 版本断言更新为 1.21.1/1.21.4，mixin 断言以 `RawMeshAccessor` 替换已不存在的 `GlStateTrackerAccessor`。
+
 ## 2.3.0-1.0.0（2026-11-14）
 
 - 基于上游 JCM v2.3.0 正式版，提供车辆、PIDS、电梯、装饰物与屏蔽门的 JS / C++ 混合脚本。

@@ -10,6 +10,35 @@ concurrency:
   group: mtr41-build-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  natives:
+    # The ported C++ part of the mod (native/ — the jcm_native_bridge FFM
+    # bridge and the native script SDK) compiles and tests on every push,
+    # alongside the Java matrix below. The CMake suite includes the ABI
+    # layout checks and the real-JVM integration tests; the full six-OS
+    # sweep (plus the cross legs) stays in the manually dispatched Native
+    # SDK Tests workflow, and the eight-platform bridge bundling belongs to
+    # the Complete Build / Release Build pipelines.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NATIVE_TEST_PLATFORM: linux-x64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build and test the native SDK
+        run: |
+          set -euo pipefail
+          cmake -S native -B native/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build native/build --config Release --parallel 4
+          ctest --test-dir native/build -C Release --output-on-failure
   build:
     strategy:
       fail-fast: false

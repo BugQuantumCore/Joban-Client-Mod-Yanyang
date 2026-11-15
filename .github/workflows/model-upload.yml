@@ -30,12 +30,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify model coordinates, upload and GL state restoration
+      - name: Verify model coordinates and the MTR 4.1 upload contract
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          set -euo pipefail
           mkdir -p native/build-gl
-          curl --fail --location --retry 3 'https://api.modrinth.com/maven/maven/modrinth/minecraft-transit-railway/FABRIC-4.0.5+1.20.1/minecraft-transit-railway-FABRIC-4.0.5+1.20.1.jar' -o native/build-gl/mtr.jar
-          xvfb-run -a python3 native/bench/model_upload_test.py --mtr-jar native/build-gl/mtr.jar --work native/build-gl/test
+          TAG=$(jq -r .tag gradle/mtr41-lock.json)
+          NAME=$(jq -r '.artifacts["1.21.1-neoforge"].name' gradle/mtr41-lock.json)
+          SHA=$(jq -r '.artifacts["1.21.1-neoforge"].sha256' gradle/mtr41-lock.json)
+          gh release download "$TAG" --repo BugQuantumCore/MTR-Yanyang --pattern "$NAME" --dir native/build-gl
+          printf '%s  %s\n' "$SHA" "native/build-gl/$NAME" | sha256sum --check --strict
+          mv "native/build-gl/$NAME" native/build-gl/mtr.jar
+          python3 native/bench/model_upload_test.py --mtr-jar native/build-gl/mtr.jar --work native/build-gl/test

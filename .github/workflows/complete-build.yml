@@ -112,7 +112,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft: [1.17.1, 1.18.2, 1.19.2, 1.19.4, 1.20.1, 1.20.4]
+        minecraft: ['1.21.1', '1.21.4']
+        loader: [fabric, neoforge]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -136,10 +137,27 @@ jobs:
           found=$(find native-dist/bridges -type f | wc -l | tr -d ' ')
           test "$found" = 3
           echo "All 3 platform bridges present: $(find native-dist/bridges -type f -printf '%p\n' | sort | xargs -n1 basename | tr '\n' ' ')"
-      - name: Build both loaders with the three native bridges
+      - name: Download pinned MTR with its matching TSC
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dependencies
+          NAME=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].name' gradle/mtr41-lock.json)
+          SHA=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].sha256' gradle/mtr41-lock.json)
+          TAG=$(jq -r .tag gradle/mtr41-lock.json)
+          gh release download "$TAG" --repo BugQuantumCore/MTR-Yanyang --pattern "$NAME" --dir dependencies
+          printf '%s  %s\n' "$SHA" "dependencies/$NAME" | sha256sum --check --strict
+          mv "dependencies/$NAME" "dependencies/mtr-$MC-$LOADER.jar"
+      - name: Build the module with the three native bridges
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
         run: |
           chmod +x ./gradlew
-          # Forge/Maven read-timeouts are transient — retry before failing the matrix leg.
+          # Maven read-timeouts are transient — retry before failing the matrix leg.
           try() {
             local n=0
             until "$@"; do
@@ -149,26 +167,29 @@ jobs:
               sleep 30
             done
           }
-          try ./gradlew setupFiles -Pminecraft_version="${{ matrix.minecraft }}" --console=plain
-          try ./gradlew build -Pminecraft_version="${{ matrix.minecraft }}" -Pmod_version="$FULL_VERSION" -Pnative_bridge_dir=native-dist/bridges --console=plain
+          try ./gradlew ":$LOADER:build" -Pminecraft_version="$MC" -Ptarget_loader="$LOADER" -Pmod_version="$FULL_VERSION" -Pnative_bridge_dir=native-dist/bridges --console=plain --max-workers=2
       - name: Audit documented Java API declarations
+        # The audited script-facing types all live in the loader-neutral shared
+        # sources, so the NeoForge legs (which consume the pinned MTR jar
+        # un-remapped, in Mojang mappings) carry the audit for both loaders.
+        if: matrix.loader == 'neoforge'
+        env:
+          MC: ${{ matrix.minecraft }}
         run: |
-          find .gradle ~/.gradle -name '*4.0.5*.jar' -type f > native/build-api-jars.txt
           python3 - <<'PY'
           from pathlib import Path
-          import sys, json
+          import os, sys, json
           sys.path.insert(0,'native/bench')
           from api_coverage import audit
-          jars=[Path(line) for line in Path('native/build-api-jars.txt').read_text().splitlines()]
+          jars=[Path('dependencies/mtr-' + os.environ['MC'] + '-neoforge.jar')]
           manifest=json.loads(Path('native/bench/api-coverage.json').read_text())
-          for loader in ('fabric','forge'):
-              audit(Path(loader+'/build/classes/java/main'),jars,manifest)
+          audit(Path('neoforge/build/classes/java/main'), jars, manifest)
           PY
       - name: Verify jar contents and absence of user resource packs
         run: python3 native/bench/verify_jar.py --version "$FULL_VERSION" --bridges windows-x64,linux-x64,android-arm64 build/*.jar
       - uses: actions/upload-artifact@v4
         with:
-          name: complete-jars-${{ matrix.minecraft }}
+          name: complete-jars-${{ matrix.minecraft }}-${{ matrix.loader }}
           path: build/*.jar
           retention-days: ${{ inputs.retention-days }}
           if-no-files-found: error

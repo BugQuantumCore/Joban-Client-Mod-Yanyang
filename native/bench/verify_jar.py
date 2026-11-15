@@ -22,14 +22,14 @@ def verify(path, version=None, platforms=None):
         assert {name.split('/')[3] for name in bridges}==set(platforms),(path,bridges,platforms)
         assert not any(name.startswith('assets/') and name.endswith(('.cpp','.hpp','.so','.dll','.dylib')) and name not in bridges for name in names)
         config=json.loads(jar.read('mtrscripting.mixins.json'))
-        for mixin in ['GraphicsHolderMatrixMixin','GlStateTrackerAccessor','RenderEyeCandyMixin','RenderLiftsMixin','RenderVehiclesMixin']:
+        for mixin in ['GraphicsHolderMatrixMixin','RawMeshAccessor','RenderEyeCandyMixin','RenderLiftsMixin','RenderVehiclesMixin']:
             assert 'mtrscripting.'+mixin in config['client'],(path,mixin)
             assert 'com/lx862/jcm/mixin/mtrscripting/'+mixin+'.class' in names,(path,mixin)
         data=jar.read('com/lx862/mtrscripting/mod/impl/mtr/vehicle/VehicleWrapper$Stop$RouteInterchange.class')
         assert b'getTransportMode' in data and b'org/mtr/core/data/TransportMode' in data
         metadata=json.loads(jar.read('build_metadata.json'))
         if version: assert metadata['version']==version,(path,metadata)
-        assert re.fullmatch(r'1\.(17\.1|18\.2|19\.2|19\.4|20\.1|20\.4)',metadata['minecraftVersion']),metadata
+        assert re.fullmatch(r'1\.(21\.1|21\.4)',metadata['minecraftVersion']),metadata
     return {'jar':path.name,'version':metadata['version'],'minecraft':metadata['minecraftVersion'],'bridges':len(platforms),'resource_pack_scan':'passed'}
 
 if __name__=='__main__':

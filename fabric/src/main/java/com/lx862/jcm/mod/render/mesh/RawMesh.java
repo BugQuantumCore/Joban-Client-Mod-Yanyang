@@ -175,23 +175,38 @@ public final class RawMesh {
          * The vertex coordinate convention follows the legacy MTR model space
          * (x, -y, -z relative to the model origin), matching
          * {@link StoredVertexData#write}.
+         *
+         * <p>Vertices are emitted through the {@link Face} index list, fan
+         * triangulated (see {@link Face#triangulate}) — the group is built
+         * with {@code VertexFormat.Mode.TRIANGLES}, so a raw vertex stream
+         * would draw only the first triangle of every quad face. The builder
+         * (RawMeshBuilderJS) already stores triangulated faces; the fan keeps
+         * defensively-correct behaviour for meshes assembled through other
+         * paths (e.g. quad faces from {@link #addVertex}).</p>
          */
         public void upload(NewOptimizedModelGroup newOptimizedModelGroup) {
                 distinct();
 
                 final int materialColor = materialProperties.color == null ? 0xFFFFFFFF : materialProperties.color;
-                final ObjectArrayList<StoredVertexData> storedVertexDataList = new ObjectArrayList<>(vertices.size());
-                vertices.forEach(vertex -> storedVertexDataList.add(new StoredVertexData(
-                                vertex.position.x,
-                                -vertex.position.y,
-                                -vertex.position.z,
-                                new java.awt.Color(vertex.color == 0 ? materialColor : vertex.color, true),
-                                vertex.u,
-                                vertex.v,
-                                vertex.normal == null ? 0 : vertex.normal.x,
-                                vertex.normal == null ? 0 : -vertex.normal.y,
-                                vertex.normal == null ? 0 : -vertex.normal.z
-                )));
+                final ObjectArrayList<StoredVertexData> storedVertexDataList = new ObjectArrayList<>();
+                for (final Face face : faces) {
+                        for (final Face triangle : Face.triangulate(face.vertices)) {
+                                for (final int vertexIndex : triangle.vertices) {
+                                        final Vertex vertex = vertices.get(vertexIndex);
+                                        storedVertexDataList.add(new StoredVertexData(
+                                                        vertex.position.x,
+                                                        -vertex.position.y,
+                                                        -vertex.position.z,
+                                                        new java.awt.Color(vertex.color == 0 ? materialColor : vertex.color, true),
+                                                        vertex.u,
+                                                        vertex.v,
+                                                        vertex.normal == null ? 0 : vertex.normal.x,
+                                                        vertex.normal == null ? 0 : -vertex.normal.y,
+                                                        vertex.normal == null ? 0 : -vertex.normal.z
+                                        ));
+                                }
+                        }
+                }
                 newOptimizedModelGroup.add(materialProperties.shaderType.toRenderStage(), materialProperties.getTexture(), list -> list.addAll(storedVertexDataList), null);
         }
 

@@ -1,8 +1,13 @@
-"""Run production ModelJS/RawMeshBuilderJS against MTR's real GPU upload classes.
+"""Run production ModelJS/RawMeshBuilderJS against MTR 4.1's real model classes.
 
-A hidden GLFW context uses real LWJGL. Only Minecraft services, material lookup
-and mixin accessor implementations are substituted; RawModel, RawMesh, Face,
-VertexArray, VertexBuffer, IndexBuffer and GlStateTracker come from --mtr-jar.
+MTR 4.1 moved the GPU upload into Minecraft's own VertexBuffer, so the test
+pins the JCM side of the boundary instead of driving a GL context: the real
+NewOptimizedModelGroup/NewOptimizedModel/StoredVertexData classes come from
+--mtr-jar (the pinned MTR-Yanyang release), while the small Minecraft vertex
+surface is stubbed with a recording implementation (see STUBS). RawMesh is
+compiled from a generated fixture that implements the RawMeshAccessor mixin
+surface (the de-finalised fields + setters the mixin weaves in production),
+regenerated from the production source on every run so it cannot drift.
 """
 import argparse
 import os
@@ -12,104 +17,157 @@ import subprocess
 import urllib.request
 
 STUBS = {
-    'net/minecraft/class_5944.java': 'package net.minecraft; public class class_5944 {}',
-    'com/mojang/blaze3d/systems/RenderSystem.java': '''package com.mojang.blaze3d.systems;
-public class RenderSystem {
- public static net.minecraft.class_5944 getShader() { return null; }
- public static void setShader(java.util.function.Supplier<net.minecraft.class_5944> s) {}
- public static void enableCull() { org.lwjgl.opengl.GL33.glEnable(org.lwjgl.opengl.GL33.GL_CULL_FACE); }
- public static void depthMask(boolean b) { org.lwjgl.opengl.GL33.glDepthMask(b); }
- public static boolean isOnRenderThread() { return true; }
- public static void recordRenderCall(net.minecraft.class_4573 r) { r.execute(); }
+    'net/minecraft/resources/ResourceLocation.java': '''package net.minecraft.resources;
+public record ResourceLocation(String path) {}''',
+    'com/mojang/blaze3d/vertex/VertexFormat.java': '''package com.mojang.blaze3d.vertex;
+public class VertexFormat {
+	public enum Mode { LINES, LINE_STRIP, DEBUG_LINES, DEBUG_LINE_STRIP, TRIANGLES, TRIANGLE_STRIP, QUADS }
 }''',
-    'net/minecraft/class_4573.java': 'package net.minecraft; public interface class_4573 { void execute(); }',
+    'com/mojang/blaze3d/vertex/DefaultVertexFormat.java': '''package com.mojang.blaze3d.vertex;
+public final class DefaultVertexFormat {
+	public static final VertexFormat NEW_ENTITY = new VertexFormat();
+	private DefaultVertexFormat() {}
+}''',
+    'com/mojang/blaze3d/vertex/VertexConsumer.java': '''package com.mojang.blaze3d.vertex;
+public interface VertexConsumer {
+	default VertexConsumer addVertex(float x, float y, float z) { return this; }
+	default VertexConsumer setColor(int red, int green, int blue, int alpha) { return this; }
+	default VertexConsumer setUv(float u, float v) { return this; }
+	default VertexConsumer setUv1(int u, int v) { return this; }
+	default VertexConsumer setUv2(int u, int v) { return this; }
+	default VertexConsumer setNormal(float x, float y, float z) { return this; }
+	default VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+		return this;
+	}
+}''',
+    'com/mojang/blaze3d/vertex/BufferBuilder.java': '''package com.mojang.blaze3d.vertex;
+import java.util.ArrayList;
+import java.util.List;
+public class BufferBuilder implements VertexConsumer {
+	public static final class Vertex {
+		public final float x, y, z, u, v, nx, ny, nz;
+		public final int color, overlay, light;
+		public Vertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+			this.x = x; this.y = y; this.z = z; this.color = color; this.u = u; this.v = v;
+			this.overlay = overlay; this.light = light; this.nx = nx; this.ny = ny; this.nz = nz;
+		}
+	}
+	public final List<Vertex> recorded = new ArrayList<>();
+	public final VertexFormat.Mode mode;
+	public BufferBuilder(VertexFormat.Mode mode, VertexFormat format) { this.mode = mode; }
+	@Override
+	public VertexConsumer addVertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float nx, float ny, float nz) {
+		recorded.add(new Vertex(x, y, z, color, u, v, overlay, light, nx, ny, nz));
+		return this;
+	}
+	public MeshData build() { return new MeshData(mode, recorded); }
+}''',
+    'com/mojang/blaze3d/vertex/MeshData.java': '''package com.mojang.blaze3d.vertex;
+import java.util.List;
+public final class MeshData {
+	public final VertexFormat.Mode mode;
+	public final List<BufferBuilder.Vertex> vertices;
+	public MeshData(VertexFormat.Mode mode, List<BufferBuilder.Vertex> vertices) { this.mode = mode; this.vertices = vertices; }
+}''',
+    'com/mojang/blaze3d/vertex/Tesselator.java': '''package com.mojang.blaze3d.vertex;
+public final class Tesselator {
+	private static final Tesselator INSTANCE = new Tesselator();
+	public static Tesselator getInstance() { return INSTANCE; }
+	public BufferBuilder begin(VertexFormat.Mode mode, VertexFormat format) { return new BufferBuilder(mode, format); }
+}''',
+    'com/mojang/blaze3d/vertex/VertexBuffer.java': '''package com.mojang.blaze3d.vertex;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+public class VertexBuffer {
+	/** Every buffer ever created, in creation order (correlates to NewOptimizedModel instances). */
+	public static final List<VertexBuffer> ALL = Collections.synchronizedList(new ArrayList<>());
+	public enum Usage { STATIC }
+	public final List<MeshData> uploads = new ArrayList<>();
+	public int closeCount;
+	public VertexBuffer(Usage usage) { ALL.add(this); }
+	public void bind() {}
+	public void upload(MeshData meshData) { uploads.add(meshData); }
+	public void close() { closeCount++; }
+	public static void unbind() {}
+}''',
+    'net/minecraft/client/renderer/texture/OverlayTexture.java': '''package net.minecraft.client.renderer.texture;
+public final class OverlayTexture {
+	public static final int NO_OVERLAY = 0;
+	private OverlayTexture() {}
+}''',
+    'net/minecraft/world/phys/AABB.java': '''package net.minecraft.world.phys;
+public class AABB {
+	public AABB(double x1, double y1, double z1, double x2, double y2, double z2) {}
+}''',
     'org/mtr/mapping/tool/DummyClass.java': '''package org.mtr.mapping.tool;
 public class DummyClass { public static void logException(Exception e) {} }''',
-    'org/mtr/mapping/holder/Identifier.java': '''package org.mtr.mapping.holder;
-public record Identifier(String value) { public String getPath() { return value; } }''',
-    'org/mtr/mapping/render/batch/MaterialProperties.java': '''package org.mtr.mapping.render.batch;
-public class MaterialProperties {
- public final org.mtr.mapping.mapper.OptimizedModel.ShaderType shaderType;
- public final org.mtr.mapping.render.vertex.VertexAttributeState vertexAttributeState;
- private org.mtr.mapping.holder.Identifier texture;
- public MaterialProperties(org.mtr.mapping.mapper.OptimizedModel.ShaderType s,org.mtr.mapping.holder.Identifier t,Integer c) {
-  shaderType=s; texture=t; vertexAttributeState=new org.mtr.mapping.render.vertex.VertexAttributeState(c,null);
- }
- public org.mtr.mapping.holder.Identifier getTexture() { return texture; }
- public void setTexture(org.mtr.mapping.holder.Identifier t) { texture=t; }
+    'com/lx862/jcm/mixin/mtrscripting/RawMeshAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
+import com.lx862.jcm.mod.render.mesh.MaterialProperties;
+import com.lx862.jcm.mod.render.mesh.Face;
+import com.lx862.jcm.mod.render.mesh.RawMesh;
+import com.lx862.jcm.mod.render.mesh.Vertex;
+import java.util.List;
+/** Headless stand-in for the mixin-woven accessor; the generated RawMesh fixture implements it. */
+public interface RawMeshAccessor {
+	void setMaterialProperties(MaterialProperties properties);
+	void setVertices(List<Vertex> vertices);
+	void setFaces(List<Face> faces);
 }''',
-    'org/mtr/mapping/mapper/OptimizedModel.java': '''package org.mtr.mapping.mapper;
-public class OptimizedModel implements com.lx862.jcm.mixin.mtrscripting.OptimizedModelAccessor {
- public enum ShaderType { CUTOUT, CUTOUT_BRIGHT, CUTOUT_GLOWING, TRANSLUCENT, TRANSLUCENT_BRIGHT, TRANSLUCENT_GLOWING }
- public final java.util.List<org.mtr.mapping.render.object.VertexArray> parts;
- public OptimizedModel(java.util.List<org.mtr.mapping.render.object.VertexArray> p) { parts=p; }
- public java.util.List<org.mtr.mapping.render.object.VertexArray> getUploadedParts() { return parts; }
+    'com/lx862/jcm/mod/util/JCMLogger.java': '''package com.lx862.jcm.mod.util;
+public final class JCMLogger {
+	public static void info(String s, Object... o) {}
+	public static void warn(String s, Object... o) {}
+	public static void error(String s, Object... o) {}
+	public static void error(String s, Throwable e) {}
+	public static void fatal(String s, Object... o) {}
+	public static void debug(String s, Object... o) {}
 }''',
-    'com/lx862/jcm/mixin/mtrscripting/OptimizedModelAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
-public interface OptimizedModelAccessor {
- static org.mtr.mapping.render.vertex.VertexAttributeMapping getDefaultMapping() {
-  var builder=new org.mtr.mapping.render.vertex.VertexAttributeMapping.Builder();
-  for(var type:org.mtr.mapping.render.vertex.VertexAttributeType.values())
-    builder.set(type,org.mtr.mapping.render.vertex.VertexAttributeSource.GLOBAL);
-  for(var type:java.util.List.of(org.mtr.mapping.render.vertex.VertexAttributeType.POSITION,
-    org.mtr.mapping.render.vertex.VertexAttributeType.UV_TEXTURE,org.mtr.mapping.render.vertex.VertexAttributeType.NORMAL))
-    builder.set(type,org.mtr.mapping.render.vertex.VertexAttributeSource.VERTEX_BUFFER);
-  return builder.build();
- }
- java.util.List<org.mtr.mapping.render.object.VertexArray> getUploadedParts();
-}''',
-    'com/lx862/jcm/mixin/mtrscripting/GlStateTrackerAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
-public interface GlStateTrackerAccessor {
- static boolean isStateProtected() {
-  try { var f=org.mtr.mapping.render.tool.GlStateTracker.class.getDeclaredField("isStateProtected"); f.setAccessible(true); return f.getBoolean(null); }
-  catch(ReflectiveOperationException e) { throw new AssertionError(e); }
- }
-}''',
-    'com/lx862/jcm/mixin/mtrscripting/OptimizedModelWrapperAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
-public interface OptimizedModelWrapperAccessor {
- static org.mtr.mod.resource.OptimizedModelWrapper createNew(org.mtr.mapping.mapper.OptimizedModel model) { return new org.mtr.mod.resource.OptimizedModelWrapper(model); }
- org.mtr.mapping.mapper.OptimizedModel getOptimizedModel();
-}''',
-    'org/mtr/mod/resource/OptimizedModelWrapper.java': '''package org.mtr.mod.resource;
-public class OptimizedModelWrapper implements com.lx862.jcm.mixin.mtrscripting.OptimizedModelWrapperAccessor {
- private final org.mtr.mapping.mapper.OptimizedModel model;
- public OptimizedModelWrapper(org.mtr.mapping.mapper.OptimizedModel m) { model=m; }
- public org.mtr.mapping.mapper.OptimizedModel getOptimizedModel() { return model; }
-}''',
-    'org/mtr/mapping/mapper/OptimizedRenderer.java': 'package org.mtr.mapping.mapper; public class OptimizedRenderer { public static boolean hasOptimizedRendering() { return true; } }',
-    'org/mtr/mod/client/CustomResourceLoader.java': '''package org.mtr.mod.client;
-public class CustomResourceLoader {
- public static final CustomResourceLoader OPTIMIZED_RENDERER_WRAPPER=new CustomResourceLoader();
- public void queue(org.mtr.mod.resource.OptimizedModelWrapper m,org.mtr.mod.render.StoredMatrixTransformations.Graphics g,int light) {}
-}''',
-    'org/mtr/mod/render/StoredMatrixTransformations.java': '''package org.mtr.mod.render;
-public class StoredMatrixTransformations {
- public static class Graphics { public void pop() {} }
- public void transform(Graphics g,Object o) {}
-}''',
-    'org/mtr/mod/render/MainRenderer.java': '''package org.mtr.mod.render;
-public class MainRenderer { public static void scheduleRender(QueuedRenderLayer l,java.util.function.BiConsumer<StoredMatrixTransformations.Graphics,Object> c) {} }''',
-    'org/mtr/mod/render/QueuedRenderLayer.java': 'package org.mtr.mod.render; public enum QueuedRenderLayer { TEXT }',
     'com/lx862/mtrscripting/core/annotation/ApiInternal.java': 'package com.lx862.mtrscripting.core.annotation; public @interface ApiInternal {}',
     'com/lx862/mtrscripting/core/util/ScriptVector3f.java': '''package com.lx862.mtrscripting.core.util;
-public record ScriptVector3f(float x,float y,float z) {}''',
-    'com/lx862/jcm/mixin/mtrscripting/VertexAttributeStateAccessor.java': '''package com.lx862.jcm.mixin.mtrscripting;
-public interface VertexAttributeStateAccessor { void setColor(int c); }''',
-    # Upstream prerelease.2 added JSUtil.parseId calls to ModelJS/RawMeshBuilderJS;
-    # stubbed here (the real one drags in ScriptResourceUtil -> JCM/AWT/commons).
-    # ModelUploadTest never exercises the texture-replace paths, so a plain
-    # passthrough onto the stubbed Identifier record is sufficient.
+public record ScriptVector3f(float x, float y, float z) {
+	public org.joml.Vector3f rawVector3f() { return new org.joml.Vector3f(x, y, z); }
+}''',
+    # The real one drags ScriptResourceUtil -> JCM/AWT/commons; parseId is a
+    # plain passthrough onto the stubbed ResourceLocation record here.
     'com/lx862/mtrscripting/mod/util/JSUtil.java': '''package com.lx862.mtrscripting.mod.util;
 public class JSUtil {
- public static org.mtr.mapping.holder.Identifier parseId(String str) { return new org.mtr.mapping.holder.Identifier(str); }
-}''',
-    'com/lx862/mtrscripting/core/util/model/RawModelJS.java': '''package com.lx862.mtrscripting.core.util.model;
-public class RawModelJS {
- public final org.mtr.mapping.render.model.RawModel rawModel;
- public RawModelJS(org.mtr.mapping.render.model.RawModel m) { rawModel=m; }
- public static org.mtr.mod.resource.RenderStage stringToRenderStage(String s) { return org.mtr.mod.resource.RenderStage.valueOf(s.toUpperCase(java.util.Locale.ROOT)); }
+	public static net.minecraft.resources.ResourceLocation parseId(String str) { return new net.minecraft.resources.ResourceLocation(str); }
 }''',
 }
+
+# Injection applied to a copy of the production RawMesh.java: the RawMeshAccessor
+# mixin weaves these accessors in production (@Accessor + @Mutable on the final
+# fields); the fixture de-finalises the three fields and implements the setters,
+# so copyForMaterialChanges' field rebinds work verbatim in the headless build.
+FIXTURE_MARKER = 'public final class RawMesh {'
+FIXTURE_DECL = 'public final class RawMesh implements com.lx862.jcm.mixin.mtrscripting.RawMeshAccessor {'
+FIXTURE_FIELDS = {
+    'public final MaterialProperties materialProperties;': 'public MaterialProperties materialProperties;',
+    'public final List<Vertex> vertices = new ArrayList<>();': 'public List<Vertex> vertices = new ArrayList<>();',
+    'public final List<Face> faces = new ArrayList<>();': 'public List<Face> faces = new ArrayList<>();',
+}
+FIXTURE_METHODS = '''
+	/* Test fixture: the RawMeshAccessor mixin weaves these in production. */
+	@Override
+	public void setMaterialProperties(MaterialProperties properties) { this.materialProperties = properties; }
+	@Override
+	public void setVertices(List<Vertex> vertices) { this.vertices = vertices; }
+	@Override
+	public void setFaces(List<Face> faces) { this.faces = faces; }
+'''
+
+
+def raw_mesh_fixture(source: str) -> str:
+    if source.count(FIXTURE_MARKER) != 1:
+        raise SystemExit('RawMesh.java: fixture marker not found exactly once')
+    text = source.replace(FIXTURE_MARKER, FIXTURE_DECL)
+    for original, de_finalised in FIXTURE_FIELDS.items():
+        if text.count(original) != 1:
+            raise SystemExit(f'RawMesh.java: field declaration not found exactly once: {original}')
+        text = text.replace(original, de_finalised)
+    tail = text.rfind('}')
+    return text[:tail] + FIXTURE_METHODS + '}'
 
 
 def main():
@@ -117,47 +175,55 @@ def main():
     parser.add_argument('--mtr-jar', required=True, type=Path)
     parser.add_argument('--work', required=True, type=Path)
     parser.add_argument('--java-home', type=Path, default=os.environ.get('JAVA_HOME'))
-    parser.add_argument('--model-source', type=Path)
-    parser.add_argument('--expect-unprotected-failure', action='store_true')
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[2]
     work = args.work.resolve()
     work.mkdir(parents=True, exist_ok=True)
-    native = 'windows' if os.name == 'nt' else ('macos' if platform.system() == 'Darwin' else 'linux')
-    if platform.machine().lower() in ('arm64', 'aarch64'):
-        native += '-arm64'
-    dependencies = []
-    for module in ('lwjgl', 'lwjgl-glfw', 'lwjgl-opengl'):
-        for suffix in ('', '-natives-' + native):
-            name = module + '-3.3.1' + suffix + '.jar'
-            path = work / name
-            if not path.exists():
-                urllib.request.urlretrieve('https://repo.maven.apache.org/maven2/org/lwjgl/' + module + '/3.3.1/' + name, path)
-            dependencies.append(path)
-    joml = work / 'joml-1.10.5.jar'
-    if not joml.exists():
-        urllib.request.urlretrieve('https://repo.maven.apache.org/maven2/org/joml/joml/1.10.5/' + joml.name, joml)
-    dependencies.extend((joml, args.mtr_jar.resolve()))
+
+    def fetch(url: str, name: str) -> Path:
+        path = work / name
+        if not path.exists():
+            urllib.request.urlretrieve(url, path)
+        return path
+
+    joml = fetch('https://repo.maven.apache.org/maven2/org/joml/joml/1.10.5/joml-1.10.5.jar', 'joml-1.10.5.jar')
+    annotations = fetch('https://repo.maven.apache.org/maven2/org/jetbrains/annotations/24.1.0/annotations-24.1.0.jar', 'annotations-24.1.0.jar')
+    dependencies = [joml, annotations, args.mtr_jar.resolve()]
+
     sources = []
     for name, content in STUBS.items():
         path = work / 'src' / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
         sources.append(path)
-    base = repo / 'fabric/src/main/java/com/lx862/mtrscripting/core/util/model'
-    sources.extend((args.model_source or base / 'ModelJS.java', base / 'RawMeshBuilderJS.java',
-                    Path(__file__).with_name('jvm') / 'ModelUploadTest.java'))
+
+    base = repo / 'fabric/src/main/java'
+    mesh = base / 'com/lx862/jcm/mod/render/mesh'
+    # Generated fixture: the production RawMesh plus the mixin-woven accessors.
+    fixture = work / 'src' / 'com/lx862/jcm/mod/render/mesh/RawMesh.java'
+    fixture.parent.mkdir(parents=True, exist_ok=True)
+    fixture.write_text(raw_mesh_fixture((mesh / 'RawMesh.java').read_text(encoding='utf-8')), encoding='utf-8')
+    sources.append(fixture)
+    for name in ('Face.java', 'Vertex.java', 'MaterialProperties.java', 'ShaderType.java', 'RawModel.java', 'OptimizedModelWrapper.java'):
+        sources.append(mesh / name)
+    model = base / 'com/lx862/mtrscripting/core/util/model'
+    for name in ('ModelJS.java', 'RawModelJS.java', 'RawMeshBuilderJS.java'):
+        sources.append(model / name)
+    sources.append(Path(__file__).with_name('jvm') / 'ModelUploadTest.java')
+
     classes = work / 'classes'
     classes.mkdir(exist_ok=True)
+
     def java_tool(name):
         return str(Path(args.java_home) / 'bin' / (name + ('.exe' if os.name == 'nt' else ''))) if args.java_home else name
+
     argfile = work / 'sources.txt'
     argfile.write_text('\n'.join('"' + str(p).replace('\\', '/') + '"' for p in sources), encoding='utf-8')
     cp = os.pathsep.join(map(str, dependencies))
     subprocess.run([java_tool('javac'), '-encoding', 'UTF-8', '-cp', cp, '-d', str(classes), '@' + str(argfile)], check=True)
-    mode = 'old' if args.expect_unprotected_failure else 'fixed'
     subprocess.run([java_tool('java'), '-cp', str(classes) + os.pathsep + cp,
-                    'com.lx862.mtrscripting.core.util.model.ModelUploadTest', mode], check=True)
+                    'com.lx862.mtrscripting.core.util.model.ModelUploadTest'], check=True)
+    print('host:', platform.system(), platform.machine())
 
 
 if __name__ == '__main__':

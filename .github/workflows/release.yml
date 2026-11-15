@@ -29,15 +29,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify real MTR model upload and GL state restoration
+      - name: Verify model coordinates and the MTR 4.1 upload contract
         env:
-          LIBGL_ALWAYS_SOFTWARE: '1'
+          GH_TOKEN: ${{ github.token }}
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+          set -euo pipefail
           mkdir -p native/build-gl
-          curl --fail --location --retry 3 'https://api.modrinth.com/maven/maven/modrinth/minecraft-transit-railway/FABRIC-4.0.5+1.20.1/minecraft-transit-railway-FABRIC-4.0.5+1.20.1.jar' -o native/build-gl/mtr.jar
-          xvfb-run -a python3 native/bench/model_upload_test.py --mtr-jar native/build-gl/mtr.jar --work native/build-gl/test
+          TAG=$(jq -r .tag gradle/mtr41-lock.json)
+          NAME=$(jq -r '.artifacts["1.21.1-neoforge"].name' gradle/mtr41-lock.json)
+          SHA=$(jq -r '.artifacts["1.21.1-neoforge"].sha256' gradle/mtr41-lock.json)
+          gh release download "$TAG" --repo BugQuantumCore/MTR-Yanyang --pattern "$NAME" --dir native/build-gl
+          printf '%s  %s\n' "$SHA" "native/build-gl/$NAME" | sha256sum --check --strict
+          mv "native/build-gl/$NAME" native/build-gl/mtr.jar
+          python3 native/bench/model_upload_test.py --mtr-jar native/build-gl/mtr.jar --work native/build-gl/test
   natives:
     strategy:
       fail-fast: false
@@ -143,7 +147,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        minecraft: [1.17.1, 1.18.2, 1.19.2, 1.19.4, 1.20.1, 1.20.4]
+        minecraft: ['1.21.1', '1.21.4']
+        loader: [fabric, neoforge]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -161,10 +166,27 @@ jobs:
           pattern: native-*
           path: native-dist
           merge-multiple: true
-      - name: Build both loaders with all eight native bridges
+      - name: Download pinned MTR with its matching TSC
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p dependencies
+          NAME=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].name' gradle/mtr41-lock.json)
+          SHA=$(jq -r --arg key "$MC-$LOADER" '.artifacts[$key].sha256' gradle/mtr41-lock.json)
+          TAG=$(jq -r .tag gradle/mtr41-lock.json)
+          gh release download "$TAG" --repo BugQuantumCore/MTR-Yanyang --pattern "$NAME" --dir dependencies
+          printf '%s  %s\n' "$SHA" "dependencies/$NAME" | sha256sum --check --strict
+          mv "dependencies/$NAME" "dependencies/mtr-$MC-$LOADER.jar"
+      - name: Build the module with all eight native bridges
+        env:
+          MC: ${{ matrix.minecraft }}
+          LOADER: ${{ matrix.loader }}
         run: |
           chmod +x ./gradlew
-          # Forge/Maven read-timeouts are transient — retry before failing the matrix leg.
+          # Maven read-timeouts are transient — retry before failing the matrix leg.
           try() {
             local n=0
             until "$@"; do
@@ -174,26 +196,29 @@ jobs:
               sleep 30
             done
           }
-          try ./gradlew setupFiles -Pminecraft_version="${{ matrix.minecraft }}" --console=plain
-          try ./gradlew build -Pminecraft_version="${{ matrix.minecraft }}" -Pmod_version="$RELEASE_VERSION" -Pnative_bridge_dir=native-dist/bridges --console=plain
+          try ./gradlew ":$LOADER:build" -Pminecraft_version="$MC" -Ptarget_loader="$LOADER" -Pmod_version="$RELEASE_VERSION" -Pnative_bridge_dir=native-dist/bridges --console=plain --max-workers=2
       - name: Audit documented Java API declarations
+        # The audited script-facing types all live in the loader-neutral shared
+        # sources, so the NeoForge legs (which consume the pinned MTR jar
+        # un-remapped, in Mojang mappings) carry the audit for both loaders.
+        if: matrix.loader == 'neoforge'
+        env:
+          MC: ${{ matrix.minecraft }}
         run: |
-          find .gradle ~/.gradle -name '*4.0.5*.jar' -type f > native/build-api-jars.txt
           python3 - <<'PY'
           from pathlib import Path
-          import sys, json
+          import os, sys, json
           sys.path.insert(0,'native/bench')
           from api_coverage import audit
-          jars=[Path(line) for line in Path('native/build-api-jars.txt').read_text().splitlines()]
+          jars=[Path('dependencies/mtr-' + os.environ['MC'] + '-neoforge.jar')]
           manifest=json.loads(Path('native/bench/api-coverage.json').read_text())
-          for loader in ('fabric','forge'):
-              audit(Path(loader+'/build/classes/java/main'),jars,manifest)
+          audit(Path('neoforge/build/classes/java/main'), jars, manifest)
           PY
       - name: Verify jar contents and absence of user resource packs
         run: python3 native/bench/verify_jar.py --version "$RELEASE_VERSION" build/*.jar
       - uses: actions/upload-artifact@v4
         with:
-          name: jars-${{ matrix.minecraft }}
+          name: jars-${{ matrix.minecraft }}-${{ matrix.loader }}
           path: build/*.jar
           retention-days: 1
           if-no-files-found: error
@@ -216,9 +241,9 @@ jobs:
           pattern: native-*
           path: native-dist
           merge-multiple: true
-      - name: Require all twelve jars and package a separate SDK
+      - name: Require all four jars and package a separate SDK
         run: |
-          test "$(find release-jars -name '*.jar' -type f | wc -l)" -eq 12
+          test "$(find release-jars -name '*.jar' -type f | wc -l)" -eq 4
           python3 - <<'PY'
           import os,subprocess,zipfile
           from pathlib import Path
