@@ -15,10 +15,10 @@ import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.SlabType;
 #if MC_VERSION == "12104"
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.ScheduledTickAccess;
 import net.minecraft.util.RandomSource;
 #endif
+import net.minecraft.world.level.LevelReader;
 
 public abstract class SlabExtendableBlock extends DirectionalBlock {
     public static final BooleanProperty IS_SLAB = BlockProperties.IS_SLAB;
