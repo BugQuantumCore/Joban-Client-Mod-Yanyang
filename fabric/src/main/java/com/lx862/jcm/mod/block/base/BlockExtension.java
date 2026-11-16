@@ -2,6 +2,12 @@ package com.lx862.jcm.mod.block.base;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.Property;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Compatibility base class replacing the removed MTR 4.0-era
@@ -18,15 +24,35 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
  */
 public abstract class BlockExtension extends Block {
 
-	public BlockExtension(BlockBehaviour.Properties settings) {
-		super(settings);
-	}
+        public BlockExtension(BlockBehaviour.Properties settings) {
+                super(settings);
+        }
 
-	/**
-	 * Declares the block state properties of this block. Kept from the 4.0-era
-	 * mapping layer; the port keeps the JCM convention of declaring all
-	 * properties in one place ({@code BlockProperties}).
-	 */
-	public void addBlockProperties(java.util.List<net.minecraft.world.level.block.state.properties.Property<?>> properties) {
-	}
+        /**
+         * Bridges JCM's 4.0-era {@code addBlockProperties(List)} convention to
+         * vanilla {@code createBlockStateDefinition(StateDefinition.Builder)}.
+         *
+         * <p>The {@link Block} constructor invokes this while assembling the
+         * block's state definition, so every property contributed by
+         * {@link #addBlockProperties(List)} (this class and all subclasses)
+         * becomes part of the block's possible states. Without this bridge no
+         * JCM block would carry any property, and any constructor calling
+         * {@code defaultBlockState().setValue(...)} would crash with
+         * {@code IllegalArgumentException: Cannot set property ... as it does
+         * not exist}.</p>
+         */
+        @Override
+        protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+                final List<Property<?>> properties = new ArrayList<>();
+                addBlockProperties(properties);
+                builder.add(properties.toArray(new Property[0]));
+        }
+
+        /**
+         * Declares the block state properties of this block. Kept from the 4.0-era
+         * mapping layer; the port keeps the JCM convention of declaring all
+         * properties in one place ({@code BlockProperties}).
+         */
+        public void addBlockProperties(List<Property<?>> properties) {
+        }
 }
