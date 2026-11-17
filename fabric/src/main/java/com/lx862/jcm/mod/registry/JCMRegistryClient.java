@@ -18,7 +18,11 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 public class JCMRegistryClient {
 
     public static void setupPacketClient() {
-        RegistryClient.setupPackets();
+        // MTR 4.1: MTRClient.init() registers the S2C receiver for the shared
+        // mtr:packet_s2c channel itself (RegistryClient.setupPackets). Client
+        // entrypoints also run in alphabetical mod-id order (jsblock before mtr),
+        // so calling it here would double-register the receiver and crash
+        // MTRClient.init() later in the client entrypoint stage.
     }
 
     public static <U extends BlockEntity> void registerBlockEntityRenderer(ObjectHolder<BlockEntityType<U>> blockEntityType, BlockEntityRendererProvider<? super U> rendererInstance) {
