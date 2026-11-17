@@ -8,7 +8,6 @@ import org.mtr.resource.ResourceManagerHelper;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.function.Consumer;
 
@@ -78,13 +77,20 @@ public class McMetaManager {
         ResourceManagerHelper.readResource(imageFile, (inputStream -> {
             try {
                 BufferedImage bufferedImage = ImageIO.read(inputStream);
+                if (bufferedImage == null) {
+                    /* ImageIO returns null (not an exception) for data it
+                     * cannot decode — without this guard, getWidth() below
+                     * would NPE on the render thread. */
+                    JCMLogger.error("[McMetaManager] Failed to read image metadata from {}: not a decodable image!", imageFile.getPath());
+                    return;
+                }
                 int width = bufferedImage.getWidth();
                 int height = bufferedImage.getHeight();
                 JCMLogger.debug("[McMetaManager] Loaded mcmeta image metadata: {} ({})", imageFile.getPath(), width + "x" + height);
                 mcMeta.setVerticalPart((height / width));
                 callback.accept(mcMeta);
-            } catch (IOException e) {
-                JCMLogger.error( "[McMetaManager] Failed to read image metadata from {}!", imageFile.getPath());
+            } catch (Exception e) {
+                JCMLogger.error("[McMetaManager] Failed to read image metadata from {}!", imageFile.getPath());
             }
         }));
     }

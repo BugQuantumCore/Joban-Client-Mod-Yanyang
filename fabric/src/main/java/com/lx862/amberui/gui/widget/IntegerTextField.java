@@ -64,7 +64,7 @@ public class IntegerTextField extends AlwaysRenderedTextField implements GuiHelp
 
     @Override
     public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
     
         super.renderWidget(guiGraphics, mouseX, mouseY, tickDelta);
 
@@ -82,7 +82,14 @@ public class IntegerTextField extends AlwaysRenderedTextField implements GuiHelp
     @Override
     public void setValue(String s) {
         super.setValue(s);
-        if(this.changeListener != null) this.changeListener.accept(Long.parseLong(s));
+        if(this.changeListener == null) return;
+        try {
+            this.changeListener.accept(Long.parseLong(s));
+        } catch (NumberFormatException e) {
+            /* Intermediate edit states (e.g. a lone "-") are not numbers
+             * yet — leave the listener at the last valid value instead of
+             * crashing the screen. */
+        }
     }
 
     protected void drawPrefix(GraphicsHolder graphicsHolder) {
