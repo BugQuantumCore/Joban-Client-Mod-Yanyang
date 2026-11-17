@@ -29,6 +29,13 @@ public class ClipStack {
      * At least one clip area should be applied via {@link ClipStack#push(int, int, int, int)} before using.
      */
     public static void add(int x, int y, int width, int height) { //TODO: WIP, might cause issues
+        /* Guard: add() clamps against the enclosing clip; with an empty
+         * stack there is nothing to clamp against (and stacks.get(-1)
+         * would throw) — degrade to a plain push. */
+        if (stacks.isEmpty()) {
+            push(x, y, width, height);
+            return;
+        }
         Rectangle oldStack = stacks.get(stacks.size()-1);
         int clampedX = Math.max(oldStack.x, x);
         int clampedY = Math.max(oldStack.y, y);

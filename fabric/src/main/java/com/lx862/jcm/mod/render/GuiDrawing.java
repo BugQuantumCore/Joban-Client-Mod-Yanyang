@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -52,7 +53,14 @@ public final class GuiDrawing {
                                 .setVertices(x1, y1, z1, x2, y1, z1, x2, y2, z2, x1, y2, z2)
                                 .setColor(color)
                                 .draw();
-                BufferUploader.drawWithShader(builder.build());
+                /* BufferBuilder#build() is @Nullable on 1.21: it returns null when
+                 * nothing was written (Drawing skips fully-transparent and
+                 * degenerate quads), and BufferUploader#drawWithShader NPEs on
+                 * a null MeshData. */
+                final MeshData meshData = builder.build();
+                if (meshData != null) {
+                        BufferUploader.drawWithShader(meshData);
+                }
         }
 
         public void finishDrawingRectangle() {
@@ -78,7 +86,10 @@ public final class GuiDrawing {
                                 .setColor(0xFFFFFFFF)
                                 .setUv(u1, v1, u2, v2)
                                 .draw();
-                BufferUploader.drawWithShader(builder.build());
+                final MeshData meshData = builder.build();
+                if (meshData != null) {
+                        BufferUploader.drawWithShader(meshData);
+                }
         }
 
         public void finishDrawingTexture() {

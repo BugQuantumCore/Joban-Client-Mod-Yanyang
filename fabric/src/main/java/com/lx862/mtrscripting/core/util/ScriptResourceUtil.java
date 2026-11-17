@@ -60,9 +60,9 @@ public class ScriptResourceUtil {
     public static final boolean ANTE_FLAG = false;
 
     private static final FontRenderContext FONT_CONTEXT = new FontRenderContext(new AffineTransform(), true, false);
-    private static final ResourceLocation NOTO_SANS_CJK_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-sans-cjk-tc-medium.otf");
+    private static final ResourceLocation NOTO_SANS_CJK_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-sans-tc-semibold.ttf");
     private static final ResourceLocation NOTO_SANS_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-sans-semibold.ttf");
-    private static final ResourceLocation NOTO_SERIF_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-serif-cjk-tc-semibold.ttf");
+    private static final ResourceLocation NOTO_SERIF_LOCATION = ResourceLocation.fromNamespaceAndPath("mtr", "font/noto-serif-tc-semibold.ttf");
     private static Font NOTO_SANS_CACHE;
     /** Sentinel for a font that failed to load (see getSystemFont). */
     private static final Font FAILED_FONT = new Font(Font.SANS_SERIF, Font.PLAIN, 1);

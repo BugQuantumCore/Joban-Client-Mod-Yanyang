@@ -1,6 +1,10 @@
 {
   "pack": {
     "description": "JCM Resource Override (Fabric)",
-    "pack_format": 22
+    "pack_format": 34,
+    "supported_formats": {
+      "min_inclusive": 22,
+      "max_inclusive": 46
+    }
   }
 }

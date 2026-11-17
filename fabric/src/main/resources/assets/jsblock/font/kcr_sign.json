@@ -9,7 +9,14 @@
 		},
 		{
 			"type": "ttf",
-			"file": "jsblock:aotf.otf",
+			"file": "mtr:noto-serif-tc-semibold.ttf",
+			"shift": [ -0.6, 0.85 ],
+			"size": 9.7,
+			"oversample": 7.0
+		},
+		{
+			"type": "ttf",
+			"file": "mtr:noto-serif-sc-semibold.ttf",
 			"shift": [ -0.6, 0.85 ],
 			"size": 9.7,
 			"oversample": 7.0

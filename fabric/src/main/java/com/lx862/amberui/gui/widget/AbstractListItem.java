@@ -34,6 +34,10 @@ public abstract class AbstractListItem implements RenderHelper, GuiHelper {
 
     private void drawListEntryHighlight(GuiDrawing guiDrawing, int x, int y, int width, int height) {
         int highlightAlpha = (int)(100 * hoverOpacity);
+        /* Hover fade passes through 0 < hoverOpacity < 0.01, where the alpha
+         * byte rounds to 0 — the quad is invisible, and MTR's Drawing skips
+         * fully-transparent quads entirely, so don't even start a draw. */
+        if(highlightAlpha <= 0) return;
         int highlightColor = (highlightAlpha << 24) | (150 << 16) | (150 << 8) | 150;
 
         GuiHelper.drawRectangle(guiDrawing, x, y, width, height, highlightColor);
