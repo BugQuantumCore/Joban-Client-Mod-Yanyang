@@ -61,7 +61,14 @@ public class JCMRegistry {
     }
 
     public static void setupPacket() {
-        RegistryServer.setupPackets();
+        // MTR 4.1: MTR registers its shared mtr:packet_s2c / mtr:packet_c2s payload
+        // channels itself in MTR.init() (RegistryServer.setupPackets). Fabric Loader
+        // invokes entrypoints in alphabetical mod-id order (jsblock before mtr), so
+        // calling RegistryServer.setupPackets() here registered the channels first and
+        // made MTR.init() crash with:
+        //   "Packet type class_9154[id=mtr:packet_s2c] is already registered!"
+        // Addon packet handlers are registered on MTR's shared channel through
+        // registerPacket() below, which is a safe map put regardless of init order.
     }
 
     public static <T extends PacketHandler> void registerPacket(Class<T> classObject, Function<PacketBufferReceiver, T> getInstance) {
