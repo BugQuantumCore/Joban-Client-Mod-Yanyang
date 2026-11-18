@@ -77,7 +77,19 @@ public class Checkbox extends AbstractWidget {
                 RenderSystem.enableDepthTest();
                 RenderSystem.enableBlend();
                 final int size = getHeight();
+#if MC_VERSION == "12104"
+                /* 1.21.4: blitSprite takes the RenderType factory
+                 * (RenderType::guiTextured) and an ARGB color; the vanilla
+                 * Checkbox passes ARGB.white(alpha). This widget never
+                 * changes its alpha, so the stock opaque white is used. */
+                guiGraphics.blitSprite(net.minecraft.client.renderer.RenderType::guiTextured,
+                                sprite(), getX(), getY(), size, size, net.minecraft.util.ARGB.white(1.0F));
+#else
+                /* 1.21.1: plain sprite blit; the vanilla Checkbox tints via
+                 * setColor(1, 1, 1, alpha) - with the stock alpha of 1.0 the
+                 * sprite renders untinted either way. */
                 guiGraphics.blitSprite(sprite(), getX(), getY(), size, size);
+#endif
                 RenderSystem.disableBlend();
 
                 if (getMessage() != null && !getMessage().getString().isEmpty()) {
