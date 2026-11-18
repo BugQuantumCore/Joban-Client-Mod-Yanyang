@@ -23,7 +23,6 @@
     "mtrpatch.MainRendererMixin",
     "mtrpatch.ObjectResourceSchemaMixin",
     "mtrpatch.RailMathAccessor",
-    "mtrpatch.RailMathMixin",
     "mtrpatch.RenderRailsMixin",
     "mtrpatch.SignResourceSchemaMixin",
     "mtrpatch.SignResourceMixin",
