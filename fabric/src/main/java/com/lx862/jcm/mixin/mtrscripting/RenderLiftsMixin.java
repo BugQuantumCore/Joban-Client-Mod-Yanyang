@@ -71,11 +71,29 @@ public class RenderLiftsMixin {
 
     /**
      * Per-lift draw hook, ported to MTR 4.1's RenderLifts: the per-lift body
-     * now lives in {@code lambda$render$0} (parameters matched by signature,
-     * the lift / transform locals captured at the method tail — both stable
-     * without any Minecraft-mapped reference in the injection targets).
+     * lives in {@code lambda$render$0}.
+     *
+     * <p>The injection cannot sit at the lambda's tail RETURN: every local
+     * past {@code absolutePositionAndRotation} is declared inside the
+     * {@code if (liftWrapper.shouldRender)} block, and javac ends their
+     * LocalVariableTable ranges at the block close — one instruction before
+     * the RETURN. Old-style LocalCapture therefore sees them as dead at
+     * RETURN, CAPTURE_FAILSOFT silently skips the injection and the
+     * {@code defaultRequire=1} check then aborts the game with
+     * "failed injection check, (0/1) succeeded".</p>
+     *
+     * <p>Instead we inject right before the
+     * {@code RenderLifts.getLiftModel(Lift)} call that starts the built-in
+     * car render (verified at pc 554 of the pinned yanyang.18 jar): there
+     * all fourteen captured locals are still alive in the LVT. As a bonus
+     * the {@code ci.cancel()} now genuinely skips the built-in car model,
+     * the lift displays and the built-in movePlayer call, so
+     * script-controlled lifts are no longer double-rendered /
+     * double-moved by the old no-op tail cancel; the movePlayer replay
+     * below becomes the only one, matching MTR's native shouldRender
+     * gating.</p>
      */
-    @Inject(method = "lambda$render$0", at = @At("RETURN"), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
+    @Inject(method = "lambda$render$0", at = @At(value = "INVOKE", target = "Lorg/mtr/render/RenderLifts;getLiftModel(Lorg/mtr/core/data/Lift;)Lorg/mtr/model/ModelLift1;"), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
     private static void jsblock$drawScript(boolean isHoldingRefresher, ClientLevel clientWorld, ObjectArrayList cullingTasks, Vec3d camera, Vec3 cameraShakeOffset, boolean canRide, LocalPlayer clientPlayerEntity, long millisElapsed, MinecraftClientData.LiftWrapper liftWrapper, CallbackInfo ci, Lift lift, PositionAndRotation absolutePositionAndRotation, IntObjectImmutablePair ridingVehicleCarNumberAndOffset, PositionAndRotation ridingCarPositionAndRotation, Vec3 offsetVector, Double offsetRotation, PositionAndRotation renderingPositionAndRotation, ObjectArrayList floorsAndDoorways, ObjectArrayList openDoorways, AABB doorway1, AABB doorway2, boolean doorway1Open, boolean doorway2Open, StoredMatrixTransformations storedMatrixTransformations) {
         /* Yanyang: C++ lift scripts share the same script-controlled + riding
            semantics as JS. Mixed entries (JS + C++ under one script id) run
