@@ -79,7 +79,6 @@ public class Checkbox extends AbstractWidget {
                 final int size = getHeight();
                 guiGraphics.blitSprite(sprite(), getX(), getY(), size, size);
                 RenderSystem.disableBlend();
-                RenderSystem.disableDepthTest();
 
                 if (getMessage() != null && !getMessage().getString().isEmpty()) {
                         final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
