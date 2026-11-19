@@ -35,6 +35,6 @@ side = "BOTH"
 [[dependencies.jsblock]]
 modId = "mtr"
 type = "required"
-versionRange = "[4.1,4.2)"
+versionRange = "(4.0.6,4.2)"
 ordering = "NONE"
 side = "BOTH"
