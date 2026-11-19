@@ -14,7 +14,7 @@
     }
   },
   "result": {
-    "item": "jsblock:mtr_enquiry_machine",
+    "item": "mtr:mtr_enquiry_machine",
     "count": 4
   }
 }

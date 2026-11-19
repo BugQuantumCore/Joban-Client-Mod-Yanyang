@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "conditions": [
+            {
+              "condition": "minecraft:${condition}",
+              "terms": [
+                {
+                  "condition": "minecraft:block_state_property",
+                  "block": "mtr:fare_saver",
+                  "properties": {
+                    "third": "lower"
+                  }
+                }
+              ]
+            }
+          ],
+          "name": "mtr:fare_saver"
+        }
+      ],
+      "conditions": []
+    }
+  ]
+}

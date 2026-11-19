@@ -2,11 +2,11 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     {
-      "item": "jsblock:departure_timer"
+      "item": "mtr:departure_timer"
     }
   ],
   "result": {
-    "item": "jsblock:departure_pole",
+    "item": "mtr:departure_pole",
     "count": 16
   }
 }

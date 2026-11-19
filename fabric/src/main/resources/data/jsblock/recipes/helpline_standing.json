@@ -10,11 +10,11 @@
       "item": "minecraft:iron_ingot"
     },
     "H": {
-      "item": "jsblock:helpline_standing_eal"
+      "item": "mtr:helpline_standing_eal"
     }
   },
   "result": {
-    "item": "jsblock:helpline_standing",
+    "item": "mtr:helpline_standing",
     "count": 4
   }
 }

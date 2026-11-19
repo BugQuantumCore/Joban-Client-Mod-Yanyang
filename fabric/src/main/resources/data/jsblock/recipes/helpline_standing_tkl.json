@@ -13,11 +13,11 @@
       "item": "minecraft:black_dye"
     },
     "H": {
-      "item": "jsblock:helpline_1"
+      "item": "mtr:helpline_1"
     }
   },
   "result": {
-    "item": "jsblock:helpline_standing_tkl",
+    "item": "mtr:helpline_standing_tkl",
     "count": 4
   }
 }

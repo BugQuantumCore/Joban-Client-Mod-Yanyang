@@ -7,14 +7,14 @@
   ],
   "key": {
     "C": {
-      "item": "jsblock:station_ceiling_wrl"
+      "item": "mtr:station_ceiling_wrl"
     },
     "S": {
       "item": "minecraft:stick"
     }
   },
   "result": {
-    "item": "jsblock:station_ceiling_wrl_pole",
+    "item": "mtr:station_ceiling_wrl_pole",
     "count": 32
   }
 }

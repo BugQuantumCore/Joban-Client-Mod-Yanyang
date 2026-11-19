@@ -10,14 +10,14 @@
       "item": "minecraft:iron_ingot"
     },
     "E": {
-      "item": "jsblock:tcl_emg_stop_button"
+      "item": "mtr:tcl_emg_stop_button"
     },
     "R": {
       "item": "minecraft:redstone"
     }
   },
   "result": {
-    "item": "jsblock:tml_emg_stop_button",
+    "item": "mtr:tml_emg_stop_button",
     "count": 4
   }
 }

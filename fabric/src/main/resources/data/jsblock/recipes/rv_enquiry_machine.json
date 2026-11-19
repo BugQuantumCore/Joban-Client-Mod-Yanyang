@@ -10,7 +10,7 @@
       "item": "minecraft:redstone"
     },
     "E": {
-      "item": "jsblock:mtr_enquiry_machine",
+      "item": "mtr:mtr_enquiry_machine",
       "count": 4
     },
     "I": {
@@ -18,7 +18,7 @@
     }
   },
   "result": {
-    "item": "jsblock:rv_enquiry_machine",
+    "item": "mtr:rv_enquiry_machine",
     "count": 4
   }
 }

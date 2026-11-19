@@ -14,7 +14,7 @@
     }
   },
   "result": {
-    "item": "jsblock:lcd_pids",
+    "item": "mtr:lcd_pids",
     "count": 8
   }
 }

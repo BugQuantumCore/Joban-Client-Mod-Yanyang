@@ -2,11 +2,11 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     {
-      "item": "jsblock:light_lantern"
+      "item": "mtr:light_lantern"
     }
   ],
   "result": {
-    "item": "jsblock:spot_lamp",
+    "item": "mtr:spot_lamp",
     "count": 16
   }
 }
