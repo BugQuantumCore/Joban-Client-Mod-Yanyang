@@ -14,6 +14,7 @@ import com.lx862.jcm.mod.render.GraphicsHolder;
 import com.lx862.jcm.mod.render.GuiDrawing;
 import com.lx862.jcm.mod.compat.SoundHelper;
 import com.lx862.jcm.mod.compat.TextHelper;
+import com.lx862.jcm.mod.util.JCMLogger;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ public class MTRScriptDebugOverlay {
     private static final int COLOR_YELLOW = 0xFFFFFF00;
     private static final int COLOR_WHITE = 0xFFFFFFFF;
     private static final List<ScriptDebugSource> debugSources = new ArrayList<>();
+    private static final Set<String> overlayRenderErrors = new HashSet<>();
     private static int sourceIndex;
 
     static { // Dummy source
@@ -44,6 +46,35 @@ public class MTRScriptDebugOverlay {
 
     public static void render(GraphicsHolder graphicsHolder) {
         if(!JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value()) return;
+
+        /* Yanyang: this overlay draws at the tail of the in-game HUD render,
+           through the very same DrawContext/GuiGraphics that vanilla then
+           hands to everything rendered afterwards in the same frame — the
+           autosave indicator, the toasts, and crucially the currently open
+           screen (Esc game menu, options, ModMenu, ...). The layout below is
+           written in free-form translate() calls that move the shared pose
+           cursor; they must be scoped with a push/pop pair. Without it the
+           accumulated offset leaks into the rest of the frame: every
+           later draw is visibly displaced while mouse hit-testing stays at
+           the widgets' logical coordinates, so the menus look shifted and
+           clicks only register at the widgets' original (unshifted)
+           positions. */
+        graphicsHolder.push();
+        try {
+            drawOverlay(graphicsHolder);
+        } catch (Exception e) {
+            /* A misbehaving script's debug info must not take down the HUD
+               and the whole render loop; log each distinct failure once
+               instead of once per frame. */
+            if (overlayRenderErrors.add(e.getClass().getName() + ": " + e.getMessage())) {
+                JCMLogger.error("Failed to render script debug overlay (further identical failures will be silent)", e);
+            }
+        } finally {
+            graphicsHolder.pop();
+        }
+    }
+
+    private static void drawOverlay(GraphicsHolder graphicsHolder) {
         GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
 
         graphicsHolder.translate(10, 10, 0);
