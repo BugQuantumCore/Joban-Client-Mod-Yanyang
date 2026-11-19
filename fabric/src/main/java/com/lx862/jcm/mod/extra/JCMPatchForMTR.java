@@ -1,8 +1,10 @@
 package com.lx862.jcm.mod.extra;
 
 import com.lx862.jcm.mod.config.JCMClientConfig;
+import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.mod.impl.mtr.util.MTRWrapperJS;
 import it.unimi.dsi.fastutil.longs.Long2IntArrayMap;
+import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import org.mtr.resource.CustomResourceTools;
 
 import java.nio.file.FileSystems;
@@ -81,6 +83,7 @@ public class JCMPatchForMTR {
     public static void clearClientCaches() {
         cachedRailNodeState.clear();
         liftInstructions.clear();
+        liftDrawnFrame.clear();
     }
 
     public static void updateRenderingShadow() {
@@ -96,6 +99,62 @@ public class JCMPatchForMTR {
         boolean liftJustArrived = currentInstructionSize == 0 && lastValue == 1;
         liftInstructions.put(liftId, currentInstructionSize);
         return liftJustArrived;
+    }
+
+    /* ------------------------------------------------------------------
+     * Lift script draw-hook frame bookkeeping (RenderLiftsMixin).
+     *
+     * The per-lift draw hook injects into RenderLifts' per-lift lambda at
+     * (up to) two anchors — the built-in lift model call (yanyang builds)
+     * and the display loop's StoredMatrixTransformations.copy() (all
+     * builds) — and the display loop runs once per display side, so the
+     * handler can be reached several times for one lift within a single
+     * frame. These helpers gate it to exactly one run per lift per frame;
+     * since the frame counter only advances on non-shadow frames, the same
+     * gate keeps script lifts from drawing a second time during
+     * Iris/OptiFine shadow passes.
+     * ------------------------------------------------------------------ */
+    private static long liftRenderFrame = 0;
+    private static final Long2LongOpenHashMap liftDrawnFrame = new Long2LongOpenHashMap();
+    private static boolean liftScriptDrawnEver = false;
+    private static boolean liftDrawHookWarned = false;
+    private static int liftDrawHookMissStreak = 0;
+
+    /** Advance the per-frame id; called once per non-shadow {@code RenderLifts.render()}. */
+    public static void beginLiftRenderFrame() {
+        liftRenderFrame++;
+    }
+
+    /**
+     * Returns true the first time {@code liftId} is drawn in the current
+     * frame, false for every repeat (second display side, second anchor).
+     */
+    public static boolean tryBeginLiftScriptDraw(long liftId) {
+        if(liftDrawnFrame.get(liftId) == liftRenderFrame) {
+            return false;
+        }
+        liftDrawnFrame.put(liftId, liftRenderFrame);
+        liftScriptDrawnEver = true;
+        return true;
+    }
+
+    /**
+     * Warns (once) when on-screen lifts carry scripts but the per-lift draw
+     * hook has never applied on the running MTR build. The hook is
+     * {@code require = 0} so that anchor drift degrades into a warning
+     * instead of a crash; this is the only visible symptom, so log it.
+     */
+    public static void noteLiftScriptVisibility(boolean anyScriptedLiftVisible) {
+        if(!anyScriptedLiftVisible || liftScriptDrawnEver || liftDrawHookWarned) {
+            return;
+        }
+        /* Frame N's draws happen after frame N's check (this runs before the
+           per-lift lambda), so two consecutive misses mean the hook genuinely
+           never applies. */
+        if(++liftDrawHookMissStreak >= 2) {
+            liftDrawHookWarned = true;
+            JCMLogger.warn("Scripted lifts are visible but the RenderLifts draw hook never applied; the injection anchors no longer match this MTR build and lift scripts will not render.");
+        }
     }
 
     public static boolean shouldSkipCullingTask(double lowX, double lowY, double lowZ, double highX, double highY, double highZ) {
