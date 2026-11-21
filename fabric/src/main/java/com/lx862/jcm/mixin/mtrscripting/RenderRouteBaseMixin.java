@@ -7,7 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
-import com.lx862.jcm.mod.render.GraphicsHolder;
+import org.mtr.block.BlockPSDAPGGlassBase;
 import org.mtr.block.BlockPSDTop;
 import org.mtr.block.IBlock;
 import org.mtr.render.RenderRouteBase;
@@ -15,24 +15,34 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.MultiBufferSource;
 
 /**
- * Yanyang/PSD: when a script is bound to a psd_top block, the original
- * content (direction arrow / route map strip and the platform color strip)
- * must no longer render on <b>the psd_top group the bound block belongs
- * to</b> — the stretch sitting on one wall section below (one brush-merged
- * door run or one glass segment; see {@code PSDScriptRenderer} /
- * {@code PSDRuns}, which derive the group from the wall below because the
- * band's own SIDE_EXTENDED markers are only meaningful above a full-height
- * PSD wall). The script canvas spans exactly that group, so every block of
- * the group drops its slice, not just the bound one — while the
- * <b>neighbouring groups</b> (above other doors and glass segments) keep
- * MTR's own arrows and route maps.
+ * Yanyang/PSD: when a script is bound to a psd_top group or a glass segment,
+ * the ORIGINAL content (direction arrow / route map strip and the platform
+ * color strip, plus the station-name strip MTR paints on APG glass) must no
+ * longer render on <b>the group / segment the bound block belongs to</b> —
+ * the stretch sitting on one wall section below (one brush-merged door run
+ * or one glass segment; see {@code PSDScriptRenderer} / {@code PSDRuns},
+ * which derive the group from the wall below because the band's own
+ * SIDE_EXTENDED markers are only meaningful above a full-height PSD wall).
+ * The script canvas spans exactly that group/segment, so every block of it
+ * drops its slice, not just the bound one — while the <b>neighbouring
+ * groups</b> (above other doors and glass segments) keep MTR's own arrows
+ * and route maps.
+ *
+ * <p>The cancellation keys off the BLOCK at the entity's position, not the
+ * entity type: psd_top group bindings cancel every {@code BlockPSDTop}
+ * entity's pass, and glass segment bindings cancel the pass of ANY entity
+ * sitting on a scripted glass block — that covers MTR's own APG glass
+ * entities too (their renderer paints the same content family onto the
+ * upper glass half), which the previous {@code instanceof
+ * BlockPSDTop.PSDTopBlockEntity} check silently missed. The Tianjin Metro
+ * mod's renderers do not go through this class at all; they are hooked by
+ * {@link TianjinRenderRouteBaseMixin}.</p>
  *
  * <p>Also cancels for <b>stale MTR block entities on JCM DRL glass</b>:
  * worlds that placed {@code jsblock:apg_glass_drl} /
@@ -53,18 +63,23 @@ import net.minecraft.client.player.LocalPlayer;
 @Mixin(value = RenderRouteBase.class, remap = false)
 public class RenderRouteBaseMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void jsblock$cancelForScriptedTop(BlockPSDTop.BlockEntityBase entity, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, ClientLevel world, LocalPlayer player, float tickDelta, int light, int overlay, CallbackInfo ci) {
-        if (entity instanceof BlockPSDTop.PSDTopBlockEntity) {
-            final Level level = entity.getLevel();
+    private void jsblock$cancelForScriptedPsd(BlockPSDTop.BlockEntityBase entity, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, ClientLevel world, LocalPlayer player, float tickDelta, int light, int overlay, CallbackInfo ci) {
+        final Level level = entity.getLevel();
+        if (level != null) {
             final BlockPos pos = entity.getBlockPos();
-            if (level != null) {
-                final BlockState state = world.getBlockState(pos);
-                if (state.getBlock() instanceof BlockPSDTop) {
-                    final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
-                    if (PSDRuns.topGroupHasScriptBinding(level, pos, facing)) {
-                        ci.cancel();
-                        return;
-                    }
+            final BlockState state = level.getBlockState(pos);
+            final Object block = state.getBlock();
+            if (block instanceof BlockPSDTop) {
+                final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
+                if (PSDRuns.topGroupHasScriptBinding(level, pos, facing)) {
+                    ci.cancel();
+                    return;
+                }
+            } else if (block instanceof BlockPSDAPGGlassBase) {
+                final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
+                if (PSDRuns.glassRunHasScriptBinding(level, pos, facing)) {
+                    ci.cancel();
+                    return;
                 }
             }
         }

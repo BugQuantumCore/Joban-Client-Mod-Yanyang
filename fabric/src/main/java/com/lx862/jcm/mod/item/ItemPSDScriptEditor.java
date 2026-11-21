@@ -2,6 +2,7 @@ package com.lx862.jcm.mod.item;
 
 import com.lx862.jcm.mod.gui.screen.PSDScriptSelectionScreen;
 import com.lx862.jcm.mod.scripting.psd.PSDRuns;
+import com.lx862.jcm.mod.scripting.psd.PSDScriptingRules;
 import com.lx862.jcm.mod.scripting.psd.PSDWrapper;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.core.BlockPos;
@@ -49,6 +50,12 @@ public class ItemPSDScriptEditor extends Item {
         final Object block = state.getBlock();
 
         if (block instanceof BlockPSDAPGGlassBase) {
+            /* Yanyang: half-height gates (MTR's APG, JCM's DRL twin, addon
+               gates like the Tianjin Metro ones) carry no scripts — only
+               full-height PSD panes do. */
+            if (PSDScriptingRules.isHalfHeightPsd(block)) {
+                return InteractionResult.PASS;
+            }
             if (world.isClientSide()) {
                 final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
                 /* The segment is identified by its LOWER row — clicking
@@ -68,6 +75,12 @@ public class ItemPSDScriptEditor extends Item {
             return InteractionResult.SUCCESS;
         }
         if (block instanceof BlockPSDTop) {
+            /* Yanyang: a psd_top band is only scriptable above a FULL-height
+               PSD wall — the band a half-height gate's top run would sit on
+               (or a hand-placed floating one) carries no script. */
+            if (!PSDScriptingRules.isScriptableTop(world, pos)) {
+                return InteractionResult.PASS;
+            }
             if (world.isClientSide()) {
                 final Direction facing = IBlock.getStatePropertySafe(state, com.lx862.jcm.mod.data.BlockProperties.FACING);
                 final PSDRuns.Run run = PSDRuns.topRun(world, pos, facing);
