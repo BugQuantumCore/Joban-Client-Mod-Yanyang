@@ -120,6 +120,14 @@ public class PoseStack {
         public Pose last() { return new Pose(); }
         public Pose pose() { return new Pose(); }
 }''',
+    # ModelJS defers its GPU uploads through RenderSystem when a scripting
+    # executor thread calls copyForMaterialChanges/replaceTexture; on the
+    # render thread (this headless test) the synchronous path is taken.
+    'com/mojang/blaze3d/systems/RenderSystem.java': '''package com.mojang.blaze3d.systems;
+public class RenderSystem {
+        public static boolean isOnRenderThread() { return true; }
+        public static void recordRenderCall(Runnable runnable) { runnable.run(); }
+}''',
     # The remaining Minecraft surface exists purely so javac can complete the
     # real MTR classes' signatures (StoredVertexData.write, NewOptimizedModel.render,
     # MainRenderer.render); none of it is exercised by the headless test.

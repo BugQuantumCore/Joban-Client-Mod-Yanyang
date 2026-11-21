@@ -14,6 +14,10 @@ import urllib.request
 STUBS = {
     'com/lx862/jcm/mapping/LoaderImplClient.java': '''package com.lx862.jcm.mapping;
 public class LoaderImplClient { public static long getNativeImagePointer(org.mtr.mapping.holder.NativeImage i){return i.pointer;} }''',
+    # GraphicsTexture skips its raw-GL swizzle and swaps channels in software
+    # when VulkanMod owns the backend; this headless test runs the GL path.
+    'org/mtr/client/VulkanCompat.java': '''package org.mtr.client;
+public class VulkanCompat { public static boolean isVulkanModActive() { return false; } }''',
     'com/lx862/mtrscripting/core/annotation/ApiInternal.java': 'package com.lx862.mtrscripting.core.annotation; public @interface ApiInternal {}',
     'com/lx862/mtrscripting/mod/MTRScriptingMod.java': '''package com.lx862.mtrscripting.mod;
 public class MTRScriptingMod { public static org.mtr.mapping.holder.Identifier id(String s){return new org.mtr.mapping.holder.Identifier(s);} }''',
