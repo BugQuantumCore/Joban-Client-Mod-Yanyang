@@ -2,6 +2,7 @@ package com.lx862.mtrscripting.core.util.model;
 
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.util.JSUtil;
+import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.jcm.mod.render.mesh.OptimizedModelWrapper;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.resources.ResourceLocation;
@@ -34,6 +35,24 @@ public class ModelJS {
         private final RawModelJS sourceModel;
         private volatile OptimizedModelWrapper model;
         private volatile boolean closed;
+
+        /* Yanyang/diag (build for the 2026-11-21 OpenGL "scripts load but
+           nothing displays" report): a handful of one-shot breadcrumbs that
+           make the JS model pipeline's state visible in latest.log —
+           whether the deferred upload ever lands, and whether draw() ever
+           sees a non-empty wrapper. Log-only, no behaviour change. */
+        private static final java.util.Set<String> DIAG_SEEN =
+                        java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        private static final java.util.concurrent.atomic.AtomicInteger DIAG_SWAPS = new java.util.concurrent.atomic.AtomicInteger();
+
+        private static String jcm$describeModels(final OptimizedModelWrapper wrapper) {
+                if (wrapper == null || wrapper.models == null || wrapper.models.isEmpty()) {
+                        return "EMPTY";
+                }
+                final StringBuilder sb = new StringBuilder();
+                wrapper.models.forEach((stage, list) -> sb.append(stage).append('=').append(list.size()).append(' '));
+                return sb.toString().trim();
+        }
 
         private ModelJS(RawModelJS sourceModel, OptimizedModelWrapper model) {
                 this.sourceModel = sourceModel;
@@ -80,6 +99,9 @@ public class ModelJS {
 
         @ApiInternal
         public void draw(StoredMatrixTransformations storedMatrixTransformations, int light) {
+                if (DIAG_SEEN.add("draw")) {
+                        JCMLogger.info("[JCM][diag] first ModelJS.draw: stages=[{}] closed={}", jcm$describeModels(model), closed);
+                }
                 model.queue(storedMatrixTransformations, light);
         }
 
@@ -111,6 +133,11 @@ public class ModelJS {
                 }
                 final OptimizedModelWrapper previous = this.model;
                 this.model = new OptimizedModelWrapper(sourceModel.rawModel.upload());
+                final int swapIndex = DIAG_SWAPS.incrementAndGet();
+                if (swapIndex <= 3) {
+                        JCMLogger.info("[JCM][diag] ModelJS upload #{} landed: stages=[{}] (was: [{}])",
+                                        swapIndex, jcm$describeModels(this.model), jcm$describeModels(previous));
+                }
                 if (previous != null) {
                         previous.close();
                 }

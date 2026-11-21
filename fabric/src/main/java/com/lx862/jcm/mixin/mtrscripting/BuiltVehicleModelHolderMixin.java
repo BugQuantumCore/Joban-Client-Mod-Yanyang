@@ -32,6 +32,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = BuiltVehicleModelHolder.class, remap = false)
 public abstract class BuiltVehicleModelHolderMixin {
 
+    /** Yanyang/diag: one-shot per (script, car) replay breadcrumb keys. */
+    @org.spongepowered.asm.mixin.Unique
+    private static final java.util.Set<String> DIAG_REPLAY =
+            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+
     @Inject(method = "render", at = @At("HEAD"))
     private void jsblock$drawCarScript(StoredMatrixTransformations storedMatrixTransformations, org.mtr.data.VehicleExtension vehicle, int carNumber, boolean isWithinHalfRenderDistance, int[] scrollingDisplayIndexTracker, int light, org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList openDoorways, boolean fromResourcePackCreator, CallbackInfo ci) {
         /* The mtrpatch HideRidingVehicleMixin cancels the original render for
@@ -66,6 +71,14 @@ public abstract class BuiltVehicleModelHolderMixin {
         ScriptVector3f soundPos = NativeVehicleDriver.carSoundPosition(vehicle.getHexId(), carNumber);
 
         if (carRenderManager != null) {
+            /* Yanyang/diag: one-shot breadcrumb for the JS replay — proves
+               the per-car captured list exists and is non-empty when the
+               "nothing displays" report comes in. */
+            if (DIAG_REPLAY.add(scriptGroupId + ":car" + carNumber)) {
+                com.lx862.jcm.mod.util.JCMLogger.info(
+                        "[JCM][diag] JS car replay: script={}, car={}, drawCalls={}",
+                        scriptGroupId, carNumber, carRenderManager.size());
+            }
             carRenderManager.invoke(world, newTransform, Direction.NORTH, light);
         }
 

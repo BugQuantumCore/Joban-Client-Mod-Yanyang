@@ -66,6 +66,12 @@ public class ScriptRenderManager {
      * <p>Draw calls queued DURING replay (re-entrant draw) are not executed
      * in this pass, matching the old snapshot-copy semantics exactly.
      */
+    /** Diagnostic: number of captured draw calls. Log-only use. */
+    @ApiInternal
+    public synchronized int size() {
+        return drawCalls.size();
+    }
+
     @ApiInternal
     public synchronized void invoke(Level world, StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         /* synchronized: the JS capture path (executor threads) swaps this

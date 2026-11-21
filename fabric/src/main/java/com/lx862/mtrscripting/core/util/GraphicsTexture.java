@@ -28,6 +28,8 @@ public class GraphicsTexture implements Closeable {
      * so copyBuffer performs the ARGB→ABGR channel swap in software instead.
      */
     private final boolean swapChannelsInSoftware;
+    /** Yanyang/diag: log-only counter for texture registrations. */
+    private static final java.util.concurrent.atomic.AtomicInteger DIAG_TEXTURES = new java.util.concurrent.atomic.AtomicInteger();
     public final ResourceLocation identifier;
 
     public final BufferedImage bufferedImage;
@@ -62,6 +64,16 @@ public class GraphicsTexture implements Closeable {
 
             // Register the texture to MC!
             Minecraft.getInstance().getTextureManager().register(identifier, this.dynamicTexture);
+            /* Yanyang/diag: one-shot breadcrumb proving the texture object
+               reached the TextureManager (a script drawing against an
+               unregistered identifier renders as missingno, not nothing —
+               but a never-executed registration task IS invisible). */
+            if (DIAG_TEXTURES.incrementAndGet() <= 3) {
+                com.lx862.jcm.mod.util.JCMLogger.info(
+                        "[JCM][diag] GraphicsTexture #{} registered: {} ({}x{}, swizzle={})",
+                        DIAG_TEXTURES.get(), identifier, width, height,
+                        swapChannelsInSoftware ? "software" : "gl");
+            }
         });
         bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         graphics = bufferedImage.createGraphics();
