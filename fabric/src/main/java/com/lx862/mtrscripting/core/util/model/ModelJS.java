@@ -3,7 +3,9 @@ package com.lx862.mtrscripting.core.util.model;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.util.JSUtil;
 import com.lx862.jcm.mod.render.mesh.OptimizedModelWrapper;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.resources.ResourceLocation;
+import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.mtr.render.StoredMatrixTransformations;
 
 /**
@@ -14,11 +16,24 @@ import org.mtr.render.StoredMatrixTransformations;
  *
  * <p>Because 4.1's {@code NewOptimizedModel} texture is immutable, the
  * {@code replaceTexture} family re-uploads the (mutated) raw model.</p>
+ *
+ * <p><b>Threading:</b> the geometry copy and material edits are pure data and safe on
+ * any thread, but the GPU upload itself is render-thread confined
+ * ({@code RenderSystem.assertOnRenderThread} inside the buffer build). Vehicle
+ * scripts run their per-instance {@code create()} on the scripting executor
+ * thread, and the stock {@code display_helper.js} calls
+ * {@code copyForMaterialChanges()} + {@code replaceAllTexture()} there — so every
+ * off-render-thread upload is deferred via {@link RenderSystem#recordRenderCall}
+ * instead of throwing {@code Rendersystem called from wrong thread} (the error that
+ * killed every JS vehicle script on 2026-11-21). A deferred model draws nothing
+ * until the upload lands on the next render tick; {@link #close()} before that
+ * point cancels the pending upload.</p>
  */
 public class ModelJS {
 
         private final RawModelJS sourceModel;
-        private OptimizedModelWrapper model;
+        private volatile OptimizedModelWrapper model;
+        private volatile boolean closed;
 
         private ModelJS(RawModelJS sourceModel, OptimizedModelWrapper model) {
                 this.sourceModel = sourceModel;
@@ -30,9 +45,19 @@ public class ModelJS {
                 return new ModelJS(rawModelJS, new OptimizedModelWrapper(rawModelJS.rawModel.upload()));
         }
 
+        /**
+         * Copies this model's geometry with independently mutable materials. Thread-safe:
+         * on the render thread the copy uploads immediately; on a scripting executor
+         * thread the GPU upload is deferred (see the class javadoc).
+         */
         public ModelJS copyForMaterialChanges() {
                 final RawModelJS copy = sourceModel.copyForMaterialChanges();
-                return new ModelJS(copy, new OptimizedModelWrapper(copy.rawModel.upload()));
+                if (RenderSystem.isOnRenderThread()) {
+                        return new ModelJS(copy, new OptimizedModelWrapper(copy.rawModel.upload()));
+                }
+                final ModelJS modelJS = new ModelJS(copy, new OptimizedModelWrapper(new Object2ObjectOpenHashMap<>()));
+                RenderSystem.recordRenderCall(modelJS::swapInUploaded);
+                return modelJS;
         }
 
         public void replaceTexture(String oldTexture, String newTexture) {
@@ -58,19 +83,51 @@ public class ModelJS {
                 model.queue(storedMatrixTransformations, light);
         }
 
+        /**
+         * The current GPU wrapper. Note: on a model whose upload was deferred (created
+         * off the render thread), this is an empty wrapper until the deferred upload
+         * lands, and {@code replaceTexture} family swaps it afterwards — prefer
+         * {@link #draw} unless you cache wrappers at a point where the model is known
+         * to be uploaded (e.g. ComplexModelStorage's reload-time snapshot).
+         */
         @ApiInternal
         public OptimizedModelWrapper getUnderlyingModel() {
                 return this.model;
         }
 
-        /** Re-uploads the (mutated) source model into fresh GPU meshes, closing the previous ones. */
+        /** Re-uploads the (mutated) source model into fresh GPU meshes, closing the previous ones. Thread-safe: off the render thread the swap is deferred to the next render tick. */
         private void reupload() {
+                if (RenderSystem.isOnRenderThread()) {
+                        swapInUploaded();
+                } else {
+                        RenderSystem.recordRenderCall(this::swapInUploaded);
+                }
+        }
+
+        /** Render-thread side of every upload: build fresh meshes and retire the previous wrapper. Runs after {@link #close()} as a no-op. */
+        private void swapInUploaded() {
+                if (closed) {
+                        return;
+                }
                 final OptimizedModelWrapper previous = this.model;
                 this.model = new OptimizedModelWrapper(sourceModel.rawModel.upload());
-                previous.close();
+                if (previous != null) {
+                        previous.close();
+                }
         }
 
         public void close() {
-                model.close();
+                // Mark first so a still-pending deferred upload (recordRenderCall) becomes a
+                // no-op instead of resurrecting meshes after close; the GL release itself is
+                // deferred the same way when close() is invoked from a scripting thread.
+                closed = true;
+                final OptimizedModelWrapper current = this.model;
+                if (RenderSystem.isOnRenderThread()) {
+                        if (current != null) {
+                                current.close();
+                        }
+                } else if (current != null) {
+                        RenderSystem.recordRenderCall(current::close);
+                }
         }
 }

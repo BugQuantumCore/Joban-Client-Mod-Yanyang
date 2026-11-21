@@ -22,6 +22,12 @@ import net.minecraft.resources.ResourceLocation;
 @SuppressWarnings("unused")
 public class GraphicsTexture implements Closeable {
     private final DynamicTexture dynamicTexture;
+    /**
+     * True when the GL channel swizzle could not be installed (VulkanMod owns the
+     * context and raw org.lwjgl.opengl.* calls are unavailable — see the constructor),
+     * so copyBuffer performs the ARGB→ABGR channel swap in software instead.
+     */
+    private final boolean swapChannelsInSoftware;
     public final ResourceLocation identifier;
 
     public final BufferedImage bufferedImage;
@@ -34,14 +40,25 @@ public class GraphicsTexture implements Closeable {
         this.height = height;
         this.dynamicTexture = new DynamicTexture(new NativeImage(width, height, false));
         this.identifier = MTRScriptingMod.id(String.format("dynamic/graphics/%s", UUID.randomUUID()));
+        // Under VulkanMod there is no OpenGL context at all: the first raw
+        // org.lwjgl.opengl.GL* touch throws ExceptionInInitializerError out of
+        // GL$ICDStatic$WriteOnce, and because the failure is cached per class every
+        // later attempt degrades to NoClassDefFoundError — the 2026-11-21 native-vehicle
+        // session lost ALL of its module textures/models this way
+        // ("NativeHost: failed to create a NxN GraphicsTexture"). Skip the raw-GL swizzle
+        // entirely on that backend and swap channels in software (see copyBuffer);
+        // GlStateManager/NativeImage/TextureManager calls stay — VulkanMod patches those.
+        this.swapChannelsInSoftware = org.mtr.client.VulkanCompat.isVulkanModActive();
 
         Minecraft.getInstance().execute(() -> {
-            // Use GL Swizzle to remap color. MC's NativeImage is BGRA
-            int prevTextureBinding = GL33.glGetInteger(GL33.GL_TEXTURE_BINDING_2D);
-            GlStateManager._bindTexture(this.dynamicTexture.getId());
-            GL33.glTexParameteriv(GL33.GL_TEXTURE_2D, GL33.GL_TEXTURE_SWIZZLE_RGBA,
-                    new int[] { GL33.GL_BLUE, GL33.GL_GREEN, GL33.GL_RED, GL33.GL_ALPHA });
-            GlStateManager._bindTexture(prevTextureBinding);
+            if (!swapChannelsInSoftware) {
+                // Use GL Swizzle to remap color. MC's NativeImage is BGRA
+                int prevTextureBinding = GL33.glGetInteger(GL33.GL_TEXTURE_BINDING_2D);
+                GlStateManager._bindTexture(this.dynamicTexture.getId());
+                GL33.glTexParameteriv(GL33.GL_TEXTURE_2D, GL33.GL_TEXTURE_SWIZZLE_RGBA,
+                        new int[] { GL33.GL_BLUE, GL33.GL_GREEN, GL33.GL_RED, GL33.GL_ALPHA });
+                GlStateManager._bindTexture(prevTextureBinding);
+            }
 
             // Register the texture to MC!
             Minecraft.getInstance().getTextureManager().register(identifier, this.dynamicTexture);
@@ -134,7 +151,7 @@ public class GraphicsTexture implements Closeable {
         });
     }
 
-    private static void copyBuffer(
+    private void copyBuffer(
             BufferedImage source,
             DynamicTexture destination,
             int dstX, int dstY,
@@ -149,11 +166,26 @@ public class GraphicsTexture implements Closeable {
         IntBuffer buffer = MemoryUtil.memByteBuffer(destImgPointer, dstImgWidth * dstImgHeight * 4).asIntBuffer();
         int srcPixelStart = srcY * srcImgWidth + srcX;
         int dstPixelStart = dstY * dstImgWidth + dstX;
-        for(int i = 0; i < height; i++) {
-            buffer.position(dstPixelStart);
-            buffer.put(sourceData, srcPixelStart, width);
-            srcPixelStart += srcImgWidth;  // To next line
-            dstPixelStart += dstImgWidth;  // To next line
+        if (swapChannelsInSoftware) {
+            // No GL swizzle installed (VulkanMod backend): the NativeImage is consumed
+            // as ABGR, so convert the BufferedImage's ARGB ints while copying. Same
+            // pixels the swizzle would have produced, with no OpenGL dependency.
+            for (int i = 0; i < height; i++) {
+                buffer.position(dstPixelStart);
+                for (int c = 0; c < width; c++) {
+                    final int argb = sourceData[srcPixelStart + c];
+                    buffer.put((argb & 0xFF00FF00) | ((argb >>> 16) & 0x000000FF) | ((argb & 0x000000FF) << 16));
+                }
+                srcPixelStart += srcImgWidth;  // To next line
+                dstPixelStart += dstImgWidth;  // To next line
+            }
+        } else {
+            for (int i = 0; i < height; i++) {
+                buffer.position(dstPixelStart);
+                buffer.put(sourceData, srcPixelStart, width);
+                srcPixelStart += srcImgWidth;  // To next line
+                dstPixelStart += dstImgWidth;  // To next line
+            }
         }
     }
 
