@@ -66,6 +66,9 @@ public final class OptimizedModelWrapper {
         /** Yanyang/diag (build.122+): one-shot breadcrumbs for the model draw path. */
         private static final java.util.Set<String> DIAG_PATH_LOGGED =
                         java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
+        /** Yanyang/diag (build.122+): one-shot proof that the drain actually INVOKED a scheduled emission. */
+        private static final java.util.Set<String> DIAG_DRAINED_LOGGED =
+                        java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
         public OptimizedModelWrapper(Object2ObjectOpenHashMap<RenderStage, ObjectArrayList<NewOptimizedModel>> models) {
                 this(models, null);
@@ -127,10 +130,14 @@ public final class OptimizedModelWrapper {
                         final int bakedLight = renderStage.isFullBrightness ? LightTexture.FULL_BRIGHT : toPackedLight(light);
                         textures.forEach((texture, vertices) -> {
                                 if (DIAG_PATH_LOGGED.add(renderStage + ":" + texture)) {
-                                        JCMLogger.info("[JCM][diag] model draw path: buffered (plain GL) — stage={}, texture={}, vertices={}",
-                                                        renderStage, texture, vertices.size());
+                                        JCMLogger.info("[JCM][diag] model draw path: buffered (plain GL, doubleSided={}) — stage={}, texture={}, vertices={}",
+                                                        com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size());
                                 }
                                 MainRenderer.scheduleRender(texture, false, queuedRenderLayer, (poseStack, vertexConsumer, offset) -> {
+                                        if (DIAG_DRAINED_LOGGED.add(renderStage + ":" + texture)) {
+                                                JCMLogger.info("[JCM][diag] model draw path: buffered DRAINED (plain GL, doubleSided={}) — stage={}, texture={}, vertices={}",
+                                                                com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size());
+                                        }
                                         storedMatrixTransformations.transform(poseStack, offset);
                                         try {
                                                 final com.mojang.blaze3d.vertex.PoseStack.Pose pose = poseStack.last();

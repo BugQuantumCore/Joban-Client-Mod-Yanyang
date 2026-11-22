@@ -171,6 +171,36 @@ public final class RawMesh {
         }
 
         /**
+         * Double-sided script model emission (2026-11-22, the "scripts load,
+         * replay, queue — but nothing displays on plain OpenGL" fix).
+         *
+         * <p>Script quad winding has never been validated against backface
+         * culling: the MTR 4.0-era pipeline these scripts were authored
+         * against rendered through its own VertexArray with no cull, and the
+         * Vulkan-family backends that rendered this same geometry correctly
+         * (native C++ mesh recorder, Beryl/Radiance captured pipelines) do
+         * not cull these layers either. MTR 4.1's plain-GL drains, however,
+         * draw through {@code RenderType.entityCutout}-family layers with
+         * CULL enabled — a pack-defined quad wound the other way is culled
+         * to invisibility on BOTH the raw-VAO path (pre-build.121) and the
+         * buffered scheduleRender path (build.121): everything in the
+         * pipeline logs green (uploads landed, textures registered, 200+
+         * scheduled draws per session) yet not one script pixel appears.
+         * Emitting every triangle twice (forward + reversed winding, normal
+         * negated on the reversed copy) makes script models render from
+         * both sides on every backend, at the cost of doubling a handful of
+         * LCD-quad vertices. Escape hatch:
+         * {@code -Djsblock.doubleSidedScriptModels=false}.</p>
+         */
+        private static final boolean DOUBLE_SIDED = !"false".equalsIgnoreCase(
+                        System.getProperty("jsblock.doubleSidedScriptModels", "true"));
+
+        /** Diag surface for the model-draw-path breadcrumb (see OptimizedModelWrapper). */
+        static boolean isDoubleSidedEmission() {
+                return DOUBLE_SIDED;
+        }
+
+        /**
          * Adds this mesh to a {@link NewOptimizedModelGroup} batch bucket, and
          * mirrors the same (stage, texture) bucket into {@code bufferedVertices}
          * so the uploading {@link RawModel} can retain the raw vertex lists for
@@ -193,19 +223,9 @@ public final class RawMesh {
                 final ObjectArrayList<StoredVertexData> storedVertexDataList = new ObjectArrayList<>();
                 for (final Face face : faces) {
                         for (final Face triangle : Face.triangulate(face.vertices)) {
-                                for (final int vertexIndex : triangle.vertices) {
-                                        final Vertex vertex = vertices.get(vertexIndex);
-                                        storedVertexDataList.add(new StoredVertexData(
-                                                        vertex.position.x,
-                                                        -vertex.position.y,
-                                                        -vertex.position.z,
-                                                        new java.awt.Color(vertex.color == 0 ? materialColor : vertex.color, true),
-                                                        vertex.u,
-                                                        vertex.v,
-                                                        vertex.normal == null ? 0 : vertex.normal.x,
-                                                        vertex.normal == null ? 0 : -vertex.normal.y,
-                                                        vertex.normal == null ? 0 : -vertex.normal.z
-                                        ));
+                                appendTriangle(storedVertexDataList, triangle, materialColor, false);
+                                if (DOUBLE_SIDED) {
+                                        appendTriangle(storedVertexDataList, triangle, materialColor, true);
                                 }
                         }
                 }
@@ -216,6 +236,32 @@ public final class RawMesh {
                                         .computeIfAbsent(renderStage, key -> new org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>())
                                         .computeIfAbsent(materialProperties.getTexture(), key -> new ObjectArrayList<>())
                                         .addAll(storedVertexDataList);
+                }
+        }
+
+        /**
+         * Emits one triangle of a fan-triangulated face into the stored-vertex
+         * list. {@code reversed} emits the same triangle with opposite winding
+         * (0, 2, 1) and negated normals — the double-sided copy that survives
+         * {@code RenderType} backface culling regardless of the pack's quad
+         * winding convention (see {@link #DOUBLE_SIDED}).
+         */
+        private void appendTriangle(ObjectArrayList<StoredVertexData> sink, Face triangle, int materialColor, boolean reversed) {
+                final int count = triangle.vertices.length;
+                for (int i = 0; i < count; i++) {
+                        final int vertexIndex = triangle.vertices[reversed ? count - 1 - i : i];
+                        final Vertex vertex = vertices.get(vertexIndex);
+                        sink.add(new StoredVertexData(
+                                        vertex.position.x,
+                                        -vertex.position.y,
+                                        -vertex.position.z,
+                                        new java.awt.Color(vertex.color == 0 ? materialColor : vertex.color, true),
+                                        vertex.u,
+                                        vertex.v,
+                                        (vertex.normal == null ? 0 : vertex.normal.x) * (reversed ? -1 : 1),
+                                        (vertex.normal == null ? 0 : -vertex.normal.y) * (reversed ? -1 : 1),
+                                        (vertex.normal == null ? 0 : -vertex.normal.z) * (reversed ? -1 : 1)
+                        ));
                 }
         }
 
