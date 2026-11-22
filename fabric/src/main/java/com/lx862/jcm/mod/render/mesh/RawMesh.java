@@ -171,20 +171,22 @@ public final class RawMesh {
         }
 
         /**
-         * Adds this mesh to a {@link NewOptimizedModelGroup} batch bucket.
-         * The vertex coordinate convention follows the legacy MTR model space
-         * (x, -y, -z relative to the model origin), matching
-         * {@link StoredVertexData#write}.
+         * Adds this mesh to a {@link NewOptimizedModelGroup} batch bucket, and
+         * mirrors the same (stage, texture) bucket into {@code bufferedVertices}
+         * so the uploading {@link RawModel} can retain the raw vertex lists for
+         * the buffered draw path (see {@link OptimizedModelWrapper}).
          *
-         * <p>Vertices are emitted through the {@link Face} index list, fan
-         * triangulated (see {@link Face#triangulate}) — the group is built
-         * with {@code VertexFormat.Mode.TRIANGLES}, so a raw vertex stream
-         * would draw only the first triangle of every quad face. The builder
-         * (RawMeshBuilderJS) already stores triangulated faces; the fan keeps
-         * defensively-correct behaviour for meshes assembled through other
-         * paths (e.g. quad faces from {@link #addVertex}).</p>
+         * <p>The vertex coordinate convention follows the legacy MTR model space
+         * (x, -y, -z relative to the model origin), matching
+         * {@link StoredVertexData#write}. Vertices are emitted through the
+         * {@link Face} index list, fan triangulated (see {@link Face#triangulate})
+         * — the group is built with {@code VertexFormat.Mode.TRIANGLES}, so a raw
+         * vertex stream would draw only the first triangle of every quad face.
+         * The builder (RawMeshBuilderJS) already stores triangulated faces; the
+         * fan keeps defensively-correct behaviour for meshes assembled through
+         * other paths (e.g. quad faces from {@link #addVertex}).</p>
          */
-        public void upload(NewOptimizedModelGroup newOptimizedModelGroup) {
+        public void upload(NewOptimizedModelGroup newOptimizedModelGroup, org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<org.mtr.resource.RenderStage, org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<net.minecraft.resources.ResourceLocation, ObjectArrayList<StoredVertexData>>> bufferedVertices) {
                 distinct();
 
                 final int materialColor = materialProperties.color == null ? 0xFFFFFFFF : materialProperties.color;
@@ -208,6 +210,13 @@ public final class RawMesh {
                         }
                 }
                 newOptimizedModelGroup.add(materialProperties.shaderType.toRenderStage(), materialProperties.getTexture(), list -> list.addAll(storedVertexDataList), null);
+                if (!storedVertexDataList.isEmpty()) {
+                        final org.mtr.resource.RenderStage renderStage = materialProperties.shaderType.toRenderStage();
+                        bufferedVertices
+                                        .computeIfAbsent(renderStage, key -> new org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>())
+                                        .computeIfAbsent(materialProperties.getTexture(), key -> new ObjectArrayList<>())
+                                        .addAll(storedVertexDataList);
+                }
         }
 
         public void applyMatrix(Matrix4f matrix4f) {

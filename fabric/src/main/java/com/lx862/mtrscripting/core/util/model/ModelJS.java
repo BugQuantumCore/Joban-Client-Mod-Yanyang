@@ -61,7 +61,8 @@ public class ModelJS {
 
         @ApiInternal
         public static ModelJS uploadRawModel(RawModelJS rawModelJS) {
-                return new ModelJS(rawModelJS, new OptimizedModelWrapper(rawModelJS.rawModel.upload()));
+                final com.lx862.jcm.mod.render.mesh.RawModel.UploadedModel uploaded = rawModelJS.rawModel.uploadWithVertexData();
+                return new ModelJS(rawModelJS, new OptimizedModelWrapper(uploaded.models(), uploaded.bufferedVertices()));
         }
 
         /**
@@ -72,7 +73,8 @@ public class ModelJS {
         public ModelJS copyForMaterialChanges() {
                 final RawModelJS copy = sourceModel.copyForMaterialChanges();
                 if (RenderSystem.isOnRenderThread()) {
-                        return new ModelJS(copy, new OptimizedModelWrapper(copy.rawModel.upload()));
+                        final com.lx862.jcm.mod.render.mesh.RawModel.UploadedModel uploaded = copy.rawModel.uploadWithVertexData();
+                        return new ModelJS(copy, new OptimizedModelWrapper(uploaded.models(), uploaded.bufferedVertices()));
                 }
                 final ModelJS modelJS = new ModelJS(copy, new OptimizedModelWrapper(new Object2ObjectOpenHashMap<>()));
                 RenderSystem.recordRenderCall(modelJS::swapInUploaded);
@@ -132,7 +134,8 @@ public class ModelJS {
                         return;
                 }
                 final OptimizedModelWrapper previous = this.model;
-                this.model = new OptimizedModelWrapper(sourceModel.rawModel.upload());
+                final com.lx862.jcm.mod.render.mesh.RawModel.UploadedModel uploaded = sourceModel.rawModel.uploadWithVertexData();
+                this.model = new OptimizedModelWrapper(uploaded.models(), uploaded.bufferedVertices());
                 final int swapIndex = DIAG_SWAPS.incrementAndGet();
                 if (swapIndex <= 3) {
                         JCMLogger.info("[JCM][diag] ModelJS upload #{} landed: stages=[{}] (was: [{}])",

@@ -27,7 +27,9 @@
     "mtrpatch.SignResourceSchemaMixin",
     "mtrpatch.SignResourceMixin",
     "mtrpatch.HideRidingVehicleMixin",
-    "mtrpatch.HideRidingBogieMixin"
+    "mtrpatch.HideRidingBogieMixin",
+    "mtrpatch.CachedFileProviderCloseGuardMixin",
+    "mtrpatch.DynamicTextureCacheCloseGuardMixin"
   ],
   "injectors": {
     "defaultRequire": 1

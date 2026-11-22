@@ -71,12 +71,18 @@ public abstract class BuiltVehicleModelHolderMixin {
         ScriptVector3f soundPos = NativeVehicleDriver.carSoundPosition(vehicle.getHexId(), carNumber);
 
         if (carRenderManager != null) {
-            /* Yanyang/diag: one-shot breadcrumb for the JS replay — proves
-               the per-car captured list exists and is non-empty when the
-               "nothing displays" report comes in. */
-            if (DIAG_REPLAY.add(scriptGroupId + ":car" + carNumber)) {
+            /* Yanyang/diag: breadcrumb for the JS replay — logs BOTH the very
+               first replay per car AND the first replay that actually carries
+               captured draw calls (the 2026-11-22 report only proved the first
+               frame, which is naturally empty while the script's deferred
+               uploads are still landing). */
+            if (DIAG_REPLAY.add(scriptGroupId + ":car" + carNumber + ":first")) {
                 com.lx862.jcm.mod.util.JCMLogger.info(
                         "[JCM][diag] JS car replay: script={}, car={}, drawCalls={}",
+                        scriptGroupId, carNumber, carRenderManager.size());
+            } else if (carRenderManager.size() > 0 && DIAG_REPLAY.add(scriptGroupId + ":car" + carNumber + ":nonzero")) {
+                com.lx862.jcm.mod.util.JCMLogger.info(
+                        "[JCM][diag] JS car replay (first non-empty): script={}, car={}, drawCalls={}",
                         scriptGroupId, carNumber, carRenderManager.size());
             }
             carRenderManager.invoke(world, newTransform, Direction.NORTH, light);
