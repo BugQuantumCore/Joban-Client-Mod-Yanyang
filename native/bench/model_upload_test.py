@@ -35,11 +35,18 @@ public final class DefaultVertexFormat {
     'com/mojang/blaze3d/vertex/VertexConsumer.java': '''package com.mojang.blaze3d.vertex;
 public interface VertexConsumer {
         default VertexConsumer addVertex(float x, float y, float z) { return this; }
+        /* Pose-overloads used by OptimizedModelWrapper's buffered (plain-GL)
+           replay path; real MC 1.21.1/1.21.4 declare both. */
+        default VertexConsumer addVertex(PoseStack.Pose pose, float x, float y, float z) { return this; }
         default VertexConsumer setColor(int red, int green, int blue, int alpha) { return this; }
+        default VertexConsumer setColor(int argb) { return this; }
         default VertexConsumer setUv(float u, float v) { return this; }
         default VertexConsumer setUv1(int u, int v) { return this; }
         default VertexConsumer setUv2(int u, int v) { return this; }
         default VertexConsumer setNormal(float x, float y, float z) { return this; }
+        default VertexConsumer setNormal(PoseStack.Pose pose, float x, float y, float z) { return this; }
+        default VertexConsumer setOverlay(int packedOverlay) { return this; }
+        default VertexConsumer setLight(int packedLight) { return this; }
         /* Real MC 1.21.1 declares the packed 11-arg addVertex as VOID — the
            descriptor must match or the jar's StoredVertexData.apply call site
            dies with NoSuchMethodError at runtime. */
@@ -100,6 +107,13 @@ public class VertexBuffer {
 public final class OverlayTexture {
         public static final int NO_OVERLAY = 0;
         private OverlayTexture() {}
+}''',
+    # OptimizedModelWrapper's buffered replay bakes the per-stage lightmap
+    # (full-bright stages keep the FULL_BRIGHT constant).
+    'net/minecraft/client/renderer/LightTexture.java': '''package net.minecraft.client.renderer;
+public final class LightTexture {
+        public static final int FULL_BRIGHT = 0xF000F0;
+        private LightTexture() {}
 }''',
     'net/minecraft/world/phys/AABB.java': '''package net.minecraft.world.phys;
 public class AABB {
