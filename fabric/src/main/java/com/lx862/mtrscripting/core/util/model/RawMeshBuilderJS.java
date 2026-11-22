@@ -65,7 +65,12 @@ public class RawMeshBuilderJS {
     }
 
     public RawMeshBuilderJS color(int r, int g, int b, int a) {
-        mesh.materialProperties.setColor((r << 24) + (g << 16) + (b << 8) + a);
+        /* ARGB, matching every consumer: MaterialProperties.color, the
+           java.awt.Color(int, true) read in RawMesh.appendTriangle and the
+           0xFFxxxxxx Kd packing in ModelResourceLoader. The 4.1 port briefly
+           packed RGBA, which put the red channel into the alpha slot — any
+           script colour with red < 255 (e.g. black text) vanished. */
+        mesh.materialProperties.setColor((a << 24) | (r << 16) | (g << 8) | b);
         return this;
     }
 

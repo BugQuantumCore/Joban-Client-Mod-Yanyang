@@ -22,11 +22,14 @@ import java.util.Locale;
  * JCM side of the boundary with the real MTR classes from the pinned jar:
  * it records the vertex stream MTR's own {@code StoredVertexData.apply}
  * emits through the stubbed Minecraft vertex consumer and asserts the
- * documented contract — triangulated face-indexed emission (a quad uploads
- * six vertices, not four), verbatim script-space coordinates (the builder's
- * y/z flip and the upload's legacy-space flip cancel, matching
- * {@code ObjModelLoader}'s verbatim stored space), full-bright baked light,
- * render-stage bucketing and the upload/re-upload/close lifecycle.</p>
+ * documented contract — triangulated face-indexed emission, each triangle
+ * emitted forward and reversed (the double-sided script-model emission, so a
+ * quad uploads twelve vertices, not four or six), legacy MTR-model-space
+ * coordinates (the builder's y/z flip is the ONLY conversion — the upload
+ * emits stored coordinates verbatim, exactly like {@code ObjModelLoader};
+ * the 4.1 port's extra upload-time flip buried pack-OBJ LCD frames below
+ * the car), full-bright baked light, render-stage bucketing and the
+ * upload/re-upload/close lifecycle.</p>
  */
 public final class ModelUploadTest {
         private static int checks;
@@ -89,16 +92,37 @@ public final class ModelUploadTest {
                 check(buffer.uploads.size() == 1, "the buffer receives one mesh");
                 check(buffer.uploads.get(0).mode == com.mojang.blaze3d.vertex.VertexFormat.Mode.TRIANGLES, "models build as TRIANGLES");
                 final List<BufferBuilder.Vertex> stream = buffer.uploads.get(0).vertices;
-                check(stream.size() == 6, "a quad uploads six triangulated vertices, not four");
-                final float[][] expectedPositions = {{-.8f,.6f,0},{-.8f,-.6f,0},{.8f,-.6f,0},{-.8f,.6f,0},{.8f,-.6f,0},{.8f,.6f,0}};
-                final float[][] expectedUv = {{0,0},{0,1},{1,1},{0,0},{1,1},{1,0}};
-                for (int i = 0; i < 6; i++) {
+                check(stream.size() == 12, "a quad uploads two triangles, each emitted forward + reversed (double-sided)");
+                // Stored-space (builder-flipped) coordinates; the upload passes them
+                // through verbatim. Script quad points {(-.8,.6),(-.8,-.6),(.8,-.6),(.8,.6)}
+                // are stored with y negated by RawMeshBuilderJS — that is the whole
+                // conversion. Face.triangulate([0,1,2,3]) = [0,1,2],[0,2,3]; the reversed
+                // copies walk the same indices backwards (0,2,1 / 3,2,0).
+                final float[][] expectedPositions = {
+                                {-.8f,-.6f,0},{-.8f,.6f,0},{.8f,.6f,0},
+                                {.8f,.6f,0},{-.8f,.6f,0},{-.8f,-.6f,0},
+                                {-.8f,-.6f,0},{.8f,.6f,0},{.8f,-.6f,0},
+                                {.8f,-.6f,0},{.8f,.6f,0},{-.8f,-.6f,0}};
+                final float[][] expectedUv = {
+                                {0,0},{0,1},{1,1},
+                                {1,1},{0,1},{0,0},
+                                {0,0},{1,1},{1,0},
+                                {1,0},{1,1},{0,0}};
+                // Builder normal (0,1,0) is stored as (0,-1,0); the reversed copies
+                // negate it again for backface lighting.
+                final float[][] expectedNormals = {
+                                {0,-1,0},{0,-1,0},{0,-1,0},
+                                {0,1,0},{0,1,0},{0,1,0},
+                                {0,-1,0},{0,-1,0},{0,-1,0},
+                                {0,1,0},{0,1,0},{0,1,0}};
+                for (int i = 0; i < 12; i++) {
                         final BufferBuilder.Vertex v = stream.get(i);
                         check(v.x == expectedPositions[i][0] && v.y == expectedPositions[i][1] && v.z == expectedPositions[i][2],
-                                        "vertex " + i + " keeps script-space coordinates (builder flip + legacy-space flip cancel)");
+                                        "vertex " + i + " keeps stored (builder-flipped) coordinates — the upload does not flip again");
                         check(v.u == expectedUv[i][0] && v.v == expectedUv[i][1], "vertex " + i + " uv passthrough");
                         check(v.color == 0xFFFFFFFF, "vertex " + i + " falls back to the material color");
-                        check(v.nx == 0 && v.ny == 1 && v.nz == 0, "vertex " + i + " normal passthrough");
+                        check(v.nx == expectedNormals[i][0] && v.ny == expectedNormals[i][1] && v.nz == expectedNormals[i][2],
+                                        "vertex " + i + " normal passthrough (negated on reversed copies)");
                         check(v.overlay == net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY,
                                         "vertex " + i + " overlay passthrough");
                         check(v.light == 0xF000F0, "vertex " + i + " baked full-bright lightmap");
@@ -153,8 +177,8 @@ public final class ModelUploadTest {
                 check(String.valueOf(after.get(RenderStage.INTERIOR).get(0).texture).endsWith("test:c"), "replaced model draws the new texture");
                 check(VertexBuffer.ALL.size() - base == 3, "re-upload creates exactly one merged buffer");
                 final VertexBuffer merged = VertexBuffer.ALL.get(base + 2);
-                check(merged.uploads.size() == 1 && merged.uploads.get(0).vertices.size() == 12,
-                                "the merged bucket carries both quads' six-vertex streams");
+                check(merged.uploads.size() == 1 && merged.uploads.get(0).vertices.size() == 24,
+                                "the merged bucket carries both quads' twelve-vertex (double-sided) streams");
                 for (final VertexBuffer previous : previousBuffers) {
                         check(previous.closeCount == 1, "re-upload closes the previous generation exactly once");
                 }

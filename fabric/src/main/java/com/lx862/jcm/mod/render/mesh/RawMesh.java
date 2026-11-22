@@ -206,15 +206,26 @@ public final class RawMesh {
          * so the uploading {@link RawModel} can retain the raw vertex lists for
          * the buffered draw path (see {@link OptimizedModelWrapper}).
          *
-         * <p>The vertex coordinate convention follows the legacy MTR model space
-         * (x, -y, -z relative to the model origin), matching
-         * {@link StoredVertexData#write}. Vertices are emitted through the
-         * {@link Face} index list, fan triangulated (see {@link Face#triangulate})
-         * — the group is built with {@code VertexFormat.Mode.TRIANGLES}, so a raw
-         * vertex stream would draw only the first triangle of every quad face.
-         * The builder (RawMeshBuilderJS) already stores triangulated faces; the
-         * fan keeps defensively-correct behaviour for meshes assembled through
-         * other paths (e.g. quad faces from {@link #addVertex}).</p>
+         * <p><b>Coordinates are stored AS-IS (2026-11-22, the "scripts load,
+         * replay, queue — but nothing displays" root cause).</b> Every producer
+         * of {@link Vertex} data already applies its own axis convention at
+         * build time: {@link com.lx862.mtrscripting.core.util.model.RawMeshBuilderJS#vertex}
+         * negates y/z for the legacy script-space → MTR-model-space conversion,
+         * {@link ModelResourceLoader} stores raw OBJ coordinates exactly like
+         * MTR's own {@code ObjModelLoader#writeVertex}, and
+         * {@link StoredVertexData#write} negates for the ModelPart path. This
+         * upload must NOT negate again: the y/z flip added by the 4.1 port
+         * single-flipped pack OBJ models (LCD frames ended up BELOW the car —
+         * buried in the ground, hence invisible on every backend) and
+         * double-flipped script-built quads out of their legacy placement.</p>
+         *
+         * <p>Vertices are emitted through the {@link Face} index list, fan
+         * triangulated (see {@link Face#triangulate}) — the group is built with
+         * {@code VertexFormat.Mode.TRIANGLES}, so a raw vertex stream would draw
+         * only the first triangle of every quad face. The builder
+         * (RawMeshBuilderJS) already stores triangulated faces; the fan keeps
+         * defensively-correct behaviour for meshes assembled through other
+         * paths (e.g. quad faces from {@link #addVertex}).</p>
          */
         public void upload(NewOptimizedModelGroup newOptimizedModelGroup, org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<org.mtr.resource.RenderStage, org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<net.minecraft.resources.ResourceLocation, ObjectArrayList<StoredVertexData>>> bufferedVertices) {
                 distinct();
@@ -245,6 +256,10 @@ public final class RawMesh {
          * (0, 2, 1) and negated normals — the double-sided copy that survives
          * {@code RenderType} backface culling regardless of the pack's quad
          * winding convention (see {@link #DOUBLE_SIDED}).
+         *
+         * <p>Positions and normals are written AS the producer stored them —
+         * see the {@link #upload} javadoc for why no axis conversion may happen
+         * here.</p>
          */
         private void appendTriangle(ObjectArrayList<StoredVertexData> sink, Face triangle, int materialColor, boolean reversed) {
                 final int count = triangle.vertices.length;
@@ -253,14 +268,14 @@ public final class RawMesh {
                         final Vertex vertex = vertices.get(vertexIndex);
                         sink.add(new StoredVertexData(
                                         vertex.position.x,
-                                        -vertex.position.y,
-                                        -vertex.position.z,
+                                        vertex.position.y,
+                                        vertex.position.z,
                                         new java.awt.Color(vertex.color == 0 ? materialColor : vertex.color, true),
                                         vertex.u,
                                         vertex.v,
                                         (vertex.normal == null ? 0 : vertex.normal.x) * (reversed ? -1 : 1),
-                                        (vertex.normal == null ? 0 : -vertex.normal.y) * (reversed ? -1 : 1),
-                                        (vertex.normal == null ? 0 : -vertex.normal.z) * (reversed ? -1 : 1)
+                                        (vertex.normal == null ? 0 : vertex.normal.y) * (reversed ? -1 : 1),
+                                        (vertex.normal == null ? 0 : vertex.normal.z) * (reversed ? -1 : 1)
                         ));
                 }
         }
