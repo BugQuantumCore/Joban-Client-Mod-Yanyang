@@ -131,11 +131,11 @@ jobs:
           set -euo pipefail
           mkdir -p "dist/bridges/${{ matrix.platform }}" "dist/examples/${{ matrix.platform }}"
           find native/build -type f \( -name '*jcm_native_bridge.dll' -o -name '*jcm_native_bridge.so' -o -name '*jcm_native_bridge.dylib' \) -exec cp {} "dist/bridges/${{ matrix.platform }}/" \;
-          for module in pids_arrivals eyecandy_signal lift_indicator; do
+          for module in pids_arrivals eyecandy_signal lift_indicator psd_glass; do
             find native/build -type f \( -name "$module.dll" -o -name "lib$module.so" -o -name "lib$module.dylib" \) -exec cp {} "dist/examples/${{ matrix.platform }}/" \;
           done
           test "$(find dist/bridges -type f | wc -l | tr -d ' ')" = 1
-          test "$(find dist/examples -type f | wc -l | tr -d ' ')" = 3
+          test "$(find dist/examples -type f | wc -l | tr -d ' ')" = 4
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.platform }}

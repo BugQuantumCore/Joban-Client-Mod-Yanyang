@@ -50,6 +50,15 @@ public class MTRClassShutter {
             ClassRule.parse("java.lang.Shutdown"),
             ClassRule.parse("java.lang.SecurityManager"),
             ClassRule.parse("java.lang.System"),
+            /* The deny list above carefully blocks System/Process/ClassLoader,
+               but Runtime/Thread/ThreadGroup/Compiler slipped through the
+               java.lang.* allow rule: Runtime.exec() spawns arbitrary OS
+               processes and Runtime.exit()/halt() kills the game, and raw
+               Threads escape the executor watchdog entirely. */
+            ClassRule.parse("java.lang.Runtime"),
+            ClassRule.parse("java.lang.Thread"),
+            ClassRule.parse("java.lang.ThreadGroup"),
+            ClassRule.parse("java.lang.Compiler"),
             ClassRule.parse("java.util.jar.*"),
             ClassRule.parse("java.util.zip.*"),
             ClassRule.parse("jdk.internal.*"),

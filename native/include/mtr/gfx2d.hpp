@@ -202,10 +202,14 @@ public:
         const double dx = x * sx_, dy = y * sy_, dw = w * sx_, dh = h * sy_;
         const double arx = std::min(arc_w * sx_, dw) * 0.5;
         const double ary = std::min(arc_h * sy_, dh) * 0.5;
-        const int32_t x0 = static_cast<int32_t>(std::floor(dx));
-        const int32_t y0 = static_cast<int32_t>(std::floor(dy));
-        const int32_t x1 = static_cast<int32_t>(std::ceil(dx + dw));
-        const int32_t y1 = static_cast<int32_t>(std::ceil(dy + dh));
+        /* Clamp the raster loop to the clip rect BEFORE iterating: a shape
+           mostly off-canvas (or huge) used to iterate up to ~2^31 times and
+           let plot() reject every pixel — a self-inflicted frame hang. */
+        const int32_t x0 = std::max(clip_x0_, static_cast<int32_t>(std::floor(dx)));
+        const int32_t y0 = std::max(clip_y0_, static_cast<int32_t>(std::floor(dy)));
+        const int32_t x1 = std::min(clip_x1_, static_cast<int32_t>(std::ceil(dx + dw)));
+        const int32_t y1 = std::min(clip_y1_, static_cast<int32_t>(std::ceil(dy + dh)));
+        if (x1 <= x0 || y1 <= y0) return;
         const double cx0 = dx + arx, cx1 = dx + dw - arx;
         const double cy0 = dy + ary, cy1 = dy + dh - ary;
         for (int32_t py = y0; py < y1; py++) {
@@ -247,10 +251,12 @@ public:
         const double dx = x * sx_, dy = y * sy_, dw = w * sx_, dh = h * sy_;
         const double rx = dw * 0.5, ry = dh * 0.5;
         const double cx = dx + rx, cy = dy + ry;
-        const int32_t x0 = static_cast<int32_t>(std::floor(dx));
-        const int32_t y0 = static_cast<int32_t>(std::floor(dy));
-        const int32_t x1 = static_cast<int32_t>(std::ceil(dx + dw));
-        const int32_t y1 = static_cast<int32_t>(std::ceil(dy + dh));
+        /* Clip-clamped loop bounds — see fill_round_rect. */
+        const int32_t x0 = std::max(clip_x0_, static_cast<int32_t>(std::floor(dx)));
+        const int32_t y0 = std::max(clip_y0_, static_cast<int32_t>(std::floor(dy)));
+        const int32_t x1 = std::min(clip_x1_, static_cast<int32_t>(std::ceil(dx + dw)));
+        const int32_t y1 = std::min(clip_y1_, static_cast<int32_t>(std::ceil(dy + dh)));
+        if (x1 <= x0 || y1 <= y0) return;
         for (int32_t py = y0; py < y1; py++) {
             const double ey = (py + 0.5 - cy) / ry;
             for (int32_t px = x0; px < x1; px++) {
@@ -271,10 +277,12 @@ public:
         const double cx = dx + rx, cy = dy + ry;
         const double tol = (lw * std::max(sx_, sy_)) * 0.5 + 0.5;
         const double norm = std::max(rx, ry);
-        const int32_t x0 = static_cast<int32_t>(std::floor(dx - tol));
-        const int32_t y0 = static_cast<int32_t>(std::floor(dy - tol));
-        const int32_t x1 = static_cast<int32_t>(std::ceil(dx + dw + tol));
-        const int32_t y1 = static_cast<int32_t>(std::ceil(dy + dh + tol));
+        /* Clip-clamped loop bounds — see fill_round_rect. */
+        const int32_t x0 = std::max(clip_x0_, static_cast<int32_t>(std::floor(dx - tol)));
+        const int32_t y0 = std::max(clip_y0_, static_cast<int32_t>(std::floor(dy - tol)));
+        const int32_t x1 = std::min(clip_x1_, static_cast<int32_t>(std::ceil(dx + dw + tol)));
+        const int32_t y1 = std::min(clip_y1_, static_cast<int32_t>(std::ceil(dy + dh + tol)));
+        if (x1 <= x0 || y1 <= y0) return;
         for (int32_t py = y0; py < y1; py++) {
             for (int32_t px = x0; px < x1; px++) {
                 const double ex = (px + 0.5 - cx) / rx;

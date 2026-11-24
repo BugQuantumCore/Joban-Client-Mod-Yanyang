@@ -136,20 +136,26 @@ public class QuadDrawCall extends RenderDrawCall<QuadDrawCall> {
 
         MainRenderer.scheduleRender(textureId, false, renderType, (poseStack, vertexConsumer, offset) -> {
             storedMatrixTransformations.transform(poseStack, offset);
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-180));
+            try {
+                poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-180));
 
-            org.mtr.client.IDrawing.drawTexture(
-                    poseStack, vertexConsumer,
-                    quadDefinition.x2, quadDefinition.y2, quadDefinition.z2,
-                    quadDefinition.x3, quadDefinition.y3, quadDefinition.z3,
-                    quadDefinition.x4, quadDefinition.y4, quadDefinition.z4,
-                    quadDefinition.x1, quadDefinition.y1, quadDefinition.z1,
-                    u1, v1, u2, v2,
-                    direction,
-                    color,
-                    drawLight
-            );
-            poseStack.popPose();
+                org.mtr.client.IDrawing.drawTexture(
+                        poseStack, vertexConsumer,
+                        quadDefinition.x2, quadDefinition.y2, quadDefinition.z2,
+                        quadDefinition.x3, quadDefinition.y3, quadDefinition.z3,
+                        quadDefinition.x4, quadDefinition.y4, quadDefinition.z4,
+                        quadDefinition.x1, quadDefinition.y1, quadDefinition.z1,
+                        u1, v1, u2, v2,
+                        direction,
+                        color,
+                        drawLight
+                );
+            } finally {
+                /* transform() pushed; an exception mid-draw used to leak the
+                   pose and corrupt every subsequent queued draw of the frame
+                   (see PSD-SHADER-BACKING.md's own analysis). */
+                poseStack.popPose();
+            }
         });
     }
 

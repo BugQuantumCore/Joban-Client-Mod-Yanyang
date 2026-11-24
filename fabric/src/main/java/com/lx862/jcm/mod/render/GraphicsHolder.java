@@ -141,8 +141,24 @@ public final class GraphicsHolder {
                 if (guiGraphics != null) {
                         guiGraphics.drawString(Minecraft.getInstance().font, text, x, y, color, shadow);
                 } else {
-                        drawText(String.valueOf(text), x, y, color, shadow, light);
+                        /* World mode: the previous fallback drew String.valueOf(text) —
+                           an object toString like
+                           net.minecraft.util.FormattedCharSequence$$Lambda/0x…@1a2b —
+                           instead of the text itself (KCR station name signs rendered
+                           garbage). Extract the plain string; glyphs are preserved and
+                           the custom MTR font path (FontRenderHelper) is untouched. */
+                        drawText(toPlainString(text), x, y, color, shadow, light);
                 }
+        }
+
+        /** Flattens a styled {@link FormattedCharSequence} back into its plain string. */
+        private static String toPlainString(FormattedCharSequence text) {
+                final StringBuilder sb = new StringBuilder();
+                text.accept((index, style, codePoint) -> {
+                        sb.appendCodePoint(codePoint);
+                        return true;
+                });
+                return sb.toString();
         }
 
         public void drawText(String text, int x, int y, int color, boolean shadow, int light) {

@@ -23,6 +23,7 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
     private final double max;
     private final String prefix;
     private final double defaultValue;
+    private java.util.function.Consumer<Double> changeListener;
 
     public DoubleTextField(int x, int y, int width, int height, double min, double max, double defaultValue, @Nonnull String prefix) {
         super(x, y, width, height, 16, TextCase.LOWER, null, String.valueOf(defaultValue));
@@ -65,7 +66,7 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
 
     @Override
     public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
     
         super.renderWidget(guiGraphics, mouseX, mouseY, tickDelta);
 
@@ -103,6 +104,9 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
             } else {
                 decrement();
             }
+            /* Consume the event so the surrounding list does not ALSO scroll
+               (one wheel notch moved the value AND the row). */
+            return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
@@ -132,6 +136,24 @@ public class DoubleTextField extends AlwaysRenderedTextField implements GuiHelpe
             return Double.parseDouble(getValue());
         } catch (Exception e) {
             return defaultValue;
+        }
+    }
+
+    /** Mirrors IntegerTextField.onChange — used by the eyecandy config screen. */
+    public void onChange(java.util.function.Consumer<Double> callback) {
+        this.changeListener = callback;
+    }
+
+    @Override
+    public void setValue(String s) {
+        super.setValue(s);
+        if(this.changeListener == null) return;
+        try {
+            this.changeListener.accept(Double.parseDouble(s));
+        } catch (NumberFormatException e) {
+            /* Intermediate edit states (e.g. a lone "-") are not numbers
+             * yet — leave the listener at the last valid value instead of
+             * crashing the screen. */
         }
     }
 

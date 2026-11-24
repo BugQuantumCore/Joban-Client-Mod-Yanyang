@@ -119,6 +119,9 @@ public class IntegerTextField extends AlwaysRenderedTextField implements GuiHelp
             } else {
                 decrement();
             }
+            /* Consume the event so the surrounding list does not ALSO scroll
+               (one wheel notch moved the value AND the row). */
+            return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }

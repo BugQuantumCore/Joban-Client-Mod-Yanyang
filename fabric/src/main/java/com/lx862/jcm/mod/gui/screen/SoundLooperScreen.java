@@ -46,7 +46,11 @@ public class SoundLooperScreen extends BlockConfigListScreen {
 
         this.soundIdTextField = new AlwaysRenderedTextField(0, 0, 100, 20, 100, TextCase.LOWER, null, "mtr:ticket_barrier");
         this.soundIdTextField.setValue(soundId);
-        this.soundVolumeTextField = new IntegerTextField(0, 0, 60, 20, 1, 1000, 100);
+        /* min 0 (not 1): a stored volume of 0 (muted) was rejected by the
+           field (value < min), the field stayed empty, and saving then wrote
+           the fallback 100 — a muted looper became volume 1.0 after opening
+           its config screen once. */
+        this.soundVolumeTextField = new IntegerTextField(0, 0, 60, 20, 0, 1000, 100);
         this.soundVolumeTextField.setValue((int)(volume * 100));
         this.repeatTickTextField = new IntegerTextField(0, 0, 60, 20, 1, 99999, 20);
         this.repeatTickTextField.setValue(repeatTick);
@@ -95,15 +99,24 @@ public class SoundLooperScreen extends BlockConfigListScreen {
 
     @Override
     public void onSave() {
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof SoundLooperBlockEntity) {
+                ((SoundLooperBlockEntity)be).setData(soundIdTextField.getValue(), soundCategory, (int)repeatTickTextField.getNumber(), soundVolumeTextField.getNumber() / 100f, needRedstonePowerCheckbox.isChecked(), limitSoundRangeCheckbox.isChecked(), corner1Widget.getBlockPos(), corner2Widget.getBlockPos());
+            }
+        });
         Networking.sendPacketToServer(new SoundLooperUpdatePacket(blockPos, corner1Widget.getBlockPos(), corner2Widget.getBlockPos(), soundIdTextField.getValue(), soundCategory, (int)repeatTickTextField.getNumber(), soundVolumeTextField.getNumber() / 100f, needRedstonePowerCheckbox.isChecked(), limitSoundRangeCheckbox.isChecked()));
     }
 
     private void setSoundCategory(int category) {
-        if(category >= SoundLooperBlockEntity.SOURCE_LIST.length) {
+        if(category < 0 || category >= SoundLooperBlockEntity.SOURCE_LIST.length) {
             this.soundCategory = 0;
         } else {
             this.soundCategory = category;
         }
-        this.soundCategoryButton.setMessage((TextUtil.literal(SoundLooperBlockEntity.SOURCE_LIST[category].getName())));
+        /* Index with the CLAMPED field, not the raw parameter — a legacy or
+           corrupted stored category used to throw AIOOBE here while opening
+           the screen. */
+        this.soundCategoryButton.setMessage((TextUtil.literal(SoundLooperBlockEntity.SOURCE_LIST[this.soundCategory].getName())));
     }
 }

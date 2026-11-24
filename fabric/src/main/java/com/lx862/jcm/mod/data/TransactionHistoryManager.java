@@ -9,6 +9,7 @@ import net.minecraft.world.level.storage.LevelResource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +45,18 @@ public class TransactionHistoryManager {
             }
             jsonObject.add("entries", entryArray);
 
-            Files.write(savePath, gson.toJson(jsonObject).getBytes());
+            /* Atomic replace: writing in place meant a crash mid-write left a
+               truncated JSON, and the read path then WIPED the player's whole
+               history on the parse failure (see getLogs). Temp file +
+               ATOMIC_MOVE either leaves the old file or the new one — never a
+               half-written one. */
+            final Path tmpPath = savePath.resolveSibling(savePath.getFileName() + ".tmp");
+            Files.write(tmpPath, gson.toJson(jsonObject).getBytes());
+            try {
+                Files.move(tmpPath, savePath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (java.nio.file.AtomicMoveNotSupportedException atomicMoveNotSupported) {
+                Files.move(tmpPath, savePath, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             JCMLogger.error("Error saving transaction record to JSON file: {}", e.getMessage());
         }
@@ -65,7 +77,14 @@ public class TransactionHistoryManager {
             }
         } catch (Exception e) {
             JCMLogger.error("Failed to read transaction record from JSON file!", e);
-            saveLogs(new ArrayList<>(), player); // Wipe the entry
+            /* Keep the corrupt file for inspection instead of wiping it: a
+             * truncated write used to destroy the entire history here. */
+            try {
+                final Path brokenPath = savePath.resolveSibling(savePath.getFileName() + ".broken-" + System.currentTimeMillis());
+                Files.move(savePath, brokenPath);
+                JCMLogger.warn("Corrupt transaction record moved to {}", brokenPath.toString());
+            } catch (Exception ignored) {
+            }
         }
 
         entries.sort((a, b) -> Long.compare(b.time(), a.time()));

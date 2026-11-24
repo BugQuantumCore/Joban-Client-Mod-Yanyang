@@ -34,9 +34,14 @@ public class CycleComponent extends PIDSComponent {
     public void render(GraphicsHolder graphicsHolder, GuiDrawing guiDrawing, Direction facing, PIDSContext context) {
         if(components.isEmpty()) return;
         List<PIDSComponent> filteredComponents = components.stream().filter(e -> e.canRender(context)).collect(Collectors.toList());
+        if(filteredComponents.isEmpty()) return;
 
-        if(cycleTime == -1 && !filteredComponents.isEmpty()) {
+        if(cycleTime == -1) {
             filteredComponents.get(0).render(graphicsHolder, guiDrawing, facing, context); // Render first available component
+        } else if(cycleTime <= 0) {
+            /* cycleTime 0 divides by zero below (JSON-supplied value); treat it
+               like the -1 branch — always show the first available component. */
+            filteredComponents.get(0).render(graphicsHolder, guiDrawing, facing, context);
         } else {
             int currentComponentIndex = (int) ((int)(MTRClient.getGameTick() % (cycleTime * filteredComponents.size())) / cycleTime);
 

@@ -9,6 +9,7 @@ import com.lx862.amberui.gui.screen.SavableScreen;
 import com.lx862.jcm.mod.util.TextCategory;
 import com.lx862.jcm.mod.util.TextUtil;
 import com.lx862.mtrscripting.mod.gui.widget.ConfigCheckbox;
+import com.lx862.mtrscripting.mod.gui.widget.ConfigDoubleField;
 import com.lx862.mtrscripting.mod.gui.widget.ConfigIntegerField;
 import com.lx862.mtrscripting.mod.gui.widget.ConfigTextField;
 import com.lx862.mtrscripting.mod.gui.widget.ValidatableWidget;
@@ -151,6 +152,23 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
             widgetSet.addWidget(new MappedWidget(textField));
             addRenderableWidget(textField);
             validatableWidgets.add(textField);
+        } else if(entry.type() == EyecandyCustomConfig.Entry.Type.DOUBLE) {
+            /* Type.DOUBLE is produced both by pack JSON ("type": "DOUBLE") and
+               the legacy-ANTE ConfigResponder.DoubleSlider compat path — the
+               screen used to draw NOTHING for such entries, making the value
+               invisible and uneditable. */
+            double parsedCurrentValue = parseDouble(currentValue, 0);
+            double parsedOriginalValue = parseDouble(originalValue, 0);
+
+            ConfigDoubleField textField = new ConfigDoubleField(0, 0, 120, 20, entry.validationCallback());
+            textField.onChange((newValue) -> {
+                this.storedConfigEntriesPending.put(entry.id(), String.valueOf(newValue));
+            });
+            textField.setOriginalValue(parsedOriginalValue);
+            textField.setValue(parsedCurrentValue);
+            widgetSet.addWidget(new MappedWidget(textField));
+            addRenderableWidget(textField);
+            validatableWidgets.add(textField);
         } else if(entry.type() == EyecandyCustomConfig.Entry.Type.BOOLEAN) {
             boolean parsedCurrentValue = Objects.equals(currentValue, "true");
             boolean parsedOriginalValue = Objects.equals(originalValue, "true");
@@ -212,6 +230,14 @@ public class EyecandyCustomConfigScreen extends SavableScreen implements RenderH
         try {
             return Integer.parseInt(str);
         } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    private static double parseDouble(String str, double fallback) {
+        try {
+            return Double.parseDouble(str.trim());
+        } catch (NumberFormatException | NullPointerException e) {
             return fallback;
         }
     }

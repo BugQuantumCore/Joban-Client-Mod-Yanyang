@@ -146,8 +146,10 @@ public class MTRWrapperJS {
         }
 
         public static List<LiftWrapper.Floor> getLiftFloors(Lift lift) {
+            Level level = (Level)Minecraft.getInstance().level;
+            if(level == null) return new ArrayList<>(); // called from a script while no world is loaded
             List<LiftWrapper.Floor> floors = new ArrayList<>();
-            LiftWrapper.populateFloors(floors, lift, (Level)Minecraft.getInstance().level);
+            LiftWrapper.populateFloors(floors, lift, level);
             return floors;
         }
 

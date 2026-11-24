@@ -39,12 +39,22 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
         super.readNbt(compoundTag);
         this.repeatTick = compoundTag.getInt("repeat_tick");
         this.soundID = compoundTag.getString("sound_id");
-        this.soundCategory = compoundTag.getInt("sound_category");
+        this.soundCategory = clampSoundCategory(compoundTag.getInt("sound_category"));
         this.volume = compoundTag.getFloat("volume");
         this.needRedstone = compoundTag.getBoolean("need_redstone");
         this.limitRange = compoundTag.getBoolean("limit_range");
         this.corner1 = BlockPos.of(compoundTag.getLong("pos_1"));
         this.corner2 = BlockPos.of(compoundTag.getLong("pos_2"));
+    }
+
+    /**
+     * {@code sound_category} can arrive from world NBT (schematics, edited
+     * saves, older builds) or from the client-controlled update packet with
+     * values outside 0..SOURCE_LIST.length-1 — indexing SOURCE_LIST with such
+     * a value crashes the server tick loop, so clamp everywhere it enters.
+     */
+    public static int clampSoundCategory(int category) {
+        return category < 0 || category >= SOURCE_LIST.length ? 0 : category;
     }
 
     @Override
@@ -73,7 +83,7 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
             boolean emittingRedstonePower = bl1 || bl2 || bl3 || bl4 || bl5 || bl6;
             if(needRedstone && !emittingRedstonePower) return;
 
-            final SoundSource category = SOURCE_LIST[soundCategory];
+            final SoundSource category = SOURCE_LIST[getSoundCategory()];
             final ResourceLocation identifier;
             try {
                 identifier = ResourceLocation.parse(soundID);
@@ -119,7 +129,7 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
     }
 
     public int getSoundCategory() {
-        if (soundCategory > SoundLooperBlockEntity.SOURCE_LIST.length) {
+        if (soundCategory < 0 || soundCategory >= SoundLooperBlockEntity.SOURCE_LIST.length) {
             soundCategory = 0;
         }
         return soundCategory;
@@ -148,7 +158,7 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
     public void setData(String soundId, int soundCategory, int interval, float volume, boolean needRedstone, boolean limitRange, BlockPos corner1, BlockPos corner2) {
         this.soundID = soundId;
         this.repeatTick = interval;
-        this.soundCategory = soundCategory;
+        this.soundCategory = clampSoundCategory(soundCategory);
         this.volume = volume;
         this.needRedstone = needRedstone;
         this.corner1 = corner1;

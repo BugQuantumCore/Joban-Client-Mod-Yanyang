@@ -40,6 +40,10 @@ endfunction()
 mtr_add_script(pids_arrivals examples/pids_arrivals.cpp)
 mtr_add_script(eyecandy_signal examples/eyecandy_signal.cpp)
 mtr_add_script(lift_indicator examples/lift_indicator.cpp)
+# psd_glass is the only PSD (ABI 12/13) example; it used to be shipped in the
+# SDK zip WITHOUT ever being compiled or tested anywhere, which let its
+# snprintf overflow (fixed above) survive. Build it like the other examples.
+mtr_add_script(psd_glass examples/psd_glass.cpp)
 # The bridge is JDK-FREE since layout v2 (no jni.h, no JNI exports): it is
 # driven either by the plain-C jcm_* FFM surface (Java 22+ downcalls) or by
 # the background poller thread that finds the shared region through the

@@ -1,6 +1,7 @@
 package com.lx862.jcm.mod.render.block;
 
 import com.lx862.jcm.mod.block.entity.APGDoorDRLBlockEntity;
+import com.lx862.jcm.mod.config.JCMClientConfig;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.builders.PartDefinition;
 import net.minecraft.client.model.geom.PartPose;
@@ -57,13 +58,13 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
 
     private static final ModelPart MODEL_APG_TOP = createSingleCube(34, 9, 0, 15, 1, 16, 8, 1);
     private static final ModelPart MODEL_APG_BOTTOM = createModelPart(parent -> {
-        createModelPartData(parent, 0, 0, -8, -16, -7, 16, 16, 1, 0, 0, 0, 0, 0, 0, 0);
-        createModelPartData(parent, 0, 17, -8, -6, -8, 16, 6, 1, 0, 0, 0, 0, 0, 0, 0);
-        createModelPartData(parent, 0, 24, -8, -2, 0, 16, 2, 1, 0, 0, -6, -8, -0.7854F, 0, 0);
+        createModelPartData(parent, "part0", 0, 0, -8, -16, -7, 16, 16, 1, 0, 0, 0, 0, 0, 0, 0);
+        createModelPartData(parent, "part1", 0, 17, -8, -6, -8, 16, 6, 1, 0, 0, 0, 0, 0, 0, 0);
+        createModelPartData(parent, "part2", 0, 24, -8, -2, 0, 16, 2, 1, 0, 0, -6, -8, -0.7854F, 0, 0);
     }, 34, 27);
     private static final ModelPart MODEL_APG_LIGHT = createModelPart(parent -> {
-        createModelPartData(parent, 0, 4, -0.5F, -9, -7, 1, 1, 3, 0.05F, 0, 0, 0, 0, 0, 0);
-        createModelPartData(parent, 0, 0, -0.5F, 0.05F, -3.05F, 1, 1, 3, 0.05F, 0, -9.05F, -4.95F, 0.3927F, 0, 0);
+        createModelPartData(parent, "part0", 0, 4, -0.5F, -9, -7, 1, 1, 3, 0.05F, 0, 0, 0, 0, 0, 0);
+        createModelPartData(parent, "part1", 0, 0, -0.5F, 0.05F, -3.05F, 1, 1, 3, 0.05F, 0, -9.05F, -4.95F, 0.3927F, 0, 0);
     }, 8, 8);
     private static final ModelPart MODEL_APG_DOOR_LOCKED = createSingleCube(6, 6, 5, 17, 1, 6, 6, 0);
 
@@ -73,6 +74,7 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
 
     @Override
     public void render(T entity, PoseStack matrixStack, MultiBufferSource vertexConsumerProvider, ClientLevel clientWorld, LocalPlayer clientPlayer, float tickDelta, int light, int overlay) {
+        if (JCMClientConfig.INSTANCE.disableRendering.value()) return;
         final Level world = entity.getLevel();
         if (world == null) {
             return;
@@ -99,10 +101,13 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
                     if (block instanceof BlockAPGGlass || block instanceof BlockAPGGlassEnd) {
                         MainRenderer.scheduleRender(open > 0 ? TEXTURE_APG_DOOR_LIGHT_ON : TEXTURE_APG_DOOR_LIGHT_OFF, false, open > 0 ? QueuedRenderLayer.LIGHT_TRANSLUCENT : QueuedRenderLayer.EXTERIOR, (matrixStackNew, vertexConsumer, offset) -> {
                             storedMatrixTransformationsLight.transform(matrixStackNew, offset);
-                            matrixStackNew.translate(side ? -0.515625 : 0.515625, 0, 0);
-                            matrixStackNew.scale(0.5F, 1, 1);
-                            MODEL_APG_LIGHT.render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
-                            matrixStackNew.popPose();
+                            try {
+                                matrixStackNew.translate(side ? -0.515625 : 0.515625, 0, 0);
+                                matrixStackNew.scale(0.5F, 1, 1);
+                                MODEL_APG_LIGHT.render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
+                            } finally {
+                                matrixStackNew.popPose(); /* transform() pushed — never leak the pose */
+                            }
                         });
                     }
                 }
@@ -115,14 +120,20 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
             case 2:
                 MainRenderer.scheduleRender(drlapgDoorTexture(half, side), false, QueuedRenderLayer.EXTERIOR, (matrixStackNew, vertexConsumer, offset) -> {
                     storedMatrixTransformations.transform(matrixStackNew, offset);
-                    (half ? MODEL_APG_TOP : MODEL_APG_BOTTOM).render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
-                    matrixStackNew.popPose();
+                    try {
+                        (half ? MODEL_APG_TOP : MODEL_APG_BOTTOM).render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
+                    } finally {
+                        matrixStackNew.popPose(); /* transform() pushed — never leak the pose */
+                    }
                 });
                 if (half && !unlocked) {
                     MainRenderer.scheduleRender(TEXTURE_APG_DOOR_LOCKED, false, QueuedRenderLayer.EXTERIOR, (matrixStackNew, vertexConsumer, offset) -> {
                         storedMatrixTransformations.transform(matrixStackNew, offset);
-                        MODEL_APG_DOOR_LOCKED.render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
-                        matrixStackNew.popPose();
+                        try {
+                            MODEL_APG_DOOR_LOCKED.render(matrixStackNew, vertexConsumer, light, OverlayTexture.NO_OVERLAY);
+                        } finally {
+                            matrixStackNew.popPose(); /* transform() pushed — never leak the pose */
+                        }
                     });
                 }
                 break;
@@ -148,7 +159,7 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
        package-local here so the DRL door keeps rendering its textured cuboids
        through the vanilla part renderer. */
     private static ModelPart createSingleCube(int textureWidth, int textureHeight, int x, int y, int z, int sizeX, int sizeY, int sizeZ) {
-        return createModelPart(parent -> createModelPartData(parent, 0, 0, x - 8, y - 16, z - 8, sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0), textureWidth, textureHeight);
+        return createModelPart(parent -> createModelPartData(parent, "part", 0, 0, x - 8, y - 16, z - 8, sizeX, sizeY, sizeZ, 0, 0, 0, 0, 0, 0, 0), textureWidth, textureHeight);
     }
 
     private static ModelPart createModelPart(Consumer<PartDefinition> builder, int textureWidth, int textureHeight) {
@@ -157,8 +168,13 @@ public class RenderDRLAPGDoor<T extends APGDoorDRLBlockEntity> extends BlockEnti
         return net.minecraft.client.model.geom.builders.LayerDefinition.create(modelData, textureWidth, textureHeight).bakeRoot();
     }
 
-    private static void createModelPartData(PartDefinition parent, int textureX, int textureY, float offsetX, float offsetY, float offsetZ, float sizeX, float sizeY, float sizeZ, float dilation, float pivotX, float pivotY, float pivotZ, float rotateX, float rotateY, float rotateZ) {
-        parent.addOrReplaceChild("part", CubeListBuilder.create()
+    private static void createModelPartData(PartDefinition parent, String name, int textureX, int textureY, float offsetX, float offsetY, float offsetZ, float sizeX, float sizeY, float sizeZ, float dilation, float pivotX, float pivotY, float pivotZ, float rotateX, float rotateY, float rotateZ) {
+        /* Vanilla stores ModelPart children in a NAME-KEYED map: every cube of a
+           part must use a distinct child name, otherwise addOrReplaceChild
+           silently discards all but the last cube (the DRL APG door bottom
+           used to render as just its 2-pixel skirt — the 16x16 door body and
+           the 16x6 mid panel vanished). */
+        parent.addOrReplaceChild(name, CubeListBuilder.create()
                 .texOffs(textureX, textureY)
                 .addBox(offsetX, offsetY, offsetZ, sizeX, sizeY, sizeZ, new net.minecraft.client.model.geom.builders.CubeDeformation(dilation)),
                 PartPose.offsetAndRotation(pivotX, pivotY, pivotZ, rotateX, rotateY, rotateZ));

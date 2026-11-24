@@ -22,13 +22,14 @@ public class MJPEGVideo implements Video {
 
     @Override
     public Frame getFrame(int frame) {
-        if(frame >= frames.size()) return null;
+        if(frame < 0 || frame >= frames.size()) return null;
         return frames.get(frame);
     }
 
     @Override
     public BufferedImage extractFrameImage(int frameIndex) {
         Frame frame = getFrame(frameIndex);
+        if(frame == null) return null;
         try(ByteArrayInputStream bis = new ByteArrayInputStream(data, frame.startByte, frame.endByte - frame.startByte)) {
             return ImageIO.read(bis);
         } catch (IOException e) {

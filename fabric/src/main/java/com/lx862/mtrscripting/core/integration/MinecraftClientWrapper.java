@@ -66,11 +66,19 @@ public class MinecraftClientWrapper {
     }
 
     public static int blockLightAt(ScriptVector3f pos) {
-        return Minecraft.getInstance().level.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.rawBlockPos());
+        /* Null-guard, same as worldIsRaining et al.: Minecraft.level turns null
+           a frame or two before the script instances are invalidated on world
+           exit — an in-flight script task would NPE and put the script into the
+           4s fail-cooldown loop. */
+        final Level world = (Level)Minecraft.getInstance().level;
+        if(world == null) return 0;
+        return world.getBrightness(net.minecraft.world.level.LightLayer.BLOCK, pos.rawBlockPos());
     }
 
     public static int skyLightAt(ScriptVector3f pos) {
-        return Minecraft.getInstance().level.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.rawBlockPos());
+        final Level world = (Level)Minecraft.getInstance().level;
+        if(world == null) return 0;
+        return world.getBrightness(net.minecraft.world.level.LightLayer.SKY, pos.rawBlockPos());
     }
 
     public static int lightAt(ScriptVector3f pos) {
@@ -84,16 +92,22 @@ public class MinecraftClientWrapper {
     }
 
     public static int getRedstoneLevel(ScriptVector3f pos) {
-        return LoaderImpl.getRedstoneLevel((Level)Minecraft.getInstance().level, pos.rawBlockPos());
+        final Level world = (Level)Minecraft.getInstance().level;
+        if(world == null) return 0;
+        return LoaderImpl.getRedstoneLevel(world, pos.rawBlockPos());
     }
 
     public static String getCurrentWorldId() {
-        ResourceLocation id = MinecraftServerHelper.getWorldId((Level)Minecraft.getInstance().level);
+        final Level world = (Level)Minecraft.getInstance().level;
+        if(world == null) return "";
+        ResourceLocation id = MinecraftServerHelper.getWorldId(world);
         return id.getNamespace() + ":" + id.getPath();
     }
 
     public static String getWorldBlockState(ScriptVector3f blockPos, String stateName) {
-        BlockState blockState = Minecraft.getInstance().level.getBlockState(blockPos.rawBlockPos());
+        final Level world = (Level)Minecraft.getInstance().level;
+        if(world == null) return "";
+        BlockState blockState = world.getBlockState(blockPos.rawBlockPos());
         return LoaderImpl.getBlockStateValue(blockState, stateName);
     }
 

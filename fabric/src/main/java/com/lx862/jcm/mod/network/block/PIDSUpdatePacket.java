@@ -17,6 +17,13 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class PIDSUpdatePacket extends PacketHandler {
+    /**
+     * Upper bound for the client-controlled row count. The biggest PIDS in the
+     * mod has far fewer rows; anything beyond this is a corrupted or hostile
+     * packet (a huge count would allocate ~rows*16 bytes and crash the server
+     * with OutOfMemoryError, a negative one NegativeArraySizeException).
+     */
+    private static final int MAX_ROWS = 32;
     protected final BlockPos blockPos;
     protected final LongAVLTreeSet filteredPlatforms;
     protected final String[] customMessages;
@@ -26,13 +33,26 @@ public class PIDSUpdatePacket extends PacketHandler {
 
     public PIDSUpdatePacket(PacketBufferReceiver packetBufferReceiver) {
         this.blockPos = BlockPos.of(packetBufferReceiver.readLong());
-        int rows = packetBufferReceiver.readInt();
+        int rowsRead = packetBufferReceiver.readInt();
+        if(rowsRead < 0 || rowsRead > MAX_ROWS) rowsRead = 0;
+        /* Effectively final for the lambda captures below. */
+        final int rows = rowsRead;
         this.customMessages = new String[rows];
         this.rowHidden = new boolean[rows];
         this.filteredPlatforms = new LongAVLTreeSet();
 
-        JCMPacketHandlerHelper.readArray(packetBufferReceiver, i -> this.customMessages[i] = packetBufferReceiver.readString());
-        JCMPacketHandlerHelper.readArray(packetBufferReceiver, i -> this.rowHidden[i] = packetBufferReceiver.readBoolean());
+        /* Guarded callbacks: the per-array size headers are read from the same
+           untrusted buffer and may disagree with the clamped row count —
+           out-of-range indices are consumed and dropped instead of throwing
+           AIOOBE inside the server packet pipeline. */
+        JCMPacketHandlerHelper.readArray(packetBufferReceiver, i -> {
+            final String message = packetBufferReceiver.readString();
+            if(i >= 0 && i < rows) this.customMessages[i] = message;
+        });
+        JCMPacketHandlerHelper.readArray(packetBufferReceiver, i -> {
+            final boolean hidden = packetBufferReceiver.readBoolean();
+            if(i >= 0 && i < rows) this.rowHidden[i] = hidden;
+        });
         JCMPacketHandlerHelper.readArray(packetBufferReceiver, i -> filteredPlatforms.add(packetBufferReceiver.readLong()));
 
         this.hidePlatformNumber = packetBufferReceiver.readBoolean();

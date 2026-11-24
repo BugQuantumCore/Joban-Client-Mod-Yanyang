@@ -28,7 +28,12 @@ public class SoundLooperBlock extends JCMBlock implements EntityBlock {
     @Override
     public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         return IBlock.checkHoldingBrush(world, player, () -> {
-            SoundLooperBlockEntity be = (SoundLooperBlockEntity) world.getBlockEntity(pos);
+            /* Guard the cast and the dereference: a missing block entity
+               (corrupted chunk, BE-stripping tools) used to NPE right-clicks
+               with a brush. */
+            net.minecraft.world.level.block.entity.BlockEntity thisBE = world.getBlockEntity(pos);
+            if(!(thisBE instanceof SoundLooperBlockEntity)) return;
+            SoundLooperBlockEntity be = (SoundLooperBlockEntity) thisBE;
             Networking.sendPacketToClient(player, new SoundLooperGUIPacket(pos, be.getCorner1(), be.getCorner2(), be.getSoundId(), be.getSoundCategory(), be.getLoopInterval(), be.getSoundVolume(), be.needRedstone(), be.rangeLimited()));
         });
     }

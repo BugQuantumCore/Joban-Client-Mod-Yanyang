@@ -73,7 +73,7 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
 
     @Override
     public void renderWidget(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
-    	final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
+        final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
     
         GuiHelper.drawRectangle(new GuiDrawing(graphicsHolder), getX(), getY(), getWidth(), getHeight(), 0x4F4C4C4C);
         super.renderWidget(guiGraphics, mouseX, mouseY, tickDelta);
@@ -90,7 +90,11 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
             int entryX = getX();
             int entryY = getY() + incY - (int) currentScroll;
             boolean widgetVisible = false;
-            boolean rowInSight = inRectangle(entryX, entryY, getX(), getY(), getWidth(), getHeight()) || inRectangle(entryX, entryY+abstractListItem.getHeight(), getX(), getY(), getWidth(), getHeight());
+            /* Interval overlap (not corner-in-rect): an item TALLER than the
+               viewport whose top is above and bottom below the visible band
+               has neither corner inside — it used to be skipped entirely even
+               though part of it was visible (long DescriptionItems). */
+            boolean rowInSight = entryY < getY() + getHeight() && entryY + abstractListItem.getHeight() > getY();
 
             if (abstractListItem instanceof ContentItem) {
                 ContentItem contentItem = (ContentItem) abstractListItem;
@@ -137,7 +141,7 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
         }
     }
 
-	@Override
-	public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
-	}
+        @Override
+        public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput narrationElementOutput) {
+        }
 }

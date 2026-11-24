@@ -5,6 +5,7 @@ import com.lx862.jcm.mod.block.entity.PIDSBlockEntity;
 import com.lx862.jcm.mod.network.gui.PIDSGUIPacket;
 import com.lx862.jcm.mod.registry.Networking;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import org.mtr.block.IBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
@@ -23,7 +24,12 @@ public abstract class JCMPIDSBlock extends Horizontal2MirroredBlock implements E
     @Override
     public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         return IBlock.checkHoldingBrush(world, player, () -> {
-            PIDSBlockEntity be = (PIDSBlockEntity) world.getBlockEntity(pos);
+            /* Guard the cast and the dereference: a missing block entity
+               (corrupted chunk, BE-stripping tools) used to NPE right-clicks
+               with a brush. */
+            BlockEntity thisBE = world.getBlockEntity(pos);
+            if(!(thisBE instanceof PIDSBlockEntity)) return;
+            PIDSBlockEntity be = (PIDSBlockEntity) thisBE;
             Networking.sendPacketToClient(player, new PIDSGUIPacket(pos, be.getCustomMessages(), be.getRowHidden(), be.platformNumberHidden(), be.getPresetId()));
         });
     }

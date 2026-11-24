@@ -21,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import com.lx862.jcm.mod.render.TextCase;
 
@@ -32,7 +33,11 @@ public class PIDSPresetScreen extends TitledScreen implements RenderHelper, GuiH
 
     public PIDSPresetScreen(BlockPos pos, String selectedPreset, Consumer<String> callback) {
         super(false);
-        BlockEntity be = Minecraft.getInstance().level.getBlockEntity(pos);
+        /* Null-guard the lookup: level is briefly null during disconnect /
+           dimension switch, and the sibling PIDSScreen guards the identical
+           lookup. */
+        Level level = Minecraft.getInstance().level;
+        BlockEntity be = level == null ? null : level.getBlockEntity(pos);
         if(be != null && be instanceof PIDSBlockEntity) {
             this.pidsType = ((PIDSBlockEntity)be).getPIDSType();
         } else {

@@ -7,6 +7,8 @@ import com.lx862.jcm.nativeapi.NativeScriptManager;
 import com.lx862.mtrscripting.core.rhinojs.RhinoParsedScript;
 import com.lx862.mtrscripting.core.util.ScriptResourceUtil;
 import com.lx862.mtrscripting.mod.impl.mtr.eyecandy.config.ante.ConfigResponderStorage;
+import com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTEGlobalRegisterJS;
+import com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTESoundHelperJS;
 import com.lx862.mtrscripting.mod.impl.mtr.MTRContentScripting;
 import com.lx862.mtrscripting.mod.MTRScriptingModClient;
 import com.lx862.mtrscripting.core.util.ConsoleJS;
@@ -57,6 +59,11 @@ public class MtrScriptingResourceManager {
         ScriptResourceUtil.resetCache();
         RhinoParsedScript.clearScriptCache();
         ConfigResponderStorage.reset();
+        /* Script global state must not survive a resource reload — a script
+           on the reloaded pack would read stale values from the pre-reload
+           universe. Looping legacy-ANTE sounds keep playing without this. */
+        ANTEGlobalRegisterJS.clear();
+        ANTESoundHelperJS.resetAll();
 
         MTRContentScripting.getScriptManager().scriptErrorNotifier.reset();
 

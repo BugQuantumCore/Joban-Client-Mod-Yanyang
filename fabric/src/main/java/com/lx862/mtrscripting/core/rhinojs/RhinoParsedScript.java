@@ -40,7 +40,7 @@ public class RhinoParsedScript extends ParsedScript {
     @Override
     public RhinoParsedScript parse(boolean verboseLogging) {
         try {
-            Context cx = Context.enter();
+            Context cx = enterTimedContext();
             cx.setLanguageVersion(Context.VERSION_ES6);
             cx.setClassShutter(new MTRRhinoClassShutter(scriptManager.getClassShutter()));
             scope = new ImporterTopLevel(cx);
@@ -125,7 +125,7 @@ public class RhinoParsedScript extends ParsedScript {
 
             boolean succeeded = false;
             try {
-                Context cx = Context.enter();
+                Context cx = enterTimedContext();
                 cx.setLanguageVersion(Context.VERSION_ES6);
                 cx.setClassShutter(new MTRRhinoClassShutter(scriptManager.getClassShutter()));
                 timing.prepareForScript(scriptInstance);
@@ -195,6 +195,29 @@ public class RhinoParsedScript extends ParsedScript {
             }
             scope.delete(name);
         }
+    }
+
+    /**
+     * Enters a Rhino context AND arms the execution watchdog.
+     *
+     * <p>{@code MTRRhinoContextFactory.observeInstructionCount} aborts scripts
+     * that run longer than 10s, but it reads {@code MTRRhinoContext.startTime},
+     * which was only ever set in {@code doTopCall()} — and this class executes
+     * scripts via {@code script.exec} / {@code Function.call} after a bare
+     * {@code Context.enter()}, so {@code doTopCall} never ran, {@code startTime}
+     * stayed {@code -1} and the watchdog could never fire. A {@code while(true){}}
+     * at script top level therefore hung the reload thread (and permanently
+     * killed one of the 4 script-executor threads, since nothing interrupts
+     * them). Marking the start time right after entry arms the watchdog for
+     * every execution path; the timeout surfaces as a normal script error
+     * (caught by {@code invokeJSFunctions}) instead of a permanent hang.</p>
+     */
+    private static Context enterTimedContext() {
+        final Context cx = Context.enter();
+        if(cx instanceof MTRRhinoContext) {
+            ((MTRRhinoContext)cx).startTime = System.currentTimeMillis();
+        }
+        return cx;
     }
 
     @Override

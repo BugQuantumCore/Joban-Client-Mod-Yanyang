@@ -175,15 +175,23 @@ public class EyecandyResourceProvider implements ScriptResourceProvider {
             JsonArray entriesArray = jsonObject.get("entries").getAsJsonArray();
             for(JsonElement jsonElement : entriesArray) {
                 JsonObject entryObject = jsonElement.getAsJsonObject();
-                String id = JsonUtil.getString("id", entryObject);
-                String name = JsonUtil.getString("name", id, entryObject);
-                EyecandyCustomConfig.Entry.Type type = EyecandyCustomConfig.Entry.Type.valueOf(JsonUtil.getString("type", entryObject));
-                String validation = JsonUtil.getString("validation", null, entryObject);
-                String validationMessage = JsonUtil.getString("validationMessage", String.format("Value is not %s!", validation), entryObject);
-                String defaultValue = JsonUtil.getString("defaultValue", null, entryObject);
+                /* One malformed entry skips only that entry — the old code
+                   threw on an unknown "type" string (e.g. the natural lowercase
+                   "double"), and the whole-script-entry catch above then dropped
+                   the ENTIRE eyecandy script with only a log line. */
+                try {
+                    String id = JsonUtil.getString("id", entryObject);
+                    String name = JsonUtil.getString("name", id, entryObject);
+                    EyecandyCustomConfig.Entry.Type type = EyecandyCustomConfig.Entry.Type.valueOf(JsonUtil.getString("type", entryObject).toUpperCase(java.util.Locale.ROOT));
+                    String validation = JsonUtil.getString("validation", null, entryObject);
+                    String validationMessage = JsonUtil.getString("validationMessage", String.format("Value is not %s!", validation), entryObject);
+                    String defaultValue = JsonUtil.getString("defaultValue", null, entryObject);
 
-                EyecandyCustomConfig.Entry entry = new EyecandyCustomConfig.Entry(id, TextHelper.translatable(name), type, validation == null ? null : new EyecandyCustomConfig.Entry.ValidationCallback.Regex(validation, validationMessage), defaultValue);
-                entries.add(entry);
+                    EyecandyCustomConfig.Entry entry = new EyecandyCustomConfig.Entry(id, TextHelper.translatable(name), type, validation == null ? null : new EyecandyCustomConfig.Entry.ValidationCallback.Regex(validation, validationMessage), defaultValue);
+                    entries.add(entry);
+                } catch (Exception e) {
+                    MTRScriptingModClient.LOGGER.warn("[MTR Scripting via JCM] Skipping malformed eyecandy custom config entry: {}", e.toString());
+                }
             }
         }
 

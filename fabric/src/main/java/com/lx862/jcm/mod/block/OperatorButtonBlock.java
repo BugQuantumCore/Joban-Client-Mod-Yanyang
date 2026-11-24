@@ -62,6 +62,9 @@ public class OperatorButtonBlock extends WallAttachedBlock implements EntityBloc
         OperatorButtonBlockEntity be = thisBE == null ? null : (OperatorButtonBlockEntity)thisBE;
 
         IBlock.checkHoldingBrush(world, player, () -> {
+            /* be may be null (corrupted chunk, BE-stripping tools) — the old
+               code NPE'd the brush branch. */
+            if(be == null) return;
             Networking.sendPacketToClient(player, new OperatorButtonGUIPacket(pos, be.getKeyRequirements()));
         }, () -> {
             boolean pass = false;

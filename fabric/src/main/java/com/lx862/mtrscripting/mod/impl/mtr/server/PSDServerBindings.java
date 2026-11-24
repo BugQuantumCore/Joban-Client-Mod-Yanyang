@@ -222,11 +222,26 @@ public final class PSDServerBindings {
 
     private static DimensionState ensureLoaded(MinecraftServer minecraftServer, String dimension, Level world) {
         DimensionState state = DIMENSIONS.get(dimension);
-        if (state == null) {
+        if (state == null || state.world != world) {
+            /* A (datapack/MTR) dimension unload+reload hands out a NEW Level
+               object: keep the stored bindings but re-target them at the live
+               world — the old state's world reference used to persist for the
+               whole session and broadcasts silently no-op'd into the dead
+               level after the reload. */
+            final Map<BlockPos, PSDBinding> carried = state == null ? null : state.bindings;
+            final boolean carriedDirty = state != null && state.dirty;
             final Path file = minecraftServer.getWorldPath(LevelResource.ROOT)
                     .resolve("mtr").resolve(dimension).resolve("psd-scripts").resolve("bindings.json");
             state = new DimensionState(dimension, file, world);
-            load(state);
+            if (carried != null && !carried.isEmpty()) {
+                /* In-memory edits made before the reload must not vanish:
+                 * carry them over; the disk state stays authoritative
+                 * otherwise (load() re-reads the file only for fresh states). */
+                state.bindings.putAll(carried);
+                state.dirty = carriedDirty || state.dirty;
+            } else {
+                load(state);
+            }
             DIMENSIONS.put(dimension, state);
         }
         return state;

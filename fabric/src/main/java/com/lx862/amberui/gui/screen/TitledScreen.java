@@ -28,6 +28,20 @@ public abstract class TitledScreen extends AnimatedScreen {
         super.renderBackground(graphicsHolder.getGuiGraphics(), mouseX, mouseY, tickDelta);
     }
 
+#if MC_VERSION > "12101"
+    @Override
+    public void renderBackground(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        /* 1.21.2+ Screen.render auto-invokes renderBackground BEFORE the
+           renderables — i.e. AFTER this class has already drawn the background
+           (manually, before the title) through super.renderBackground. The
+           automatic second pass would slap the vanilla gradient/blur on top of
+           the title and subtitle. Suppress it: the manual pass in
+           drawBackground calls super.renderBackground directly and therefore
+           bypasses this override, so any invocation reaching this method IS
+           the automatic call. On 1.21.1 this override compiles away. */
+    }
+#endif
+
     private void drawTitle(GraphicsHolder graphicsHolder) {
         int titleHeight = (RenderHelper.lineHeight * TITLE_SCALE);
         MutableComponent titleText = getScreenTitle();

@@ -23,12 +23,18 @@ public abstract class BlockConfigListScreen extends BlockConfigScreen implements
         int listViewHeight = Math.max(160, (int)((height - 60) * 0.75));
         int startX = (width - contentWidth) / 2;
         int startY = TEXT_PADDING * 5;
-        int bottomEntryHeight = (height - startY - listViewHeight - (BOTTOM_ROW_MARGIN * 2));
+        /* Floor the bottom row and clamp the list height: below ~222 GUI
+           height pixels (small windows at high GUI scale) the old formula
+           went NEGATIVE — the widget rows collapsed onto each other and the
+           Save/Discard buttons were pushed off-screen, making the config
+           unsaveable. */
+        int bottomEntryHeight = Math.max(20, (height - startY - listViewHeight - (BOTTOM_ROW_MARGIN * 2)));
+        int effectiveListViewHeight = Math.min(listViewHeight, Math.max(160, height - startY - bottomEntryHeight - (BOTTOM_ROW_MARGIN * 2)));
 
         ListViewWidget listViewWidget = new ListViewWidget();
-        listViewWidget.setXYSize(startX, startY, contentWidth, listViewHeight);
+        listViewWidget.setXYSize(startX, startY, contentWidth, effectiveListViewHeight);
         addConfigEntries(listViewWidget);
-        addBottomRowEntry(startX, startY + listViewHeight + BOTTOM_ROW_MARGIN, contentWidth, bottomEntryHeight);
+        addBottomRowEntry(startX, startY + effectiveListViewHeight + BOTTOM_ROW_MARGIN, contentWidth, bottomEntryHeight);
         listViewWidget.positionWidgets();
         addRenderableWidget(listViewWidget);
     }

@@ -544,11 +544,17 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int y = yFrom; y <= yTo; y += rowStep) {
                 total++;
-                if (((#if MC_VERSION == "12104"
+                /* NativeImage packs pixels as ABGR: the alpha lives in the TOP
+                   byte. The old code masked with & 0xFF and therefore compared
+                   the RED channel against the alpha thresholds — opaque BLACK
+                   frames read as fully transparent (window bled onto frames)
+                   while any red-ish transparent pixel occluded. */
+                final int pixel = (#if MC_VERSION == "12104"
                 image.getPixel(x, y)
 #else
                 image.getPixelRGBA(x, y)
-#endif & 0xFF) & 0xFF) >= frameThreshold) {
+#endif);
+                if ((pixel >>> 24) >= frameThreshold) {
                     frame++;
                 }
             }
@@ -612,7 +618,7 @@ final class PSDWindowBounds {
                 image.getPixel(x, y)
 #else
                 image.getPixelRGBA(x, y)
-#endif & 0xFF) & 0xFF) > 0) {
+#endif) >>> 24) > 0) {
                     return true;
                 }
             }
@@ -636,11 +642,13 @@ final class PSDWindowBounds {
             int frame = 0, total = 0;
             for (int x = xFrom; x <= xTo; x += columnStep) {
                 total++;
-                if (((#if MC_VERSION == "12104"
+                /* Alpha, not the low-byte channel — see markOcclusionH. */
+                final int pixel = (#if MC_VERSION == "12104"
                 image.getPixel(x, y)
 #else
                 image.getPixelRGBA(x, y)
-#endif & 0xFF) & 0xFF) >= frameThreshold) {
+#endif);
+                if ((pixel >>> 24) >= frameThreshold) {
                     frame++;
                 }
             }

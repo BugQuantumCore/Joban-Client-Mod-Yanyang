@@ -29,6 +29,10 @@ public class DestinationMessageComponent extends TextComponent {
         ObjectArrayList<ArrivalResponse> arrivals = context.arrivals;
         String displayString;
 
+        /* Same bounds guard every sibling arrival component has — a stale or
+           script-supplied arrivalIndex used to throw AIOOBE on the render
+           path. */
+        if(arrivalIndex >= arrivals.size()) return;
         ArrivalResponse arrival = arrivals.get(arrivalIndex);
         displayString = getDisplayString(arrival).string();
         if(arrival.getCircularState() == Route.CircularState.CLOCKWISE) {

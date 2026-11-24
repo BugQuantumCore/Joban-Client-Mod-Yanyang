@@ -52,7 +52,13 @@ public class VehicleWrapper {
      * scale anyway. Same access pattern and limits as the limited-stops
      * cache in {@link StopsData#LIMITED_CACHE}.
      */
-    private static final Map<Long, CachedDoorDirection> DOOR_DIRECTION_CACHE = new HashMap<>();
+    /* ConcurrentHashMap: getDirectionOfDoorOpening() is script API — it runs
+       on the 4 script-executor threads (two vehicle scripts can populate
+       entries concurrently), while clearDoorDirectionCache() runs on the
+       client thread and the native driver reads from the render thread. The
+       plain HashMap could lose entries or corrupt its buckets. Values are
+       replaced whole, never structurally mutated after publication. */
+    private static final Map<Long, CachedDoorDirection> DOOR_DIRECTION_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final long DOOR_DIRECTION_TTL_NANOS = 250_000_000L;
     private static final int DOOR_DIRECTION_CACHE_MAX = 256;
 
@@ -292,6 +298,13 @@ public class VehicleWrapper {
                 stopsData.routeToRun.add(route.getId());
 
                 List<SimplifiedRoutePlatform> routePlatforms = route.getPlatforms();
+                /* A SimplifiedRoute can be synced to the client with an empty
+                   platform list (route being edited server-side while a vehicle
+                   still references it). The full-data path skips such routes
+                   (VehicleDataCache); the limited path must too — indexing
+                   get(size-1) here threw IndexOutOfBoundsException on the
+                   render thread and crashed the client. */
+                if(routePlatforms.isEmpty()) continue;
                 List<Stop> routeStops = new ArrayList<>();
                 Station destinationStation = MinecraftClientData.getInstance().stationIdMap.get(routePlatforms.get(routePlatforms.size()-1).getStationId());
 
@@ -336,7 +349,7 @@ public class VehicleWrapper {
                     }
 
                     boolean shouldAppendStop = false;
-                    if(routePlatform.getPlatformId() == lastPlatformId) { // Duplicated platform, likely double-added stop from route changeover.
+                    if(routePlatform.getPlatformId() == lastPlatformId && !stopsData.allStops.isEmpty()) { // Duplicated platform, likely double-added stop from route changeover.
                         Stop prevStop = stopsData.allStops.get(stopsData.allStops.size()-1);
                         prevStop.roundUpRoute = thisStop;
                         prevStop.reverseAtPlatform = true;
@@ -487,7 +500,11 @@ public class VehicleWrapper {
         for (int car = 0; car < wrapper.posAndRotations.size(); car++) {
             if (isCarVisible(wrapper, car)) return true;
         }
-        return true;
+        /* The old unconditional `return true` defeated the whole culling check:
+           isRendered() never returned false, so scripts gating work on it (the
+           documented off-screen pattern) never skipped anything. A vehicle
+           with no car positions at all stays "visible" (fail-open). */
+        return wrapper.posAndRotations.isEmpty();
     }
 
     /* Start getters */

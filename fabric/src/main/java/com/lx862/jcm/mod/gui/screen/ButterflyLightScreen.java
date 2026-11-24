@@ -1,5 +1,6 @@
 package com.lx862.jcm.mod.gui.screen;
 
+import com.lx862.jcm.mod.block.entity.ButterflyLightBlockEntity;
 import com.lx862.jcm.mod.network.block.ButterflyLightUpdatePacket;
 import com.lx862.jcm.mod.registry.Blocks;
 import com.lx862.jcm.mod.registry.Networking;
@@ -40,6 +41,12 @@ public class ButterflyLightScreen extends BlockConfigListScreen {
 
     @Override
     public void onSave() {
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof ButterflyLightBlockEntity) {
+                ((ButterflyLightBlockEntity)be).setData((int) this.value);
+            }
+        });
         Networking.sendPacketToServer(new ButterflyLightUpdatePacket(blockPos, (int) this.value));
     }
 }

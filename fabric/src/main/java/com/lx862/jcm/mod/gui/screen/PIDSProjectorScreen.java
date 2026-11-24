@@ -131,6 +131,12 @@ public class PIDSProjectorScreen extends PIDSScreen {
             rowHidden[i] = this.rowHiddenWidgets[i].isChecked();
         }
 
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof PIDSProjectorBlockEntity) {
+                ((PIDSProjectorBlockEntity)be).setData(customMessages, filteredPlatforms, rowHidden, hidePlatformNumber.isChecked(), presetId, xField.getNumber(), yField.getNumber(), zField.getNumber(), rotateXField.getNumber(), rotateYField.getNumber(), rotateZField.getNumber(), scaleField.getNumber());
+            }
+        });
         Networking.sendPacketToServer(new PIDSProjectorUpdatePacket(blockPos, filteredPlatforms, customMessages, rowHidden, hidePlatformNumber.isChecked(), presetId, xField.getNumber(), yField.getNumber(), zField.getNumber(), rotateXField.getNumber(), rotateYField.getNumber(), rotateZField.getNumber(), scaleField.getNumber()));
     }
 

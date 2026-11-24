@@ -34,10 +34,14 @@ public final class ServerDoorDirections {
     private static final long MISSING_PLATFORM_RETRY_MILLIS = 30_000;
     private static final long COMPLETE_REFRESH_MILLIS = 60_000;
 
-    /* All accessed from the main client thread only (packet handlers and
-       vehicle rendering both run there), same as VehicleDataCache. */
-    private static final Map<Long, Answer> ANSWERS = new HashMap<>();
-    private static final Map<Long, Long> LAST_REQUEST_AT = new HashMap<>();
+    /* ConcurrentHashMap: the comment below used to say "main client thread
+       only", but sidesFor()/requestFor() are called from the script-executor
+       threads too (VehicleWrapper.getDirectionOfDoorOpening is script API),
+       while accept() runs on the client thread from the packet handler. The
+       plain HashMap could lose entries or corrupt its buckets under that
+       access pattern; entries are immutable once published. */
+    private static final Map<Long, Answer> ANSWERS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<Long, Long> LAST_REQUEST_AT = new java.util.concurrent.ConcurrentHashMap<>();
 
     private ServerDoorDirections() {
     }

@@ -1,6 +1,7 @@
 package com.lx862.jcm.mod.gui.screen;
 
 import com.lx862.jcm.mod.block.OperatorButtonBlock;
+import com.lx862.jcm.mod.block.entity.OperatorButtonBlockEntity;
 import com.lx862.jcm.mod.network.block.OperatorButtonUpdatePacket;
 import com.lx862.jcm.mod.registry.Blocks;
 import com.lx862.jcm.mod.registry.Networking;
@@ -113,6 +114,12 @@ public class OperatorButtonScreen extends BlockConfigScreen {
 
     @Override
     protected void onSave() {
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof OperatorButtonBlockEntity) {
+                ((OperatorButtonBlockEntity)be).setData(keyRequirements);
+            }
+        });
         Networking.sendPacketToServer(new OperatorButtonUpdatePacket(blockPos, keyRequirements));
     }
 

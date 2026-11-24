@@ -345,6 +345,11 @@ public final class DoorDirectionManager {
         final Path mtrRoot = minecraftServer.getWorldPath(LevelResource.ROOT).resolve("mtr");
         final WorldState state = new WorldState(dimension, simulator, mtrRoot.resolve(dimension), serverWorld);
         WORLDS.put(dimension, state);
+        /* A reloaded dimension gets a NEW ServerLevel object — drop the
+           identity-keyed entry of the OLD world object so it cannot keep the
+           dead level (and everything it references) strongly reachable, and
+           cannot serve stale scans after the reload. */
+        WORLDS_BY_RAW.values().removeIf(existing -> existing.dimension.equals(dimension) && existing.world != serverWorld);
         WORLDS_BY_RAW.put(serverWorld, state);
         state.loadFromDisk();
         if(state.scanned) {

@@ -25,6 +25,13 @@ public class RawMeshBuilderJS {
     }
 
     public RawMeshBuilderJS(int faceSize, String renderType, ResourceLocation textureId) {
+        /* A face needs at least 3 vertices: faceSize 0 divides by zero in
+           endVertex(), 1-2 index out of bounds in Face.triangulate — both
+           left the script erroring on every render (retry cooldown loop)
+           with no hint at the actual cause. */
+        if(faceSize < 3) {
+            throw new IllegalArgumentException("RawMeshBuilder faceSize must be at least 3 (got " + faceSize + ")");
+        }
         this.faceSize = faceSize;
         this.mesh = new RawMesh(new MaterialProperties(com.lx862.jcm.mod.render.mesh.ShaderType.fromRenderStage(RawModelJS.stringToRenderStage(renderType)), textureId, 0xFFFFFFFF));
     }

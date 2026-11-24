@@ -83,6 +83,7 @@ public class RequestMTRDataC2SPacket extends PacketHandler {
         }
 
         Main tscInstance = InitAccessorMixin.getMain();
+        if(tscInstance == null) return; // Simulator may not be initialized during server startup — the sibling RequestStopsDataC2SPacket guards the same window.
         Level playerWorld = serverPlayerEntity.level();
         String tscDimensionId = MTR.getWorldId(playerWorld);
 

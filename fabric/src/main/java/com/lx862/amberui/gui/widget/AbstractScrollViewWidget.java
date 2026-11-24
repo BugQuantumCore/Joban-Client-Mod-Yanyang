@@ -42,6 +42,10 @@ public abstract class AbstractScrollViewWidget extends AbstractWidget {
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
         if (visible && isFocused() && scrollbarDragging) {
+            /* Empty list: getContentHeight() is 0 — the s1 computation below
+               divides by it (ArithmeticException on the render/UI thread), and
+               the empty list can't scroll anyway. */
+            if(!contentOverflowed()) return false;
             double remainingHeight = getContentHeight() - getHeight();
 
             int s1 = (getHeight() * getHeight()) / getContentHeight();
@@ -126,8 +130,13 @@ public abstract class AbstractScrollViewWidget extends AbstractWidget {
     }
 
     private boolean isOverScrollbar(double mouseX, double mouseY) {
+        int scrollbarOffset = getScrollbarOffset();
+        /* No scrollbar (content doesn't overflow, offset 0): the old check
+           degenerated to a 1-px column at the exact right edge — clicking
+           there started a drag that divided by zero in mouseDragged. */
+        if(scrollbarOffset <= 0) return false;
         int scrollbarEndX = getX() + getWidth();
-        int scrollbarStartX = scrollbarEndX - getScrollbarOffset();
+        int scrollbarStartX = scrollbarEndX - scrollbarOffset;
         return mouseX >= scrollbarStartX && mouseX <= scrollbarEndX && mouseY >= getY() && mouseY <= getY() + getHeight();
     }
 

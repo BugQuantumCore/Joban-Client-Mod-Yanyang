@@ -34,7 +34,10 @@ public class ButterflyLightBlock extends DirectionalBlock implements EntityBlock
     public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         return IBlock.checkHoldingBrush(world, player, () -> {
             BlockEntity be = world.getBlockEntity(pos);
-
+            /* Guard the cast and the dereference: a missing block entity
+               (corrupted chunk, BE-stripping tools) used to NPE/CCE right-clicks
+               with a brush. */
+            if(!(be instanceof ButterflyLightBlockEntity)) return;
             ButterflyLightBlockEntity thisEntity = (ButterflyLightBlockEntity)be;
             Networking.sendPacketToClient(player, new ButterflyLightGUIPacket(pos, thisEntity.getStartBlinkingSeconds()));
         });

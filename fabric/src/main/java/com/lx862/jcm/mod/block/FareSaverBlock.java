@@ -42,8 +42,12 @@ public class FareSaverBlock extends Vertical3Block implements EntityBlock {
     public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         if(world.isClientSide()) return InteractionResult.SUCCESS;
 
+        /* Guard the cast and the dereference: a missing block entity
+           (corrupted chunk, BE-stripping tools) used to NPE every interaction,
+           not just the brush branch. */
+        if(!(world.getBlockEntity(pos) instanceof FareSaverBlockEntity be)) return InteractionResult.FAIL;
+
         UUID playerUuid = player.getUUID();
-        FareSaverBlockEntity be = (FareSaverBlockEntity)world.getBlockEntity(pos);
         int discount = be.getDiscount();
 
         if (JCMUtil.playerHoldingBrush(player)) {

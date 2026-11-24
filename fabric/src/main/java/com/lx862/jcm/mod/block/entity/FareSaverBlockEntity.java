@@ -16,7 +16,12 @@ public class FareSaverBlockEntity extends JCMBlockEntityBase {
     public void readNbt(CompoundTag compoundTag) {
         super.readNbt(compoundTag);
         this.discount = compoundTag.getInt("discount");
-        this.prefix = compoundTag.contains("currency") ? compoundTag.getString("currency") : "$";
+        /* writeNbt stores the currency prefix under "prefix"; the old readNbt
+           looked for "currency", so every configured prefix silently reset to
+           "$" on world reload. Read the key that is actually written, with a
+           legacy fallback for worlds saved by even older builds. */
+        this.prefix = compoundTag.contains("prefix") ? compoundTag.getString("prefix")
+                : compoundTag.contains("currency") ? compoundTag.getString("currency") : "$";
     }
 
     @Override

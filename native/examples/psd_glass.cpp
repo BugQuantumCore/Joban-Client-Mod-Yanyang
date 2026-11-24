@@ -86,10 +86,24 @@ struct NextArrivalGlass : mtr::PsdScript<GlassState> {
                 .color(0xFFFFFF)
                 .draw(ctx);
 
-        /* The door units that will open, e.g. "开门 Doors: 1 2 3 4". */
+        /* The door units that will open, e.g. "开门 Doors: 1 2 3 4".
+         *
+         * snprintf returns the WOULD-BE length — once the string truncates,
+         * len exceeds sizeof(buffer), and the next iteration computed
+         * `buffer + len` (past-the-end pointer) with a size_t UNDERFLOW as the
+         * remaining size (verified as a stack-buffer-overflow under ASan:
+         * ~55 door units is enough to write far past the 192-byte buffer).
+         * Clamp after every call: once the formatter reports truncation, stop
+         * appending. */
         len = std::snprintf(buffer, sizeof(buffer), "开门 Doors:");
-        for (int32_t i = 0; i < arrival.door_count() && len > 0; i++) {
-            len += std::snprintf(buffer + len, sizeof(buffer) - static_cast<size_t>(len), " %d", arrival.door_number(i));
+        for (int32_t i = 0; i < arrival.door_count() && len > 0 && len < static_cast<int>(sizeof(buffer)); i++) {
+            const int written = std::snprintf(buffer + len, sizeof(buffer) - static_cast<size_t>(len), " %d", arrival.door_number(i));
+            if (written < 0) break; /* formatter error — keep what we have */
+            len += written;
+            if (len >= static_cast<int>(sizeof(buffer))) {
+                len = static_cast<int>(sizeof(buffer)) - 1; /* truncated: buffer is full */
+                break;
+            }
         }
         mtr::Text::create()
                 .text(buffer)

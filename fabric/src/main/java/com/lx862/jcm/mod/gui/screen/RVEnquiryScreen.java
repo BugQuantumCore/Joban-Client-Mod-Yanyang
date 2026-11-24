@@ -135,4 +135,15 @@ public class RVEnquiryScreen extends AnimatedScreen {
     public boolean isPauseScreen() {
         return false;
     }
+
+#if MC_VERSION > "12101"
+    @Override
+    public void renderBackground(net.minecraft.client.gui.GuiGraphics guiGraphics, int mouseX, int mouseY, float tickDelta) {
+        /* 1.21.2+ auto renderBackground from Screen.render would re-draw the
+           vanilla gradient over the content drawn in render(); the manual call
+           there (super.renderBackground) bypasses this override, so any
+           invocation reaching this method IS the automatic call. See
+           TitledScreen. */
+    }
+#endif
 }

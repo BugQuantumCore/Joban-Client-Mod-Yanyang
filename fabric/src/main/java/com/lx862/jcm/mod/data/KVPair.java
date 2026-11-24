@@ -58,11 +58,15 @@ public class KVPair {
     }
 
     public int getInt(String key, int fallback) {
-        Object value = get(key);
-        if(Integer.class.isInstance(value)) {
+        Object value = map.get(key);
+        if(value instanceof Integer) {
             return (Integer)value;
+        } else if(value instanceof Number) {
+            return ((Number)value).intValue();
         } else {
-            return ((Double)value).intValue();
+            /* The fallback used to be dead: a missing key NPE'd on the
+               ((Double)value) cast instead of returning it. */
+            return fallback;
         }
     }
 

@@ -32,7 +32,12 @@ public class ModelManagerJS {
     };
 
     private record ModelKey(ResourceLocation id, boolean flipTextureV) {}
-    private static final Map<ModelKey, RawModelJS> rawModelCache = new HashMap<>();
+    /* rawModelCache is read AND written from the script-executor threads
+       (loadModel is the standard NTE API called from script create(), which
+       runs on the 4 round-robin executors) — a plain HashMap can lose entries
+       or corrupt its table during a concurrent resize. */
+    private static final Map<ModelKey, RawModelJS> rawModelCache = new java.util.concurrent.ConcurrentHashMap<>();
+    /* Render-thread confined (see upload()'s thread check). */
     private static final Map<RawModelJS, ModelJS> modelCache = new HashMap<>();
 
     private ModelManagerJS() {
@@ -67,18 +72,19 @@ public class ModelManagerJS {
 
     public static RawModelJS loadModel(ResourceLocation id, boolean flipTextureV) {
         ModelKey key = new ModelKey(id, flipTextureV);
-        if(rawModelCache.containsKey(key)) return rawModelCache.get(key);
-
-        try {
-            RawModelJS rawModel = new RawModelJS();
-            Map<String, RawModelJS> modelDataParts = loadModelParts(id, flipTextureV);
-            modelDataParts.values().forEach(rawModel::append);
-            rawModelCache.put(key, rawModel);
-            return rawModel;
-        } catch (Exception e) {
-            MTRScriptingModClient.LOGGER.error("", e);
-            return null;
-        }
+        /* Atomic load-once: two executors parsing scripts that reference the
+           same model used to both miss the cache and parse the OBJ twice. */
+        return rawModelCache.computeIfAbsent(key, k -> {
+            try {
+                RawModelJS rawModel = new RawModelJS();
+                Map<String, RawModelJS> modelDataParts = loadModelParts(k.id(), k.flipTextureV());
+                modelDataParts.values().forEach(rawModel::append);
+                return rawModel;
+            } catch (Exception e) {
+                MTRScriptingModClient.LOGGER.error("", e);
+                return null;
+            }
+        });
     }
 
     public static Map<String, RawModelJS> loadModelParts(String modelLocation, boolean flipTextureV) {

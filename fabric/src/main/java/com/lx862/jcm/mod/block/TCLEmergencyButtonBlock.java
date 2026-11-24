@@ -25,6 +25,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class TCLEmergencyButtonBlock extends WallAttachedBlock implements PowerableBlockBehavior {
     public TCLEmergencyButtonBlock(BlockBehaviour.Properties settings) {
         super(settings);
+        /* UNPOWERED=true on placement: getSignal returns 15 when UNPOWERED is
+           FALSE, and BooleanProperty's default (first value) is false — a
+           freshly placed button/helpline powered adjacent redstone until its
+           first press+tick cycle. */
+        registerDefaultState(defaultBlockState().setValue(UNPOWERED, true));
     }
 
     @Override

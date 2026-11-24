@@ -22,7 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.RenderType;
+import org.mtr.render.MoreRenderLayers;
 
 public class ButterflyLightRenderer extends JCMBlockEntityRenderer<ButterflyLightBlockEntity> {
     private static final ResourceLocation BUTTERFLY_LIGHT_TEXTURE = Constants.id("textures/block/butterfly_light_dotmatrix.png");
@@ -59,7 +59,14 @@ public class ButterflyLightRenderer extends JCMBlockEntityRenderer<ButterflyLigh
             graphicsHolder.rotateZDegrees(180);
             graphicsHolder.translate(-8, 3, -2.05);
 
-            graphicsHolder.createVertexConsumer(RenderType.beaconBeam(BUTTERFLY_LIGHT_TEXTURE, true));
+            /* The light quad is written by IDrawing.drawTexture, which emits
+               the FULL vertex format (pos/color/uv/overlay/light/normal).
+               RenderType.beaconBeam uses the 3-element BEACON format — the
+               mismatch made the butterfly light's blinking overlay draw
+               nothing. MoreRenderLayers.getLight is the full-format layer
+               every other JCM light quad (StaticSignalLightRenderer et al.)
+               draws through. */
+            graphicsHolder.createVertexConsumer(MoreRenderLayers.getLight(BUTTERFLY_LIGHT_TEXTURE, false));
             RenderHelper.drawTexture(graphicsHolder, 2, 0, 4, 12, 5, facing, ARGB_WHITE, MAX_RENDER_LIGHT);
             graphicsHolder.pop();
         }

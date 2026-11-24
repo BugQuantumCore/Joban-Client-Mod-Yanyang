@@ -75,6 +75,11 @@ public class McMeta {
      * @param part How much part vertically this texture contains
      */
     public void setVerticalPart(int part) {
+        /* A texture whose height is smaller than its width (or any non-multiple)
+           yields verticalPart 0 via the integer division in McMetaManager —
+           a zero-length frames array then AIOOBE'd every client tick from
+           tick()/getUV(). Clamp to at least one part. */
+        if(part <= 0) part = 1;
         this.verticalPart = part;
 
         if(this.frames == null) {

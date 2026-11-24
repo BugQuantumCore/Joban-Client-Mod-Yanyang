@@ -308,27 +308,46 @@ public class ClientConfigScreen extends TitledScreen implements GuiHelper {
 
         if(crashReportDir.exists()) {
             File[] crashReports = crashReportDir.listFiles();
-            if(crashReports != null && crashReportDir.length() > 0) {
+            /* Gate on a non-empty listing, not File.length() — the latter is
+               unspecified for directories (returns 0 on Windows), which made
+               the button a silent no-op there. */
+            if(crashReports != null && crashReports.length > 0) {
                 SimpleDateFormat crashReportFormat = new SimpleDateFormat("yyyy-MM-dd_HH.mm.ss");
 
+                /* A comparator must be reflexive and antisymmetric: returning
+                   a constant 1 for equal timestamps and unparseable names
+                   violated TimSort's contract and threw
+                   "Comparison method violates its general contract!" from this
+                   button's click handler. */
                 Arrays.sort(crashReports, (o1, o2) -> {
+                    if(o1 == o2) return 0;
                     String filename1 = o1.getName().replace("crash-", "").replace("-client", "");
                     String filename2 = o2.getName().replace("crash-", "").replace("-client", "");
-                    if(o1 == o2) return 0;
 
-                    try {
-                        long ts1 = crashReportFormat.parse(filename1).getTime();
-                        long ts2 = crashReportFormat.parse(filename2).getTime();
-                        return ts1 > ts2 ? -1 : 1;
-                    } catch (ParseException e) {
-                        JCMLogger.debug("Cannot compare crash report file name " + filename1 + " <-> " + filename2);
-                    }
-                    return 1;
+                    long ts1 = parseCrashReportTimestamp(crashReportFormat, filename1, o1);
+                    long ts2 = parseCrashReportTimestamp(crashReportFormat, filename2, o2);
+                    int cmp = Long.compare(ts2, ts1); // newest first
+                    if(cmp != 0) return cmp;
+                    /* Equal (or unparseable) timestamps: fall back to a stable
+                       order instead of an asymmetric constant. */
+                    return o1.getName().compareTo(o2.getName());
                 });
 
                 JCMLogger.debug("Latest crash report is: " + crashReports[0].getName());
                 Util.getPlatform().openFile(crashReports[0]);
             }
+        }
+    }
+
+    /** Parses the crash-report filename timestamp; unparseable names (mods
+     *  writing extra files into crash-reports/) fall back to the file's last
+     *  modification time so they still sort deterministically. */
+    private static long parseCrashReportTimestamp(SimpleDateFormat format, String filename, File file) {
+        try {
+            return format.parse(filename).getTime();
+        } catch (ParseException e) {
+            JCMLogger.debug("Cannot compare crash report file name " + filename);
+            return file.lastModified();
         }
     }
 }

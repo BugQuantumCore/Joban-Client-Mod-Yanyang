@@ -1,5 +1,6 @@
 package com.lx862.jcm.mod.gui.screen;
 
+import com.lx862.jcm.mod.block.entity.FareSaverBlockEntity;
 import com.lx862.jcm.mod.network.block.FareSaverUpdatePacket;
 import com.lx862.jcm.mod.registry.Blocks;
 import com.lx862.jcm.mod.registry.Networking;
@@ -49,6 +50,12 @@ public class FareSaverScreen extends BlockConfigListScreen {
 
     @Override
     public void onSave() {
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof FareSaverBlockEntity) {
+                ((FareSaverBlockEntity)be).setData(this.prefix, (int)this.discount);
+            }
+        });
         Networking.sendPacketToServer(new FareSaverUpdatePacket(blockPos, this.prefix, (int)this.discount));
     }
 }

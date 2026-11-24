@@ -45,7 +45,10 @@ public class VideoPlayback {
     private void updateFrameImage() {
         int frameIndex = (int)Math.floor(elapsedMillis / millisPerFrame);
         if(frameIndex != currentFrameIndex) {
-            if(frameIndex >= video.totalFrames()) return;
+            /* Clamp both sides: negative elapsed (seek(-x) / negative update
+               deltas) produced a negative index that AIOOBE'd/NPE'd inside
+               the decoder. */
+            if(frameIndex < 0 || frameIndex >= video.totalFrames()) return;
             currentFrame = video.extractFrameImage(frameIndex);
             currentFrameIndex = frameIndex;
         }

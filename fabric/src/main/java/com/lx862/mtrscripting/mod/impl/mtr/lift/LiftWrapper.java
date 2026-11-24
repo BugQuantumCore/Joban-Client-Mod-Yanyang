@@ -174,8 +174,12 @@ public class LiftWrapper {
             BlockPos floorBlockPos = new BlockPos((int)liftFloor.getPosition().getX(), (int)liftFloor.getPosition().getY(), (int)liftFloor.getPosition().getZ());
             BlockEntity be = worldView.getBlockEntity(floorBlockPos);
 
-            // Block entity contains all the necessary info TSC does not sync over
-            BlockLiftTrackFloor.LiftTrackFloorBlockEntity floorBE = be == null ? null : (BlockLiftTrackFloor.LiftTrackFloorBlockEntity)be;
+            // Block entity contains all the necessary info TSC does not sync over.
+            // instanceof instead of a blind cast: a broken/changed track floor
+            // block replaced by any other block-entity-bearing block threw
+            // ClassCastException here — on the render thread when invoked from
+            // RenderLiftsMixin.
+            BlockLiftTrackFloor.LiftTrackFloorBlockEntity floorBE = be instanceof BlockLiftTrackFloor.LiftTrackFloorBlockEntity trackFloorBE ? trackFloorBE : null;
 
             Floor floor = new Floor(lift, liftFloor, floorBE);
             list.add(floor);

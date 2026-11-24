@@ -169,6 +169,16 @@ public class PIDSScreen extends BlockConfigListScreen {
             rowHidden[i] = this.rowHiddenWidgets[i].isChecked();
         }
 
+        /* Client-side apply (see BlockConfigScreen.applyToClientBlockEntities):
+           setChanged() on the server never broadcasts block entity data, so
+           without this the renderer kept showing the OLD messages until a
+           block update or re-login — the config looked "not saved". */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof PIDSBlockEntity) {
+                ((PIDSBlockEntity)be).setData(customMessages, filteredPlatforms, rowHidden, hidePlatformNumber.isChecked(), presetId);
+            }
+        });
+
         Networking.sendPacketToServer(new PIDSUpdatePacket(blockPos, filteredPlatforms, customMessages, rowHidden, hidePlatformNumber.isChecked(), presetId));
     }
 }

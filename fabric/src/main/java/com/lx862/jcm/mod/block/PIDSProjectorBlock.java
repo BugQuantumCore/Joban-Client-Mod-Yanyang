@@ -44,7 +44,12 @@ public class PIDSProjectorBlock extends DirectionalBlock implements EntityBlock 
     @Override
     public InteractionResult useWithoutItem(BlockState state, Level world, BlockPos pos, Player player, BlockHitResult hit) {
         return IBlock.checkHoldingBrush(world, player, () -> {
-            PIDSProjectorBlockEntity be = (PIDSProjectorBlockEntity) world.getBlockEntity(pos);
+            /* Guard the cast and the dereference: a missing block entity
+               (corrupted chunk, BE-stripping tools) used to NPE right-clicks
+               with a brush. */
+            net.minecraft.world.level.block.entity.BlockEntity thisBE = world.getBlockEntity(pos);
+            if(!(thisBE instanceof PIDSProjectorBlockEntity)) return;
+            PIDSProjectorBlockEntity be = (PIDSProjectorBlockEntity) thisBE;
             Networking.sendPacketToClient(player, new PIDSProjectorGUIPacket(pos, be.getCustomMessages(), be.getRowHidden(), be.platformNumberHidden(), be.getPresetId(), be.getOffsetX(), be.getOffsetY(), be.getOffsetZ(), be.getRotateX(), be.getRotateY(), be.getRotateZ(), be.getScale()));
         });
     }

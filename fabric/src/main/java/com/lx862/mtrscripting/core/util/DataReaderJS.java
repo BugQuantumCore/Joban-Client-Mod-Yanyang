@@ -23,6 +23,13 @@ public class DataReaderJS {
     private final Cache<String> stringCache = new Cache<>();
     private final Cache<Font> fontCache = new Cache<>();
     private final Cache<BufferedImage> imageCache = new Cache<>();
+    /* Raw bytes used to be re-read from the resource manager on EVERY call —
+       and asVideo() re-decoded the whole MJPEG on every call. The classic NTE
+       script pattern reads a video inside render(), which made that a
+       multi-MB allocation + full file read per frame. */
+    private final Cache<byte[]> byteArrayCache = new Cache<>();
+    private final Cache<Video> videoCache = new Cache<>();
+    private String videoCacheMimeType;
 
     @ApiInternal
     public DataReaderJS(InputStreamSupplier isSupplier) {
@@ -64,16 +71,32 @@ public class DataReaderJS {
     }
 
     public @ValueNullable byte[] asByteArray() {
-        try (InputStream is = asInputStream()) {
-            return is.readAllBytes();
-        } catch (Exception e) {
-            MTRScriptingModClient.LOGGER.error("[MTR Scripting via JCM] Failed to read raw bytes:", e);
-            return null;
-        }
+        return cacheOrCreate(byteArrayCache, () -> {
+            try (InputStream is = asInputStream()) {
+                return is.readAllBytes();
+            } catch (Exception e) {
+                MTRScriptingModClient.LOGGER.error("[MTR Scripting via JCM] Failed to read raw bytes:", e);
+                return null;
+            }
+        });
     }
 
-    public Video asVideo(String mimeType) {
-        return VideoDecoder.decode(asByteArray(), mimeType);
+    public @ValueNullable Video asVideo(String mimeType) {
+        /* Cache per reader + mime type: the same reader instance is reused
+           across frames for the same resource id, so a video read in render()
+           is decoded exactly once. (Callers creating a fresh DataReaderJS per
+           call get a fresh cache — matching the string/image behavior.) */
+        if(videoCache.cached() && mimeType.equals(videoCacheMimeType)) return videoCache.get();
+        final byte[] data = asByteArray();
+        final Video video;
+        if(data == null) {
+            video = null;
+        } else {
+            video = VideoDecoder.decode(data, mimeType);
+        }
+        videoCache.add(video);
+        videoCacheMimeType = mimeType;
+        return video;
     }
 
     public void openInputStream(Consumer<InputStream> inputStreamConsumer) throws IOException {

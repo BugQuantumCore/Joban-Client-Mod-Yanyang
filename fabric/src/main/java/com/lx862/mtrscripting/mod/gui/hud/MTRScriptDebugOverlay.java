@@ -143,7 +143,11 @@ public class MTRScriptDebugOverlay {
                                 ? String.valueOf(capturedException) : capturedException.getMessage();
                         for(String exLine : Splitter.fixedLength(60).split(exceptionText)) {
                             graphicsHolder.translate(0, 10, 0);
-                            graphicsHolder.drawText(String.format(exLine), 5, 0, COLOR_RED, true, MAX_LIGHT);
+                            /* No String.format here: exception messages often contain
+                               '%' (URL-encoded strings, format-style user text) and
+                               String.format(line) then throws
+                               UnknownFormatConversionException every frame. */
+                            graphicsHolder.drawText(exLine, 5, 0, COLOR_RED, true, MAX_LIGHT);
                         }
                     } else if(scriptInstance.executionTimedOut(5000)) {
                         graphicsHolder.drawText(String.format("%s (Not Responding...)", keyName), 0, 0, 0x777777, true, MAX_LIGHT);

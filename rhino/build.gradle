@@ -10,6 +10,12 @@ def shadowPath = ["com", "lx862", "mtrscripting", "lib", "org", "mozilla"]
 tasks.register('downloadRhino', Download) {
     src "https://github.com/mozilla/rhino/archive/refs/tags/Rhino${rhinoVersion}_Release.zip"
     dest "./src/main/rhino_src.zip"
+    /* Verify the archive against the server-provided checksum (GitHub sends
+       an ETag) — an unpinned, unverified download silently builds a modified
+       script engine into the shipped jar if the tag moves or the transfer
+       corrupts. (The MTR dependency is sha256-pinned via
+       gradle/mtr41-lock.json; this closes the same gap for Rhino.) */
+    checksum = true
 
     doLast {
         copy {

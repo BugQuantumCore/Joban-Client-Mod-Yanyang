@@ -53,13 +53,15 @@ public class PIDSProjectorRenderer extends PIDSRenderer<PIDSProjectorBlockEntity
         if(showOutline && blockEntity.getRotateX() == 0 && blockEntity.getRotateY() == 0 && blockEntity.getRotateZ() == 0) {
             MainRenderer.scheduleRender(QueuedRenderLayer.LINES, (poseStack, vertexConsumer, offset) -> {
                 storedMatrixTransformations.transform(poseStack, offset);
+                try {
+                    IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0, 0, 0, 0xFFFF0000);
+                    IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0 + (1.785f * appliedScale), 0, 0, 0xFFFF0000);
 
-                IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0, 0, 0, 0xFFFF0000);
-                IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0 + (1.785f * appliedScale), 0, 0, 0xFFFF0000);
-
-                IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0, 0 + (1 * appliedScale), 0, 0xFFFF0000);
-                IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0 + (1.785f * appliedScale), 0 + (1 * appliedScale), 0, 0xFFFF0000);
-                poseStack.popPose();
+                    IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0, 0 + (1 * appliedScale), 0, 0xFFFF0000);
+                    IDrawing.drawLineInWorld(poseStack, vertexConsumer, offsetX, offsetY, offsetZ, 0 + (1.785f * appliedScale), 0 + (1 * appliedScale), 0, 0xFFFF0000);
+                } finally {
+                    poseStack.popPose(); /* transform() pushed — never leak the pose */
+                }
             });
         }
 
@@ -75,9 +77,12 @@ public class PIDSProjectorRenderer extends PIDSRenderer<PIDSProjectorBlockEntity
         if(showOutline) {
             MainRenderer.scheduleRender(Constants.id("textures/block/light_1.png"), false, QueuedRenderLayer.LIGHT, (poseStack, vertexConsumer, offset) -> {
                 newMatrices.transform(poseStack, offset);
-                poseStack.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
-                org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer, -1, -1, 0.1f, 137, 77, 0.1f, facing.getOpposite(), 0xFFFF0000, MAX_RENDER_LIGHT);
-                poseStack.popPose();
+                try {
+                    poseStack.scale(PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE, PIDSPresetBase.BASE_SCALE);
+                    org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer, -1, -1, 0.1f, 137, 77, 0.1f, facing.getOpposite(), 0xFFFF0000, MAX_RENDER_LIGHT);
+                } finally {
+                    poseStack.popPose(); /* transform() pushed — never leak the pose */
+                }
             });
         }
     }

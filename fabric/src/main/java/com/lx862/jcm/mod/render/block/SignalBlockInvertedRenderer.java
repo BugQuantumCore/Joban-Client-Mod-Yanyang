@@ -30,8 +30,11 @@ public class SignalBlockInvertedRenderer<T extends BlockSignalBase.BlockEntityBa
 
         MainRenderer.scheduleRender(ResourceLocation.fromNamespaceAndPath("mtr", "textures/block/white.png"), false, QueuedRenderLayer.LIGHT, (poseStack, vertexConsumer, offset) -> {
             t.transform(poseStack, offset);
-            IDrawing.drawTexture(poseStack, vertexConsumer, -0.125F, y, -0.19375F, 0.125F, y + 0.25F, -0.19375F, Direction.UP, occupiedAspect > 0 ? proceedColor : 0xFFFF0000, GraphicsHolder.getDefaultLight());
-            poseStack.popPose();
+            try {
+                IDrawing.drawTexture(poseStack, vertexConsumer, -0.125F, y, -0.19375F, 0.125F, y + 0.25F, -0.19375F, Direction.UP, occupiedAspect > 0 ? proceedColor : 0xFFFF0000, GraphicsHolder.getDefaultLight());
+            } finally {
+                poseStack.popPose(); /* transform() pushed — never leak the pose */
+            }
         });
     }
 }

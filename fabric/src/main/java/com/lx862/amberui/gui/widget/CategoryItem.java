@@ -52,6 +52,9 @@ public class CategoryItem extends AbstractListItem {
 
     @Override
     public int getHeight() {
-        return 22;
+        /* The custom height the two-arg constructor stores — the hardcoded 22
+           used to disagree with draw() (which honors this.height), so any
+           non-22 category overlapped or gapped its neighbours in the layout. */
+        return this.height;
     }
 }

@@ -11,6 +11,10 @@ public class TextInfo {
     private TextAlignment textAlignment = TextAlignment.LEFT;
     private int textColor;
     private boolean forScrollingText = false;
+    /** Visible width of the marquee scroll region (in the same coordinate space
+     *  the caller draws in); 0 = unspecified, the renderer then falls back to
+     *  the text's own width. */
+    private double scrollWidth = 0;
 
     public TextInfo(String content) {
         this.content = content;
@@ -39,6 +43,16 @@ public class TextInfo {
     public TextInfo withScrollingText() {
         this.forScrollingText = true;
         return this;
+    }
+
+    public TextInfo withScrollingText(double scrollWidth) {
+        this.forScrollingText = true;
+        this.scrollWidth = scrollWidth;
+        return this;
+    }
+
+    public double getScrollWidth() {
+        return this.scrollWidth;
     }
 
     public TextInfo withColor(int color) {
@@ -72,6 +86,7 @@ public class TextInfo {
         TextInfo ti = new TextInfo(newContent);
         ti.withColor(textColor);
         ti.withFont(fontId);
+        ti.scrollWidth = this.scrollWidth;
         return ti;
     }
 

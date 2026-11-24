@@ -30,7 +30,10 @@ public class SoundLooperUpdatePacket extends PacketHandler {
         this.corner1 = BlockPos.of(packetBufferReceiver.readLong());
         this.corner2 = BlockPos.of(packetBufferReceiver.readLong());
         this.soundId = packetBufferReceiver.readString();
-        this.soundCategory = packetBufferReceiver.readInt();
+        /* Client-controlled: an out-of-range category would crash the server
+           tick loop when the block entity indexes SOURCE_LIST — clamp on
+           decode, exactly like readNbt/setData do. */
+        this.soundCategory = SoundLooperBlockEntity.clampSoundCategory(packetBufferReceiver.readInt());
         this.interval = packetBufferReceiver.readInt();
         this.soundVolume = packetBufferReceiver.readFloat();
         this.needRedstone = packetBufferReceiver.readBoolean();

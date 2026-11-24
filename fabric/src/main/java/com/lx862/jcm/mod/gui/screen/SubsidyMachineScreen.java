@@ -1,5 +1,6 @@
 package com.lx862.jcm.mod.gui.screen;
 
+import com.lx862.jcm.mod.block.entity.SubsidyMachineBlockEntity;
 import com.lx862.jcm.mod.network.block.SubsidyMachineUpdatePacket;
 import com.lx862.jcm.mod.registry.Blocks;
 import com.lx862.jcm.mod.registry.Networking;
@@ -47,6 +48,12 @@ public class SubsidyMachineScreen extends BlockConfigListScreen {
 
     @Override
     public void onSave() {
+        /* Client-side apply — see BlockConfigScreen.applyToClientBlockEntities. */
+        applyToClientBlockEntities((bs, be) -> {
+            if(be instanceof SubsidyMachineBlockEntity) {
+                ((SubsidyMachineBlockEntity)be).setData((int)price, (int)cooldown);
+            }
+        });
         Networking.sendPacketToServer(new SubsidyMachineUpdatePacket(blockPos, (int)price, (int)cooldown));
     }
 }

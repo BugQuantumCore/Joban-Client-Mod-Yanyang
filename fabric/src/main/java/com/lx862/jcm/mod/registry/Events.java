@@ -65,6 +65,10 @@ public class Events {
                    render path actually needs. (The old client-side on-disk
                    learning is gone — the memory now lives on the server.) */
                 ServerDoorDirections.reset();
+                /* Script global state must not cross worlds either — a script
+                   on server B would otherwise read values cached from server A. */
+                com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTEGlobalRegisterJS.clear();
+                com.lx862.mtrscripting.mod.impl.mtr.util.ante.ANTESoundHelperJS.resetAll();
             }
         });
 
@@ -76,13 +80,18 @@ public class Events {
         });
 
         EventRegistryClient.registerEndClientTick(() -> {
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_PREV.isDown()) {
+            /* consumeClick() (edge-triggered) instead of isDown() (level): a
+               held key used to re-trigger 20 times per second — holding the
+               debug reload key re-parsed every JS script and re-dlopen'd every
+               C++ module 20 times per second, freezing the client for the
+               whole hold. */
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_PREV.consumeClick()) {
                 MTRScriptDebugOverlay.previousSource();
             }
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_NEXT.isDown()) {
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_SOURCE_NEXT.consumeClick()) {
                 MTRScriptDebugOverlay.nextSource();
             }
-            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_RELOAD.isDown()) {
+            if(JCMClientConfig.INSTANCE.scripting.scriptDebugMode.value() && KeyBinds.SCRIPT_DEBUG_RELOAD.consumeClick()) {
                 boolean isShiftPressed = Minecraft.getInstance().options.keyShift.isDown();
                 boolean isCtrlPressed = Minecraft.getInstance().options.keySprint.isDown();
                 if(!isShiftPressed && !isCtrlPressed) return;

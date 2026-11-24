@@ -4,19 +4,23 @@ import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.core.annotation.ValueNullable;
 
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class AbstractScriptContext {
     private final String name;
+    /* setDebugInfo runs on the script-executor threads while the debug
+       overlay copies the map on the render thread — the old LinkedHashMap
+       could throw ConcurrentModificationException in the copy constructor
+       (render-thread crash while the overlay is open). */
     private final Map<String, Object> debugInfoMap;
     private final Set<AutoCloseable> disposable;
     private int keylessDebugInfoCounter = 1;
 
     public AbstractScriptContext(String name) {
         this.name = name;
-        this.debugInfoMap = new LinkedHashMap<>();
+        this.debugInfoMap = new ConcurrentHashMap<>();
         this.disposable = new HashSet<>();
     }
 
@@ -31,7 +35,13 @@ public abstract class AbstractScriptContext {
     }
 
     public void setDebugInfo(String key, @ValueNullable Object value) {
-        debugInfoMap.put(key, value);
+        /* ConcurrentHashMap (needed for the cross-thread debug overlay) does
+           not accept null values — treat null as "clear this key". */
+        if(value == null) {
+            debugInfoMap.remove(key);
+        } else {
+            debugInfoMap.put(key, value);
+        }
     }
 
     @ApiInternal

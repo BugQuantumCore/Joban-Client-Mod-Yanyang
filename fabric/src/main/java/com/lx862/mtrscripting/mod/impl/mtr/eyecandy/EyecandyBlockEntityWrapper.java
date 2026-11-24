@@ -127,10 +127,13 @@ public class EyecandyBlockEntityWrapper {
     }
 
     public int redstoneLevel() {
-        Level world = be.getLevel();
+        /* Read the level we actually query: Minecraft.level becomes null
+           before the block entity's own getLevel() does while the world is
+           being torn down, and this runs on script executor threads. */
+        Level world = (Level)Minecraft.getInstance().level;
         if(world == null) return 0;
 
-        return LoaderImpl.getRedstoneLevel((Level)Minecraft.getInstance().level, blockPos().rawBlockPos());
+        return LoaderImpl.getRedstoneLevel(world, blockPos().rawBlockPos());
     }
 
     public String getCustomConfig(String key) {
