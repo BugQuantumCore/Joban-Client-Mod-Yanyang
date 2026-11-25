@@ -71,6 +71,11 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
     }
 
     public void tick() {
+        /* Mute guard: a zero or negative volume means nothing to play, so skip
+           the whole tick — also prevents the division by a zero fadeToZeroDist
+           below when volume is exactly 0. */
+        if (volume <= 0) return;
+
         Level world = getLevel();
 
         if(repeatTick > 0 && !soundID.isEmpty() && world != null && !world.isClientSide() && JCMServerStats.getGameTick() % repeatTick == 0) {
@@ -110,7 +115,9 @@ public class SoundLooperBlockEntity extends JCMBlockEntityBase {
                 MinecraftServerHelper.iteratePlayers((ServerLevel)world, (player) -> {
                     if(limitedRange.contains(player.position())) {
                         float dist = getBlockPos().distManhattan(new Vec3i((int)player.position().x(), (int)player.position().y(),(int)player.position().z()));
-                        float fadeToZeroDist = 16 * volume;
+                        /* Guard the fade divisor: volume 0 would make this 0 and
+                           the division below produce Infinity/NaN. */
+                        float fadeToZeroDist = 16 * Math.max(0.001F, volume);
 
                         float calculatedVolume = (1 - (Math.max(0.001f, dist / fadeToZeroDist))) * volume;
                         player.playSound(soundEvent, calculatedVolume, 1);

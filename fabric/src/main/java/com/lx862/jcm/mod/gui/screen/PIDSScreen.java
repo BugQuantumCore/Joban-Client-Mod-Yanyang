@@ -26,12 +26,14 @@ import com.lx862.jcm.mod.render.TextCase;
 import org.mtr.MTRClient;
 import org.mtr.client.MinecraftClientData;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import com.lx862.jcm.mod.render.TextCase;
 import org.mtr.screen.PlatformListSelectorScreen;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArraySet;
@@ -110,6 +112,16 @@ public class PIDSScreen extends BlockConfigListScreen {
 
     @Override
     public MutableComponent getScreenTitle() {
+        /* Title follows the PIDS block actually opened (this screen serves
+           every PIDS variant, not just RV PIDS); fall back to RV PIDS when
+           the world or the block position is no longer available (e.g. air). */
+        final ClientLevel level = Minecraft.getInstance().level;
+        if(level != null) {
+            final BlockState state = level.getBlockState(blockPos);
+            if(!state.isAir()) {
+                return state.getBlock().getName();
+            }
+        }
         return Blocks.RV_PIDS.get().getName();
     }
 

@@ -4,7 +4,6 @@ import com.lx862.jcm.mod.block.entity.DepartureTimerBlockEntity;
 import com.lx862.jcm.mod.data.BlockProperties;
 import com.lx862.jcm.mod.render.text.TextInfo;
 import com.lx862.jcm.mod.render.text.TextRenderingManager;
-import org.mtr.core.data.Platform;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
@@ -14,12 +13,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import com.lx862.jcm.mod.render.GraphicsHolder;
-import org.mtr.MTRClient;
 import org.mtr.block.IBlock;
 import org.mtr.data.ArrivalsCacheClient;
-
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 
 public class DepartureTimerRenderer extends JCMBlockEntityRenderer<DepartureTimerBlockEntity> {
@@ -33,13 +28,13 @@ public class DepartureTimerRenderer extends JCMBlockEntityRenderer<DepartureTime
 
         /* Data lookups BEFORE the push: three early returns below used to skip
            the matching pop(), leaking one matrix-stack entry per frame per
-           timer and corrupting every block entity rendered after it. */
-        List<Platform> closestPlatforms = new ArrayList<>();
-        MTRClient.findClosePlatform(pos, 5, closestPlatforms::add);
-        Platform closestPlatform = !closestPlatforms.isEmpty() ? closestPlatforms.get(0) : null;
-        if (closestPlatform == null) return;
+           timer and corrupting every block entity rendered after it.
+           Nearby platforms come from the short-TTL cache (the findClosePlatform
+           scan ran every frame); only the FIRST platform id is used, as before. */
+        final LongImmutableList closestPlatforms = ClosePlatformCache.get(world, pos);
+        if (closestPlatforms.isEmpty()) return;
 
-        ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(LongImmutableList.of(closestPlatform.getId()));
+        ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(LongImmutableList.of(closestPlatforms.getLong(0)));
         ArrivalResponse firstArrival = Utilities.getElement(arrivals, 0);
         if (firstArrival == null) return;
 

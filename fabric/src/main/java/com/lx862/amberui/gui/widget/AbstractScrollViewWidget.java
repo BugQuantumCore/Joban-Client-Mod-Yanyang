@@ -119,14 +119,22 @@ public abstract class AbstractScrollViewWidget extends AbstractWidget {
         final GraphicsHolder graphicsHolder = new GraphicsHolder(guiGraphics);
 
         GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
+        /* Nested try/finally: an exception (or an early return added later)
+           between push and pop must not leak a clip — a leaked scissor
+           clips every subsequent GUI draw (black screen). */
         ClipStack.push(getX(), getY(), getWidth(), getHeight());
+        try {
+            ClipStack.push(getX(), getY(), getWidth() - getScrollbarOffset(), getHeight());
+            try {
+                renderContent(graphicsHolder, mouseX, mouseY, tickDelta);
+            } finally {
+                ClipStack.pop();
+            }
 
-        ClipStack.push(getX(), getY(), getWidth() - getScrollbarOffset(), getHeight());
-        renderContent(graphicsHolder, mouseX, mouseY, tickDelta);
-        ClipStack.pop();
-
-        renderScrollbar(guiDrawing, isOverScrollbar(mouseX, mouseY));
-        ClipStack.pop();
+            renderScrollbar(guiDrawing, isOverScrollbar(mouseX, mouseY));
+        } finally {
+            ClipStack.pop();
+        }
     }
 
     private boolean isOverScrollbar(double mouseX, double mouseY) {

@@ -7,6 +7,7 @@ import com.lx862.mtrscripting.core.util.model.ModelJS;
 import com.lx862.mtrscripting.core.util.model.ModelManagerJS;
 import com.lx862.mtrscripting.core.util.model.RawMeshBuilderJS;
 import com.lx862.mtrscripting.core.util.model.RawModelJS;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.ArrayList;
@@ -87,8 +88,10 @@ public final class NativeHost {
      * from {@code mtrRender} while {@code mtrCreate} runs for exactly one
      * instance, and the bridge serialises render calls per module, so a single
      * pending slot is enough — the driver tells us which key to file it under.
+     * Volatile: the driver hook runs on the render thread while the api
+     * upcalls that read it (acquireModel) may arrive on a background worker.
      */
-    private String pendingInstanceKey;
+    private volatile String pendingInstanceKey;
 
     /** Instance whose frame is currently being applied (see {@link #setActiveInstance}). */
     private volatile String activeInstanceKey;
@@ -110,14 +113,24 @@ public final class NativeHost {
     private final java.util.concurrent.atomic.AtomicInteger nextHandle =
             new java.util.concurrent.atomic.AtomicInteger(1);
     private java.awt.Font nativeFont;
-    private final java.util.Map<String, java.awt.image.BufferedImage> glyphMasks = new java.util.HashMap<>();
+    /* ConcurrentHashMap: rasterize_text upcalls arrive on whichever JVM thread
+       made the downcall (render thread, background api worker) — the old plain
+       HashMap corrupted its buckets under concurrent misses. */
+    private final java.util.Map<String, java.awt.image.BufferedImage> glyphMasks =
+            new java.util.concurrent.ConcurrentHashMap<>();
     /* Byte budget for the glyph masks (the entry-count-only bound let a
        module-driven maxWidth of a few thousand allocate up to maxWidth² × 4
        bytes PER entry). Counted on insert; on exceed the map clears whole,
        the same recovery the sibling NativeFontRenderer's LRU uses. */
     private static final int GLYPH_MASK_BUDGET_BYTES = 32 << 20;
     private static final int GLYPH_MASK_MAX_EDGE = 2048;
-    private long glyphMaskBytes;
+    /* Atomic for the same reason as the map above. */
+    private final java.util.concurrent.atomic.AtomicLong glyphMaskBytes =
+            new java.util.concurrent.atomic.AtomicLong();
+    /** Reused key builder for the glyph-mask cache (per thread: the mask key
+     *  is rebuilt on every rasterize call, i.e. per glyph per frame). */
+    private static final ThreadLocal<StringBuilder> GLYPH_KEY_BUILDER =
+            ThreadLocal.withInitial(() -> new StringBuilder(64));
     private final NativeFontRenderer fontRenderer = new NativeFontRenderer();
 
     /** ABI 7 font callbacks. The invocation planes pass resource IDs and
@@ -147,7 +160,9 @@ public final class NativeHost {
            target texture (pixels is width × height) is useless anyway, and
            an unbounded one is a memory-exhaustion vector. */
         final int size = Math.min(maxWidth - 1, GLYPH_MASK_MAX_EDGE);
-        final String key = size + "/" + text;
+        final StringBuilder keyBuilder = GLYPH_KEY_BUILDER.get();
+        keyBuilder.setLength(0);
+        final String key = keyBuilder.append(size).append('/').append(text).toString();
         java.awt.image.BufferedImage mask = glyphMasks.get(key);
         if (mask == null) {
             mask = new java.awt.image.BufferedImage(size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
@@ -165,10 +180,11 @@ public final class NativeHost {
                 graphics.fill(outline);
             }
             graphics.dispose();
-            glyphMaskBytes += (long) size * size * 4;
-            if (glyphMaskBytes > GLYPH_MASK_BUDGET_BYTES) {
+            final long maskBytes = (long) size * size * 4;
+            glyphMaskBytes.addAndGet(maskBytes);
+            if (glyphMaskBytes.get() > GLYPH_MASK_BUDGET_BYTES) {
                 glyphMasks.clear();
-                glyphMaskBytes = (long) size * size * 4;
+                glyphMaskBytes.set(maskBytes);
             }
             glyphMasks.put(key, mask);
         }
@@ -435,21 +451,66 @@ public final class NativeHost {
      * frame per vehicle — hence the map rather than a scan over instances
      * (which would make replay O(vehicles x quads) per frame).
      */
-    private final Map<String, java.util.Set<Integer>> externalModels = new java.util.HashMap<>();
+    /* ConcurrentHashMap + newKeySet: acquire/release upcalls arrive on api
+       worker threads while releaseInstance/reset run on the render or reload
+       thread — the plain HashMap/HashSet lost entries or corrupted buckets
+       under that. */
+    private final Map<String, java.util.Set<Integer>> externalModels =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    /* handle -> raw model whose GPU upload was deferred to the render thread
+       (see acquireModel); the entry doubles as the upload task's claim on the
+       handle. */
+    private final java.util.Map<Long, RawModelJS> pendingModelUploads =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     public int acquireModel(String path) {
         com.lx862.mtrscripting.core.util.model.RawModelJS raw = ModelManagerJS.loadModel(ResourceLocation.parse(path));
         if(raw==null) return -1;
-        ModelJS model=ModelJS.uploadRawModel(raw);
-        int handle=nextHandle.getAndIncrement(); modelsByHandle.put(handle,model);
-        externalModels.computeIfAbsent(pendingInstanceKey,k->new java.util.HashSet<>()).add(handle);
+        final String owner = pendingInstanceKey;
+        if (RenderSystem.isOnRenderThread()) {
+            ModelJS model=ModelJS.uploadRawModel(raw);
+            if (model == null) return -1;
+            int handle=nextHandle.getAndIncrement(); modelsByHandle.put(handle,model);
+            /* ConcurrentHashMap keys cannot be null: an acquire with no
+               pending instance has no owner to bill the handle to (release
+               still works through modelsByHandle). */
+            if (owner != null) {
+                externalModels.computeIfAbsent(owner, k -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(handle);
+            }
+            return handle;
+        }
+        /* Off the render thread the GPU upload is not safe (the buffer build
+           asserts its thread): reserve the handle NOW, park the raw model,
+           and publish through recordRenderCall. Ownership is registered
+           BEFORE returning so a release racing the deferred upload still
+           finds the handle; the pending entry is the deferred task's claim. */
+        int handle=nextHandle.getAndIncrement();
+        if (owner != null) {
+            externalModels.computeIfAbsent(owner, k -> java.util.concurrent.ConcurrentHashMap.newKeySet()).add(handle);
+        }
+        pendingModelUploads.put((long) handle, raw);
+        RenderSystem.recordRenderCall(() -> {
+            if (pendingModelUploads.remove((long) handle) == null) return;
+            ModelJS model = ModelJS.uploadRawModel(raw);
+            if (model != null) modelsByHandle.put(handle, model);
+        });
         return handle;
     }
+
     public void releaseModel(int handle) {
+        /* Pending first: a still-queued render-thread upload would otherwise
+           re-publish the model AFTER this release, leaking the GPU-side model
+           forever (the deferred task aborts when its claim is gone). */
+        pendingModelUploads.remove((long) handle);
         ModelJS model=modelsByHandle.remove(handle); if(model!=null) model.close();
         externalModels.values().forEach(set->set.remove(handle));
     }
+
     public ModelJS model(int handle) {
         if (handle < 0) return null;
+        /* A handle whose upload is still parked has no GPU model yet: the
+           draw replay skips those draws until the upload lands. */
+        if (pendingModelUploads.containsKey((long) handle)) return null;
         return modelsByHandle.get(handle);
     }
 
@@ -490,10 +551,13 @@ public final class NativeHost {
         new java.util.ArrayList<>(externalModels.keySet()).forEach(this::releaseInstance);
         externalModels.clear();
         modelsByHandle.clear();
+        /* Any deferred upload still queued aborts on its own (its pending
+           claim is gone); nothing it could publish remains referenced. */
+        pendingModelUploads.clear();
         pendingInstanceKey = null;
         activeInstanceKey = null;
         glyphMasks.clear();
-        glyphMaskBytes = 0;
+        glyphMaskBytes.set(0);
         nativeFont = null;
         fontRenderer.reset();
         for (Instance instance : all) instance.close();

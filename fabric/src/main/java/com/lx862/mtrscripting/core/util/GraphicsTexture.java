@@ -1,6 +1,7 @@
 package com.lx862.mtrscripting.core.util;
 
 import com.lx862.jcm.mapping.LoaderImplClient;
+import com.lx862.jcm.mod.util.JCMLogger;
 import com.lx862.mtrscripting.core.annotation.ApiInternal;
 import com.lx862.mtrscripting.mod.MTRScriptingMod;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -28,6 +29,17 @@ public class GraphicsTexture implements Closeable {
      * so copyBuffer performs the ARGB→ABGR channel swap in software instead.
      */
     private final boolean swapChannelsInSoftware;
+    /** Set by {@link #close()} BEFORE the TextureManager release is posted:
+     *  late uploads racing the release used to keep writing pixels (and
+     *  recordRenderCall kept re-uploading) into a texture whose GL object
+     *  and NativeImage were already gone — address 0 writes on the
+     *  render thread. All upload paths check this and degrade silently. */
+    private volatile boolean closed;
+    /** One-shot latch: the first upload-after-close logs once, later ones
+     *  stay silent (a disposing instance may be asked to repaint for a few
+     *  more frames and that must not spam the log). */
+    private final java.util.concurrent.atomic.AtomicBoolean closedUploadWarned =
+            new java.util.concurrent.atomic.AtomicBoolean();
     /** Yanyang/diag: log-only counter for texture registrations. */
     private static final java.util.concurrent.atomic.AtomicInteger DIAG_TEXTURES = new java.util.concurrent.atomic.AtomicInteger();
     public final ResourceLocation identifier;
@@ -106,6 +118,7 @@ public class GraphicsTexture implements Closeable {
      * Upload the full image
      */
     public void upload() {
+        if (rejectClosedUpload()) return;
         copyBuffer(this.bufferedImage, this.dynamicTexture, 0, 0, 0, 0, this.width, this.height, this.width, this.height, this.width, this.height);
         RenderSystem.recordRenderCall(dynamicTexture::upload);
     }
@@ -119,6 +132,7 @@ public class GraphicsTexture implements Closeable {
     }
 
     public void upload(BufferedImage sourceImage, int dstOffsetX, int dstOffsetY, int srcOffsetX, int srcOffsetY, int uploadWidth, int uploadHeight) {
+        if (rejectClosedUpload()) return;
         int srcImgWidth = sourceImage.getWidth();
         int srcImgHeight = sourceImage.getHeight();
         if(dstOffsetX + uploadWidth > this.width) {
@@ -172,9 +186,15 @@ public class GraphicsTexture implements Closeable {
             int dstImgWidth, int dstImgHeight,
             int srcImgWidth, int srcImgHeight
     ) {
+        /* Closed (or already-released) destination: the NativeImage pointer
+           below is 0/null then, and memByteBuffer(0, size) is a hard JVM
+           crash — a disposing texture simply stops copying. */
+        if (closed) return;
         int[] sourceData = ((DataBufferInt)source.getRaster().getDataBuffer()).getData();
         NativeImage destImg = destination.getPixels();
-        long destImgPointer = LoaderImplClient.getNativeImagePointer(destination.getPixels());
+        if (destImg == null) return;
+        long destImgPointer = LoaderImplClient.getNativeImagePointer(destImg);
+        if (destImgPointer == 0) return;
         IntBuffer buffer = MemoryUtil.memByteBuffer(destImgPointer, dstImgWidth * dstImgHeight * 4).asIntBuffer();
         int srcPixelStart = srcY * srcImgWidth + srcX;
         int dstPixelStart = dstY * dstImgWidth + dstX;
@@ -221,6 +241,7 @@ public class GraphicsTexture implements Closeable {
      */
     public void uploadRawABGR(byte[] source, int dstOffsetX, int dstOffsetY,
                               int width, int height, int[] ppm) {
+        if (rejectClosedUpload()) return;
         if (source == null || width <= 0 || height <= 0) return;
         if (dstOffsetX < 0 || dstOffsetY < 0
                 || dstOffsetX + width > this.width
@@ -272,6 +293,7 @@ public class GraphicsTexture implements Closeable {
     @ApiInternal
     public void uploadRawARGB(ByteBuffer source, int byteOffset, int sourceStride,
                               int sourceX, int sourceY, int dstX, int dstY, int w, int h) {
+        if (rejectClosedUpload()) return;
         if (dstY < 0 || h <= 0 || (long) dstY + h > height) {
             throw new IllegalArgumentException("Native upload is outside the texture");
         }
@@ -283,9 +305,23 @@ public class GraphicsTexture implements Closeable {
 
     @Override
     public void close() {
+        /* Mark FIRST: uploads racing this close (native frame translation
+           still in flight) see the flag and skip, instead of repainting a
+           texture the release below is about to tear down. */
+        closed = true;
         Minecraft.getInstance().execute(() -> {
             Minecraft.getInstance().getTextureManager().release(identifier);
         });
         graphics.dispose();
+    }
+
+    /** Upload-path guard: true (and a one-time warn) when the texture is
+     *  already closed — every upload silently degrades from then on. */
+    private boolean rejectClosedUpload() {
+        if (!closed) return false;
+        if (closedUploadWarned.compareAndSet(false, true)) {
+            JCMLogger.warn("GraphicsTexture {} received an upload after close; the upload is skipped (a disposing script instance is still repainting)", identifier);
+        }
+        return true;
     }
 }

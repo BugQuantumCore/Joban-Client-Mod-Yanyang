@@ -8,6 +8,16 @@ import java.util.List;
 
 /**
  * Limit the usage of arbitrary java class for security reason
+ *
+ * <p>Rule evaluation order: an allow match is only a CANDIDATE — every deny
+ * rule is then consulted, and deny always wins. A package therefore cannot
+ * be re-opened by adding an allow rule once a deny rule covers it; the only
+ * exemption path is the explicit prefix early-return inside
+ * {@link #isClassAllowed} (used for {@code java.util.concurrent.atomic.} and
+ * {@code java.util.concurrent.locks.}, which the {@code java.util.concurrent.*}
+ * deny rule would otherwise block: Executors and friends mint raw threads
+ * that escape the script watchdog entirely, while atomics and locks are
+ * deterministic primitives scripts legitimately use).
  */
 @ApiInternal
 public class MTRClassShutter {
@@ -61,6 +71,12 @@ public class MTRClassShutter {
             ClassRule.parse("java.lang.Compiler"),
             ClassRule.parse("java.util.jar.*"),
             ClassRule.parse("java.util.zip.*"),
+            /* java.util.concurrent slipped through java.util.*: Executors
+               (and the thread pools it builds) create threads the script
+               watchdog cannot see or interrupt — the same escape hatch the
+               java.lang.Thread deny rule closes. atomic/locks stay available
+               through the prefix exemption in isClassAllowed. */
+            ClassRule.parse("java.util.concurrent.*"),
             ClassRule.parse("jdk.internal.*"),
             ClassRule.parse("jdk.nashorn.*")
         );
@@ -97,6 +113,16 @@ public class MTRClassShutter {
             if(type.startsWith("L")) {
                 className = type.substring(1, type.length()-1); // Omit the base type & semicolon at the end
             }
+        }
+
+        /* Exemptions for the java.util.concurrent.* deny rule: atomic and
+           locks are safe, deterministic primitives. These MUST be a prefix
+           early-return: deny takes priority over allow in the loop below, so
+           the sub-packages cannot be re-opened with an allow rule — only an
+           exemption evaluated BEFORE the rules keeps them visible. */
+        if(className.startsWith("java.util.concurrent.atomic.")
+                || className.startsWith("java.util.concurrent.locks.")) {
+            return true;
         }
 
         for(ClassRule allowedClassRule : allowedScriptClasses) {

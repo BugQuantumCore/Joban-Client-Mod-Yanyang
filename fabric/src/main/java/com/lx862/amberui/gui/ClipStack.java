@@ -25,10 +25,14 @@ public class ClipStack {
 
     /**
      * Push and apply a new clipping area.<br>
-     * The clipping area will be clamped *within* the previous clipped stack.
+     * The clipping area is clamped *within* the previous clipped stack on both
+     * axes (origin and end), so the effective clip is the intersection with the
+     * enclosing clip. An empty intersection is clamped to a 1-pixel area: a
+     * zero/negative scissor rectangle would be rejected by GL
+     * (INVALID_VALUE) and drop the scissor state entirely.<br>
      * At least one clip area should be applied via {@link ClipStack#push(int, int, int, int)} before using.
      */
-    public static void add(int x, int y, int width, int height) { //TODO: WIP, might cause issues
+    public static void add(int x, int y, int width, int height) {
         /* Guard: add() clamps against the enclosing clip; with an empty
          * stack there is nothing to clamp against (and stacks.get(-1)
          * would throw) — degrade to a plain push. */
@@ -39,10 +43,14 @@ public class ClipStack {
         Rectangle oldStack = stacks.get(stacks.size()-1);
         int clampedX = Math.max(oldStack.x, x);
         int clampedY = Math.max(oldStack.y, y);
-
-        int oldEndY = oldStack.y + oldStack.height;
-        int clampedHeight = oldEndY - clampedY;
-        Rectangle rect = new Rectangle(clampedX, clampedY, width, clampedHeight);
+        int clampedWidth = Math.min(x + width, oldStack.x + oldStack.width) - clampedX;
+        int clampedHeight = Math.min(y + height, oldStack.y + oldStack.height) - clampedY;
+        /* Empty intersection (or negative extents): clamp to 1px so the
+         * scissor rectangle stays valid for GL — everything is clipped
+         * away either way. */
+        if (clampedWidth <= 0) clampedWidth = 1;
+        if (clampedHeight <= 0) clampedHeight = 1;
+        Rectangle rect = new Rectangle(clampedX, clampedY, clampedWidth, clampedHeight);
         stacks.add(rect);
         enableClip(rect.x, rect.y, rect.width, rect.height);
     }

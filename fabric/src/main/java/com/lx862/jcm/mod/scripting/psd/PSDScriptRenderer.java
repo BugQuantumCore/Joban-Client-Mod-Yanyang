@@ -89,6 +89,12 @@ public final class PSDScriptRenderer implements RenderHelper {
     /** Distance² gate — bindings beyond this are not driven. */
     private static final double MAX_DISTANCE_SQ = 192 * 192;
 
+    /* Reused per frame: renderAll runs every frame and a fresh HashSet per
+     * frame was pure allocation churn. Safe to reuse — the set never escapes
+     * the renderAll call tree (renderGlass/renderTop only add to it
+     * synchronously on the render thread before returning). */
+    private static final Set<BlockPos> RENDERED_SECTIONS = new HashSet<>();
+
     private static boolean shaderBackingPlatformLogged;
     private static boolean shaderBackingTrackLogged;
     private static boolean BACKING_B_WARNED;
@@ -133,13 +139,13 @@ public final class PSDScriptRenderer implements RenderHelper {
            EVERY block of a glass segment / psd_top group, and legacy worlds
            may still hold per-column bindings — whichever binding of a
            section comes first renders it, the rest are skipped. */
-        final Set<BlockPos> renderedSections = new HashSet<>();
+        RENDERED_SECTIONS.clear();
 
         PSDClientBindings.forEach(binding -> {
             final BlockPos pos = binding.pos;
             // The first binding marks every member of its section. Checking
             // here avoids scanning the same N-block wall N times per pass.
-            if (renderedSections.contains(pos)) return;
+            if (RENDERED_SECTIONS.contains(pos)) return;
             final double dx = pos.getX() + 0.5 - cameraX;
             final double dy = pos.getY() + 0.5 - cameraY;
             final double dz = pos.getZ() + 0.5 - cameraZ;
@@ -152,13 +158,13 @@ public final class PSDScriptRenderer implements RenderHelper {
                    legacy bindings on a half-height gate's band (or a floating
                    band) are not driven. */
                 if (block instanceof BlockPSDTop && PSDScriptingRules.isScriptableTop(world, pos)) {
-                    renderTop(binding, pos, state, world, shadowPass, renderedSections);
+                    renderTop(binding, pos, state, world, shadowPass, RENDERED_SECTIONS);
                 }
             } else {
                 /* Yanyang: half-height gates carry no scripts — legacy
                    bindings on them are not driven. */
                 if (PSDScriptingRules.isScriptableGlass(block)) {
-                    renderGlass(binding, pos, state, world, shadowPass, shaderPack, renderedSections, cameraX, cameraZ);
+                    renderGlass(binding, pos, state, world, shadowPass, shaderPack, RENDERED_SECTIONS, cameraX, cameraZ);
                 }
             }
         });

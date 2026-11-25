@@ -4,7 +4,6 @@ import com.lx862.jcm.mod.Constants;
 import com.lx862.jcm.mod.block.entity.ButterflyLightBlockEntity;
 import com.lx862.jcm.mod.data.BlockProperties;
 import com.lx862.jcm.mod.render.RenderHelper;
-import org.mtr.core.data.Platform;
 import org.mtr.core.operation.ArrivalResponse;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
@@ -14,8 +13,6 @@ import org.mtr.MTRClient;
 import org.mtr.block.IBlock;
 import org.mtr.data.ArrivalsCacheClient;
 
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
@@ -36,12 +33,12 @@ public class ButterflyLightRenderer extends JCMBlockEntityRenderer<ButterflyLigh
         int startBlinkingSeconds = blockEntity.getStartBlinkingSeconds();
         Direction facing = IBlock.getStatePropertySafe(state, BlockProperties.FACING);
 
-        List<Platform> closestPlatforms = new ArrayList<>();
-        MTRClient.findClosePlatform(pos, 5, closestPlatforms::add);
-        Platform closestPlatform = !closestPlatforms.isEmpty() ? closestPlatforms.get(0) : null;
-        if (closestPlatform == null) return;
+        /* Nearby platforms via the short-TTL cache (the findClosePlatform scan
+           ran every frame); only the FIRST platform id is used, as before. */
+        final LongImmutableList closestPlatforms = ClosePlatformCache.get(world, pos);
+        if (closestPlatforms.isEmpty()) return;
 
-        ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(LongImmutableList.of(closestPlatform.getId()));
+        ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(LongImmutableList.of(closestPlatforms.getLong(0)));
         ArrivalResponse firstArrival = Utilities.getElement(arrivals, 0);
         if (firstArrival == null) return;
 

@@ -17,6 +17,10 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 
 public class StaticSignalLightRenderer<T extends BlockEntityExtension> extends JCMBlockEntityRenderer<T> {
+        /* Hoisted out of the per-frame render path: this ResourceLocation was
+           re-allocated on every renderCurated call. */
+        private static final ResourceLocation WHITE_TEXTURE = ResourceLocation.fromNamespaceAndPath("mtr", "textures/block/white.png");
+
         private final boolean drawOnTop;
         private final int color;
 
@@ -36,7 +40,7 @@ public class StaticSignalLightRenderer<T extends BlockEntityExtension> extends J
 
             graphicsHolder.push();
             graphicsHolder.rotateYDegrees(-angle);
-            graphicsHolder.createVertexConsumer(MoreRenderLayers.getLight(ResourceLocation.fromNamespaceAndPath("mtr", "textures/block/white.png"), false));
+            graphicsHolder.createVertexConsumer(MoreRenderLayers.getLight(WHITE_TEXTURE, false));
             drawSignalLight(graphicsHolder, entity, tickDelta, facing);
             graphicsHolder.pop();
 

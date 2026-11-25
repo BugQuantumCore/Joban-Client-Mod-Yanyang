@@ -5,7 +5,6 @@ import com.lx862.jcm.mod.data.BlockProperties;
 import com.lx862.jcm.mod.data.pids.PIDSManager;
 import com.lx862.jcm.mod.data.pids.preset.PIDSPresetBase;
 import org.mtr.core.operation.ArrivalResponse;
-import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.longs.LongImmutableList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import net.minecraft.core.BlockPos;
@@ -13,7 +12,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import com.lx862.jcm.mod.render.GraphicsHolder;
-import org.mtr.MTRClient;
 import org.mtr.block.IBlock;
 import org.mtr.data.ArrivalsCacheClient;
 import org.mtr.render.StoredMatrixTransformations;
@@ -41,9 +39,10 @@ public abstract class PIDSRenderer<T extends PIDSBlockEntity> extends JCMBlockEn
         if(!blockEntity.getPlatformIds().isEmpty()) {
             platforms = new LongImmutableList(blockEntity.getPlatformIds());
         } else {
-            LongArrayList closestPlatforms = new LongArrayList();
-            MTRClient.findClosePlatform(pos.below(4), 5, e -> closestPlatforms.add(e.getId()));
-            platforms = new LongImmutableList(closestPlatforms);
+            /* No platforms configured: fall back to the nearby platforms,
+               served from the short-TTL cache instead of re-scanning them
+               every frame (same search position and radius as before). */
+            platforms = ClosePlatformCache.get(world, pos.below(4));
         }
 
         ObjectArrayList<ArrivalResponse> arrivals = ArrivalsCacheClient.INSTANCE.requestArrivals(platforms);

@@ -19,6 +19,7 @@ import org.mtr.render.StoredMatrixTransformations;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.lx862.jcm.mod.render.RenderHelper.MAX_RENDER_LIGHT;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -89,6 +90,14 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
     private static final MutableComponent[] EMPTY_TEXTS = new MutableComponent[0];
     private static final int[] EMPTY_WIDTHS = new int[0];
     private static final ResourceLocation DEFAULT_FONT = org.mtr.font.FontRenderHelper.MTR_FONT;
+
+    /** Per-character width cache for the wrap mode (overflowMode 3), keyed by
+     *  fontId\0content — the same pattern as VanillaTextRenderer's marquee
+     *  width cache. The wrap loop used to allocate String.valueOf(c) and
+     *  re-measure every character on every frame. Bounded: cleared wholesale
+     *  past the cap (PIDS screens have a handful of distinct strings). */
+    private static final ConcurrentHashMap<String, int[]> CHAR_WIDTH_CACHE = new ConcurrentHashMap<>();
+    private static final int CHAR_WIDTH_CACHE_CAP = 256;
 
     protected TextWrapper() {
         super(100, 25);
@@ -339,11 +348,15 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
                 }
 
                 if(this.overflowMode == 3) { // Wrap Text
+                    /* Per-character widths from the shared cache (see
+                       CHAR_WIDTH_CACHE): charAt + cached array instead of a
+                       per-character String allocation + re-measure per frame. */
+                    final int[] widths = charWidths(this.textContent);
                     StringBuilder curLine = new StringBuilder();
                     int wSoFar = 0;
                     for(int i = 0; i < this.textContent.length(); i++) {
                         char c = this.textContent.charAt(i);
-                        wSoFar += GraphicsHolder.getTextWidth(String.valueOf(c));
+                        wSoFar += widths[i];
                         if(wSoFar > this.w) {
                             texts.add(getFormattedText(curLine.toString()));
                             curLine = new StringBuilder(String.valueOf(c));
@@ -466,6 +479,23 @@ public class TextWrapper extends PIDSDrawCall<TextWrapper> {
 
             wSoFar += textWidths[i];
         }
+    }
+
+    /** Per-character widths for the wrap mode, cached by (fontId, content)
+     *  and measured exactly like the old inline loop did. */
+    private int[] charWidths(String content) {
+        final String fontKey = this.fontId == null ? "mc" : this.fontId.toString();
+        final String key = fontKey + '\0' + content;
+        final int[] cached = CHAR_WIDTH_CACHE.get(key);
+        if(cached != null && cached.length == content.length()) return cached;
+
+        final int[] widths = new int[content.length()];
+        for(int i = 0; i < content.length(); i++) {
+            widths[i] = GraphicsHolder.getTextWidth(String.valueOf(content.charAt(i)));
+        }
+        if(CHAR_WIDTH_CACHE.size() >= CHAR_WIDTH_CACHE_CAP) CHAR_WIDTH_CACHE.clear();
+        CHAR_WIDTH_CACHE.put(key, widths);
+        return widths;
     }
 
     private MutableComponent getFormattedText(String str) {

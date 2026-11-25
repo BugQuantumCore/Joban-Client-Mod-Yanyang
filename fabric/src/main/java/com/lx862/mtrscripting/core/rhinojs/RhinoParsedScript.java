@@ -27,6 +27,12 @@ public class RhinoParsedScript extends ParsedScript {
     private final List<Function> createFunctions;
     private final List<Function> renderFunctions;
     private final List<Function> disposeFunctions;
+    /** Constructed once and shared by parse() and every execution: the
+     *  shutter is a stateless delegation to the ScriptManager's single
+     *  MTRClassShutter instance, so the per-execution construction was pure
+     *  garbage on the script executors (Rhino consults it for every live
+     *  object wrapper, never mutating it). */
+    private final MTRRhinoClassShutter classShutter;
 
     private static final Map<String, Script> compiledScriptCache = new HashMap<>();
 
@@ -35,6 +41,7 @@ public class RhinoParsedScript extends ParsedScript {
         this.createFunctions = new ArrayList<>();
         this.renderFunctions = new ArrayList<>();
         this.disposeFunctions = new ArrayList<>();
+        this.classShutter = new MTRRhinoClassShutter(scriptManager.getClassShutter());
     }
 
     @Override
@@ -42,7 +49,7 @@ public class RhinoParsedScript extends ParsedScript {
         try {
             Context cx = enterTimedContext();
             cx.setLanguageVersion(Context.VERSION_ES6);
-            cx.setClassShutter(new MTRRhinoClassShutter(scriptManager.getClassShutter()));
+            cx.setClassShutter(classShutter);
             scope = new ImporterTopLevel(cx);
             parseScriptContent("\"use strict\";", "Use Strict Statement");
             ScriptResourceUtil.beginParseScript(this);
@@ -127,7 +134,7 @@ public class RhinoParsedScript extends ParsedScript {
             try {
                 Context cx = enterTimedContext();
                 cx.setLanguageVersion(Context.VERSION_ES6);
-                cx.setClassShutter(new MTRRhinoClassShutter(scriptManager.getClassShutter()));
+                cx.setClassShutter(classShutter);
                 timing.prepareForScript(scriptInstance);
                 scriptInstance.beginTrackExecuteTime();
                 if (!disposing || scriptInstance.isCreateFunctionInvoked()) {
@@ -140,20 +147,30 @@ public class RhinoParsedScript extends ParsedScript {
                     }
                 }
                 succeeded = true;
-            } catch (Exception e) {
-                scriptManager.getLogger().error("[MTR Scripting via JCM {}] Error executing JS Script {}!", MTRScriptingMod.VERSION, displayName);
-                if(e instanceof RhinoException) {
-                    RhinoException re = ((RhinoException)e);
-                    scriptManager.getLogger().error(cleanRhinoExceptionMessage(re.getMessage()));
-                    for(String ste : re.getScriptStackTrace().split("\n")) {
-                        scriptManager.getLogger().error("{}", ste);
-                    }
+            } catch (Throwable e) {
+                /* Throwable, not Exception: a StackOverflowError (runaway
+                   recursion in a script) or OutOfMemoryError used to escape
+                   the task and permanently kill one of the executor threads.
+                   Errors take the same recovery flow below — lastFailedTime /
+                   capturedScriptException / resetForNextRun — so the instance
+                   degrades exactly like an ordinary script error. */
+                if (e instanceof Error) {
+                    scriptManager.getLogger().fatal("[MTR Scripting via JCM {}] JVM Error executing JS Script {}!", MTRScriptingMod.VERSION, displayName, e);
                 } else {
-                    scriptManager.getLogger().error("", e);
-                }
+                    scriptManager.getLogger().error("[MTR Scripting via JCM {}] Error executing JS Script {}!", MTRScriptingMod.VERSION, displayName);
+                    if(e instanceof RhinoException) {
+                        RhinoException re = ((RhinoException)e);
+                        scriptManager.getLogger().error(cleanRhinoExceptionMessage(re.getMessage()));
+                        for(String ste : re.getScriptStackTrace().split("\n")) {
+                            scriptManager.getLogger().error("{}", ste);
+                        }
+                    } else {
+                        scriptManager.getLogger().error("", e);
+                    }
 
-                if(likelyDueToUndefinedParam(e.getMessage())) {
-                    scriptManager.getLogger().warn("[MTR Scripting via JCM {}] [WARN] One or more parameter is UNDEFINED, is your variable assigned?", MTRScriptingMod.VERSION);
+                    if(likelyDueToUndefinedParam(e.getMessage())) {
+                        scriptManager.getLogger().warn("[MTR Scripting via JCM {}] [WARN] One or more parameter is UNDEFINED, is your variable assigned?", MTRScriptingMod.VERSION);
+                    }
                 }
 
                 Exception capturedException = new Exception(cleanRhinoExceptionMessage(e.getMessage()), e);

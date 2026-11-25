@@ -32,15 +32,19 @@ public class VanillaTextRenderer implements RenderHelper {
     }
 
     private static void drawInternal(GraphicsHolder graphicsHolder, TextInfo text, double x, double y) {
-        int textWidth = GraphicsHolder.getTextWidth(text.toMutableText());
-
+        /* Branch BEFORE the full-string measurement: the scrolling path
+           measures per glyph (see marqueeCharWidths) and never used the
+           plain width, so scrolling text no longer pays for a full-string
+           measure each frame. The plain path formats the component once and
+           reuses it for both measuring and drawing. */
         if(text.isForScrollingText()) {
             /* Alignment does not apply to scrolling text — it moves through
                the region instead of sitting at a fixed offset. */
             drawScrollingText(graphicsHolder, text, x, y);
         } else {
+            final MutableComponent finalText = text.toMutableText();
+            final int textWidth = GraphicsHolder.getTextWidth(finalText);
             double finalX = text.getTextAlignment().getX(x, textWidth);
-            MutableComponent finalText = text.toMutableText();
             graphicsHolder.drawText(finalText, (int)finalX, (int)y, text.getTextColor(), false, MAX_RENDER_LIGHT);
         }
     }

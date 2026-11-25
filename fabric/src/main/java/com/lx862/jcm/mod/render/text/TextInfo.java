@@ -94,6 +94,8 @@ public class TextInfo {
     public boolean equals(Object o) {
         if(!(o instanceof TextInfo)) return false;
         TextInfo other = ((TextInfo) o);
-        return other.content.equals(content) && other.textColor == textColor && this.forScrollingText == other.forScrollingText && this.fontId.equals(other.fontId);
+        /* Objects.equals: fontId is nullable (null = vanilla MC font), a null
+           fontId on either side NPE'd here before. */
+        return other.content.equals(content) && other.textColor == textColor && this.forScrollingText == other.forScrollingText && java.util.Objects.equals(this.fontId, other.fontId);
     }
 }

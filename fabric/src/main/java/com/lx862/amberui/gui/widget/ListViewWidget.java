@@ -1,10 +1,10 @@
 package com.lx862.amberui.gui.widget;
 
-import com.lx862.jcm.mod.Constants;
 import com.lx862.amberui.gui.ClipStack;
 import com.lx862.amberui.gui.GuiHelper;
 import com.lx862.jcm.mod.render.RenderHelper;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.Util;
 import com.lx862.jcm.mod.render.GraphicsHolder;
 import com.lx862.jcm.mod.render.GuiDrawing;
 
@@ -16,6 +16,7 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
     private final List<AbstractListItem> displayedEntryList = new ArrayList<>();
     private final List<AbstractListItem> entryList = new ArrayList<>();
     private float elapsed;
+    private long lastFrameMillis = -1;
     private String searchTerm = "";
     public ListViewWidget() {
         super(0, 0, 0, 0);
@@ -82,7 +83,13 @@ public class ListViewWidget extends AbstractScrollViewWidget implements RenderHe
     @Override
     public void renderContent(GraphicsHolder graphicsHolder, int mouseX, int mouseY, float tickDelta) {
         GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
-        elapsed += (tickDelta / Constants.MC_TICK_PER_SECOND);
+        /* Real frame time, not tickDelta: the old code accumulated the
+           partial tick every frame, so the scroll speed scaled with the
+           frame rate (4x faster at 240 fps than at 60). Same pattern as
+           AnimatedScreen. */
+        final long now = Util.getMillis();
+        elapsed += lastFrameMillis < 0 ? 0 : Math.min(0.25F, (now - lastFrameMillis) / 1000.0F);
+        lastFrameMillis = now;
 
         int incY = 0;
         for (AbstractListItem abstractListItem : displayedEntryList) {

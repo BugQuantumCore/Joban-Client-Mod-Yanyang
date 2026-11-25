@@ -28,15 +28,24 @@ public class NetworkingJS {
     public static NetworkResponse<DataReaderJS> fetch(String urlStr, Map<?, ?> requestObject) throws IOException {
         URL url = new URL(urlStr);
         HttpURLConnection urlConnection = (HttpURLConnection)url.openConnection();
-        urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
-        urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
-        processRequestObject(requestObject, urlConnection);
+        try {
+            urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
+            urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
+            processRequestObject(requestObject, urlConnection);
 
-        try(InputStream is = urlConnection.getInputStream()) {
-            byte[] data = is.readAllBytes();
-            return new NetworkResponse<>(new DataReaderJS(() -> new ByteArrayInputStream(data)), urlConnection.getHeaderFields(), urlConnection.getResponseCode());
-        } catch (IOException e) {
-            return new NetworkResponse<>(null, null, -1, e);
+            try(InputStream is = urlConnection.getInputStream()) {
+                byte[] data = is.readAllBytes();
+                return new NetworkResponse<>(new DataReaderJS(() -> new ByteArrayInputStream(data)), urlConnection.getHeaderFields(), urlConnection.getResponseCode());
+            } catch (IOException e) {
+                drainErrorStream(urlConnection);
+                return new NetworkResponse<>(null, null, -1, e);
+            }
+        } finally {
+            /* Leaked keep-alive sockets: without disconnect() every failed
+               fetch held its connection until the JVM's idle reaper got to
+               it, and a script polling a dead endpoint could exhaust the
+               per-host connection pool. */
+            urlConnection.disconnect();
         }
     }
 
@@ -49,15 +58,20 @@ public class NetworkingJS {
     public static NetworkResponse<?> fetchString(String urlStr, Map<?, ?> requestObject) throws IOException {
         URL url = new URL(urlStr);
         HttpURLConnection urlConnection = (HttpURLConnection)url.openConnection();
-        urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
-        urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
-        processRequestObject(requestObject, urlConnection);
+        try {
+            urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
+            urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
+            processRequestObject(requestObject, urlConnection);
 
-        try (InputStream is = urlConnection.getInputStream()) {
-            String str = IOUtils.toString(is, StandardCharsets.UTF_8);
-            return new NetworkResponse<>(str, urlConnection.getHeaderFields(), urlConnection.getResponseCode());
-        } catch (IOException e) {
-            return new NetworkResponse<>(null, null, -1, e);
+            try (InputStream is = urlConnection.getInputStream()) {
+                String str = IOUtils.toString(is, StandardCharsets.UTF_8);
+                return new NetworkResponse<>(str, urlConnection.getHeaderFields(), urlConnection.getResponseCode());
+            } catch (IOException e) {
+                drainErrorStream(urlConnection);
+                return new NetworkResponse<>(null, null, -1, e);
+            }
+        } finally {
+            urlConnection.disconnect();
         }
     }
 
@@ -70,14 +84,34 @@ public class NetworkingJS {
     public static NetworkResponse<BufferedImage> fetchImage(String urlStr, Map<?, ?> requestObject) throws IOException {
         URL url = new URL(urlStr);
         HttpURLConnection urlConnection = (HttpURLConnection)url.openConnection();
-        urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
-        urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
+        try {
+            urlConnection.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT);
+            urlConnection.setReadTimeout(DEFAULT_READ_TIMEOUT);
 
-        processRequestObject(requestObject, urlConnection);
-        try(InputStream is = urlConnection.getInputStream()) {
-            return new NetworkResponse<>(ImageIO.read(is), urlConnection.getHeaderFields(), urlConnection.getResponseCode());
-        } catch (IOException e) {
-            return new NetworkResponse<>(null, null, -1, e);
+            processRequestObject(requestObject, urlConnection);
+            try(InputStream is = urlConnection.getInputStream()) {
+                return new NetworkResponse<>(ImageIO.read(is), urlConnection.getHeaderFields(), urlConnection.getResponseCode());
+            } catch (IOException e) {
+                drainErrorStream(urlConnection);
+                return new NetworkResponse<>(null, null, -1, e);
+            }
+        } finally {
+            urlConnection.disconnect();
+        }
+    }
+
+    /** Best-effort drain of a failed connection's error stream, so the socket
+     *  is reusable instead of lingering half-read. Never throws: an error here
+     *  must not mask the IOException the caller is about to report. */
+    private static void drainErrorStream(HttpURLConnection connection) {
+        try (InputStream errorStream = connection.getErrorStream()) {
+            if (errorStream == null) return;
+            final byte[] sink = new byte[4096];
+            while (errorStream.read(sink) != -1) {
+                /* discard */
+            }
+        } catch (IOException ignored) {
+            /* best-effort only */
         }
     }
 

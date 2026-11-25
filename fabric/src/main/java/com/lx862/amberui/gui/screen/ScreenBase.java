@@ -1,5 +1,6 @@
 package com.lx862.amberui.gui.screen;
 
+import com.lx862.amberui.gui.ClipStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -19,6 +20,20 @@ public abstract class ScreenBase extends Screen {
 
     @Override
     public void onClose() {
+        /* Belt-and-braces: a widget that leaked a clip mid-render would
+           otherwise leave the scissor state wrong for the next screen. */
+        ClipStack.ensureStateCorrect();
         Minecraft.getInstance().setScreen(previousScreen);
+    }
+
+    /**
+     * Final safety net when this screen is swapped out for another one —
+     * the clip stack is static, so leaked entries must not survive into
+     * whatever screen opens next.
+     */
+    @Override
+    public void removed() {
+        super.removed();
+        ClipStack.ensureStateCorrect();
     }
 }

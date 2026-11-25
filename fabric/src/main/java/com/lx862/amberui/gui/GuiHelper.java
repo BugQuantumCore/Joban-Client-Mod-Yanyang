@@ -52,8 +52,13 @@ public interface GuiHelper {
             double slideProgress = ((Math.sin(elapsed / 4)) / 2) + 0.5;
             graphicsHolder.translate(-slideProgress * (textWidth - maxW), 0, 0);
             ClipStack.add(startX, 0, maxW, 500);
-            graphicsHolder.drawText(text, textX, textY, color, shadow, MAX_RENDER_LIGHT);
-            ClipStack.pop();
+            /* try/finally: an exception in drawText must not leak the clip —
+               a leaked scissor clips every subsequent GUI draw. */
+            try {
+                graphicsHolder.drawText(text, textX, textY, color, shadow, MAX_RENDER_LIGHT);
+            } finally {
+                ClipStack.pop();
+            }
         } else {
             graphicsHolder.drawText(text, textX, textY, color, shadow, MAX_RENDER_LIGHT);
         }

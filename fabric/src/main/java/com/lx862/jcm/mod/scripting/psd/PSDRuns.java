@@ -13,6 +13,8 @@ import org.mtr.block.IBlock;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 /**
@@ -55,6 +57,23 @@ public final class PSDRuns {
     /** Maximum canvas width; longer sections use deterministic aligned slices. */
     private static final int MAX_RUN_BLOCKS = 64;
 
+    /* Short-TTL cache for the wall walks: the render path re-walks the same
+       wall on EVERY frame (per bound glass/top block). Run is immutable
+       (final BlockPos start, final int width; BlockPos itself never mutates
+       through this walk), so sharing instances is safe. Key = level identity
+       + query pos.asLong() + facing.ordinal(); block edits become visible
+       within the 500 ms TTL, and the cap clears wholesale like the other
+       render caches. */
+    private static final long RUN_CACHE_TTL_MILLIS = 500;
+    private static final int RUN_CACHE_CAP = 256;
+    private static final Map<RunKey, CachedRun> RUN_CACHE = new ConcurrentHashMap<>();
+
+    private record RunKey(Level level, long posLong, int facing) {
+    }
+
+    private record CachedRun(Run run, long timestamp) {
+    }
+
     /** One walked section: the left-most block (render anchor) and the width in blocks. */
     public static final class Run {
         public final BlockPos start;
@@ -79,6 +98,15 @@ public final class PSDRuns {
      * doors. The returned anchor is the segment's left-most block.
      */
     public static Run glassRun(Level world, BlockPos pos, Direction facing) {
+        final RunKey key = new RunKey(world, pos.asLong(), facing.ordinal());
+        final Run cached = cachedRun(key);
+        if (cached != null) return cached;
+        final Run run = glassRunUncached(world, pos, facing);
+        cacheRun(key, run);
+        return run;
+    }
+
+    private static Run glassRunUncached(Level world, BlockPos pos, Direction facing) {
         final IBlock.DoubleBlockHalf half = IBlock.getStatePropertySafe(world.getBlockState(pos), IBlock.HALF);
         return walk(world, pos, facing, cursor -> {
             final BlockState state = world.getBlockState(cursor);
@@ -136,6 +164,15 @@ public final class PSDRuns {
      * psd_top run.
      */
     public static Run topRun(Level world, BlockPos pos, Direction facing) {
+        final RunKey key = new RunKey(world, pos.asLong(), facing.ordinal());
+        final Run cached = cachedRun(key);
+        if (cached != null) return cached;
+        final Run run = topRunUncached(world, pos, facing);
+        cacheRun(key, run);
+        return run;
+    }
+
+    private static Run topRunUncached(Level world, BlockPos pos, Direction facing) {
         final SectionKind kind = sectionKind(world, pos.below());
         final Predicate<BlockPos> chained;
         if (kind == SectionKind.OTHER) {
@@ -144,6 +181,19 @@ public final class PSDRuns {
             chained = cursor -> isPsdTopFacing(world.getBlockState(cursor), facing) && sectionKind(world, cursor.below()) == kind;
         }
         return walk(world, pos, facing, chained);
+    }
+
+    private static Run cachedRun(RunKey key) {
+        final CachedRun cached = RUN_CACHE.get(key);
+        if (cached != null && System.currentTimeMillis() - cached.timestamp() <= RUN_CACHE_TTL_MILLIS) {
+            return cached.run();
+        }
+        return null;
+    }
+
+    private static void cacheRun(RunKey key, Run run) {
+        if (RUN_CACHE.size() >= RUN_CACHE_CAP) RUN_CACHE.clear();
+        RUN_CACHE.put(key, new CachedRun(run, System.currentTimeMillis()));
     }
 
     /**

@@ -5,6 +5,7 @@ import com.lx862.jcm.mod.util.JCMLogger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.world.level.block.Blocks;
 
@@ -272,6 +273,25 @@ final class ShmPoller {
     /* host-service dispatch (the SVC block; poller -> Java)               */
     /* ------------------------------------------------------------------ */
 
+    /** Nesting depth of SVC_INVOKE_API dispatch on THIS thread (0 = top level).
+     *  An SVC_INVOKE_API handler runs module code through
+     *  {@code NativeApiSession.invoke}, and that code may re-enter the api
+     *  through a JS proxy whose wait loop pumps servicePendingRequests — a
+     *  NESTED SVC_INVOKE_API arriving there would then block waiting for the
+     *  poller, which is itself waiting for THIS thread's answer: a 20 s
+     *  interlock that ends with the region poisoned. The dispatcher rejects
+     *  the nested request with an immediate error reply instead (see
+     *  dispatchService and PanamaFfmUpcalls.ringErrorReply). */
+    private static final ThreadLocal<Integer> API_DISPATCH_DEPTH = ThreadLocal.withInitial(() -> 0);
+
+    /** Payload published for rejected nested api re-entry — the same
+     *  {"error":...} shape CALLBACK_ERROR uses, so the module-side wrapper
+     *  surfaces a failed call instead of a torn reply. */
+    private static final byte[] NESTED_API_ERROR =
+            "{\"error\":\"nested api re-entry unsupported\"}".getBytes(StandardCharsets.UTF_8);
+    /** One-shot latch: the first nested re-entry logs, later ones are silent. */
+    private static final AtomicBoolean NESTED_API_WARNED = new AtomicBoolean();
+
     /**
      * Services pending host-service requests on ANY ring slot, if any.
      * Exactly-once across all waiting threads via a per-slot
@@ -369,10 +389,26 @@ final class ShmPoller {
                    same thread may meanwhile answer nested (deeper-slot)
                    requests whose replies must never touch this slot's
                    bytes (see PanamaFfmUpcalls.RING_REPLIES). */
-                return PanamaFfmUpcalls.cbInvokeApiRing(
-                        active.getLong(args), (int) active.getLong(args + 8),
-                        active.getLong(args + 16), (int) active.getLong(args + 24),
-                        active.getLong(args + 32), slot);
+                if (API_DISPATCH_DEPTH.get() > 0) {
+                    /* Nested re-entry (see API_DISPATCH_DEPTH): executing the
+                       request would deadlock the poller against this thread
+                       for the full CBQ budget and poison the region. Answer
+                       immediately with the per-slot error reply instead —
+                       the OUTER request keeps making progress. */
+                    if (NESTED_API_WARNED.compareAndSet(false, true)) {
+                        JCMLogger.warn("Nested api re-entry on SVC slot {} rejected with an error reply; the script call that re-entered invoke_api while its own request was being served degrades", slot);
+                    }
+                    return PanamaFfmUpcalls.ringErrorReply(active.getLong(args + 32), slot, NESTED_API_ERROR);
+                }
+                API_DISPATCH_DEPTH.set(1);
+                try {
+                    return PanamaFfmUpcalls.cbInvokeApiRing(
+                            active.getLong(args), (int) active.getLong(args + 8),
+                            active.getLong(args + 16), (int) active.getLong(args + 24),
+                            active.getLong(args + 32), slot);
+                } finally {
+                    API_DISPATCH_DEPTH.set(0);
+                }
             default:
                 JCMLogger.warn("Native host service request {} has no dispatcher; degrading", id);
                 return 0;

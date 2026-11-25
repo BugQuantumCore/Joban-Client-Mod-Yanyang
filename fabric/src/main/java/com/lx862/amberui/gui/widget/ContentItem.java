@@ -116,7 +116,12 @@ public class ContentItem extends AbstractListItem {
         }
 
         int textColor = widgetEnabled ? ARGB_WHITE : 0xFF888888;
-        GuiHelper.drawScrollableText(graphicsHolder, title, elapsed, entryX + ENTRY_PADDING + iconSize, 0, textY, availableTextWidth - iconSize - ENTRY_PADDING - ENTRY_PADDING - ENTRY_PADDING, textColor, true);
+        /* availableTextWidth already subtracts iconSize — subtracting it
+           again here shrank the clip twice and could go negative on
+           narrow rows. Keep the paddings, and floor the width so the
+           scissor stays usable. */
+        int maxW = Math.max(20, availableTextWidth - ENTRY_PADDING - ENTRY_PADDING - ENTRY_PADDING);
+        GuiHelper.drawScrollableText(graphicsHolder, title, elapsed, entryX + ENTRY_PADDING + iconSize, 0, textY, maxW, textColor, true);
         graphicsHolder.pop();
     }
 

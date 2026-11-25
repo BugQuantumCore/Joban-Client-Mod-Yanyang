@@ -15,6 +15,11 @@ import java.util.function.Consumer;
  * Class to handle McMeta animated textures, as I couldn't figure out how MC does it :D
  */
 public class McMetaManager {
+    /* Shared constant for non-animated textures: getUV used to allocate a new
+       Pair on every call, which is per texture per frame on the render path.
+       Callers only read the pair (getLeft/getRight), never mutate it. */
+    private static final Pair<Float, Float> FULL_UV = new Pair<>(0F, 1F);
+
     private final HashMap<ResourceLocation, McMeta> mcMetaList = new HashMap<>();
     private final java.util.Set<ResourceLocation> failed = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -69,8 +74,9 @@ public class McMetaManager {
      * @return The starting and the end V, default to 0.0 and 1.0 (Full Texture) if the texture is not a mcmeta animation loaded to this manager
      */
     public Pair<Float, Float> getUV(ResourceLocation id) {
-        if(!mcMetaList.containsKey(id)) return new Pair<>(0F, 1F);
-        return mcMetaList.get(id).getUV();
+        /* Single lookup; non-animated textures share the constant. */
+        final McMeta mcMeta = mcMetaList.get(id);
+        return mcMeta == null ? FULL_UV : mcMeta.getUV();
     }
 
     private static void readImage(McMeta mcMeta, ResourceLocation imageFile, Consumer<McMeta> callback) {

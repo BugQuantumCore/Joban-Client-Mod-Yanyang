@@ -134,12 +134,17 @@ public class TextureWrapper extends PIDSDrawCall<TextureWrapper> {
     protected void drawTransformed(StoredMatrixTransformations storedMatrixTransformations, Direction facing, int light) {
         MainRenderer.scheduleRender(this.textureId, false, this.renderType, (poseStack, vertexConsumer, offset) -> {
             storedMatrixTransformations.transform(poseStack, offset);
-            org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer,
-                    0, (float)this.h, 0, (float)this.w, (float)this.h, 0,
-                    (float)this.w, 0, 0, 0, 0, 0,
-                    this.u1, this.v1, this.u2, this.v2,
-                    facing, ARGB_BLACK | this.color, this.naturalLight ? light : MAX_RENDER_LIGHT);
-            poseStack.popPose();
+            try {
+                org.mtr.client.IDrawing.drawTexture(poseStack, vertexConsumer,
+                        0, (float)this.h, 0, (float)this.w, (float)this.h, 0,
+                        (float)this.w, 0, 0, 0, 0, 0,
+                        this.u1, this.v1, this.u2, this.v2,
+                        facing, ARGB_BLACK | this.color, this.naturalLight ? light : MAX_RENDER_LIGHT);
+            } finally {
+                /* Ensure the pose pushed by transform() is always popped,
+                   even if the texture draw throws (mirrors TextWrapper). */
+                poseStack.popPose();
+            }
         });
     }
 }

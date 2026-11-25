@@ -31,6 +31,13 @@ final class NativeFontRenderer {
     private final Map<String, double[]> metrics = new HashMap<>();
     private final LinkedHashMap<String, Mask> masks = new LinkedHashMap<>(64, 0.75f, true);
     private long maskBytes;
+    /** Reused key builder — this class serves the render thread and the api
+     *  worker threads alike, so one builder per thread; every measure/draw
+     *  call builds its cache key through it (per glyph, per frame). The
+     *  materialized String is independent, so nested reuse (font() inside
+     *  draw()) cannot clobber a key still in use. */
+    private static final ThreadLocal<StringBuilder> KEY_BUILDER =
+            ThreadLocal.withInitial(() -> new StringBuilder(64));
 
     private static final class Mask {
         final int x, y, width, height;
@@ -57,7 +64,9 @@ final class NativeFontRenderer {
             if (baseFonts.size() >= 64) baseFonts.clear();
             baseFonts.put(path, base);
         }
-        final String key = path + "/" + size;
+        final StringBuilder keyBuilder = KEY_BUILDER.get();
+        keyBuilder.setLength(0);
+        final String key = keyBuilder.append(path).append('/').append(size).toString();
         Font derived = fonts.get(key);
         if (derived == null) {
             derived = base.deriveFont(Font.PLAIN, (float) size);
@@ -76,7 +85,10 @@ final class NativeFontRenderer {
         if (resource == null || utf8 == null || !valid(size, sx, sy)) return null;
         final String path = new String(resource, StandardCharsets.UTF_8);
         final String text = new String(utf8, StandardCharsets.UTF_8);
-        final String key = path + "/" + size + "/" + sx + "/" + sy + "/" + text;
+        final StringBuilder keyBuilder = KEY_BUILDER.get();
+        keyBuilder.setLength(0);
+        final String key = keyBuilder.append(path).append('/').append(size).append('/')
+                .append(sx).append('/').append(sy).append('/').append(text).toString();
         double[] result = metrics.get(key);
         if (result != null) return result;
         final Font font = font(path, size);
@@ -113,8 +125,11 @@ final class NativeFontRenderer {
         final double phaseX = dx - ix, phaseY = dy - iy;
         // Integer translations share a mask; fractional translations affect
         // anti-aliasing and must remain part of its cache key.
-        final String key = path + "/" + size + "/" + textSx + "/" + sy
-                + "/" + phaseX + "/" + phaseY + "/" + text;
+        final StringBuilder keyBuilder = KEY_BUILDER.get();
+        keyBuilder.setLength(0);
+        final String key = keyBuilder.append(path).append('/').append(size).append('/')
+                .append(textSx).append('/').append(sy).append('/')
+                .append(phaseX).append('/').append(phaseY).append('/').append(text).toString();
         Mask mask = masks.get(key);
         if (mask == null) {
             final AffineTransform transform = new AffineTransform(textSx, 0, 0, sy, phaseX, phaseY);

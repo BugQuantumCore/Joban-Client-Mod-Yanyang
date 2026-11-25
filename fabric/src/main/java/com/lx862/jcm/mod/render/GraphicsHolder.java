@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.Entity;
 import org.mtr.client.IDrawing;
@@ -134,7 +135,34 @@ public final class GraphicsHolder {
         }
 
         public void drawText(MutableComponent text, int x, int y, int color, boolean shadow, int light) {
-                drawText(text.getString(), x, y, color, shadow, light);
+                if (guiGraphics != null) {
+                        /* Pass the component itself so its style (font, bold,
+                           italic, ...) survives instead of being flattened by
+                           text.getString() through the String overload. */
+                        guiGraphics.drawString(Minecraft.getInstance().font, text, x, y, color, shadow);
+                        return;
+                }
+                /* World mode: the MTR font path is string-only, so forward the
+                   component's style font (defaults to minecraft:default when
+                   unset) and mirror the String path option-for-option. */
+                final ResourceLocation styleFont = text.getStyle().getFont();
+                if (vertexConsumerProvider == null) {
+                        FontRenderHelper.render(poseStack, text.getString(), FontRenderOptions.builder()
+                                        .offsetX(x).offsetY(y)
+                                        .font(styleFont)
+                                        .color(new Color(color, true))
+                                        .drawShadow(shadow)
+                                        .light(light)
+                                        .build());
+                        return;
+                }
+                FontRenderHelper.render(poseStack, vertexConsumerProvider, text.getString(), FontRenderOptions.builder()
+                                .offsetX(x).offsetY(y)
+                                .font(styleFont)
+                                .color(new Color(color, true))
+                                .drawShadow(shadow)
+                                .light(light)
+                                .build());
         }
 
         public void drawText(FormattedCharSequence text, int x, int y, int color, boolean shadow, int light) {
@@ -204,7 +232,28 @@ public final class GraphicsHolder {
         }
 
         public void drawCenteredText(MutableComponent text, int x, int y, int color) {
-                drawCenteredText(text.getString(), x, y, color);
+                if (guiGraphics != null) {
+                        /* Same as drawText above: keep the component's style
+                           instead of flattening it to a plain string. */
+                        guiGraphics.drawCenteredString(Minecraft.getInstance().font, text, x, y, color);
+                        return;
+                }
+                final ResourceLocation styleFont = text.getStyle().getFont();
+                if (vertexConsumerProvider == null) {
+                        FontRenderHelper.render(poseStack, text.getString(), FontRenderOptions.builder()
+                                        .offsetX(x).offsetY(y)
+                                        .font(styleFont)
+                                        .color(new Color(color, true))
+                                        .horizontalTextAlignment(FontRenderOptions.Alignment.CENTER)
+                                        .build());
+                        return;
+                }
+                FontRenderHelper.render(poseStack, vertexConsumerProvider, text.getString(), FontRenderOptions.builder()
+                                .offsetX(x).offsetY(y)
+                                .font(styleFont)
+                                .color(new Color(color, true))
+                                .horizontalTextAlignment(FontRenderOptions.Alignment.CENTER)
+                                .build());
         }
 
         public static int getTextWidth(MutableComponent text) {

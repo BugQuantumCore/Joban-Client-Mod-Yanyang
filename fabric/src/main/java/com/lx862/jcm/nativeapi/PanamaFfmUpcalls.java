@@ -163,8 +163,14 @@ final class PanamaFfmUpcalls {
                                        long pixelsAddress, int outWidth, int outHeight) {
         try {
             if (pixelsAddress == 0 || outWidth <= 0 || outHeight <= 0 || length <= 0) return -1;
+            /* outWidth * outHeight * 4 overflowed int for module-controlled
+               sizes; the long form keeps the bound honest, and anything a
+               ByteBuffer could not address anyway is rejected instead of
+               wrapping to a negative window size. */
+            final long byteLength = (long) outWidth * outHeight * 4;
+            if (byteLength > Integer.MAX_VALUE) return -1;
             final byte[] utf8 = NativeArenaView.readBytes(utf8Address, length);
-            final ByteBuffer pixels = pixelView(pixelsAddress, outWidth * outHeight * 4);
+            final ByteBuffer pixels = pixelView(pixelsAddress, (int) byteLength);
             return NativeHost.get().rasterizeText(utf8, x, y, maxWidth, red, green, blue,
                     pixels, outWidth, outHeight);
         } catch (Throwable t) {
@@ -202,9 +208,12 @@ final class PanamaFfmUpcalls {
                                      long outBoundsAddress) {
         try {
             if (pixelsAddress == 0 || width <= 0 || height <= 0 || outBoundsAddress == 0 || length < 0) return -1;
+            /* Same int-overflow guard as cbRasterizeText for width * height * 4. */
+            final long byteLength = (long) width * height * 4;
+            if (byteLength > Integer.MAX_VALUE) return -1;
             final byte[] font = NativeArenaView.readBytes(fontAddress, fontLength);
             final byte[] utf8 = NativeArenaView.readBytes(utf8Address, length);
-            final ByteBuffer pixels = pixelView(pixelsAddress, width * height * 4);
+            final ByteBuffer pixels = pixelView(pixelsAddress, (int) byteLength);
             final int[] bounds = NativeHost.get().drawFontText(font, utf8, size, x, baseline, sx, sy,
                     compression, (int) argb, clipX0, clipY0, clipX1, clipY1, pixels, width, height);
             if (bounds == null || bounds.length < 4) return -1;
@@ -224,6 +233,13 @@ final class PanamaFfmUpcalls {
                                         long outHandlesAddress) {
         try {
             if (textureCount < 0 || quadCount < 0 || outHandlesAddress == 0) return -1;
+            /* Nonzero counts with zero array addresses: the reads below would
+               dereference address 0 straight from Java (Unsafe) and take the
+               whole JVM down instead of degrading — reject before any array
+               is touched. */
+            if (textureCount > 0 && (widthsAddress == 0 || heightsAddress == 0)) return -1;
+            if (quadCount > 0 && (verticesAddress == 0 || uvAddress == 0
+                    || slotsAddress == 0 || stagesAddress == 0)) return -1;
             final int[] widths = new int[textureCount];
             final int[] heights = new int[textureCount];
             NativeArenaView.readInts(widthsAddress, widths);
@@ -301,5 +317,40 @@ final class PanamaFfmUpcalls {
             degrade("invoke_api", t);
             return 0;
         }
+    }
+
+    /**
+     * Immediate error answer for the SHM-POLLER nested API re-entry guard
+     * ({@code ShmPoller.dispatchService}): when an SVC_INVOKE_API request
+     * arrives on a thread that is already servicing one, re-entering
+     * {@code NativeApiSession.invoke} would interlock the poller for the full
+     * CBQ wait budget and end with the region poisoned — so the dispatcher
+     * answers the nested request with this small error payload instead.
+     *
+     * <p>Lifetime contract: identical to {@link #cbInvokeApiRing} — the bytes
+     * go to this thread's PER-SLOT reply bucket
+     * ({@link #ringReplyBuffer}), which stays valid until the next request
+     * answered on the SAME slot (the poller issues nothing on a slot whose
+     * reply it still holds), and the out-length is published volatile-last
+     * so a length observed through RSP always implies the full reply is
+     * visible (pairs with the poller's pre-publication full fence).
+     *
+     * <p>Shape: a {@code {"error":...}} JSON object, the same convention the
+     * JS-proxy path uses for CALLBACK_ERROR, so the module-side wrapper
+     * surfaces it as a rejected api call rather than a torn reply.
+     *
+     * @param outLengthAddress address of the request's out-length slot
+     *                         (args+32 on the SVC block)
+     * @param ringSlot         the SVC ring slot the request arrived on
+     * @param error            UTF-8 error payload to publish
+     * @return the reply buffer's address, or 0 when {@code outLengthAddress}
+     *         is 0 (the generic failure value both planes use)
+     */
+    static long ringErrorReply(long outLengthAddress, int ringSlot, byte[] error) {
+        if (outLengthAddress == 0 || error == null || error.length == 0) return 0;
+        final ByteBuffer buffer = ringReplyBuffer(ringSlot, error.length);
+        NativeArenaView.writeBytes(NativeArenaView.addressOf(buffer), error);
+        NativeArenaView.putIntVolatile(outLengthAddress, error.length);
+        return NativeArenaView.addressOf(buffer);
     }
 }

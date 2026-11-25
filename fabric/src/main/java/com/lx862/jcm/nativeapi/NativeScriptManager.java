@@ -160,6 +160,15 @@ public final class NativeScriptManager {
      * is the same capture/replay order the JS pipeline produced. */
     private static final Map<String, List<NativeScriptModule>> MODULES = new ConcurrentHashMap<>();
 
+    /* moduleKey cache: instanceKey -> (module nativeHandle -> moduleKey).
+       render() used to concatenate instanceKey + "/module/" + nativeHandle
+       for every module of every instance on EVERY frame; the keys are stable
+       for an instance's whole lifetime, so they are built once on a miss
+       inside the render's synchronized(modules) block and dropped by
+       disposeInstance/disposeVehicleInstance/reload(). */
+    private static final Map<String, ConcurrentHashMap<Long, String>> MODULE_KEYS =
+            new ConcurrentHashMap<>();
+
     /* Platform-skipped declarations keyed by script id (reason string).
        Filled by loadFromDeclaration when the running OS/arch has no
        nativeLibrary entry — consumed by validate() messages and the
@@ -263,6 +272,7 @@ public final class NativeScriptManager {
         NativeContentDriver.reset();
         INPUTS.clear(); RESOURCE_BASES.clear();
         MODULES.clear();
+        MODULE_KEYS.clear();
         SKIPPED.clear();
         /* Every per-instance native state and every JVM-side resource the old
            modules created is invalid now: the modules they came from are gone,
@@ -772,26 +782,44 @@ public final class NativeScriptManager {
             com.lx862.mtrscripting.mod.impl.mtr.vehicle.VehicleWrapper vehicleWrapper,
             int kind, java.util.function.Function<NativeScriptModule,Object> contextFactory,
             Object wrapper, java.util.function.BiConsumer<NativeScriptModule,Object> after) {
-        List<NativeFrame> frames = new ArrayList<>();
+        /* Fresh list per call (not a reusable field): the return value
+           escapes this method — the draw-call replay holds it across frames
+           and the JVM integration tests assert on it across render calls, so
+           a shared buffer would be torn mid-assert. 4 covers the common
+           per-script module count without an immediate grow. */
+        List<NativeFrame> frames = new ArrayList<>(4);
         List<NativeScriptModule> modules = MODULES.get(scriptId);
         if (modules == null) return frames;
         /* Hoisted once per render call instead of looked up per module per
            frame (two ConcurrentHashMap gets). */
         final JsonElement scriptInput = INPUTS.get(scriptId);
         final String scriptBase = RESOURCE_BASES.get(scriptId);
-        final String keyPrefix = instanceKey + "/module/";
         /* Iterate the module list under its own monitor instead of copying
            it — getModules() allocated an unmodifiable ArrayList per call,
            i.e. per vehicle per frame. The list only mutates while a resource
            pack is loading. */
         synchronized (modules) {
+            /* moduleKey lookup/build under the same monitor: see
+               MODULE_KEYS — the dispose path that clears the entry holds the
+               per-module monitor, and module lists only mutate during
+               resource-pack loads, so this is the one place a miss can
+               happen. */
+            ConcurrentHashMap<Long, String> moduleKeys = MODULE_KEYS.get(instanceKey);
+            if (moduleKeys == null) {
+                moduleKeys = new ConcurrentHashMap<>();
+                MODULE_KEYS.put(instanceKey, moduleKeys);
+            }
             /* Snapshot marshalled at most once per ABI group per render call —
                modules sharing a group share the blob. */
             int builtGroup = 0;
             ByteBuffer builtSnapshot = null;
             for (NativeScriptModule module : modules) {
                 if (!typeName(kind).equals(module.scriptType)) continue;
-                String moduleKey = keyPrefix + module.nativeHandle;
+                String moduleKey = moduleKeys.get(module.nativeHandle);
+                if (moduleKey == null) {
+                    moduleKey = instanceKey + "/module/" + module.nativeHandle;
+                    moduleKeys.put(module.nativeHandle, moduleKey);
+                }
                 Object context = contextFactory.apply(module);
                 NativeApiSession.bind(moduleKey, context, wrapper, scriptInput,
                         scriptBase != null ? scriptBase : module.resourceBase);
@@ -926,6 +954,9 @@ public final class NativeScriptManager {
                 }
             }
         }
+        /* The instance's cached moduleKeys die with it (cold path — the
+           per-module concatenation above only runs at dispose time). */
+        MODULE_KEYS.remove(instanceKey);
     }
 
     /** Dispose a vehicle instance: each module gets its OWN ABI-group buffer. */
@@ -950,6 +981,9 @@ public final class NativeScriptManager {
                 }
             }
         }
+        /* Same as disposeInstance: the instance's cached moduleKeys die
+           with it. */
+        MODULE_KEYS.remove(instanceKey);
     }
 
     /* Resource kind ids, must match MtrResourceKind in mtr_native.h. */

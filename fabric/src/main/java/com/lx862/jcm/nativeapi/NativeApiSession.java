@@ -427,8 +427,18 @@ public final class NativeApiSession {
         JsonObject result = new JsonObject();
         synchronized (identities) {
             long id = identities.computeIfAbsent(value, k -> NEXT_HANDLE.getAndIncrement());
-            objects.put(id, value);
-            references.merge(id, 1, Integer::sum);
+            /* C++ release protocol: the bridge drops every $handle it ever
+             * observed exactly ONCE (each wrapper destructor fires a single
+             * release). Re-encoding the SAME Java object returns the same
+             * handle without a matching C++ release, so the previous
+             * references.merge(id, 1, Integer::sum) grew the count without
+             * bound — the release decremented an N back to N-1 and the object
+             * stayed pinned in objects/identities forever. First-registration
+             * counting: the count is set to 1 only when the handle is new,
+             * and objects gains its entry on that same first registration. */
+            if (references.putIfAbsent(id, 1) == null) {
+                objects.put(id, value);
+            }
             result.addProperty("$handle", Long.toString(id));
         }
         if (value instanceof Enum<?>) {
