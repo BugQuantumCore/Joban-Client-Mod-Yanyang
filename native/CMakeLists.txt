@@ -4,12 +4,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  add_compile_options(/utf-8 /O2 /EHsc /W3)
+  # Optimization and NDEBUG only in Release: asserts stay active in Debug
+  # builds, and an unconditional /O2 no longer conflicts with MSVC Debug's
+  # /RTC runtime checks (C1: optimizing during /RTC is invalid).
+  add_compile_options(/utf-8 /EHsc /W3
+      $<$<CONFIG:Release>:/O2>
+      $<$<CONFIG:Release>:/DNDEBUG>)
 else()
-  add_compile_options(-O2)
-  # Warnings (not errors) for GCC/Clang — MSVC had /W3, the POSIX side had
-  # nothing, so host-boundary and bounds-check regressions compiled silently.
-  add_compile_options(-Wall -Wextra)
+  # Same discipline on POSIX: -O2 and -DNDEBUG are Release-only so Debug
+  # builds keep assert() active (bounds-check and contract guards).
+  add_compile_options(-Wall -Wextra
+      $<$<CONFIG:Release>:-O2>
+      $<$<CONFIG:Release>:-DNDEBUG>)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-fno-gnu-unique)
   endif()

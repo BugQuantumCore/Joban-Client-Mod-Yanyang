@@ -252,13 +252,16 @@ inline void cpu_pause() {
 /* forward declarations (the Poller references the shared cores)      */
 /* ------------------------------------------------------------------ */
 
-BridgeModule* open_module(const char* path);
+/* Lifecycle cores hand out / take shared ownership: a serving thread's
+   shared_ptr keeps a module alive across a concurrent close, so the old
+   find→delete window (use-after-free mid-render) cannot occur. */
+std::shared_ptr<BridgeModule> open_module(const char* path);
 int32_t run_frame_locked(BridgeModule& mod, const char* key,
                          const void* snapshot, int64_t snapshotLen,
                          int32_t kind, JcmFrameOutput& out);
-void dispose_instance_core(BridgeModule* mod, const char* key,
+void dispose_instance_core(const std::shared_ptr<BridgeModule>& mod, const char* key,
                            const void* live_snapshot, int64_t live_len);
-void close_module_core(BridgeModule* mod);
+void close_module_core(const std::shared_ptr<BridgeModule>& mod);
 /* Serves one request (render or command) off the control slot of ANY
    attached region mapping and publishes the result. Returns
    JCM_SHM_ERR_DETACHED after the shutdown command asks for a detach. */
@@ -281,6 +284,11 @@ int32_t serve_request(uint8_t* base, uint64_t seq);
    Installed once via the jcm_ffm_init export by PanamaFfmChannel.java
    AFTER it creates java.lang.foreign upcall stubs. */
 JcmFfmHostVTable g_ffm_host = {};
+/* Torn-read validity word for g_ffm_host: 0 while the table is being
+   (re)written, the valid JCM_FFM_HOST_ABI once the body is fully published.
+   jcm_ffm_init stores 0 BEFORE touching the body and the valid ABI LAST
+   (release); every reader goes through ffm_has (acquire + ABI re-check). */
+std::atomic<uint32_t> g_ffm_abi{0};
 
 /* Publishes an error result slot for a request that died mid-service
    so the waiting Java thread sees a finished exchange instead of
@@ -299,7 +307,11 @@ void publish_error_result(uint8_t* base, uint64_t seq) {
    presence check takes the entry by its own pointer type. */
 template <typename Entry>
 static inline bool ffm_has(Entry entry) {
-    return g_ffm_host.abi == JCM_FFM_HOST_ABI && entry != nullptr;
+    /* Acquire the validity word first, then re-check the body's ABI: a
+       table that is mid-install or mid-clear is never partially trusted. */
+    return g_ffm_abi.load(std::memory_order_acquire) == JCM_FFM_HOST_ABI
+            && g_ffm_host.abi == JCM_FFM_HOST_ABI
+            && entry != nullptr;
 }
 
 /* ---- shared-memory channel state (see include/mtr/shm_channel.h) ----
@@ -315,7 +327,11 @@ struct ShmState {
 };
 ShmState g_shm;
 std::atomic<uint64_t> g_served_seq{0};
-std::unordered_map<int64_t, BridgeModule*> g_modules;
+/* Registry: Java-plane handle (the BridgeModule address) -> shared
+   ownership. find_module() copies the shared_ptr out under the registry
+   lock, so a concurrent close can never delete a module a serving thread
+   still uses (the old raw-pointer find→delete window was a UAF). */
+std::unordered_map<int64_t, std::shared_ptr<BridgeModule>> g_modules;
 std::mutex g_modules_mutex;
 
 /* Shared per-library state registry, keyed by the loader's handle. Never
@@ -356,14 +372,28 @@ public:
         {
             std::unique_lock<std::mutex> lk(m_);
             stop_ = true;
-            if (!worker_.joinable()) return;   /* never used: nothing to join */
-            lk.unlock();
-            cv_.notify_all();
-            worker_.join();
+            if (worker_.joinable()) {
+                lk.unlock();
+                cv_.notify_all();
+                worker_.join();
+            }   /* else: never used — no worker to join, fall through */
         }
+        /* Published (release) AFTER the worker is joined: a defer() that
+           arrives once this object is dying sees dead_ and degrades to a
+           synchronous free instead of touching freed mutex/queue memory. */
+        dead_.store(true, std::memory_order_release);
     }
 
     void defer(std::function<void()>&& job) {
+        /* Static-destruction guard: modules can outlive g_reclaimer at
+           process exit (their BridgeModules destruct later, in reverse
+           construction order); a queued job would then run against this
+           object's freed mutex/deque. Degrade to a synchronous free —
+           destroying the job releases its captured payload. */
+        if (dead_.load(std::memory_order_acquire)) {
+            job();
+            return;
+        }
         /* One lock scope for the push AND the worker launch: two sequential
            acquisitions only widened a race window for nothing (the worker
            itself takes the same mutex, so a single scope is both correct
@@ -439,6 +469,7 @@ private:
     std::condition_variable cv_done_;
     std::deque<std::function<void()>> jobs_;
     std::thread worker_;
+    std::atomic<bool> dead_{false};   /* set by ~Reclaimer, see defer() */
     bool stop_ = false;
     int64_t pending_ = 0;
     int64_t completed_ = 0;
@@ -1542,7 +1573,10 @@ const void* fallback_snapshot(BridgeModule& mod, const Instance& inst) {
     return mod.zero_snapshot.data();
 }
 
-BridgeModule* find_module(uint64_t handle) {
+/* Resolves a Java-plane module handle to a shared reference, copied out
+   under the registry lock: the caller's shared_ptr keeps the module alive
+   for the whole operation even if another thread closes it concurrently. */
+std::shared_ptr<BridgeModule> find_module(uint64_t handle) {
     std::lock_guard<std::mutex> lk(g_modules_mutex);
     const auto it = g_modules.find(static_cast<int64_t>(handle));
     return it != g_modules.end() ? it->second : nullptr;
@@ -1554,11 +1588,12 @@ BridgeModule* find_module(uint64_t handle) {
 
 /** Shared dlopen + symbol resolution + registry entry for one module
  *  library (the FFM jcm_module_open and the poller CMD_OPEN both land
- *  here). Returns null on failure (reason already logged).
+ *  here). Returns a null shared_ptr on failure (reason already logged).
  *
  *  ABI 10 keep-loaded policy: successfully opened DSOs are NEVER dlclosed.
  *  The bridge keeps the dlopen refcount for the process lifetime and only
- *  deletes the per-module bookkeeping (BridgeModule) on close. The JVM
+ *  releases the per-module bookkeeping (BridgeModule, shared_ptr-owned) on
+ *  close. The JVM
  *  itself never dlclose's its own libraries for the same reason: the
  *  dynamic loader's scope bookkeeping is a process-wide lazily-rebuilt
  *  structure, and unload/reload cycles under a JVM can leave a reopened
@@ -1567,23 +1602,30 @@ BridgeModule* find_module(uint64_t handle) {
  *  (no relocations) and cannot leak unboundedly: the number of distinct
  *  module files per session is small, and re-opens return the SAME live
  *  mapping instead of re-mapping. */
-BridgeModule* open_module(const char* path) {
+/* Failure-path DSO unload for open_module: only ever invoked BEFORE the
+   keep-loaded registration, so a bad module file cannot leak one mapping
+   per reload attempt. */
+void unload_library(void*& dl) {
+    if (!dl) return;
+#if defined(_WIN32)
+    FreeLibrary(static_cast<HMODULE>(dl));
+#else
+    dlclose(dl);
+#endif
+    dl = nullptr;
+}
+
+std::shared_ptr<BridgeModule> open_module(const char* path) {
     void* lib = load_library(path);
     if (!lib) {
         std::fprintf(stderr, "[jcm_native_bridge] dlopen failed: %s (%s)\n",
                      path, last_error());
         return nullptr;
     }
-    auto* mod = new (std::nothrow) BridgeModule(shared_library_state(lib));
-    if (!mod) {
-        std::fprintf(stderr, "[jcm_native_bridge] out of memory loading %s\n", path);
-#if defined(_WIN32)
-        FreeLibrary(static_cast<HMODULE>(lib));
-#else
-        dlclose(lib);
-#endif
-        return nullptr;
-    }
+    /* shared_ptr ownership from here on: every failure path below simply
+       returns and the last reference frees the bookkeeping — a serving
+       thread that copied a reference never sees it freed under itself. */
+    auto mod = std::make_shared<BridgeModule>(shared_library_state(lib));
     mod->dl = lib;
 
     mod->abi        = reinterpret_cast<uint32_t (*)(void)>(load_symbol(lib, "mtrNativeAbiVersion"));
@@ -1607,15 +1649,18 @@ BridgeModule* open_module(const char* path) {
         /* Failure path (no keep-loaded registration happened yet): actually
            unload the dlopen'd library so a bad module file cannot leak a
            mapping per reload attempt. */
-        if (mod->dl) {
-#if defined(_WIN32)
-            FreeLibrary(static_cast<HMODULE>(mod->dl));
-#else
-            dlclose(mod->dl);
-#endif
-            mod->dl = nullptr;
-        }
-        delete mod;
+        unload_library(mod->dl);
+        return nullptr;
+    }
+    /* ABI range gate: an abi ABOVE the host's would feed newer struct
+       layouts to older bridge code (unchecked field reads), and abi < 6
+       was never supported. Reject before any registry entry exists, on
+       the same unload failure path. */
+    const uint32_t module_abi = mod->abi();
+    if (module_abi < 6 || module_abi > MTR_NATIVE_ABI_VERSION) {
+        std::fprintf(stderr, "[jcm_native_bridge] module ABI %u out of supported range 6..%u: %s\n",
+                     module_abi, MTR_NATIVE_ABI_VERSION, path);
+        unload_library(mod->dl);
         return nullptr;
     }
     /* Register for the request servers, which learn the module from the
@@ -1628,7 +1673,10 @@ BridgeModule* open_module(const char* path) {
            path (never in the constructor, never on the failure paths). */
         std::lock_guard<std::mutex> module_lock(mod->mutex);
         std::lock_guard<std::mutex> registry_lock(g_modules_mutex);
-        g_modules[reinterpret_cast<int64_t>(mod)] = mod;
+        /* The Java-side handle is the BridgeModule address; the registry
+           keeps the shared reference, so request servers resolve handles
+           to an owned copy under this same lock. */
+        g_modules[reinterpret_cast<int64_t>(mod.get())] = mod;
         ++mod->library->open_modules;
     }
     return mod;
@@ -1730,14 +1778,17 @@ int32_t run_frame_locked(BridgeModule& mod, const char* key,
  *  land here). `live_snapshot` is the LIVE driver buffer when available,
  *  else null (the module's zeroed fallback snapshot substitutes — the
  *  bridge never retained a per-instance copy). */
-void dispose_instance_core(BridgeModule* mod, const char* key,
+void dispose_instance_core(const std::shared_ptr<BridgeModule>& mod, const char* key,
                            const void* live_snapshot, int64_t live_len) {
     if (!mod || !key) return;
     std::lock_guard<std::mutex> lock(mod->mutex);
     auto it = mod->instances.find(key);
     if (it == mod->instances.end()) return;
 
-    const void* live = live_len >= 0 ? live_snapshot : nullptr;
+    /* A zero-length "live" buffer is no live buffer at all (the render
+       path already refuses snapLen==0): substitute the zeroed fallback
+       instead of handing the module a 0-byte snapshot pointer. */
+    const void* live = (live_snapshot && live_len > 0) ? live_snapshot : nullptr;
 
     if (it->second.initialized) {
         JcmHostServices host;
@@ -1791,9 +1842,10 @@ void dispose_instance_core(BridgeModule* mod, const char* key,
 /** Shared close pipeline (the FFM jcm_module_close and the poller
  *  CMD_CLOSE): dispose every instance against the zeroed fallback, drop
  *  the shm id table, defer the payloads to the background reclaimer,
- *  unregister, and delete the bookkeeping — the DSO mapping deliberately
- *  stays loaded (ABI 10 keep-loaded policy). */
-void close_module_core(BridgeModule* mod) {
+ *  unregister, and release the bookkeeping (the final shared_ptr frees
+ *  it) — the DSO mapping deliberately stays loaded (ABI 10 keep-loaded
+ *  policy). */
+void close_module_core(const std::shared_ptr<BridgeModule>& mod) {
     if (!mod) return;
     {
         std::lock_guard<std::mutex> lock(mod->mutex);
@@ -1854,11 +1906,14 @@ void close_module_core(BridgeModule* mod) {
     }
     {
         std::lock_guard<std::mutex> lk(g_modules_mutex);
-        g_modules.erase(reinterpret_cast<int64_t>(mod));
+        g_modules.erase(reinterpret_cast<int64_t>(mod.get()));
     }
-    /* Bookkeeping deleted; the DSO mapping deliberately STAYS LOADED (ABI 10
-       keep-loaded policy — see open_module). */
-    delete mod;
+    /* Bookkeeping released: erasing the registry entry drops the last
+       PUBLIC reference; the object is destroyed when the final shared_ptr
+       (this caller's, or a serving thread that resolved the handle just
+       before the erase) goes away — never under a serving thread's feet.
+       The DSO mapping deliberately STAYS LOADED (ABI 10 keep-loaded
+       policy — see open_module). */
 }
 
 /* ------------------------------------------------------------------ */
@@ -1909,9 +1964,9 @@ int32_t serve_request(uint8_t* base, uint64_t seq) {
             }
             const std::string path(reinterpret_cast<const char*>(args),
                                    static_cast<size_t>(argLen));
-            BridgeModule* mod = open_module(path.c_str());
+            std::shared_ptr<BridgeModule> mod = open_module(path.c_str());
             publish(mod ? JCM_SHM_OK : JCM_SHM_ERR_MODULE,
-                    reinterpret_cast<uint64_t>(mod));
+                    reinterpret_cast<uint64_t>(mod.get()));
             return mod ? JCM_SHM_OK : JCM_SHM_ERR_MODULE;
         }
         case JCM_CMD_CLOSE: {
@@ -1920,14 +1975,14 @@ int32_t serve_request(uint8_t* base, uint64_t seq) {
             return JCM_SHM_OK;
         }
         case JCM_CMD_ABI: {
-            BridgeModule* mod = find_module(handle);
+            std::shared_ptr<BridgeModule> mod = find_module(handle);
             const uint32_t abi = (mod && mod->abi) ? mod->abi() : 0;
             publish(JCM_SHM_OK, abi);
             return JCM_SHM_OK;
         }
         case JCM_CMD_SCRIPT_TYPE:
         case JCM_CMD_SCRIPT_ID: {
-            BridgeModule* mod = find_module(handle);
+            std::shared_ptr<BridgeModule> mod = find_module(handle);
             const char* (*fn)(void) = nullptr;
             if (mod) fn = (kind == JCM_CMD_SCRIPT_TYPE) ? mod->type : mod->id;
             const char* s = fn ? fn() : nullptr;
@@ -1945,15 +2000,18 @@ int32_t serve_request(uint8_t* base, uint64_t seq) {
             return JCM_SHM_OK;
         }
         case JCM_CMD_STATE_SIZE: {
-            BridgeModule* mod = find_module(handle);
+            std::shared_ptr<BridgeModule> mod = find_module(handle);
             const uint64_t size = (mod && mod->state_size)
                     ? static_cast<uint64_t>(mod->state_size()) : 0;
             publish(JCM_SHM_OK, size);
             return JCM_SHM_OK;
         }
         case JCM_CMD_DISPOSE: {
-            BridgeModule* mod = find_module(handle);
-            if (!mod || !args || argLen < 16) {
+            std::shared_ptr<BridgeModule> mod = find_module(handle);
+            /* Length ceiling mirrors JCM_CMD_OPEN: the arg block is sized
+               by an untrusted argLen word, which used to size the key
+               string allocation. */
+            if (!mod || !args || argLen < 16 || argLen > (1u << 20)) {
                 publish(JCM_SHM_ERR_REQUEST, 0);
                 return JCM_SHM_ERR_REQUEST;
             }
@@ -1962,16 +2020,21 @@ int32_t serve_request(uint8_t* base, uint64_t seq) {
             std::memcpy(&snapSize, args + 8, sizeof(snapSize));
             const std::string key(reinterpret_cast<const char*>(args + 16),
                                   static_cast<size_t>(argLen - 16));
+            /* Zero-length "live" buffers are no live buffers: take the
+               zeroed fallback instead (render already refuses snapLen 0). */
+            const bool hasLive = snapAddress != 0 && snapSize > 0;
             dispose_instance_core(mod, key.c_str(),
-                    snapAddress ? reinterpret_cast<const void*>(
+                    hasLive ? reinterpret_cast<const void*>(
                             static_cast<uintptr_t>(snapAddress)) : nullptr,
-                    snapAddress ? static_cast<int64_t>(snapSize) : -1);
+                    hasLive ? static_cast<int64_t>(snapSize) : -1);
             publish(JCM_SHM_OK, 0);
             return JCM_SHM_OK;
         }
         case JCM_CMD_REGISTER: {
-            BridgeModule* mod = find_module(handle);
-            if (!mod || !args || argLen < 8) {
+            std::shared_ptr<BridgeModule> mod = find_module(handle);
+            /* Length ceiling mirrors JCM_CMD_OPEN (untrusted argLen word
+               sizing the key string allocation). */
+            if (!mod || !args || argLen < 8 || argLen > (1u << 20)) {
                 publish(JCM_SHM_ERR_REQUEST, 0);
                 return JCM_SHM_ERR_REQUEST;
             }
@@ -2027,7 +2090,10 @@ int32_t serve_request(uint8_t* base, uint64_t seq) {
         publish(JCM_SHM_ERR_SNAPSHOT, 0);
         return JCM_SHM_ERR_SNAPSHOT;
     }
-    BridgeModule* mod = find_module(handle);
+    /* find_module copies the shared_ptr out under the registry lock; the
+       module lock below is then taken with the registry lock already
+       released, matching the global module->registry hold order. */
+    std::shared_ptr<BridgeModule> mod = find_module(handle);
     if (!mod) {
         std::fprintf(stderr, "[jcm_native_bridge] shm request: module handle %llu not registered (%zu modules)\n",
                      (unsigned long long)handle, g_modules.size());
@@ -2168,22 +2234,35 @@ static void log_export_throw(const char* fn) {
 /* ---- module lifecycle -------------------------------------------------- */
 
 JCM_BRIDGE_EXPORT int64_t jcm_module_open(const char* path, int32_t path_len) {
-    if (!path || path_len <= 0) return 0;
+    /* Path length ceiling: a bogus path_len used to size an unbounded
+       string allocation from caller memory. */
+    if (!path || path_len <= 0 || static_cast<uint32_t>(path_len) > (1u << 20)) return 0;
     try {
         const std::string owned(path, static_cast<size_t>(path_len));
-        BridgeModule* mod = open_module(owned.c_str());
-        return reinterpret_cast<int64_t>(mod);
+        const std::shared_ptr<BridgeModule> mod = open_module(owned.c_str());
+        /* The handle handed to Java is the registry key (the module
+           address); every other jcm_* export re-validates it through
+           find_module instead of trusting it as a pointer. */
+        return reinterpret_cast<int64_t>(mod.get());
     } catch (...) { log_export_throw("jcm_module_open"); return 0; }
 }
 
 JCM_BRIDGE_EXPORT void jcm_module_close(int64_t handle) {
+    /* Plane-handle validation: an unknown (or already closed) handle is
+       logged and dropped — a double close is a harmless no-op. */
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
+    if (!mod) {
+        std::fprintf(stderr, "[jcm_native_bridge] jcm_module_close: unknown module handle %lld\n",
+                     static_cast<long long>(handle));
+        return;
+    }
     try {
-        close_module_core(reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle)));
+        close_module_core(mod);
     } catch (...) { log_export_throw("jcm_module_close"); }
 }
 
 JCM_BRIDGE_EXPORT int32_t jcm_module_abi(int64_t handle) {
-    auto* mod = reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle));
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
     try {
         return (mod && mod->abi) ? static_cast<int32_t>(mod->abi()) : 0;
     } catch (...) { log_export_throw("jcm_module_abi"); return 0; }
@@ -2196,12 +2275,15 @@ JCM_BRIDGE_EXPORT int32_t jcm_module_abi(int64_t handle) {
 static int32_t copy_module_string(int64_t handle,
                                   const char* (* (BridgeModule::*field))(void),
                                   char* out, int32_t cap) {
-    auto* mod = reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle));
     if (!out || cap <= 0) return -1;
+    /* Plane-handle validation: the FFM handle is a registry key, never a
+       trusted pointer — resolve it before touching the module. */
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
+    if (!mod) return 0;
     try {
         /* BridgeModule keeps PLAIN function pointers as data members (resolved
            at dlopen time), so the selector is a pointer-to-data-member. */
-        const char* (*fn)(void) = mod ? (mod->*field) : nullptr;
+        const char* (*fn)(void) = (*mod).*field;
         const char* s = fn ? fn() : nullptr;
         if (!s) return -1;
         int32_t n = 0;
@@ -2220,7 +2302,7 @@ JCM_BRIDGE_EXPORT int32_t jcm_module_script_id(int64_t handle, char* out, int32_
 }
 
 JCM_BRIDGE_EXPORT int64_t jcm_module_state_size(int64_t handle) {
-    auto* mod = reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle));
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
     try {
         return (mod && mod->state_size) ? static_cast<int64_t>(mod->state_size()) : 0;
     } catch (...) { log_export_throw("jcm_module_state_size"); return 0; }
@@ -2240,11 +2322,14 @@ JCM_BRIDGE_EXPORT int64_t jcm_module_state_size(int64_t handle) {
 JCM_BRIDGE_EXPORT int32_t jcm_module_render(int64_t handle, const char* key, int32_t key_len,
                                              int64_t snap_addr, int64_t snap_len,
                                              int32_t kind, uint8_t* out_desc) {
-    auto* mod = reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle));
-    if (!mod || !key || key_len <= 0 || snap_addr == 0 || snap_len <= 0
+    if (!key || key_len <= 0 || snap_addr == 0 || snap_len <= 0
             || !out_desc || kind < 0 || kind > MTR_RESOURCE_PSD) {
         return JCM_SHM_ERR_REQUEST;
     }
+    /* Plane-handle validation: the shared_ptr keeps the module alive for
+       the whole render even against a concurrent close. */
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
+    if (!mod) return JCM_SHM_ERR_MODULE;
     if (snap_len > 0x7fffffffLL) return JCM_SHM_ERR_SNAPSHOT;
     try {
     /* Reused per-thread key storage: assign() keeps the capacity of the
@@ -2304,11 +2389,20 @@ JCM_BRIDGE_EXPORT int64_t jcm_module_invoke_api(int64_t function, int64_t user,
  *  snapshot. */
 JCM_BRIDGE_EXPORT void jcm_module_dispose_instance(int64_t handle, const char* key, int32_t key_len,
                                                    int64_t snap_addr, int64_t snap_len) {
-    auto* mod = reinterpret_cast<BridgeModule*>(static_cast<uintptr_t>(handle));
-    if (!mod || !key || key_len <= 0) return;
+    if (!key || key_len <= 0) return;
+    /* Plane-handle validation: unknown handles are logged and dropped. */
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
+    if (!mod) {
+        std::fprintf(stderr, "[jcm_native_bridge] jcm_module_dispose_instance: unknown module handle %lld\n",
+                     static_cast<long long>(handle));
+        return;
+    }
     try {
         const std::string owned(key, static_cast<size_t>(key_len));
-        const void* live = snap_addr ? reinterpret_cast<const void*>(static_cast<uintptr_t>(snap_addr)) : nullptr;
+        /* Zero-length live buffers are no live buffers (the render path
+           already refuses snapLen==0): use the zeroed fallback. */
+        const void* live = (snap_addr && snap_len > 0)
+                ? reinterpret_cast<const void*>(static_cast<uintptr_t>(snap_addr)) : nullptr;
         dispose_instance_core(mod, owned.c_str(), live, live ? snap_len : -1);
     } catch (...) { log_export_throw("jcm_module_dispose_instance"); }
 }
@@ -2326,7 +2420,9 @@ JCM_BRIDGE_EXPORT int32_t jcm_shm_kick(void) {
 JCM_BRIDGE_EXPORT void jcm_shm_register_instance(int64_t handle, int64_t instance_id,
                                                  const char* key, int32_t key_len) {
     if (!key || key_len <= 0) return;
-    BridgeModule* mod = find_module(static_cast<uint64_t>(handle));
+    /* Plane-handle validation (shared reference keeps the module alive
+       across the registration). */
+    const std::shared_ptr<BridgeModule> mod = find_module(static_cast<uint64_t>(handle));
     if (!mod) return;
     try {
         std::lock_guard<std::mutex> lock(mod->mutex);
@@ -2369,6 +2465,9 @@ JCM_BRIDGE_EXPORT int32_t jcm_poller_attached(void) {
 JCM_BRIDGE_EXPORT int32_t jcm_ffm_init(const JcmFfmHostVTable* vtable, int32_t vtable_bytes) {
     poller_boot();   /* runtime entry: cheap idempotent boot check */
     if (!vtable) {
+        /* Clear: de-publish FIRST (readers stop trusting the table via
+           ffm_has), then zero the body. */
+        g_ffm_abi.store(0, std::memory_order_release);
         g_ffm_host = JcmFfmHostVTable{};
         return 0;
     }
@@ -2378,9 +2477,13 @@ JCM_BRIDGE_EXPORT int32_t jcm_ffm_init(const JcmFfmHostVTable* vtable, int32_t v
     if (vtable->abi != JCM_FFM_HOST_ABI) {
         return JCM_SHM_ERR_BAD_LAYOUT;
     }
+    /* Install: de-publish -> write the body -> publish the valid ABI LAST
+       (release), so no reader can ever trust a torn table. */
+    g_ffm_abi.store(0, std::memory_order_release);
     JcmFfmHostVTable copy;
     std::memcpy(&copy, vtable, sizeof(copy));
     g_ffm_host = copy;
+    g_ffm_abi.store(JCM_FFM_HOST_ABI, std::memory_order_release);
     return 0;
 }
 

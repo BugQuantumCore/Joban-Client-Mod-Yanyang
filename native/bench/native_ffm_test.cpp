@@ -250,6 +250,28 @@ int main(int argc, char** argv) {
     CHECK(jcm_module_open("/nonexistent/probe", 19) == 0,
           "failed open returns a null handle (never a dangling one)");
 
+    /* ---- 2b. closed handles are validated, never dereferenced ---------
+     * The FFM handle is a REGISTRY KEY: once close drops the entry, render
+     * degrades to ERR_MODULE, the probe exports return 0, and a DOUBLE
+     * close is a harmless no-op (the shared reference handed to serving
+     * threads is what makes a mid-render close safe — no dangling module). */
+    {
+        const int64_t zombie = jcm_module_open(legacyPath,
+                static_cast<int32_t>(std::strlen(legacyPath)));
+        CHECK(zombie != 0, "module opened for the closed-handle checks");
+        jcm_module_close(zombie);
+        jcm_module_close(zombie);   /* double close: harmless no-op */
+        CHECK(jcm_module_render(zombie, "k", 1,
+                reinterpret_cast<int64_t>(snapshot), 256, 0, desc)
+                == JCM_SHM_ERR_MODULE, "render after close returns ERR_MODULE");
+        CHECK(jcm_module_abi(zombie) == 0, "abi after close returns 0");
+        CHECK(jcm_module_state_size(zombie) == 0, "state size after close returns 0");
+        char gone[8];
+        CHECK(jcm_module_script_type(zombie, gone, sizeof(gone)) == 0,
+              "script type after close returns 0");
+        jcm_module_dispose_instance(zombie, "k", 1, 0, -1);   /* no-op */
+    }
+
     /* ---- 3. api upcalls through the vtable (content probe) ---------- */
     const int64_t content = jcm_module_open(contentPath,
             static_cast<int32_t>(std::strlen(contentPath)));

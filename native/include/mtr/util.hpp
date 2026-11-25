@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <cstddef>
 #include <cmath>
+#include <cstdio>   /* snprintf: pids_util formatting helpers below */
+#include <cstring>  /* strlen: CycleTracker part scanning below */
 #include <string>
 #include <vector>
 
@@ -30,6 +32,9 @@ struct StrView {
     bool operator==(const char* rhs) const {
         if (!rhs) return len == 0;
         for (int32_t i = 0; i < len; i++) {
+            /* Stop at the NUL terminator: a shorter rhs used to be read past
+               its buffer before the final length comparison noticed. */
+            if (rhs[i] == '\0') return false;
             if (data[i] != rhs[i]) return false;
         }
         return rhs[len] == '\0';
