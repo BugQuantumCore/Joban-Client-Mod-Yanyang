@@ -19,33 +19,45 @@ import org.mtr.resource.RenderStage;
  * the batched map produced by {@link NewOptimizedModelGroup#build}, rendered
  * through {@link MainRenderer#renderModel}.
  *
- * <h2>Buffered fallback for the plain OpenGL path (2.3.0-1.0.2)</h2>
+ * <h2>Buffered replay and the QUADS-mode root cause (2026-11-27)</h2>
  *
- * <p>{@code MainRenderer.renderModel} drains GL-path models with a raw
- * {@code VertexBuffer#drawWithShader} inside {@code RenderType#
- * setupRenderState()/clearRenderState()} brackets. That immediate VAO draw is
- * the one and only render mechanism every script draw funnels through (JS
- * {@code ModelDrawCall}, native {@code NativeModelDrawCall}, dynamic models
- * and JCM complex block models all reach {@link #queue}), and it is the only
- * stage the 2026-11-21/22 "scripts load, replay, queue — but nothing
- * displays" OpenGL reports never proved wrong: under Radiance the exact same
- * models render fine, and Radiance draws them through
- * {@code NewOptimizedModel#renderCaptured} — i.e. through Minecraft's own
- * buffer source, not through a raw VAO draw.</p>
+ * <p>Script models are TRIANGLES-mode streams (3 vertices per face, 6 with the
+ * double-sided reverse copy — see {@link RawMesh#upload}). MTR's scheduled
+ * render path, however, resolves every {@code QueuedRenderLayer} to a
+ * QUADS-mode {@code RenderType} ({@code RenderType.entityCutout} &amp; co.
+ * via {@code MoreRenderLayers}), and a {@code BufferBuilder} in QUADS mode
+ * interprets its vertex stream in groups of four. A raw 3-vertices-per-face
+ * triangle stream appended there is regrouped into 4-vertex chunks — the
+ * first quad spans two triangles and everything after is sheared fragments,
+ * which is the same corruption MTR-Yanyang 4.1.0-beta-2.yanyang.19's
+ * multi-instance batching inflicted on its own OBJ rails (fixed upstream in
+ * yanyang.20 by replaying OBJ meshes as degenerate quads and probing the
+ * layer mode at runtime).</p>
  *
- * <p>So on plain OpenGL (no VulkanMod native pipeline, no Radiance captured
- * pipeline) this wrapper now replays the retained per-(stage, texture) vertex
- * lists through {@link MainRenderer#scheduleRender} instead: the vertices are
- * appended into the frame's {@code MultiBufferSource} exactly like every
- * MTR-scheduled quad and every vanilla entity, which is the path
- * Sodium/Iris/ImmediatelyFast-style rendering stacks are built to handle. The
- * Vulkan-family backends keep {@code MainRenderer.renderModel} untouched —
- * their proven native/captured drains own the frame there.</p>
+ * <p>That mode mismatch is the root cause of the "scripts load, replay,
+ * queue — but nothing displays" reports on EVERY backend:</p>
+ * <ul>
+ *   <li><b>Plain OpenGL</b> (Sodium/Iris/vanilla): the buffered replay
+ *   appended raw triangle streams into those QUADS-mode consumers — the
+ *   buffered path itself was broken from the day it shipped;</li>
+ *   <li><b>VulkanMod + Beryl</b>: the [wrvk] native recorder stays off under
+ *   Beryl, so {@code MainRenderer.renderModel}'s GL drain draws the models —
+ *   and yanyang.19's multi-instance batching (engaged from 3 instances — a
+ *   6-car train queues every script model 6 times) replays the same triangle
+ *   streams into the same QUADS-mode scheduled buffers.</li>
+ * </ul>
  *
- * <p>The GL models are still built and closed exactly as before (dual-path);
- * only the replay destination changes on plain GL. Pass
- * {@code -Djsblock.forceImmediateModelPath=true} to A/B test against the old
- * behaviour.</p>
+ * <p>The replay now emits each triangle as a <b>degenerate quad</b>
+ * (v0, v1, v2, v2 — the zero-area tail triangle is discarded by the
+ * rasterizer), mirroring MTR's own yanyang.20 fix, and the buffered path is
+ * used on every backend except Radiance (whose captured drain tessellates
+ * the model's own TRIANGLES mode and is proven correct). The vertices land
+ * in the frame's {@code MultiBufferSource} exactly like every MTR-scheduled
+ * quad and every vanilla entity — the path Sodium/Iris/ImmediatelyFast-style
+ * stacks and VulkanMod's translated pipelines are built to handle. The GL
+ * models are still built and closed exactly as before (dual-path). Pass
+ * {@code -Djsblock.forceImmediateModelPath=true} to A/B test against the
+ * {@code renderModel} path.</p>
  */
 public final class OptimizedModelWrapper {
 
@@ -100,9 +112,19 @@ public final class OptimizedModelWrapper {
 
         /**
          * @return true when script models should replay through the frame's
-         * buffer source instead of {@code MainRenderer.renderModel}'s raw VAO
-         * drain — i.e. plain OpenGL, where no Vulkan-family backend owns the
-         * frame.
+         * scheduled buffer source instead of {@code MainRenderer.renderModel}'s
+         * VAO/captured drain. That is every backend EXCEPT Radiance: plain
+         * OpenGL (the raw VAO draw fights Sodium/Iris-style stacks) and the
+         * whole VulkanMod family — with Beryl active the [wrvk] recorder is
+         * off and the GL drain's multi-instance batching (MTR yanyang.19+)
+         * regroups TRIANGLES streams into QUADS-mode scheduled buffers, and
+         * without Beryl the native recorder would additionally need every
+         * script texture (including the dynamic GraphicsTexture canvases)
+         * registered in MTR's native texture manager, which JCM does not do.
+         * Radiance alone keeps the renderModel path: its captured drain
+         * tessellates the model's own TRIANGLES mode, which is proven
+         * correct. The decision latches per session — the installed backend
+         * set cannot change while the client runs.
          */
         private static boolean useBufferedModelPath() {
                 if (Boolean.getBoolean("jsblock.forceImmediateModelPath")) {
@@ -110,9 +132,15 @@ public final class OptimizedModelWrapper {
                 }
                 Boolean decision = cachedBufferedDecision;
                 if (decision == null) {
-                        decision = !org.mtr.client.VulkanCompat.isVulkanModActive()
-                                        && !org.mtr.client.VulkanCompat.isRadianceActive();
+                        decision = !org.mtr.client.VulkanCompat.isRadianceActive();
                         cachedBufferedDecision = decision;
+                        if (!decisionLogged) {
+                                decisionLogged = true;
+                                JCMLogger.info("[JCM][diag] model draw path decision: {} (radiance={}, vulkanMod={})",
+                                                decision ? "buffered (scheduled QUADS-safe replay)" : "immediate (renderModel)",
+                                                org.mtr.client.VulkanCompat.isRadianceActive(),
+                                                org.mtr.client.VulkanCompat.isVulkanModActive());
+                        }
                 }
                 return decision;
         }
@@ -123,6 +151,16 @@ public final class OptimizedModelWrapper {
          * {@code VertexConsumer} against the caller's transform — the same
          * drain every MTR-scheduled quad takes (see MainRenderer's
          * CURRENT_RENDERS flush).
+         *
+         * <p><b>Primitive-mode contract:</b> the scheduled flush resolves the
+         * bucket's {@link QueuedRenderLayer} to a QUADS-mode {@code RenderType}
+         * (entityCutout &amp; co.), and a QUADS {@code BufferBuilder} groups its
+         * stream in fours. The retained lists are TRIANGLES streams (3
+         * vertices per face, 6 with the double-sided reverse copy), so each
+         * triangle is emitted as a <b>degenerate quad</b> (v0, v1, v2, v2) —
+         * the same replay MTR yanyang.20 uses for its own OBJ meshes. The
+         * zero-area v0v2v2 tail triangle is discarded by the rasterizer, and
+         * the geometry that lands in the buffer is bit-exact.</p>
          */
         private void queueBuffered(StoredMatrixTransformations storedMatrixTransformations, int light) {
                 bufferedVertices.forEach((renderStage, textures) -> {
@@ -130,33 +168,56 @@ public final class OptimizedModelWrapper {
                         final int bakedLight = renderStage.isFullBrightness ? LightTexture.FULL_BRIGHT : toPackedLight(light);
                         textures.forEach((texture, vertices) -> {
                                 if (DIAG_PATH_LOGGED.add(renderStage + ":" + texture)) {
-                                        JCMLogger.info("[JCM][diag] model draw path: buffered (plain GL, doubleSided={}) — stage={}, texture={}, vertices={}",
-                                                        com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size());
+                                        JCMLogger.info("[JCM][diag] model draw path: buffered (degenerate-quad replay, doubleSided={}) — stage={}, texture={}, triangles={}({} vertices)",
+                                                        com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size() / 3, vertices.size());
                                 }
                                 MainRenderer.scheduleRender(texture, false, queuedRenderLayer, (poseStack, vertexConsumer, offset) -> {
                                         if (DIAG_DRAINED_LOGGED.add(renderStage + ":" + texture)) {
-                                                JCMLogger.info("[JCM][diag] model draw path: buffered DRAINED (plain GL, doubleSided={}) — stage={}, texture={}, vertices={}",
-                                                                com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size());
+                                                JCMLogger.info("[JCM][diag] model draw path: buffered DRAINED (degenerate-quad replay, doubleSided={}) — stage={}, texture={}, triangles={}({} vertices)",
+                                                                com.lx862.jcm.mod.render.mesh.RawMesh.isDoubleSidedEmission(), renderStage, texture, vertices.size() / 3, vertices.size());
                                         }
                                         storedMatrixTransformations.transform(poseStack, offset);
                                         try {
                                                 final com.mojang.blaze3d.vertex.PoseStack.Pose pose = poseStack.last();
-                                                for (int i = 0; i < vertices.size(); i++) {
-                                                        final StoredVertexData vertex = vertices.get(i);
-                                                        vertexConsumer
-                                                                        .addVertex(pose, vertex.x(), vertex.y(), vertex.z())
-                                                                        .setColor(vertex.color().getRGB())
-                                                                        .setUv(vertex.u(), vertex.v())
-                                                                        .setOverlay(OverlayTexture.NO_OVERLAY)
-                                                                        .setLight(bakedLight)
-                                                                        .setNormal(pose, vertex.normalX(), vertex.normalY(), vertex.normalZ());
-                                                }
+                                                emitTriangleStreamAsDegenerateQuads(pose, vertexConsumer, vertices, bakedLight);
                                         } finally {
                                                 poseStack.popPose();
                                         }
                                 });
                         });
                 });
+        }
+
+        /**
+         * Emits a retained TRIANGLES stream into a QUADS-mode consumer as
+         * degenerate quads. Public for the model-upload contract test
+         * (different package): (v0, v1, v2, v2) per triangle — the
+         * zero-area tail triangle is discarded by the rasterizer and the
+         * visible geometry is exact.
+         */
+        public static void emitTriangleStreamAsDegenerateQuads(com.mojang.blaze3d.vertex.PoseStack.Pose pose, com.mojang.blaze3d.vertex.VertexConsumer vertexConsumer, ObjectArrayList<StoredVertexData> vertices, int bakedLight) {
+                for (int i = 0; i < vertices.size(); i++) {
+                        final StoredVertexData vertex = vertices.get(i);
+                        emitVertex(pose, vertexConsumer, vertex, bakedLight);
+                        // Degenerate-quad completion: after the 3rd vertex of a
+                        // triangle, repeat it as the 4th. The QUADS-mode builder
+                        // groups in fours, so (v0, v1, v2, v2) reconstructs the
+                        // exact triangle and discards the zero-area tail.
+                        if (i % 3 == 2) {
+                                emitVertex(pose, vertexConsumer, vertex, bakedLight);
+                        }
+                }
+        }
+
+        /** One vertex of the degenerate-quad replay: position/UV/colour/light/normal straight from the retained data. */
+        private static void emitVertex(com.mojang.blaze3d.vertex.PoseStack.Pose pose, com.mojang.blaze3d.vertex.VertexConsumer vertexConsumer, StoredVertexData vertex, int bakedLight) {
+                vertexConsumer
+                                .addVertex(pose, vertex.x(), vertex.y(), vertex.z())
+                                .setColor(vertex.color().getRGB())
+                                .setUv(vertex.u(), vertex.v())
+                                .setOverlay(OverlayTexture.NO_OVERLAY)
+                                .setLight(bakedLight)
+                                .setNormal(pose, vertex.normalX(), vertex.normalY(), vertex.normalZ());
         }
 
         /**

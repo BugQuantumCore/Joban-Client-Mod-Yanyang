@@ -206,8 +206,7 @@ public final class RawMesh {
          * so the uploading {@link RawModel} can retain the raw vertex lists for
          * the buffered draw path (see {@link OptimizedModelWrapper}).
          *
-         * <p><b>Coordinates are stored AS-IS (2026-11-22, the "scripts load,
-         * replay, queue — but nothing displays" root cause).</b> Every producer
+         * <p><b>Coordinates are stored AS-IS.</b> Every producer
          * of {@link Vertex} data already applies its own axis convention at
          * build time: {@link com.lx862.mtrscripting.core.util.model.RawMeshBuilderJS#vertex}
          * negates y/z for the legacy script-space → MTR-model-space conversion,
@@ -215,9 +214,19 @@ public final class RawMesh {
          * MTR's own {@code ObjModelLoader#writeVertex}, and
          * {@link StoredVertexData#write} negates for the ModelPart path. This
          * upload must NOT negate again: the y/z flip added by the 4.1 port
-         * single-flipped pack OBJ models (LCD frames ended up BELOW the car —
-         * buried in the ground, hence invisible on every backend) and
-         * double-flipped script-built quads out of their legacy placement.</p>
+         * single-flipped pack OBJ models and double-flipped script-built
+         * quads out of their legacy placement.</p>
+         *
+         * <p><b>Correction (2026-11-27):</b> the 2026-11-22 diagnosis named
+         * this double flip "the root cause of scripts invisible on every
+         * backend" — the user's follow-up log (build.124, with the flip fixed)
+         * showed the same total invisibility, so that diagnosis was wrong or
+         * at best partial. The actual root cause is the QUADS-mode mismatch
+         * documented on {@link OptimizedModelWrapper}: these retained
+         * TRIANGLES streams were replayed into QUADS-mode scheduled buffers
+         * and regrouped into 4-vertex chunks. The AS-IS coordinate storage
+         * itself remains correct (it matches every producer's convention and
+         * MTR's own OBJ loader).</p>
          *
          * <p>Vertices are emitted through the {@link Face} index list, fan
          * triangulated (see {@link Face#triangulate}) — the group is built with

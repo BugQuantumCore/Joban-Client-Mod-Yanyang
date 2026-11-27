@@ -5,12 +5,14 @@ on:
     paths:
       - '.github/workflows/model-upload.yml'
       - 'fabric/src/main/java/com/lx862/mtrscripting/core/util/model/**'
+      - 'fabric/src/main/java/com/lx862/jcm/mod/render/mesh/**'
       - 'native/bench/model_upload_test.py'
       - 'native/bench/jvm/ModelUploadTest.java'
   pull_request:
     paths:
       - '.github/workflows/model-upload.yml'
       - 'fabric/src/main/java/com/lx862/mtrscripting/core/util/model/**'
+      - 'fabric/src/main/java/com/lx862/jcm/mod/render/mesh/**'
       - 'native/bench/model_upload_test.py'
       - 'native/bench/jvm/ModelUploadTest.java'
 permissions:

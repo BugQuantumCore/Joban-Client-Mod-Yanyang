@@ -5,10 +5,14 @@ import com.lx862.jcm.mod.render.mesh.OptimizedModelWrapper;
 import com.lx862.jcm.mod.render.mesh.ShaderType;
 import com.lx862.mtrscripting.core.util.ScriptVector3f;
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexBuffer;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.mtr.model.NewOptimizedModel;
+import org.mtr.model.StoredVertexData;
 import org.mtr.resource.RenderStage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -214,11 +218,62 @@ public final class ModelUploadTest {
                                 "material color is optional and preserved");
         }
 
+        /** Records the position and baked light of every addVertex the replay emits. */
+        private static final class RecordingConsumer implements VertexConsumer {
+                final List<float[]> positions = new ArrayList<>();
+                final List<Integer> lights = new ArrayList<>();
+                @Override public VertexConsumer addVertex(float x, float y, float z) { positions.add(new float[]{x, y, z}); return this; }
+                @Override public VertexConsumer addVertex(PoseStack.Pose pose, float x, float y, float z) { positions.add(new float[]{x, y, z}); return this; }
+                @Override public VertexConsumer setLight(int packedLight) { lights.add(packedLight); return this; }
+                @Override public VertexConsumer setColor(int red, int green, int blue, int alpha) { return this; }
+                @Override public VertexConsumer setColor(int argb) { return this; }
+                @Override public VertexConsumer setUv(float u, float v) { return this; }
+                @Override public VertexConsumer setUv1(int u, int v) { return this; }
+                @Override public VertexConsumer setUv2(int u, int v) { return this; }
+                @Override public VertexConsumer setNormal(float x, float y, float z) { return this; }
+                @Override public VertexConsumer setNormal(PoseStack.Pose pose, float x, float y, float z) { return this; }
+                @Override public VertexConsumer setOverlay(int packedOverlay) { return this; }
+        }
+
+        private static void queueReplayContract() {
+                // The buffered (scheduled) replay feeds MTR's QUADS-mode render
+                // layers (entityCutout & co. via MoreRenderLayers), whose
+                // BufferBuilder groups vertices in fours. A raw TRIANGLES stream
+                // (3 vertices per face, 6 double-sided) would be regrouped into
+                // 4-vertex chunks and mangled — the root cause of the
+                // "scripts load, replay, queue but nothing displays" reports.
+                // The replay must emit each triangle as a degenerate quad
+                // (v0, v1, v2, v2); see OptimizedModelWrapper's javadoc.
+                final var uploaded = quad().rawModel.uploadWithVertexData();
+                final var interior = uploaded.bufferedVertices().get(RenderStage.INTERIOR);
+                check(interior != null && interior.size() == 1, "one retained (stage, texture) bucket");
+                final List<StoredVertexData> vertices = interior.values().iterator().next();
+                final int triangles = vertices.size() / 3;
+                check(vertices.size() % 3 == 0 && triangles == 4, "retained stream: 4 triangles (2 faces x double-sided)");
+                final RecordingConsumer consumer = new RecordingConsumer();
+                OptimizedModelWrapper.emitTriangleStreamAsDegenerateQuads(null, consumer, (org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList<StoredVertexData>) vertices, 0xF000F0);
+                final List<float[]> emitted = consumer.positions;
+                check(emitted.size() == triangles * 4, "degenerate-quad replay emits exactly 4 vertices per triangle");
+                for (int t = 0; t < triangles; t++) {
+                        final float[] v0 = emitted.get(t * 4), v1 = emitted.get(t * 4 + 1), v2 = emitted.get(t * 4 + 2), v3 = emitted.get(t * 4 + 3);
+                        final StoredVertexData s0 = vertices.get(t * 3), s1 = vertices.get(t * 3 + 1), s2 = vertices.get(t * 3 + 2);
+                        check(v0[0] == s0.x() && v0[1] == s0.y() && v0[2] == s0.z()
+                                        && v1[0] == s1.x() && v1[1] == s1.y() && v1[2] == s1.z()
+                                        && v2[0] == s2.x() && v2[1] == s2.y() && v2[2] == s2.z(),
+                                        "triangle " + t + ": the first 3 vertices are the retained triangle verbatim");
+                        check(v3[0] == v2[0] && v3[1] == v2[1] && v3[2] == v2[2],
+                                        "triangle " + t + ": the 4th vertex duplicates the 3rd (degenerate tail)");
+                }
+                check(consumer.lights.size() == emitted.size() && consumer.lights.stream().allMatch(l -> l == 0xF000F0),
+                                "the baked light constant reaches every vertex");
+        }
+
         public static void main(String[] args) {
                 builderSemantics();
                 uploadContract();
                 stageMapping();
                 textureReplaceLifecycle();
+                queueReplayContract();
                 miscellany();
                 System.out.println("MTR 4.1 MODEL UPLOAD CONTRACT OK (" + checks + " checks)");
         }
