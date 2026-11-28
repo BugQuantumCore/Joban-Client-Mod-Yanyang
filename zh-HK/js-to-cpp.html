@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-HK" data-locale="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>JS → C++ 遷移 — JCM Yanyang 腳本開發文件</title>
+<meta name="description" content="把 JavaScript 腳本移植為 C++ 原生腳本：生命週期 / 繪製 / 資料 / 車輛 / 畫布 / 聲音的逐一對照表、無對應物清單與 js2cpp.py 半自動轉換器。">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>C++ / JS 腳本</b><small>開發文件</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">開始</div>
+    <a href="index.html">概覽</a>
+    <a href="getting-started.html">C++ 快速上手</a>
+    <div class="nav-group">C++ 腳本</div>
+    <a href="script-model.html">腳本模型與生命週期</a>
+    <a href="data.html">資料快照</a>
+    <a href="drawing.html">繪製與畫布</a>
+    <a href="java-api.html">mtr::Api 與 Java 互操作</a>
+    <a href="abi.html">C ABI 與宿主服務</a>
+    <a href="performance.html">效能與除錯</a>
+    <div class="nav-group">JavaScript 腳本</div>
+    <a href="js-getting-started.html">JS 腳本入門</a>
+    <a href="js-api.html">JS 公用 API</a>
+    <a href="js-types.html">JS 腳本類型</a>
+    <a href="js-yanyang.html">晏陽擴展 API</a>
+    <a href="js-to-cpp.html" class="active">JS → C++ 遷移</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="深色模式" data-light="淺色模式">深色模式</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="切換語言"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="開啟導覽選單">☰ 目錄</button>
+    <span class="title">JS → C++ 遷移</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">文件</a> / JavaScript 篇 / JS → C++ 遷移</div>
+      <h1>JS → C++ 遷移</h1>
+      <p class="page-lead">把既有 JS 腳本移植成 C++ 原生腳本。兩條管線共享幾乎一一對應的包裝器語意——移植主體是改名與重塑，不是重寫。</p>
+    </header>
+
+    <div class="page-toc">
+      <b>本頁內容</b>
+      <ol>
+        <li><a href="#why">為何遷移</a></li>
+        <li><a href="#lifecycle">生命週期與註冊</a></li>
+        <li><a href="#drawing">PIDS 繪製對照</a></li>
+        <li><a href="#data">PIDS 資料對照</a></li>
+        <li><a href="#vehicle">車輛腳本對照</a></li>
+        <li><a href="#canvas">畫布（GraphicsTexture）</a></li>
+        <li><a href="#sound">聲音</a></li>
+        <li><a href="#notwin">無對應物（手工移植）</a></li>
+        <li><a href="#converter">半自動轉換器</a></li>
+        <li><a href="#example">端對端示例</a></li>
+      </ol>
+    </div>
+
+    <h2 id="why">為何遷移</h2>
+    <div class="admonition tip">
+      <span class="admonition-title">先讀兩頁</span>
+      <p>遷移前先看<a href="script-model.html">腳本模型與生命週期</a>（<code>create</code> / <code>render</code> / <code>dispose</code> + 逐實例 State 在兩側完全同構）與<a href="js-getting-started.html">JS 腳本入門</a>——本頁只講兩側差異。</p>
+    </div>
+    <ul>
+      <li><strong>一次封送代替數百次反射</strong>：JS 側每讀一個欄位都是一次跨語言呼叫；C++ 側整塊快照是平鋪 POD，腳本按普通記憶體讀取。</li>
+      <li><strong>零 GC 壓力</strong>：沒有包裝器物件與裝箱字串；繪製記錄在記憶體區內 bump 配置。</li>
+      <li><strong>崩潰防護</strong>：出錯的模組自動停用（<code>native script faulted: module disabled</code>），絕不弄崩遊戲。</li>
+      <li><strong>新能力原生優先</strong>：模型著色 / 發光 / 半透明、訊號擴充點、道口 / 售檢票機 / 廣播三類方塊腳本（ABI 16）。</li>
+      <li><strong>何時留在 JS</strong>：一次性小腳本、沒有編譯工具鏈、需要飛快迭代——選型對照見<a href="index.html">概覽</a>。</li>
+    </ul>
+
+    <h2 id="lifecycle">生命週期與註冊</h2>
+    <p>三個生命週期函式換成虛函式 override；跨幀狀態從閉包變數搬進 <code>State</code> 結構。註冊巨集隨腳本類型選擇，資源包宣告與 JS 條目同一管線。</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>function create(ctx, state, pids)</code></td><td><code>void create(PidsContext&amp; ctx, State&amp; state, const Pids&amp; pids) override</code></td><td>首次渲染前執行一次</td></tr>
+        <tr><td><code>function render(ctx, state, pids)</code></td><td><code>void render(...) override</code></td><td>每幀執行（盡力而為節律與 JS 相同）</td></tr>
+        <tr><td><code>function dispose(ctx, state, pids)</code></td><td><code>void dispose(...) override</code></td><td>實例退場清理</td></tr>
+        <tr><td>跨幀存活的閉包變數</td><td><code>State</code> 結構成員</td><td>宿主配置、placement-new；基類模板參數換成你的 State 類型</td></tr>
+        <tr><td><code>SCRIPT_INPUT</code> JSON</td><td><code>api.input()</code></td><td><code>mtr::Api</code>（ABI 8+），同一份資源包宣告輸入</td></tr>
+      </tbody>
+    </table>
+    <p>註冊：<code>MTR_REGISTER_PIDS_SCRIPT(MyScript)</code>——車輛 / 電梯 / 裝飾 / 屏蔽門 / 道口 / 售檢票機 / 廣播分別用 <code>MTR_REGISTER_VEHICLE_SCRIPT</code> / <code>_LIFT_</code> / <code>_EYECANDY_</code> / <code>_PSD_</code> / <code>_LEVEL_CROSSING_</code> / <code>_FARE_MACHINE_</code> / <code>_ANNOUNCEMENT_</code>。每個模組一個腳本 id，照舊在 <code>mtr_custom_resources.json</code> 裏宣告（<code>scriptLocations</code> 分類規則不變）。</p>
+
+    <h2 id="drawing">PIDS 繪製對照</h2>
+    <p><code>TextWrapper</code> / <code>TextureWrapper</code> 的鏈式呼叫對應 <code>mtr::Text</code> / <code>mtr::Texture</code> / <code>mtr::Rect</code> 的建構器鏈：方法名改 <code>snake_case</code>，建構從 <code>new</code> 換成 <code>::create()</code>，<code>draw()</code> 收 <code>ctx</code>。</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>new Text("X").pos(0,0).size(w,h).centerAlign().stretchXY().draw(ctx)</code></td><td><code>mtr::Text::create().text("X").pos(0,0).size(w,h).center_align().stretch_xy().draw(ctx)</code></td></tr>
+        <tr><td><code>.font("demo:fonts/x.ttf")</code></td><td><code>.font("demo:fonts/x.ttf")</code>——同名</td></tr>
+        <tr><td><code>.color(0xFF00FF00)</code></td><td><code>.color(0xFF00FF00)</code>——同名</td></tr>
+        <tr><td><code>.naturalLight()</code></td><td><code>.natural_light()</code></td></tr>
+        <tr><td><code>.renderType("LIGHT_2")</code></td><td><code>.render_type("LIGHT_2")</code></td></tr>
+        <tr><td><code>new Texture("ns:path.png").uv(...)</code></td><td><code>mtr::Texture::create()...</code>（欄位同構）</td></tr>
+        <tr><td><code>new Rectangle().color(...)</code></td><td><code>mtr::Rect()...</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="data">PIDS 資料對照</h2>
+    <div class="admonition note">
+      <span class="admonition-title">字串語意</span>
+      <p><code>destination()</code> 等字串存取器回傳 <code>mtr::StrView</code>（<code>data</code> + <code>len</code>）：<code>.str()</code> 轉 <code>std::string</code>、<code>.empty()</code> 判空，比較用視圖重載免拷貝；視圖只在本次 <code>render</code> 呼叫內有效——詳見<a href="data.html">資料快照</a>。</p>
+    </div>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>pids.width</code> / <code>pids.height</code></td><td><code>pids.width()</code> / <code>pids.height()</code></td></tr>
+        <tr><td><code>pids.arrivals().forEach(a =&gt; ...)</code></td><td><code>for (int i = 0; i &lt; pids.arrivals().size(); i++) { auto&amp; a = pids.arrivals().at(i); ... }</code></td></tr>
+        <tr><td><code>arrival.arrivalTime()</code></td><td><code>arrival.arrival_time()</code></td></tr>
+        <tr><td><code>arrival.destination</code></td><td><code>arrival.destination()</code>（<code>StrView</code>）</td></tr>
+        <tr><td><code>arrival.routeColor()</code></td><td><code>arrival.route_color()</code></td></tr>
+        <tr><td><code>arrival.realtime()</code></td><td><code>arrival.realtime()</code>——同名</td></tr>
+        <tr><td><code>arrival.isExpress()</code>（方速，ABI 16）</td><td><code>arrival.isExpress()</code>——同名</td></tr>
+        <tr><td><code>pids.getCustomMessage(i)</code></td><td><code>pids.get_custom_message(i)</code></td></tr>
+        <tr><td><code>pids.getWeather()</code></td><td><code>pids.getWeather()</code>——同名</td></tr>
+        <tr><td><code>Timing.now()</code></td><td>快照的 <code>game_time_millis()</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="vehicle">車輛腳本對照</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.speed</code>（格/tick）</td><td><code>vehicle.speed_ms() / 20</code></td></tr>
+        <tr><td><code>vehicle.speedKmh()</code></td><td><code>vehicle.speed_kmh()</code></td></tr>
+        <tr><td><code>vehicle.doorValue</code></td><td><code>vehicle.door_value()</code></td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>vehicle.getDirectionOfDoorOpening()</code>——同名</td></tr>
+        <tr><td><code>vehicle.stops</code></td><td><code>vehicle.stops()</code>（<code>StopList</code>）</td></tr>
+        <tr><td><code>ctx.drawCarModel(m, car, matrices)</code></td><td><code>ctx.draw_car_model(m, car, matrices)</code></td></tr>
+        <tr><td><code>ctx.getCarBogieRenderManager(...).drawModel(...)</code></td><td><code>ctx.draw_bogie_model(m, car, bogie, matrices)</code></td></tr>
+        <tr><td>模型著色 / 發光（ABI 16）</td><td><code>ctx.draw_car_model(m, car, mats, mtr::VehicleContext::ModelStyle().tint(0x80FFFFFF).emissive().translucent())</code></td></tr>
+        <tr><td>訊號狀態（ABI 16）</td><td><code>vehicle.signalState()</code> / <code>vehicle.getSignalState()</code></td></tr>
+        <tr><td><code>ctx.playCarSound(...)</code></td><td><code>ctx.play_car_sound(...)</code></td></tr>
+        <tr><td><code>ctx.playAnnSound(...)</code></td><td><code>ctx.play_ann_sound(...)</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="canvas">畫布（GraphicsTexture）</h2>
+    <p>JS 的逐像素畫布對應 SDK 的軟件光柵面——像素不跨 JVM，上載按髒矩形自動走記錄流。</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>new GraphicsTexture(w, h)</code></td><td><code>mtr::LcdCanvas</code>（<code>gfx.hpp</code>）——塗 BGRA8 像素</td></tr>
+        <tr><td><code>g.setColor(...)</code> / <code>g.fillRect(...)</code></td><td><code>gfx2d.hpp</code> 光柵化函式（<code>fill_rect</code>、<code>draw_line</code>……）</td></tr>
+        <tr><td><code>GraphicsTexture.writePixel</code></td><td><code>canvas.pixel(x, y, argb)</code></td></tr>
+        <tr><td><code>texture.upload()</code></td><td><code>JCM_DRAW_TEXTURE_UPLOAD</code> 記錄——每幀自動</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="sound">聲音</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>ctx.playSound("minecraft:...", x, y, z, vol, pitch)</code></td><td><code>ctx.play_sound(...)</code>——同名改 <code>snake_case</code></td></tr>
+        <tr><td>僅乘車玩家可聞的報站</td><td><code>JCM_DRAW_LOCAL_SOUND</code> 記錄（<code>ctx.play_ann_sound</code> / <code>ctx.play_local_sound</code>）</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="notwin">無對應物（手工移植）</h2>
+    <div class="admonition warn">
+      <span class="admonition-title">沒有攣生兄弟</span>
+      <p>下面這些 JS 設施在原生側沒有一一對應物，需按右欄改寫——轉換器也會在這些位置留 TODO。</p>
+    </div>
+    <table>
+      <thead><tr><th>JS 設施</th><th>手工移植做法</th></tr></thead>
+      <tbody>
+        <tr><td><code>MinecraftClient.*</code>（玩家狀態、介面查詢）</td><td>經 <code>mtr::Api</code> JSON 橋呼叫 Java 包裝器上的同名方法</td></tr>
+        <tr><td><code>JSON.parse</code> / 動態物件</td><td>用隨附的 <code>mtr::Json</code>（nlohmann）解析</td></tr>
+        <tr><td><code>setTimeout</code> / <code>setInterval</code> 式排程</td><td><code>State</code> 裏記 <code>game_time_millis()</code> 時間戳，<code>render</code> 裏判差值</td></tr>
+        <tr><td><code>require</code> 式匯入</td><td>不需要——靜態連結，SDK 標頭檔全部可用</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="converter">半自動轉換器</h2>
+    <p>SDK 自帶 <code>tools/js2cpp.py</code>（純標準庫、零依賴），把上表的機械部分自動化：</p>
+    <pre><code class="lang-bash">python3 native/tools/js2cpp.py input.js -o output.cpp --id mypack:pids --kind pids</code></pre>
+    <p>它執行本頁全部改名規則、<code>forEach</code> → 索引迴圈、<code>TextWrapper</code> 鏈 → <code>mtr::Text</code> 鏈、屬性存取 → getter、模組級變數搬進 <code>State</code> 欄位（型別推斷 + <code>state.</code> 前綴改寫）、<code>Math</code> / <code>console</code> 基礎改寫；不確定處<strong>絕不靜默改寫</strong>，全部留 TODO 標記。</p>
+    <p>產出預期：一份<strong>直接可編譯</strong>的骨架 + 少量 TODO。隨後照<a href="getting-started.html#build">編譯</a>一節建構，用<a href="performance.html#hotreload">熱重載</a>在遊戲裏迭代。</p>
+    <div class="admonition note">
+      <span class="admonition-title">SDK 內隨身對照表</span>
+      <p>SDK zip 的 <code>docs/js-to-cpp.md</code> 與本頁同源——離線開發時對照表隨 SDK 攜帶。</p>
+    </div>
+
+    <h2 id="example">端對端示例</h2>
+    <p>同一個「首行到站」PIDS 腳本的兩種寫法：</p>
+    <pre><code class="lang-js">let PREFIX = "";                 // 模組級常數
+
+function create(ctx, state, pids) {
+    state.ticks = 0;             // 逐實例狀態
+}
+
+function render(ctx, state, pids) {
+    state.ticks++;
+    const next = pids.arrivals().get(0);
+    const dest = next ? next.destination : "無列車";
+
+    new Text(PREFIX + dest)
+        .pos(0, 0).size(pids.width, 14)
+        .centerAlign().draw(ctx);
+}</code></pre>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct FirstArrivalState { int ticks = 0; };   // 逐實例狀態
+
+struct FirstArrival : mtr::PidsScript&lt;FirstArrivalState&gt; {
+    static constexpr auto ID = "example:first-arrival";
+
+    void render(mtr::PidsContext&amp; ctx, FirstArrivalState&amp; state,
+                const mtr::Pids&amp; pids) override {
+        state.ticks++;
+
+        const auto arrivals = pids.arrivals();
+        mtr::StrView dest = arrivals.size() &gt; 0
+            ? arrivals.at(0).destination() : mtr::StrView{"無列車"};
+
+        mtr::Text::create()
+            .text(dest.str().c_str())
+            .pos(0, 0).size(pids.width(), 14)
+            .center_align().draw(ctx);
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(FirstArrival)</code></pre>
+    <ul>
+      <li>邏輯逐行對得上：<code>get(0)</code> 的空值檢查換成 <code>size() &gt; 0</code> 判空（JS 的 <code>get</code> 越界回傳 null，C++ 的 <code>at</code> 越界拋例外——語意差異見<a href="data.html">資料快照</a>）。</li>
+      <li><code>Timing.now()</code> 類時鐘全部換成快照存取器；閉包變數 <code>state.ticks</code> 原樣保留在 State 裏。</li>
+      <li>資源包宣告側：遷移期可讓 JS 版與 C++ 版以<strong>各自獨立的 id</strong> 並存於同一資源包（<code>scriptLocations</code> 支援混合宣告），逐屏核對輸出一致後，再把條目切到 C++ 一側——宣告格式見<a href="getting-started.html#package">打包</a>。</li>
+    </ul>
+
+    <hr>
+    <p>回到：<a href="index.html">文件首頁</a>。</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">文件首頁</a>
+      <a href="js-yanyang.html">晏陽擴展 API</a>
+      <a href="getting-started.html">C++ 快速上手</a>
+    </div>
+    JCM Yanyang 腳本文件 · 遷移篇 · 對應 JCM 2.3.0-1.0.2-beta.2 · 與倉庫 <code>native/docs/js-to-cpp.md</code> 同步維護
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>

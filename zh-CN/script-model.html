@@ -33,6 +33,7 @@
     <a href="js-api.html">JS 公共 API</a>
     <a href="js-types.html">JS 脚本类型</a>
     <a href="js-yanyang.html">晏阳扩展 API</a>
+    <a href="js-to-cpp.html">JS → C++ 迁移</a>
   
     </nav>
   <div class="sidebar-settings">
@@ -164,7 +165,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
     </div>
     <div class="admonition note">
       <span class="admonition-title">与 JS 的对应</span>
-      <p>这套 <code>create / render / dispose + 逐实例 state</code> 正是 JCM 为 JS 脚本提供的模型（每个 <code>ScriptInstance</code> 一个 <code>state</code> 对象）的原生映射，迁移 JS 脚本时逻辑可以逐段对译。</p>
+      <p>这套 <code>create / render / dispose + 逐实例 state</code> 正是 JCM 为 JS 脚本提供的模型（每个 <code>ScriptInstance</code> 一个 <code>state</code> 对象）的原生映射，迁移 JS 脚本时逻辑可以<a href="js-to-cpp.html">逐段对译</a>——对照表见「JS → C++ 迁移」页。</p>
     </div>
 
     <h2 id="threading">线程模型</h2>

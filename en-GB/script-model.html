@@ -33,6 +33,7 @@
     <a href="js-api.html">JS common APIs</a>
     <a href="js-types.html">JS script types</a>
     <a href="js-yanyang.html">Yanyang extensions</a>
+    <a href="js-to-cpp.html">JS → C++ migration</a>
   
     </nav>
   <div class="sidebar-settings">
@@ -164,7 +165,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
     </div>
     <div class="admonition note">
       <span class="admonition-title">Correspondence with JS</span>
-      <p>This <code>create / render / dispose + per-instance state</code> model is precisely the native mapping of the model JCM provides to JS scripts (one <code>state</code> object per <code>ScriptInstance</code>); when migrating a JS script the logic can be translated section by section.</p>
+      <p>This <code>create / render / dispose + per-instance state</code> model is precisely the native mapping of the model JCM provides to JS scripts (one <code>state</code> object per <code>ScriptInstance</code>); when migrating a JS script the logic can be translated section by section — see the <a href="js-to-cpp.html">JS → C++ migration</a> page.</p>
     </div>
 
     <h2 id="threading">Threading model</h2>

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="fr-FR" data-locale="fr-FR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Migration JS → C++ — Documentation de script JCM Yanyang</title>
+<meta name="description" content="Porter un script JavaScript en script natif C++ : tableaux de correspondance terme à terme (cycle de vie, dessin, données, véhicule, canevas, son), liste des points sans équivalent et convertisseur semi-automatique js2cpp.py.">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <a class="brand" href="index.html">
+    <span class="brand-mark">JCM</span>
+    <span class="brand-text"><b>Scripts C++ / JS</b><small>documentation</small></span>
+  </a>
+  <nav class="nav">
+    <div class="nav-group">Premiers pas</div>
+    <a href="index.html">Vue d’ensemble</a>
+    <a href="getting-started.html">Démarrage rapide</a>
+    <div class="nav-group">Scripts C++</div>
+    <a href="script-model.html">Modèle de script et cycle de vie</a>
+    <a href="data.html">Instantanés de données</a>
+    <a href="drawing.html">Dessin et canevas</a>
+    <a href="java-api.html">mtr::Api et interopérabilité Java</a>
+    <a href="abi.html">ABI C et services de l’hôte</a>
+    <a href="performance.html">Performance et débogage</a>
+    <div class="nav-group">Scripts JavaScript</div>
+    <a href="js-getting-started.html">Premiers pas en JS</a>
+    <a href="js-api.html">API communes JS</a>
+    <a href="js-types.html">Types de scripts JS</a>
+    <a href="js-yanyang.html">Extensions Yanyang</a>
+    <a href="js-to-cpp.html" class="active">Migration JS → C++</a>
+  
+    </nav>
+  <div class="sidebar-settings">
+    <button type="button" class="theme-toggle">
+      <span class="theme-icon" aria-hidden="true">🌙</span>
+      <span class="theme-label" data-dark="Mode sombre" data-light="Mode clair">Mode sombre</span>
+    </button>
+    <div class="lang-row">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select class="lang-select" aria-label="Changer de langue"></select>
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
+    MTR 4.0.5+ · MC 1.17.1–1.20.4
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <button class="menu-btn" type="button" aria-label="Ouvrir le menu de navigation">☰ Sommaire</button>
+    <span class="title">Migration JS → C++</span>
+  </div>
+
+  <article class="content">
+    <header class="page-header">
+      <div class="breadcrumb"><a href="index.html">Documentation</a> / Scripts JavaScript / Migration JS → C++</div>
+      <h1>Migration JS → C++</h1>
+      <p class="page-lead">Porter un script JS existant en script natif C++. Les deux pipelines partagent des sémantiques d’enveloppe quasi un-un — le portage consiste surtout à renommer et remettre en forme, pas à réécrire.</p>
+    </header>
+
+    <div class="page-toc">
+      <b>Sur cette page</b>
+      <ol>
+        <li><a href="#why">Pourquoi migrer</a></li>
+        <li><a href="#lifecycle">Cycle de vie et enregistrement</a></li>
+        <li><a href="#drawing">Dessin PIDS</a></li>
+        <li><a href="#data">Données PIDS</a></li>
+        <li><a href="#vehicle">Scripts de véhicule</a></li>
+        <li><a href="#canvas">Canevas (GraphicsTexture)</a></li>
+        <li><a href="#sound">Son</a></li>
+        <li><a href="#notwin">Sans équivalent (porter à la main)</a></li>
+        <li><a href="#converter">Convertisseur semi-automatique</a></li>
+        <li><a href="#example">Exemple de bout en bout</a></li>
+      </ol>
+    </div>
+
+    <h2 id="why">Pourquoi migrer</h2>
+    <div class="admonition tip">
+      <span class="admonition-title">Lisez d’abord ces deux pages</span>
+      <p>Avant de porter, lisez <a href="script-model.html">Modèle de script et cycle de vie</a> (<code>create</code> / <code>render</code> / <code>dispose</code> + State par instance, totalement isomorphes des deux côtés) et <a href="js-getting-started.html">Premiers pas en JS</a> — cette page ne couvre que les différences entre les deux côtés.</p>
+    </div>
+    <ul>
+      <li><strong>Un seul marshalling au lieu de centaines d’appels réflexifs</strong> : côté JS, chaque lecture de champ est un appel inter-langage ; côté C++, l’instantané entier est un POD plat que le script lit comme de la mémoire ordinaire.</li>
+      <li><strong>Zéro pression sur le GC</strong> : plus d’objets enveloppes ni de chaînes boxed ; les enregistrements de dessin sont alloués par bump dans une arène.</li>
+      <li><strong>Garde-fou contre les plantages</strong> : un module fautif se désactive lui-même (<code>native script faulted: module disabled</code>) — le jeu ne plante jamais.</li>
+      <li><strong>Les nouveautés arrivent d’abord en natif</strong> : teinte / émissivité / translucidité des modèles, point d’extension de signalisation, et les trois types de scripts de blocs passage à niveau / machine à billets / haut-parleur (ABI 16).</li>
+      <li><strong>Quand rester en JS</strong> : scripts jetables, pas de chaîne de compilation sous la main, ou itération très rapide — voir le tableau comparatif dans la <a href="index.html">vue d’ensemble</a>.</li>
+    </ul>
+
+    <h2 id="lifecycle">Cycle de vie et enregistrement</h2>
+    <p>Les trois fonctions du cycle de vie deviennent des surcharges virtuelles ; l’état inter-images passe des variables de fermeture à la structure <code>State</code>. Choisissez la macro d’enregistrement selon le type de script — la déclaration dans le pack de ressources emprunte le même pipeline que les entrées JS.</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th><th>Remarques</th></tr></thead>
+      <tbody>
+        <tr><td><code>function create(ctx, state, pids)</code></td><td><code>void create(PidsContext&amp; ctx, State&amp; state, const Pids&amp; pids) override</code></td><td>exécuté une fois avant le premier rendu</td></tr>
+        <tr><td><code>function render(ctx, state, pids)</code></td><td><code>void render(...) override</code></td><td>à chaque image (même cadence au mieux que JS)</td></tr>
+        <tr><td><code>function dispose(ctx, state, pids)</code></td><td><code>void dispose(...) override</code></td><td>nettoyage au retrait de l’instance</td></tr>
+        <tr><td>variable de fermeture survivant aux images</td><td>membre de la structure <code>State</code></td><td>allouée par l’hôte, placement-new ; le paramètre modèle de la classe de base est votre type State</td></tr>
+        <tr><td><code>SCRIPT_INPUT</code> JSON</td><td><code>api.input()</code></td><td><code>mtr::Api</code> (ABI 8+), la même entrée déclarée dans le pack</td></tr>
+      </tbody>
+    </table>
+    <p>Enregistrement : <code>MTR_REGISTER_PIDS_SCRIPT(MyScript)</code> — véhicules / ascenseurs / décorations / portes palières / passages à niveau / machines à billets / haut-parleurs utilisent <code>MTR_REGISTER_VEHICLE_SCRIPT</code> / <code>_LIFT_</code> / <code>_EYECANDY_</code> / <code>_PSD_</code> / <code>_LEVEL_CROSSING_</code> / <code>_FARE_MACHINE_</code> / <code>_ANNOUNCEMENT_</code>. Un id de script par module, déclaré dans <code>mtr_custom_resources.json</code> exactement comme les entrées JS (les règles de classification <code>scriptLocations</code> sont inchangées).</p>
+
+    <h2 id="drawing">Dessin PIDS</h2>
+    <p>Les chaînages <code>TextWrapper</code> / <code>TextureWrapper</code> correspondent aux chaînages de construction sur <code>mtr::Text</code> / <code>mtr::Texture</code> / <code>mtr::Rect</code> : les noms de méthodes passent en <code>snake_case</code>, la construction passe de <code>new</code> à <code>::create()</code>, et <code>draw()</code> reçoit le <code>ctx</code>.</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>new Text("X").pos(0,0).size(w,h).centerAlign().stretchXY().draw(ctx)</code></td><td><code>mtr::Text::create().text("X").pos(0,0).size(w,h).center_align().stretch_xy().draw(ctx)</code></td></tr>
+        <tr><td><code>.font("demo:fonts/x.ttf")</code></td><td><code>.font("demo:fonts/x.ttf")</code> — identique</td></tr>
+        <tr><td><code>.color(0xFF00FF00)</code></td><td><code>.color(0xFF00FF00)</code> — identique</td></tr>
+        <tr><td><code>.naturalLight()</code></td><td><code>.natural_light()</code></td></tr>
+        <tr><td><code>.renderType("LIGHT_2")</code></td><td><code>.render_type("LIGHT_2")</code></td></tr>
+        <tr><td><code>new Texture("ns:path.png").uv(...)</code></td><td><code>mtr::Texture::create()...</code> (mêmes champs)</td></tr>
+        <tr><td><code>new Rectangle().color(...)</code></td><td><code>mtr::Rect()...</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="data">Données PIDS</h2>
+    <div class="admonition note">
+      <span class="admonition-title">Sémantique des chaînes</span>
+      <p>Les accesseurs de chaîne tels que <code>destination()</code> retournent un <code>mtr::StrView</code> (<code>data</code> + <code>len</code>) : convertissez avec <code>.str()</code> en <code>std::string</code>, testez la vacuité avec <code>.empty()</code>, comparez via les surcharges de vue pour éviter les copies ; la vue n’est valable que durant l’appel <code>render</code> en cours — voir <a href="data.html">Instantanés de données</a>.</p>
+    </div>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>pids.width</code> / <code>pids.height</code></td><td><code>pids.width()</code> / <code>pids.height()</code></td></tr>
+        <tr><td><code>pids.arrivals().forEach(a =&gt; ...)</code></td><td><code>for (int i = 0; i &lt; pids.arrivals().size(); i++) { auto&amp; a = pids.arrivals().at(i); ... }</code></td></tr>
+        <tr><td><code>arrival.arrivalTime()</code></td><td><code>arrival.arrival_time()</code></td></tr>
+        <tr><td><code>arrival.destination</code></td><td><code>arrival.destination()</code> (une <code>StrView</code>)</td></tr>
+        <tr><td><code>arrival.routeColor()</code></td><td><code>arrival.route_color()</code></td></tr>
+        <tr><td><code>arrival.realtime()</code></td><td><code>arrival.realtime()</code> — identique</td></tr>
+        <tr><td><code>arrival.isExpress()</code> (FangSu, ABI 16)</td><td><code>arrival.isExpress()</code> — identique</td></tr>
+        <tr><td><code>pids.getCustomMessage(i)</code></td><td><code>pids.get_custom_message(i)</code></td></tr>
+        <tr><td><code>pids.getWeather()</code></td><td><code>pids.getWeather()</code> — identique</td></tr>
+        <tr><td><code>Timing.now()</code></td><td>le <code>game_time_millis()</code> de l’instantané</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="vehicle">Scripts de véhicule</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle.speed</code> (blocs/tick)</td><td><code>vehicle.speed_ms() / 20</code></td></tr>
+        <tr><td><code>vehicle.speedKmh()</code></td><td><code>vehicle.speed_kmh()</code></td></tr>
+        <tr><td><code>vehicle.doorValue</code></td><td><code>vehicle.door_value()</code></td></tr>
+        <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>vehicle.getDirectionOfDoorOpening()</code> — identique</td></tr>
+        <tr><td><code>vehicle.stops</code></td><td><code>vehicle.stops()</code> (une <code>StopList</code>)</td></tr>
+        <tr><td><code>ctx.drawCarModel(m, car, matrices)</code></td><td><code>ctx.draw_car_model(m, car, matrices)</code></td></tr>
+        <tr><td><code>ctx.getCarBogieRenderManager(...).drawModel(...)</code></td><td><code>ctx.draw_bogie_model(m, car, bogie, matrices)</code></td></tr>
+        <tr><td>teinte / émissivité des modèles (ABI 16)</td><td><code>ctx.draw_car_model(m, car, mats, mtr::VehicleContext::ModelStyle().tint(0x80FFFFFF).emissive().translucent())</code></td></tr>
+        <tr><td>état de la signalisation (ABI 16)</td><td><code>vehicle.signalState()</code> / <code>vehicle.getSignalState()</code></td></tr>
+        <tr><td><code>ctx.playCarSound(...)</code></td><td><code>ctx.play_car_sound(...)</code></td></tr>
+        <tr><td><code>ctx.playAnnSound(...)</code></td><td><code>ctx.play_ann_sound(...)</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="canvas">Canevas (GraphicsTexture)</h2>
+    <p>Le canevas pixel par pixel de JS correspond à la surface de rastérisation logicielle du SDK — les pixels ne traversent jamais la JVM, et les téléversements suivent automatiquement le flux d’enregistrements avec rectangles sales.</p>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>new GraphicsTexture(w, h)</code></td><td><code>mtr::LcdCanvas</code> (<code>gfx.hpp</code>) — peint des pixels BGRA8</td></tr>
+        <tr><td><code>g.setColor(...)</code> / <code>g.fillRect(...)</code></td><td>fonctions de rastérisation de <code>gfx2d.hpp</code> (<code>fill_rect</code>, <code>draw_line</code>, …)</td></tr>
+        <tr><td><code>GraphicsTexture.writePixel</code></td><td><code>canvas.pixel(x, y, argb)</code></td></tr>
+        <tr><td><code>texture.upload()</code></td><td>l’enregistrement <code>JCM_DRAW_TEXTURE_UPLOAD</code> — automatique à chaque image</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="sound">Son</h2>
+    <table>
+      <thead><tr><th>JavaScript</th><th>C++</th></tr></thead>
+      <tbody>
+        <tr><td><code>ctx.playSound("minecraft:...", x, y, z, vol, pitch)</code></td><td><code>ctx.play_sound(...)</code> — identique, snake_case</td></tr>
+        <tr><td>annonces réservées aux passagers</td><td>enregistrements <code>JCM_DRAW_LOCAL_SOUND</code> (<code>ctx.play_ann_sound</code> / <code>ctx.play_local_sound</code>)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="notwin">Sans équivalent (porter à la main)</h2>
+    <div class="admonition warn">
+      <span class="admonition-title">Pas de jumeau</span>
+      <p>Ces facilités JS n’ont pas de correspondance un-un côté natif — réécrivez-les selon la colonne de droite ; le convertisseur laisse lui aussi un TODO à chacun de ces endroits.</p>
+    </div>
+    <table>
+      <thead><tr><th>Facilité JS</th><th>Portage manuel</th></tr></thead>
+      <tbody>
+        <tr><td><code>MinecraftClient.*</code> (état du joueur, requêtes d’écran)</td><td>appeler les méthodes homonymes des enveloppes Java via le pont JSON <code>mtr::Api</code></td></tr>
+        <tr><td><code>JSON.parse</code> / objets dynamiques</td><td>analyser avec le <code>mtr::Json</code> livré (nlohmann)</td></tr>
+        <tr><td>ordonnancement <code>setTimeout</code> / <code>setInterval</code></td><td>conserver un horodatage <code>game_time_millis()</code> dans State et tester le delta dans <code>render</code></td></tr>
+        <tr><td>imports façon <code>require</code></td><td>inutile — liaison statique ; tous les en-têtes du SDK sont disponibles</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="converter">Convertisseur semi-automatique</h2>
+    <p>Le SDK embarque <code>tools/js2cpp.py</code> (bibliothèque standard pure, zéro dépendance) pour automatiser les parties mécaniques des tableaux ci-dessus :</p>
+    <pre><code class="lang-bash">python3 native/tools/js2cpp.py input.js -o output.cpp --id mypack:pids --kind pids</code></pre>
+    <p>Il applique tous les renommages de cette page, convertit les <code>forEach</code> en boucles à index, les chaînages <code>TextWrapper</code> en chaînages <code>mtr::Text</code>, les accès de propriété en accesseurs, déplace les variables manifestes de portée module dans des champs <code>State</code> (inférence de type + réécriture du préfixe <code>state.</code>), et réécrit les usages élémentaires de <code>Math</code> / <code>console</code> ; les parties réellement dynamiques ne sont <strong>jamais réécrites en silence</strong> — elles reçoivent toutes un marqueur TODO.</p>
+    <p>Résultat attendu : un squelette qui <strong>compile en l’état</strong> plus une poignée de TODO. Compilez ensuite selon <a href="getting-started.html#build">Compilation</a> et itérez en jeu avec le <a href="performance.html#hotreload">rechargement à chaud</a>.</p>
+    <div class="admonition note">
+      <span class="admonition-title">L’antisèche voyage avec le SDK</span>
+      <p><code>docs/js-to-cpp.md</code> dans le zip du SDK reprend les mêmes tableaux que cette page — l’antisèche voyage avec le SDK pour le développement hors ligne.</p>
+    </div>
+
+    <h2 id="example">Exemple de bout en bout</h2>
+    <p>Le même script PIDS « première arrivée », écrit des deux façons :</p>
+    <pre><code class="lang-js">let PREFIX = "";                 // constante de portée module
+
+function create(ctx, state, pids) {
+    state.ticks = 0;             // état par instance
+}
+
+function render(ctx, state, pids) {
+    state.ticks++;
+    const next = pids.arrivals().get(0);
+    const dest = next ? next.destination : "Aucun train";
+
+    new Text(PREFIX + dest)
+        .pos(0, 0).size(pids.width, 14)
+        .centerAlign().draw(ctx);
+}</code></pre>
+    <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
+
+struct FirstArrivalState { int ticks = 0; };   // état par instance
+
+struct FirstArrival : mtr::PidsScript&lt;FirstArrivalState&gt; {
+    static constexpr auto ID = "example:first-arrival";
+
+    void render(mtr::PidsContext&amp; ctx, FirstArrivalState&amp; state,
+                const mtr::Pids&amp; pids) override {
+        state.ticks++;
+
+        const auto arrivals = pids.arrivals();
+        mtr::StrView dest = arrivals.size() &gt; 0
+            ? arrivals.at(0).destination() : mtr::StrView{"Aucun train"};
+
+        mtr::Text::create()
+            .text(dest.str().c_str())
+            .pos(0, 0).size(pids.width(), 14)
+            .center_align().draw(ctx);
+    }
+};
+
+MTR_REGISTER_PIDS_SCRIPT(FirstArrival)</code></pre>
+    <ul>
+      <li>La logique correspond ligne à ligne : le test null sur <code>get(0)</code> devient une garde <code>size() &gt; 0</code> (le <code>get</code> JS retourne null hors limites, le <code>at</code> C++ lève — voir <a href="data.html">Instantanés de données</a> pour la sémantique).</li>
+      <li>Les horloges façon <code>Timing.now()</code> deviennent toutes des accesseurs d’instantané ; la variable de fermeture <code>state.ticks</code> reste dans State telle quelle.</li>
+      <li>Côté pack de ressources : pendant la migration, les versions JS et C++ peuvent cohabiter dans le même pack sous des <strong>ids indépendants</strong> (<code>scriptLocations</code> accepte les déclarations mixtes) ; une fois les sorties vérifiées écran par écran, basculez l’entrée côté C++ — formats de déclaration dans <a href="getting-started.html#package">Empaquetage</a>.</li>
+    </ul>
+
+    <hr>
+    <p>Retour à l’<a href="index.html">accueil de la documentation</a>.</p>
+  </article>
+
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Accueil de la documentation</a>
+      <a href="js-yanyang.html">Extensions Yanyang</a>
+      <a href="getting-started.html">Démarrage rapide</a>
+    </div>
+    Documentation de script JCM Yanyang · Migration · Correspond à JCM 2.3.0-1.0.2-beta.2 · Maintenue en synchronisation avec <code>native/docs/js-to-cpp.md</code> du dépôt
+  </footer>
+</main>
+</div>
+<script src="../assets/app.js"></script>
+</body>
+</html>
