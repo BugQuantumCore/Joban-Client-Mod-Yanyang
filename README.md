@@ -1,7 +1,7 @@
 # Develop-Documentation-Website — JCM Yanyang 脚本开发文档（网页版）
 
 本分支存放 **Joban Client Mod — Yanyang**（晏阳技术组修改版）的脚本开发文档静态站点，与仓库
-`native/README.md` / `native/include/mtr/` 的 SDK（ABI 13，对应 2.3.0-1.0.2）同步维护，
+`native/README.md` / `native/include/mtr/` 的 SDK（ABI 16，对应 2.3.0-1.0.2-beta.2）同步维护，
 并收录上游 JCM（v2.3，对应 https://jcm.joban.org/v2.3/ 的 For Content Authors）JavaScript 脚本体系的完整开发文档。
 - **在线地址**：<https://bugquantumcore.github.io/Joban-Client-Mod-Yanyang/>
 - **浅色 / 深色主题**：全站支持，首次访问跟随系统偏好，手动切换后记住选择（`localStorage`）
@@ -17,8 +17,8 @@ assets/app.js           主题切换 · 语言切换 · 侧栏开合 · 轻量�
 zh-CN/  zh-HK/  zh-TW/  lzh/  en-US/  en-GB/  fr-FR/
   ├── index.html          概览：什么是脚本、架构、何时选 C++
   ├── getting-started.html C++ 快速上手：SDK 获取、模块工程、编译、打包进资源包、游戏内验证
-  ├── script-model.html   脚本模型与生命周期：五类基类、State、线程与崩溃防护
-  ├── data.html           数据快照：Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy
+  ├── script-model.html   脚本模型与生命周期：八类基类（含 ABI 16 道口/售检票机/广播）、State、线程与崩溃防护
+  ├── data.html           数据快照：Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / 道口 / 售检票机 / 广播、天气与信号
   ├── drawing.html        绘制与画布：Text / Texture、Matrices、GraphicsTexture、Gfx2D、字体
   ├── java-api.html       mtr::Api 与 Java 互操作：对象、回调、JS↔C++ 对照表
   ├── abi.html            C ABI 与宿主服务：导出、帧输入输出、绘制记录、ABI 演进

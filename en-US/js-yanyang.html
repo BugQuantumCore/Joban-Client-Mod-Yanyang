@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -83,6 +83,8 @@
       <tbody>
         <tr><td><a href="#mixed">Mixed JS + C++ entries</a></td><td>Declaration entries</td><td>Freely mix JS and C++ modules within one entry; both engines render side by side</td></tr>
         <tr><td><a href="#doordir">Door-opening direction memory</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>Which side the doors will open on — during platform stops, predicted on the main line, and remembered server-side beyond view distance</td></tr>
+        <tr><td><a href="#weather">Weather API</a></td><td><code>wrapper.getWeather()</code></td><td>All five wrappers read the client weather, identical to C++ (beta.1)</td></tr>
+        <tr><td><a href="#datastore">Script data store</a></td><td><code>ctx.getDataStore()</code></td><td>A JSON key-value store scoped to the script id, persisted across restarts (beta.1, shared with C++)</td></tr>
         <tr><td><a href="#transporttype">Transport type subdivisions</a></td><td><code>VehicleWrapper.getTransportType()</code> and friends</td><td>Fine-grained route type ids (interworking with MAGIC MTR) plus interchange extension fields</td></tr>
         <tr><td><a href="#rawupload">Raw pixel uploads</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>Raw byte-row writes + dirty-region-only uploads — the bandwidth-saving channel for high-frequency per-pixel updates</td></tr>
         <tr><td>Compatibility aliases</td><td>Declaration entries</td><td>Accepts the <code>script_input</code> key name used in the NTE docs' examples; <code>nativeLibrary</code> / <code>nativeLibraries</code> mixed with <code>.js</code></td></tr>
@@ -148,6 +150,48 @@
 }</code></pre>
     </div>
 
+    <h2 id="weather">Weather API</h2>
+    <p>All five wrappers (<code>PIDSWrapper</code> / <code>VehicleWrapper</code> / <code>PSDWrapper</code> / <code>LiftWrapper</code> / <code>EyecandyBlockEntityWrapper</code>) gain <code>getWeather(): String</code> — returning <code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>:</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    if (pids.getWeather() == "rain")      drawNotice(ctx, state, "小心地滑");
+    if (pids.getWeather() == "thunder")   drawNotice(ctx, state, "恶劣天气 服务或有延误");
+}</code></pre>
+    <ul>
+      <li>The verdict matches MTR's own weather PIDS component: <code>isThundering()</code> takes precedence over <code>isRaining()</code>; without a client world it is always <code>"clear"</code>.</li>
+      <li><strong>The C++ side is the same</strong> (a direct ABI 15 snapshot field read): <code>vehicle.weather()</code> / <code>getWeather()</code> and the same-named methods on all five wrappers, with values identical character for character — scripts on both sides can share layout logic.</li>
+    </ul>
+
+    <h2 id="datastore">Script data store</h2>
+    <p><code>ctx.getDataStore()</code> gives every script a JSON key-value store that <strong>survives game restarts</strong>. The scope is the <strong>script id</strong>: all instances of the same script (every PIDS block, every bound piece of PSD glass, …) share one store file, persisted at <code>&lt;run dir&gt;/data/mtrscripting/stores/&lt;script id&gt;.json</code> (the same data tree as <code>Files.readData/saveData</code>) — one script id is shared across worlds / servers. For state that must be <strong>distinguished per instance</strong>, just prefix keys with the instance identifiers the wrappers already expose (e.g. <code>blockPos()</code>, vehicle / platform ids).</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    let store = ctx.getDataStore();
+    let next = pids.arrivals().get(0);
+    if (next) {
+        let dest = next.destination;
+        if (store.getString("last.destination", "") != dest) {
+            store.set("last.destination", dest);
+            store.set("dest.changed", store.getNumber("dest.changed", 0) + 1);  // write only on change
+        }
+    }
+}</code></pre>
+    <table>
+      <thead><tr><th>Member</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>get(key)</code></td><td>The decoded JSON value (string / number / boolean / null / list / map; null for a missing key)</td></tr>
+        <tr><td><code>getString(key, def)</code> / <code>getNumber(key, def)</code> / <code>getBoolean(key, def)</code></td><td>Typed reads (with defaults)</td></tr>
+        <tr><td><code>set(key, value)</code></td><td>Write (accepts strings / numbers / booleans / null / JS objects and arrays — converted through the relocated Rhino runtime)</td></tr>
+        <tr><td><code>has(key)</code> / <code>delete(key)</code></td><td>Existence / removal (delete returns whether the key existed)</td></tr>
+        <tr><td><code>size()</code> / <code>keys()</code> / <code>clear()</code></td><td>Key count / key set / clear everything</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>Capacity limits</strong>: 256 keys / 64 KB serialized / 128-character keys / 32 levels of nesting (a cycle guard) — over-limit errors go to the script's error path, so a runaway script cannot grow the data directory without bound.</li>
+      <li><strong>Robust persistence</strong>: debounced (a unified flush roughly every 1.6 seconds from the client tick, with resource reloads and a JVM shutdown hook as backstops) + atomic writes (temp file + move) — a crash mid-write falls back to the last intact file, and a corrupt file degrades to an empty store with a warning.</li>
+      <li><strong>Thread safety</strong>: every method is synchronized (multiple instances of the same script may run on different executor threads).</li>
+      <li><strong>Shared with C++</strong>: the C++ side reaches the same store object through <code>api.context().call("getDataStore")</code> (no new ABI) — see <a href="java-api.html#coverage">mtr::Api · Script data store</a>.</li>
+      <li><strong>Good practice</strong>: write only on change (flushing is debounced anyway); counters, remembered destinations, and configs hand-edited by admins are typical uses.</li>
+    </ul>
+
     <h2 id="transporttype">Transport type subdivisions</h2>
     <p>MTR's <code>TransportMode</code> has only four base modes (train / boat / cable_car / airplane), which isn't enough for display purposes. The <a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> add-on lets players subdivide the "train" mode into display types (stored in its <code>route_types.json</code>, keyed by route id). This fork threads those types through to scripts:</p>
     <ul>
@@ -185,6 +229,11 @@
         <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
         <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> and friends</td><td><code>mtr::Stop::interchange(i)</code>'s type fields</td><td>ABI 9</td></tr>
         <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+        <tr><td><code>pids.getWeather()</code> and friends on all five wrappers</td><td><code>mtr::Pids::weather()</code> / <code>getWeather()</code> and friends</td><td>ABI 15</td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code> (the same object)</td><td>beta.1 (no new ABI)</td></tr>
+        <tr><td>FangSu express / hidden routes (a direct C++ snapshot read)</td><td><code>arrival.isExpress()</code> / <code>isHiddenRoute()</code>, <code>vehicle.isExpressService()</code> and friends</td><td>ABI 16</td></tr>
+        <tr><td>FangSu deferred openings (a direct C++ snapshot read)</td><td><code>stop.stopStatus()</code> / <code>isDeferredStop()</code></td><td>ABI 14</td></tr>
+        <tr><td>NTE signal state (a direct C++ snapshot read)</td><td><code>vehicle.signalState()</code> / <code>getSignalState()</code></td><td>ABI 16</td></tr>
       </tbody>
     </table>
     <p>Pure JS readers only need to remember one thing: <strong>every extension on this page is available on the C++ side too</strong> (as direct snapshot field reads, with zero marshaling cost) — see <a href="data.html">Data snapshots</a>.</p>
@@ -199,7 +248,7 @@
       <a href="js-types.html">JS Script Types</a>
       <a href="js-api.html">JS Common APIs</a>
     </div>
-    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-1.0.2 · Yanyang Tech Team extensions
+    JCM Yanyang Scripting Docs · JavaScript · Matches JCM 2.3.0-1.0.2-beta.2 · Yanyang Tech Team extensions
   </footer>
 </main>
 </div>

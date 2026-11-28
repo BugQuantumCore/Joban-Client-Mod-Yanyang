@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -71,6 +71,7 @@
         <li><a href="#model">Modèle de performance</a></li>
         <li><a href="#rules">Règles du chemin chaud</a></li>
         <li><a href="#memory">Mémoire et récupération différée</a></li>
+        <li><a href="#hotreload">Rechargement à chaud (modifier le C++ sans redémarrer le jeu)</a></li>
         <li><a href="#observe">Observation et journaux</a></li>
         <li><a href="#flags">Paramètres JVM</a></li>
         <li><a href="#faq">Problèmes courants</a></li>
@@ -109,6 +110,9 @@
       <li><strong>Les gros blocs libérés passent par <code>defer_free</code></strong> (ABI 10) : les tampons de plusieurs méga-octets morts dans <code>render</code> / <code>dispose</code> sont confiés au thread de récupération en arrière-plan de l’hôte, évitant d’imputer tout le coût du <code>free</code> à la frame courante et d’amplifier l’attente des points sûrs du GC. Contrat : le bloc doit être mort, sans destructeur, et aucun thread ne doit plus y toucher ensuite (rejeu de l’hôte compris). La rétraction de la zone de pixels du SDK s’y conforme déjà automatiquement ; pour vos propres gros tampons, appelez <code>host-&gt;defer_free</code> selon les mêmes règles — si l’hôte est trop ancien (emplacement null), une libération synchrone suffit.</li>
     </ul>
 
+    <h2 id="hotreload">Rechargement à chaud (modifier le C++ sans redémarrer le jeu)</h2>
+    <p>Le rechargement à chaud des scripts natifs est piloté par l’option <code>scripting.nativeHotReload</code> (<strong>désactivée par défaut</strong> ; menu des mods → Joban Client Mod Config → Scripting). Une fois activée, un thread gardien basse fréquence (2 secondes) prend les empreintes de <code>resourcepacks/</code> et du répertoire de développement <code>resources/</code> (multi-ensemble nom + mtime + taille) ; tout changement (copie d’un <code>.so</code> recompilé, édition d’un <code>.js</code>, remplacement d’un pack entier) déclenche, après un anti-rebond d’une seconde, sur le thread client un rechargement de scripts rigoureusement identique à F3+T (fermeture des modules → <code>mtrCleanup</code> → réouverture → <code>mtrInit</code> réentré à la frame suivante). Flux de travail : <strong>recompiler le module → le copier dans <code>resourcepacks/</code> → rechargement automatique</strong>, sans quitter le jeu. Sans aucun module natif ni script JS chargés, le gardien tourne à vide ; le défaut désactivé évite les à-coups de rechargements intempestifs causés par la sauvegarde automatique des éditeurs.</p>
+
     <h2 id="observe">Observation et journaux</h2>
     <table>
       <thead><tr><th>Quoi regarder</th><th>Où</th><th>Contenu</th></tr></thead>
@@ -118,9 +122,10 @@
         <tr><td>garde-fou anti-plantage</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code> — la raison précise de la désactivation du module</td></tr>
         <tr><td>trafic de nettoyage</td><td>latest.log (une ligne par minute)</td><td>journal agrégé du rythme de destruction des instances, pour observer directement le comportement de durée de vie</td></tr>
         <tr><td>octets téléversés</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>instrumentation dans votre code : l’efficacité de la stratégie de rectangles modifiés saute aux yeux</td></tr>
+        <tr><td>panneau de performance de l’overlay de débogage (section natives)</td><td>section scripts natifs de l’overlay de débogage F3 (extension ABI 16)</td><td>ligne de synthèse : <code>mtrRender</code> natif en ms/s, appels de rendu/s, <strong>nombre de traversées de l’hôte/s</strong> (upcalls C++→Java : acquisition de modèles, rastérisation de polices, création de ressources, téléversement de pixels) et octets marshalling d’instantanés/s ; durée moyenne de rendu par module (<code>avg X.XX ms</code>). Compteurs accumulés de façon atomique et sans verrou — l’auteur du script peut ainsi situer un à-coup côté script ou côté allers-retours hôte</td></tr>
       </tbody>
     </table>
-    <p>Après modification d’une bibliothèque, <strong>F3+T</strong> (ou le raccourci du mod « Recharger tous les scripts MTR ») recharge les scripts C++ — déchargement et redécouverte suivent le chemin complet, sans redémarrer le jeu.</p>
+    <p>Après modification d’une bibliothèque, <strong>F3+T</strong> (ou le raccourci du mod « Recharger tous les scripts MTR ») recharge les scripts C++ — déchargement et redécouverte suivent le chemin complet, sans redémarrer le jeu ; avec le rechargement à chaud activé (voir ci-dessus), même F3+T devient inutile.</p>
 
     <h2 id="flags">Paramètres JVM</h2>
     <table>
@@ -139,7 +144,7 @@
       <li>Vérifiez que vous utilisez un <strong>jar Release ou Complete Build</strong> — les artefacts de la CI rapide ne contiennent pas les ponts natifs et le journal affiche <code>native bridge unavailable</code> (ce n’est pas un problème de votre module).</li>
       <li>Vérifiez le répertoire de plateforme : le système courant ne charge que les bibliothèques de sa plateforme ; une déclaration par racine (stem) sans extension se développe automatiquement en chemins pour chaque plateforme (voir <a href="getting-started.html#package">Intégration dans un pack de ressources</a>).</li>
       <li>Vérifiez que <code>ID</code> est identique, caractère pour caractère, au champ <code>id</code> de l’entrée déclarée.</li>
-      <li>Vérifiez l’ABI : l’hôte accepte 6–11 ; une bibliothèque ABI 8+ exige un hôte 2.3.0-beta-2.yanyang.7 ou supérieur.</li>
+      <li>Vérifiez l’ABI : l’hôte accepte 6–16 ; une bibliothèque ABI 8+ exige un hôte 2.3.0-beta-2.yanyang.7 ou supérieur, une bibliothèque ABI 16 exige un hôte 2.3.0-1.0.2-beta.2 ou supérieur.</li>
     </ol>
     <h3>Des carrés de substitution (tofu) à l’écran ?</h3>
     <p>Les glyphes CJK se dégradent quand la police de l’hôte ne couvre pas le point de code — transmettez un id de police de ressource à <code>Text::font()</code> / au constructeur de <code>Gfx2D</code> (par ex. <code>jsblock:shanghai</code>), ou vérifiez que le jeu de polices utilisé contient bien ces caractères.</p>
@@ -162,7 +167,7 @@
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-1.0.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 16 (2.3.0-1.0.2-beta.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

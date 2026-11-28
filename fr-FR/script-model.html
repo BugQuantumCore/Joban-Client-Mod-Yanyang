@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Modèle de script et cycle de vie — Documentation JCM Yanyang Scripting</title>
-<meta name="description" content="Classes de base des quatre catégories de scripts, sémantique de State, ordonnancement create/render/dispose, modèle de threading et isolation des plantages.">
+<meta name="description" content="Classes de base des huit catégories de scripts, sémantique de State, ordonnancement create/render/dispose, modèle de threading et isolation des plantages.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -62,13 +62,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">Documentation</a> / Modèle de script et cycle de vie</div>
       <h1>Modèle de script et cycle de vie</h1>
-      <p class="page-lead">Les classes de base des quatre catégories de scripts, l’état par instance, l’ordonnancement du cycle de vie, ainsi que la sémantique des threads et de l’isolation des plantages.</p>
+      <p class="page-lead">Les classes de base des huit catégories de scripts, l’état par instance, l’ordonnancement du cycle de vie, ainsi que la sémantique des threads et de l’isolation des plantages.</p>
     </header>
 
     <div class="page-toc">
       <b>Sur cette page</b>
       <ol>
-        <li><a href="#kinds">Les quatre catégories de scripts</a></li>
+        <li><a href="#kinds">Les huit catégories de scripts</a></li>
         <li><a href="#state">State : l’état par instance</a></li>
         <li><a href="#lifecycle">Ordonnancement du cycle de vie</a></li>
         <li><a href="#threading">Modèle de threading</a></li>
@@ -77,7 +77,7 @@
       </ol>
     </div>
 
-    <h2 id="kinds">Les quatre catégories de scripts</h2>
+    <h2 id="kinds">Les huit catégories de scripts</h2>
     <p>Incluez <code>&lt;mtr/script.hpp&gt;</code>, héritez de la classe de base correspondante et exportez-la avec la macro d’enregistrement. Le paramètre modèle de la classe de base est le <strong>type d’état par instance</strong> :</p>
     <table>
       <thead><tr><th>Ressource</th><th>Classe de base</th><th>Macro d’enregistrement</th><th>Enveloppe de données</th></tr></thead>
@@ -87,10 +87,14 @@
         <tr><td>Portes palières</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>Ascenseur</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>Eyecandy</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
+        <tr><td>Passage à niveau (ABI 16)</td><td><code>mtr::LevelCrossingScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LEVEL_CROSSING_SCRIPT</code></td><td><code>mtr::LevelCrossing</code></td></tr>
+        <tr><td>Automate de billetterie (ABI 16)</td><td><code>mtr::FareMachineScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_FARE_MACHINE_SCRIPT</code></td><td><code>mtr::FareMachine</code></td></tr>
+        <tr><td>Annonce de station (ABI 16)</td><td><code>mtr::AnnouncementScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_ANNOUNCEMENT_SCRIPT</code></td><td><code>mtr::Announcement</code></td></tr>
       </tbody>
     </table>
+    <p>Les trois dernières sont des <strong>scripts de bloc</strong> (types de ressource <code>MTR_RESOURCE_LEVEL_CROSSING</code>=5 / <code>FARE_MACHINE</code>=6 / <code>ANNOUNCEMENT</code>=7), ancrés sur les blocs correspondants de FangSu : un <strong>clic droit</strong> avec l’éditeur de script de portes palières sur un passage à niveau, un tourniquet, un distributeur ou un haut-parleur FangSu ouvre l’écran de sélection, qui liste les modules chargés du type concerné ainsi que l’option « Aucun script ». Les liaisons <strong>n’existent que sur ce client</strong> (<code>config/jcm/native_block_scripts.json</code>, groupées par dimension) — les trois types sont de purs habillages visuels/audio, sans modification de l’état du monde : nul besoin du stockage et de la synchronisation côté serveur qu’exigent les portes palières. La face données : voir <a href="data.html#blocks">Instantanés de données · Passage à niveau / automate de billetterie / annonce</a> ; sans FangSu, les trois tournent à vide.</p>
 
-    <p>Le squelette d’un script de véhicule (pour les trois autres catégories, seuls la classe de base et les types de paramètres changent) :</p>
+    <p>Le squelette d’un script de véhicule (pour toutes les autres catégories, seuls la classe de base et les types de paramètres changent) :</p>
     <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
 
 struct MyVehicleState {
@@ -200,7 +204,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-1.0.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 16 (2.3.0-1.0.2-beta.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

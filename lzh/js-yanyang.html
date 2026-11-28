@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -85,6 +85,8 @@
       <tbody>
         <tr><td><a href="#mixed">JS 與 C++ 相雜之條</a></td><td>宣告之條</td><td>一條之內，JS 與 C++ 模塊隨意相雜，雙引擎並時而繪</td></tr>
         <tr><td><a href="#doordir">開門方向之記</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>到站何側啟門——站台之期、正線之測，跨視距者服端為記</td></tr>
+        <tr><td><a href="#weather">天氣之 API</a></td><td><code>wrapper.getWeather()</code></td><td>五類包裝器一律讀客戶端之天氣，與 C++ 所返全同（beta.1）</td></tr>
+        <tr><td><a href="#datastore">腳本數據之府</a></td><td><code>ctx.getDataStore()</code></td><td>按腳本 id 而域、跨重啟恆存之 JSON 鍵值存儲（beta.1，C++ 共此一份之數據）</td></tr>
         <tr><td><a href="#transporttype">交通類型之細分</a></td><td><code>VehicleWrapper.getTransportType()</code> 之屬</td><td>線路細分類型之 id（與 MAGIC MTR 相連）與轉乘增益之欄</td></tr>
         <tr><td><a href="#rawupload">直寫像素之上傳</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>字節行陣直書，惟上傳髒區——逐像素高頻更新省頻寬之途</td></tr>
         <tr><td>相容之別名</td><td>宣告之條</td><td>受 NTE 文檔示例 <code>script_input</code> 之鍵名；<code>nativeLibrary</code> / <code>nativeLibraries</code> 得與 <code>.js</code> 相雜而用</td></tr>
@@ -150,6 +152,48 @@
 }</code></pre>
     </div>
 
+    <h2 id="weather">天氣之 API</h2>
+    <p>五類包裝器（<code>PIDSWrapper</code> / <code>VehicleWrapper</code> / <code>PSDWrapper</code> / <code>LiftWrapper</code> / <code>EyecandyBlockEntityWrapper</code>）一律增 <code>getWeather(): String</code>——所返者 <code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>：</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    if (pids.getWeather() == "rain")      drawNotice(ctx, state, "地滑慎行");
+    if (pids.getWeather() == "thunder")   drawNotice(ctx, state, "天時惡劣 服務或延");
+}</code></pre>
+    <ul>
+      <li>其判與 MTR 自帶天氣 PIDS 之件無異：<code>isThundering()</code> 先於 <code>isRaining()</code>；無客戶端世界，則恆 <code>"clear"</code>。</li>
+      <li><strong>C++ 之側同款</strong>（ABI 15 快照欄直讀）：<code>vehicle.weather()</code> / <code>getWeather()</code> 等五類包裝器同名之法，所返逐字相同——兩側之腳本得共享布局之邏輯。</li>
+    </ul>
+
+    <h2 id="datastore">腳本數據之府</h2>
+    <p><code>ctx.getDataStore()</code> 為每腳本供<strong>跨遊戲重啟</strong>之 JSON 鍵值存儲。其域者<strong>腳本 id</strong> 也：同一腳本諸實例（每 PIDS 方塊、每繫之屏蔽門玻璃……）共此一份存儲之檔，恆存於 <code>&lt;運行目錄&gt;/data/mtrscripting/stores/&lt;腳本 id&gt;.json</code>（與 <code>Files.readData/saveData</code> 同一數據之樹）——同一腳本 id，跨世界 / 跨伺服器共之。欲<strong>按實例而別</strong>之狀態，以包裝器既曝之實例之識（如 <code>blockPos()</code>、車輛 / 站台之 id）作鍵之前綴可也。</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    let store = ctx.getDataStore();
+    let next = pids.arrivals().get(0);
+    if (next) {
+        let dest = next.destination;
+        if (store.getString("last.destination", "") != dest) {
+            store.set("last.destination", dest);
+            store.set("dest.changed", store.getNumber("dest.changed", 0) + 1);  // 惟變乃書
+        }
+    }
+}</code></pre>
+    <table>
+      <thead><tr><th>成員</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>get(key)</code></td><td>既解之 JSON 值（字串 / 數 / 布林 / null / 列 / 映射；無鍵者 null）</td></tr>
+        <tr><td><code>getString(key, def)</code> / <code>getNumber(key, def)</code> / <code>getBoolean(key, def)</code></td><td>具型而取（帶預設之值）</td></tr>
+        <tr><td><code>set(key, value)</code></td><td>書之（受字串 / 數 / 布林 / null / JS 物件與陣列——經重定位之 Rhino 運行時而轉）</td></tr>
+        <tr><td><code>has(key)</code> / <code>delete(key)</code></td><td>有無 / 刪之（delete 返該鍵之存否）</td></tr>
+        <tr><td><code>size()</code> / <code>keys()</code> / <code>clear()</code></td><td>鍵之數 / 鍵之集 / 盡清之</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>容量之限</strong>：256 鍵 / 64 KB 序列化 / 128 字符之鍵 / 32 層之嵌（所以防循環之引也）——踰限則歸腳本錯誤之途，失控之腳本，莫能無限滋長其數據之目。</li>
+      <li><strong>落盤之穩</strong>：防抖（客戶端 tick 約 1.6 秒統一刷新，資源重載與 JVM 關停之鉤兜其底）＋原子之寫（暫檔＋move）——崩潰中途寫壞，則退為上一份完好之檔；損壞之檔，降為空存儲並告焉。</li>
+      <li><strong>線程之安</strong>：諸法皆線程同步（同一腳本之多實例，或行於不同 executor 之線程）。</li>
+      <li><strong>C++ 共之</strong>：C++ 之側經 <code>api.context().call("getDataStore")</code> 而取同一存儲之物（無新 ABI），見 <a href="java-api.html#coverage">mtr::Api · 腳本數據之府</a>。</li>
+      <li><strong>善行之法</strong>：惟變乃書（落盤本自有防抖）；計數之器、所記之終點、管理員手改之配置，皆其典型之用。</li>
+    </ul>
+
     <h2 id="transporttype">交通類型之細分</h2>
     <p>MTR 之 <code>TransportMode</code>，惟基礎之式凡四（train / boat / cable_car / airplane），於顯示有所不贍。<a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> 附加之模組，許玩家於「列車」復細分顯示之類（存於其 <code>route_types.json</code>，以線路 id 為鍵）。本支使此諸類貫通乎腳本：</p>
     <ul>
@@ -187,6 +231,11 @@
         <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
         <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> 等</td><td><code>mtr::Stop::interchange(i)</code> 之類型欄</td><td>ABI 9</td></tr>
         <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+        <tr><td><code>pids.getWeather()</code> 等五類包裝器</td><td><code>mtr::Pids::weather()</code> / <code>getWeather()</code> 之屬</td><td>ABI 15</td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code>（同一物件）</td><td>beta.1（無新 ABI）</td></tr>
+        <tr><td>方速快車 / 隱藏之線（C++ 快照直讀）</td><td><code>arrival.isExpress()</code> / <code>isHiddenRoute()</code>、<code>vehicle.isExpressService()</code> 之屬</td><td>ABI 16</td></tr>
+        <tr><td>方速暫緩開通（C++ 快照直讀）</td><td><code>stop.stopStatus()</code> / <code>isDeferredStop()</code></td><td>ABI 14</td></tr>
+        <tr><td>NTE 號誌之狀（C++ 快照直讀）</td><td><code>vehicle.signalState()</code> / <code>getSignalState()</code></td><td>ABI 16</td></tr>
       </tbody>
     </table>
     <p>純 JS 之讀者，記一事足矣：<strong>本頁之增補，C++ 側同樣可用</strong>（快照之欄直讀，零搬運之費），見 <a href="data.html">數據快照</a>。</p>
@@ -201,7 +250,7 @@
       <a href="js-types.html">JS 之腳類型</a>
       <a href="js-api.html">JS 公器</a>
     </div>
-    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-1.0.2 而作 · 晏陽技術組之所增
+    JCM Yanyang 腳本文檔 · JavaScript 之篇 · 對 JCM 2.3.0-1.0.2-beta.2 而作 · 晏陽技術組之所增
   </footer>
 </main>
 </div>

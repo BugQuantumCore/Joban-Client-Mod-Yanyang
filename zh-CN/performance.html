@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -71,6 +71,7 @@
         <li><a href="#model">性能模型</a></li>
         <li><a href="#rules">热路径守则</a></li>
         <li><a href="#memory">内存与延迟回收</a></li>
+        <li><a href="#hotreload">热重载（改 C++ 不重启游戏）</a></li>
         <li><a href="#observe">观测与日志</a></li>
         <li><a href="#flags">JVM 参数</a></li>
         <li><a href="#faq">常见问题</a></li>
@@ -109,6 +110,9 @@
       <li><strong>大块释放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 里死掉的兆级缓冲交给宿主后台回收线程，避免把 <code>free</code> 的全部成本记到当前帧、并放大 GC 安全点等待。契约：块必须已死、无析构、此后无线程（含宿主回放）再触碰。SDK 的像素内存区收缩已自动遵守；你自己的大缓冲按同样规则调用 <code>host-&gt;defer_free</code>，宿主过旧（槽位为 null）时同步 free 即可。</li>
     </ul>
 
+    <h2 id="hotreload">热重载（改 C++ 不重启游戏）</h2>
+    <p>原生脚本热重载由 <code>scripting.nativeHotReload</code> 配置开关（<strong>默认关</strong>，Mod 菜单 → Joban Client Mod Config → Scripting）。开启后低频守护线程（2 秒）指纹 <code>resourcepacks/</code> 与开发目录 <code>resources/</code>（名称 + mtime + 大小多重集）；任何变更（重编译的 <code>.so</code> 拷入、<code>.js</code> 编辑、整包替换）经 1 秒去抖后在客户端线程触发一次与 F3+T 完全相同的脚本重载（关模块 → <code>mtrCleanup</code> → 重开 → 下帧 <code>mtrInit</code> 重入）。工作流：<strong>重编译模块 → 拷进 <code>resourcepacks/</code> → 自动重载</strong>，无需离开游戏。无任何已加载 native 模块与 JS 脚本时空转跳过；默认关闭是为避免编辑器自动保存带来非预期重载卡顿。</p>
+
     <h2 id="observe">观测与日志</h2>
     <table>
       <thead><tr><th>看什么</th><th>在哪</th><th>内容</th></tr></thead>
@@ -118,9 +122,10 @@
         <tr><td>崩溃防护</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模块被禁用的精确原因</td></tr>
         <tr><td>清扫流量</td><td>latest.log（每分钟一行）</td><td>实例销毁节奏的聚合日志，可直接观测实例寿命行为</td></tr>
         <tr><td>上传字节数</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>你的代码里打点：脏矩形策略是否奏效一目了然</td></tr>
+        <tr><td>调试覆盖层性能面板（原生区）</td><td>F3 调试覆盖层的原生脚本区（ABI 16 扩展）</td><td>汇总行：原生 <code>mtrRender</code> 毫秒/秒、渲染调用数/秒、<strong>宿主跨越次数/秒</strong>（C++→Java upcall：模型获取、字体栅格化、资源创建、像素上传）与快照封送字节/秒；逐模块平均渲染耗时（<code>avg X.XX ms</code>）。计数器无锁原子累计——脚本作者由此可定位卡顿来自脚本本身还是宿主往返</td></tr>
       </tbody>
     </table>
-    <p>改完库按 <strong>F3+T</strong>（或模组的「重载全部 MTR 脚本」快捷键）即可重载 C++ 脚本——卸载与重新发现走完整路径，无需重启游戏。</p>
+    <p>改完库按 <strong>F3+T</strong>（或模组的「重载全部 MTR 脚本」快捷键）即可重载 C++ 脚本——卸载与重新发现走完整路径，无需重启游戏；开着热重载（见上）时连 F3+T 都不用按。</p>
 
     <h2 id="flags">JVM 参数</h2>
     <table>
@@ -139,7 +144,7 @@
       <li>确认用的是 <strong>Release 或 Complete Build jar</strong>——快速 CI 产物不含原生桥，日志会写 <code>native bridge unavailable</code>（这不是你的模块的问题）。</li>
       <li>查平台目录：当前系统只会加载对应平台的库；无扩展名 stem 声明会自动展开为各平台路径（见<a href="getting-started.html#package">打包</a>）。</li>
       <li>查 <code>ID</code> 与声明条目的 <code>id</code> 是否逐字一致。</li>
-      <li>查 ABI：宿主接受 6–11；ABI 8+ 库需要 2.3.0-beta-2.yanyang.7 及以上宿主。</li>
+      <li>查 ABI：宿主接受 6–16；ABI 8+ 库需要 2.3.0-beta-2.yanyang.7 及以上宿主，ABI 16 库需要 2.3.0-1.0.2-beta.2 及以上宿主。</li>
     </ol>
     <h3>屏幕出现占位方框（tofu）？</h3>
     <p>CJK 字形在宿主字体不覆盖该码点时退化——给 <code>Text::font()</code> / <code>Gfx2D</code> 构造传资源字体 id（如 <code>jsblock:shanghai</code>），或检查所用字体集是否包含这些字符。</p>
@@ -162,7 +167,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-1.0.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 16（2.3.0-1.0.2-beta.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

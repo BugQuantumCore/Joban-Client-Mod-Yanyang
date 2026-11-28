@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>腳本體例與生命週期 — JCM Yanyang 腳本開發文檔</title>
-<meta name="description" content="五類腳本基類、State 之義、create/render/dispose 之序、線程模型與崩潰隔離。">
+<meta name="description" content="八類腳本基類、State 之義、create/render/dispose 之序、線程模型與崩潰隔離。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -64,13 +64,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">文檔</a> / 腳本體例與生命週期</div>
       <h1>腳本體例與生命週期</h1>
-      <p class="page-lead">五類腳本之基類，逐實例之狀態，生命週期之時序，暨線程與崩潰隔離之義，備於此篇。</p>
+      <p class="page-lead">八類腳本之基類，逐實例之狀態，生命週期之時序，暨線程與崩潰隔離之義，備於此篇。</p>
     </header>
 
     <div class="page-toc">
       <b>本頁之目</b>
       <ol>
-        <li><a href="#kinds">五類腳本</a></li>
+        <li><a href="#kinds">八類腳本</a></li>
         <li><a href="#state">State：逐實例之狀態</a></li>
         <li><a href="#lifecycle">生命週期之時序</a></li>
         <li><a href="#threading">線程模型</a></li>
@@ -79,7 +79,7 @@
       </ol>
     </div>
 
-    <h2 id="kinds">五類腳本</h2>
+    <h2 id="kinds">八類腳本</h2>
     <p>納 <code>&lt;mtr/script.hpp&gt;</code>，承其所應之基類，以註冊宏而導出之。基類模板之參，即<strong>逐實例狀態之型</strong>：</p>
     <table>
       <thead><tr><th>資源</th><th>基類</th><th>註冊宏</th><th>數據包裝器</th></tr></thead>
@@ -89,10 +89,14 @@
         <tr><td>屏蔽之門</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>電梯</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>裝飾</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
+        <tr><td>道口（ABI 16）</td><td><code>mtr::LevelCrossingScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LEVEL_CROSSING_SCRIPT</code></td><td><code>mtr::LevelCrossing</code></td></tr>
+        <tr><td>售檢票機（ABI 16）</td><td><code>mtr::FareMachineScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_FARE_MACHINE_SCRIPT</code></td><td><code>mtr::FareMachine</code></td></tr>
+        <tr><td>報站廣播（ABI 16）</td><td><code>mtr::AnnouncementScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_ANNOUNCEMENT_SCRIPT</code></td><td><code>mtr::Announcement</code></td></tr>
       </tbody>
     </table>
+    <p>後三類者，<strong>方塊腳本</strong>也（資源之種 <code>MTR_RESOURCE_LEVEL_CROSSING</code>=5 / <code>FARE_MACHINE</code>=6 / <code>ANNOUNCEMENT</code>=7），錨於方速（FangSu）相應之方塊：持<strong>屏蔽門腳本編輯器右擊</strong>方速道口 / 閘機 / 售票機 / 廣播揚聲器之方塊，選擇之屏即啟，列該類已載之模塊暨「無腳本」之項。其繫<strong>惟存於本客戶端</strong>（<code>config/jcm/native_block_scripts.json</code>，按維度而群）——三類腳本皆純視聽之疊，不改世界之狀，故無須服端之儲與同步，如屏蔽之門所為者。數據之面，見 <a href="data.html#blocks">數據快照 · 道口 / 售檢票機 / 廣播</a>；無方速，則三類皆空轉也。</p>
 
-    <p>車輛腳本之骨架一首（餘三類，惟易其基類與參數之型而已）：</p>
+    <p>車輛腳本之骨架一首（餘各類，惟易其基類與參數之型而已）：</p>
     <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
 
 struct MyVehicleState {
@@ -202,7 +206,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -161,6 +161,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>Timing.delta()</code></td><td><code>api.root("Timing").call("delta").as&lt;double&gt;()</code></td></tr>
         <tr><td><code>array.length</code> / <code>array[i]</code></td><td><code>array.call("length")</code> / <code>array.call("get", {i})</code></td></tr>
         <tr><td><code>include(...)</code></td><td>C++ compile-time <code>#include</code></td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code>—the script data store (see the next section)</td></tr>
       </tbody>
     </table>
     <p>AWT classes use fully qualified names: <code>java.awt.Color</code>, <code>java.awt.Font</code>, <code>java.awt.BasicStroke</code>, <code>java.awt.geom.AffineTransform</code>. The public fields <code>graphics</code> / <code>bufferedImage</code> of <code>GraphicsTexture</code> expose the real Java2D objects. Resource path resolution: <code>Resources.idr</code> resolves against this module's declaration path (with multiple library declarations, each uses its own); <code>Resources.manager()</code> is null on MTR 4, same as in JS. Members new in upstream v2.3.0-prerelease.2 — the <code>Resources.id(id, suffix)</code> concatenation form, the <code>Resources.mgr()</code> alias (ANTE resource-pack compatibility), string-argument variants such as <code>VanillaText.withFont(String)</code> — work out of the box over the same JSON-RPC channel. Capabilities that upstream documentation marks as unimplemented (the vehicle connector's <code>drawConnModel</code> / <code>drawConnStretchTexture</code>) are equally not invented by this mod.</p>
@@ -188,6 +189,18 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
     </ul>
 
     <h2 id="coverage">Coverage</h2>
+    <h3>Script data store (no new ABI for C++)</h3>
+    <p><code>ctx.getDataStore()</code> returns the JSON key-value store object scoped to the <strong>script id</strong> and persisted across game restarts; the C++ side reaches the <strong>same store object</strong> through the existing reflection bridge, sharing one copy of the data with JS (no new ABI at all):</p>
+    <pre><code class="lang-cpp">mtr::Api api(ctx.input());
+mtr::Api::Object store = api.context().call("getDataStore");
+double counted = store.call("getNumber", {"trains.counted", 0.0}).as&lt;double&gt;();
+store.call("set", {"trains.counted", counted + 1});
+const std::string dest = store.call("getString", {"last.destination", ""}).as&lt;std::string&gt;();
+bool known = store.call("has", {"setup.done"}).as&lt;bool&gt;();
+store.call("delete", {"last.destination"});</code></pre>
+    <p>For the members, capacity limits and flush-to-disk semantics see <a href="js-yanyang.html#datastore">Yanyang Extensions · Script data store</a>; keep per-instance state apart by prefixing keys with the instance identifiers the wrappers already expose (e.g. <code>psd.block_pos(i)</code>). The class shutter lets <code>com.lx862.mtrscripting.core.util.*</code> through by default, so the store works normally under the script sandbox as well.</p>
+    <h3>Public extension point (for other mods)</h3>
+    <p><code>com.lx862.jcm.nativeapi.NativeSignalState.set(vehicleId, state)</code>—the public entry point through which signal mods (mtr-nte bridges and so on) supply the state of the signal ahead of a vehicle to C++ scripts: just push once per tick (0 unknown / 1 clear / 2 caution / 3 danger; without an update for 750 ms it decays to unknown automatically). JCM and the signal mod have no compile-time dependency either way—this is a host-side extension point, not an <code>Api</code> channel.</p>
     <p>The commonly used API surface: console, Resources, <code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>, <code>Vector3f</code>, <code>Matrices</code>, <code>GraphicsTexture</code> and Java2D, <code>RenderManager / QuadDrawCall</code>, <code>SoundManager / TickableSoundInstance</code>, <code>MinecraftClient</code>, <code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>, <code>Files</code>, <code>Networking</code>, <code>BackgroundWorker</code>, <code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>, <code>DataReader</code>, <code>MTRClientData</code>, the TSC data classes and <code>DisplayHelper</code>. The full list of callable members for PIDS / eyecandy / vehicles is recorded in the repository's <code>bench/api-coverage.json</code>; for lifts, the Java wrapper is authoritative.</p>
     <p>After building, you can audit your call surface against a real MTR jar:</p>
     <pre><code class="lang-bash">python native/bench/api_coverage.py \
@@ -208,7 +221,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

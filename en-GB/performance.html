@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -71,6 +71,7 @@
         <li><a href="#model">Performance model</a></li>
         <li><a href="#rules">Hot path rules</a></li>
         <li><a href="#memory">Memory and deferred reclamation</a></li>
+        <li><a href="#hotreload">Hot reload (rebuild C++ without restarting the game)</a></li>
         <li><a href="#observe">Observability and logs</a></li>
         <li><a href="#flags">JVM flags</a></li>
         <li><a href="#faq">Frequently asked questions</a></li>
@@ -109,6 +110,9 @@
       <li><strong>Route large frees through <code>defer_free</code></strong> (ABI 10): megabyte-scale buffers that die inside <code>render</code> / <code>dispose</code> are handed to the host's background reclamation thread, so the full cost of <code>free</code> is not booked to the current frame and GC safepoint waits are not amplified. The contract: the block must already be dead, have no destructor, and never be touched again by any thread (host replay included). The SDK's pixel-arena shrinking already complies automatically; call <code>host-&gt;defer_free</code> by the same rules for your own large buffers—if the host is too old (the slot is null), just free synchronously.</li>
     </ul>
 
+    <h2 id="hotreload">Hot reload (rebuild C++ without restarting the game)</h2>
+    <p>Native script hot reload is toggled by the <code>scripting.nativeHotReload</code> config (<strong>off by default</strong>; Mod Menu → Joban Client Mod Config → Scripting). When on, a low-frequency watcher thread (2 seconds) fingerprints <code>resourcepacks/</code> and the development <code>resources/</code> directory (a name + mtime + size multiset); any change (a recompiled <code>.so</code> copied in, a <code>.js</code> edit, a whole-pack replacement) triggers—after a 1-second debounce, on the client thread—a script reload identical to F3+T (close modules → <code>mtrCleanup</code> → reopen → next-frame <code>mtrInit</code> re-entry). The workflow: <strong>recompile the module → copy it into <code>resourcepacks/</code> → it reloads automatically</strong>, no need to leave the game. It idles when no native modules and no JS scripts are loaded at all; it is off by default to avoid unexpected reload hitches from editor auto-saves.</p>
+
     <h2 id="observe">Observability and logs</h2>
     <table>
       <thead><tr><th>What to look at</th><th>Where</th><th>What it shows</th></tr></thead>
@@ -118,9 +122,10 @@
         <tr><td>Crash guard</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>—the precise reason a module was disabled</td></tr>
         <tr><td>Sweep traffic</td><td>latest.log (one line per minute)</td><td>An aggregated log of instance destruction pacing; instance lifetime behaviour is directly observable</td></tr>
         <tr><td>Uploaded bytes</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>Instrument it in your own code: whether the dirty-rectangle strategy is working is plain to see</td></tr>
+        <tr><td>Debug overlay performance panel (native section)</td><td>The native script section of the F3 debug overlay (an ABI 16 extension)</td><td>A summary line: native <code>mtrRender</code> ms/s, render calls/s, <strong>host crossings/s</strong> (C++→Java upcalls: model acquisition, font rasterisation, resource creation, pixel upload) and snapshot marshalling bytes/s; per-module average render time (<code>avg X.XX ms</code>). The counters accumulate lock-free and atomically—script authors can use this to tell whether a stutter comes from the script itself or from host round trips</td></tr>
       </tbody>
     </table>
-    <p>After changing a library, press <strong>F3+T</strong> (or the mod's 'Reload all MTR scripts' keybind) to reload the C++ scripts—unload and rediscovery go through the full path, no game restart needed.</p>
+    <p>After changing a library, press <strong>F3+T</strong> (or the mod's 'Reload all MTR scripts' keybind) to reload the C++ scripts—unload and rediscovery go through the full path, no game restart needed; with hot reload on (see above) you do not even press F3+T.</p>
 
     <h2 id="flags">JVM flags</h2>
     <table>
@@ -139,7 +144,7 @@
       <li>Confirm you are using a <strong>Release or Complete Build jar</strong>—fast CI artefacts lack the native bridge, and the log will say <code>native bridge unavailable</code> (that is not your module's fault).</li>
       <li>Check the platform directory: the current system loads only the library for its own platform; extension-less stem declarations expand automatically to per-platform paths (see <a href="getting-started.html#package">Packaging</a>).</li>
       <li>Check that <code>ID</code> and the declaration entry's <code>id</code> match verbatim.</li>
-      <li>Check the ABI: the host accepts 6–11; ABI 8+ libraries need a 2.3.0-beta-2.yanyang.7 or newer host.</li>
+      <li>Check the ABI: the host accepts 6–16; ABI 8+ libraries need a 2.3.0-beta-2.yanyang.7 or newer host, and ABI 16 libraries need a 2.3.0-1.0.2-beta.2 or newer host.</li>
     </ol>
     <h3>Placeholder boxes (tofu) appear on screen?</h3>
     <p>CJK glyphs degrade when the host font does not cover the code point—pass a resource font id to <code>Text::font()</code> / the <code>Gfx2D</code> constructor (e.g. <code>jsblock:shanghai</code>), or check that the font set you use contains these characters.</p>
@@ -162,7 +167,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

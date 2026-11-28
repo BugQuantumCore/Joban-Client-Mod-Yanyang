@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -160,6 +160,14 @@ ctx.draw_model(model_handle, &amp;m);                   // 裝飾 / 電梯</code
       </tbody>
     </table>
     <p>車輛上下文另有 <code>draw_bogie_model(model, car, bogie, matrices)</code>（轉向架）、<code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> 與 <code>play_ann_sound(sound, volume, pitch)</code>（僅乘坐玩家可聽到的報站廣播）。</p>
+    <h3>模型著色 / 發光 / 半透明（ABI 16）</h3>
+    <p>模型記錄尾部新增 ARGB <code>tint</code>（<code>JcmDrawModel</code> 24 → 28 位元組）與兩個新記錄標誌：<code>MTR_RECORD_FLAG_EMISSIVE</code>（全亮繪製——夜間車頭燈、發光標誌，同裝飾物 fullBrightness）、<code>MTR_RECORD_FLAG_TRANSLUCENT</code>（半透明材質通道——車窗玻璃；alpha &lt; 0xFF 自動啟用）。車輛側經 <code>ModelStyle</code> 鏈式傳參：</p>
+    <pre><code class="lang-cpp">ctx.draw_car_model(model, car, mats,
+                   mtr::VehicleContext::ModelStyle()
+                       .tint(0x80FF8000)   // 半透明橙色染色
+                       .emissive()          // 全亮（車頭燈玻璃）
+                       .translucent());     // 半透明通道</code></pre>
+    <p>裝飾物 / 道口 / 售檢票機上下文嘅帶參變體：<code>ctx.draw_model(model, matrices, tint_argb, emissive, translucent)</code>（道口警示燈 emissive、燈罩玻璃 translucent + alpha 染色；售檢票機螢幕發光 emissive、玻璃罩 translucent）。<code>draw_bogie_model</code> 同款帶 <code>ModelStyle</code> 嘅多載。宿主按材質級副本快取著色變體（樣式切換僅重建一次，原模型不受影響）；<strong>ABI ≤ 15 模組嘅 24 位元組記錄繼續按原樣渲染</strong>（宿主按 <code>record_size</code> 步進，<code>tint</code> 僅在 ≥ 28 時讀取）。</p>
     <p>模型控制代碼來自宿主服務：<code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> 取得、<code>release_model(user, handle)</code> 釋放；<code>acquire_quad_model(...)</code> 可用 4 個模型空間頂點 + UV 建構宿主持有的貼圖面片（把 <code>GraphicsTexture</code> 變成可貼到車廂上的螢幕）。細節見 <a href="abi.html">C ABI 與宿主服務</a>。</p>
 
     <h2 id="texture2d">GraphicsTexture（像素畫布）</h2>
@@ -244,7 +252,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 13（2.3.0-1.0.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 16（2.3.0-1.0.2-beta.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

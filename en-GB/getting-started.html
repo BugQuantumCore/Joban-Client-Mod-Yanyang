@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -94,17 +94,25 @@
 
     <h2 id="sdk">Get the SDK</h2>
     <p>Every release publishes the SDK as <code>jcm-native-sdk-&lt;version&gt;.zip</code> (see the GitHub Releases assets); its contents are exactly the repository's <code>native/</code> directory:</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2-beta.2/
 ├── include/mtr/          # All SDK headers (script.hpp is the single entry point)
 │   ├── mtr_native.h      # C ABI: exported functions, snapshots, draw records, host services
 │   ├── script.hpp        # Script base classes + registration macros (this one #include is enough)
-│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp  psd.hpp
+│   ├── levelcrossing.hpp  faremachine.hpp  announcement.hpp   # ABI 16 block scripts
 │   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
 │   ├── api.hpp           # mtr::Api (full Java API access)
 │   └── crash_guard.hpp ...
-├── examples/             # Three minimal example modules
+├── template/             # CMake scaffold (PIDS / vehicle / level-crossing skeletons)
+├── docs/js-to-cpp.md     # JS → C++ migration cheat sheet
+├── tools/js2cpp.py       # JS → C++ semi-automatic converter
+├── examples/             # Four minimal example modules (incl. psd_glass.cpp)
 ├── bench/                # Tests and utilities
 └── CMakeLists.txt</code></pre>
+    <div class="admonition tip">
+      <span class="admonition-title">CMake scaffold template</span>
+      <p>The SDK's <code>template/</code> directory (shipped in the SDK zip) contains ready-to-compile skeletons: <code>cmake -B build -DJCM_SDK=&lt;sdk dir&gt;</code> generates a project with PIDS / vehicle (including ABI 16 styled-model and signal examples) / level-crossing skeletons in one step; the module library target automatically handles the JCM loading conventions—Windows no prefix, macOS lib prefix + <code>dynamic_lookup</code>, Android 16 KB page alignment.</p>
+    </div>
 
     <h2 id="project">Set up a module project</h2>
     <p>The least-effort route: unzip the SDK into your resource pack project and append your own targets to the end of its <code>CMakeLists.txt</code>—the SDK has already wrapped every platform's linking details (Windows prefix-less <code>.dll</code>, macOS <code>.dylib</code> with <code>-undefined dynamic_lookup</code>, Android 16 KB page alignment) into the <code>mtr_add_script()</code> function:</p>
@@ -233,7 +241,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
       </tbody>
     </table>
     <ul>
-      <li><strong>One rule for all four script kinds</strong>: <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> in <code>mtr_custom_resources.json</code>, and <code>pids_images</code> presets (via <code>scriptLocations</code>) in <code>joban_custom_resources.json</code>, all support the mixed declarations above.</li>
+      <li><strong>One rule for all five script kinds</strong>: <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> / <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code> in <code>mtr_custom_resources.json</code>, and the <code>pids_images</code> / <code>psdScripts</code> presets (via <code>scriptLocations</code>) in <code>joban_custom_resources.json</code>, all support the mixed declarations above—the latter three keys are the ABI 16 block scripts (level crossings / fare machines / announcements, anchored to FangSu blocks; see <a href="script-model.html#kinds">Script model</a>).</li>
       <li><strong>Legacy formats remain supported</strong>: old-style declarations with <code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> keep working and can still be mixed with <code>.js</code>; <code>"language": "javascript"</code> forces the whole entry to be parsed as JS.</li>
       <li><strong>JS fields behave as usual</strong>: fields such as <code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> keep their meaning; the C++ side reads <code>input</code> via <code>api.input()</code>.</li>
       <li><strong>Keep rendering off-screen</strong>: the PIDS preset field <code>outOfBound: true</code> (upstream v2.3.0-prerelease.3) keeps the preset rendering when the screen is out of the camera's bounds — needed for projector presets that must run constantly.</li>
@@ -248,7 +256,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
       <li>Install JCM Yanyang and MTR, drop the resource pack into <code>resourcepacks/</code> and enable it (or distribute it as built-in resources bundled with a world).</li>
       <li>Place the corresponding block (e.g. a PIDS) and select your script in its configuration / make the declaration entry take effect.</li>
       <li>Open <code>logs/latest.log</code> and search for <code>native script</code>—at load time the mod prints a module census summary (module counts, script kinds, transport channel and so on). Seeing your <code>example:arrivals</code> there means the load succeeded.</li>
-      <li>After changing a library file, press <strong>F3+T</strong> to reload resource packs and with them the C++ scripts (or use the mod's 'Reload all MTR scripts' keybind); no game restart is needed.</li>
+      <li>After changing a library file, press <strong>F3+T</strong> to reload resource packs and with them the C++ scripts (or use the mod's 'Reload all MTR scripts' keybind); no game restart is needed. During development you can also enable <strong>native hot reload</strong> (the <code>scripting.nativeHotReload</code> config, off by default)—copying a new library in then triggers the same reload automatically; see <a href="performance.html#hotreload">Performance and debugging</a>.</li>
     </ol>
     <div class="admonition danger">
       <span class="admonition-title">Important</span>
@@ -256,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
     </div>
 
     <hr>
-    <p>Next: <a href="script-model.html">Script model and lifecycle</a> — the full semantics of the four script kinds; or jump straight to the <a href="data.html">Data snapshots</a> reference to see what you can read.</p>
+    <p>Next: <a href="script-model.html">Script model and lifecycle</a> — the full semantics of the eight script kinds; or jump straight to the <a href="data.html">Data snapshots</a> reference to see what you can read.</p>
   </article>
 
   <footer class="footer">
@@ -265,7 +273,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # Optional: run t
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

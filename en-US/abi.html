@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -81,8 +81,8 @@
     <table>
       <thead><tr><th>Export</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>Returns the ABI version it was compiled against (currently 13); the host rejects incompatible versions — the same version-mismatch reload policy JCM applies to JS scripts</td></tr>
-        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code></td></tr>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>Returns the ABI version it was compiled against (currently 16); the host rejects incompatible versions — the same version-mismatch reload policy JCM applies to JS scripts</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code> / <code>"level_crossing"</code> / <code>"fare_machine"</code> / <code>"announcement"</code> (the latter three since ABI 16)</td></tr>
         <tr><td><code>const char* mtrScriptId()</code></td><td>The script id (must match the resource pack declaration)</td></tr>
         <tr><td><code>size_t mtrStateSize()</code></td><td>Per-instance state block size; the host allocates one block per instance</td></tr>
         <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>Called once right after the host allocates the state block; constructs <code>State</code> with placement-new (required since ABI 6; if the host forgets to call it, the module falls back to lazy construction)</td></tr>
@@ -117,13 +117,13 @@
     <p>Since ABI 9 the output also reports each arena's <strong>full capacity</strong> — the host creates a single <code>ByteBuffer</code> per arena and reuses it every frame by moving the limit, instead of allocating five wrapper objects per frame.</p>
 
     <h2 id="records">Draw records</h2>
-    <p>Each record starts with <code>JcmRecordHeader{kind, flags, record_size}</code> and is laid out sequentially with variable length. <code>flags</code> carries record-level switches: currently <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code> (the <code>natural_light()</code> option of Text / Texture / Rect — take the world light value instead of the max render light). The byte was promoted in place from padding: modules compiled against older SDKs always write 0 and older hosts ignore it — <strong>binary compatible in both directions, no ABI bump</strong>. Eight kinds:</p>
+    <p>Each record starts with <code>JcmRecordHeader{kind, flags, record_size}</code> and is laid out sequentially with variable length. <code>flags</code> carries record-level switches: <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code> (the <code>natural_light()</code> option of Text / Texture / Rect — take the world light value instead of the max render light) and the new-in-ABI-16 <code>MTR_RECORD_FLAG_EMISSIVE</code> / <code>MTR_RECORD_FLAG_TRANSLUCENT</code> (the full-brightness / translucent channels of model records, see below). The byte was promoted in place from padding: modules compiled against older SDKs always write 0 and older hosts ignore it — <strong>binary compatible in both directions, no ABI bump</strong>. Eight kinds:</p>
     <table>
       <thead><tr><th>kind</th><th>Struct</th><th>Purpose / JS call mirrored</th></tr></thead>
       <tbody>
         <tr><td><code>JCM_DRAW_TEXT</code></td><td><code>JcmDrawText</code></td><td>PIDS / general text (field-by-field alignment with <code>TextWrapper</code>: alignment, overflow mode, marquee, z-order, layer, font id)</td></tr>
         <tr><td><code>JCM_DRAW_TEXTURE</code></td><td><code>JcmDrawTexture</code></td><td>Texture quads (UV, tint, z-order)</td></tr>
-        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>Vehicle cars / bogies / eyecandy models (host model handle + pose matrix set)</td></tr>
+        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>Vehicle cars / bogies / eyecandy models (host model handle + pose matrix set). Since ABI 16 the record carries a trailing ARGB <code>tint</code> field (24 → 28 bytes) alongside <code>MTR_RECORD_FLAG_EMISSIVE</code> (full-brightness drawing) and <code>MTR_RECORD_FLAG_TRANSLUCENT</code> (the translucent channel): the host walks records in <code>record_size</code> steps, so the 24-byte records of ABI ≤ 15 modules keep rendering exactly as before</td></tr>
         <tr><td><code>JCM_DRAW_SOUND</code></td><td><code>JcmDrawSound</code></td><td>Positioned sounds (car-local coordinate offset)</td></tr>
         <tr><td><code>JCM_DRAW_LOCAL_SOUND</code></td><td><code>JcmDrawSound</code></td><td>Announcements (audible only to riding players)</td></tr>
         <tr><td><code>JCM_DRAW_TEXTURE_UPLOAD</code></td><td><code>JcmDrawTextureUpload</code></td><td><code>GraphicsTexture</code> pixel upload (BGRA8 + dirty rectangle)</td></tr>
@@ -150,7 +150,7 @@
     </table>
 
     <h2 id="history">ABI version history</h2>
-    <p>The host accepts <strong>ABI 6–13</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 13:</p>
+    <p>The host accepts <strong>ABI 6–16</strong> modules (each is fed with its era's layout and reports its own ABI number). Compiling with the current SDK produces ABI 16:</p>
     <table>
       <thead><tr><th>ABI</th><th>What it introduced</th></tr></thead>
       <tbody>
@@ -162,6 +162,9 @@
         <tr><td>11</td><td><code>door_direction</code> on the vehicle snapshot (door-opening side 0..3 — the former <code>_pad0</code> byte promoted in place; layout and size unchanged, older modules keep working)</td></tr>
         <tr><td>12</td><td><code>MTR_RESOURCE_PSD</code> (the 5th script kind) and the <code>JcmPsdSnapshot</code> / <code>JcmPsdArrival</code> / <code>JcmPsdRoute</code> / <code>JcmPsdDoor</code> snapshots — purely additive, every pre-existing struct unchanged; <strong>ABI 12 modules need a Yanyang hotfix.2+ host</strong></td></tr>
         <tr><td>13</td><td><code>JcmPsdSnapshot.station_offset</code> (byte offset 124; <code>-1</code> = none — the field was padding in ABI 12) and the 96-byte <code>JcmPsdStation</code> record behind <code>psd.stop()</code> / <code>mtr::Psd::stop()</code>: station name, color (ARGB + hex), fare zones 1–3, every route calling at the station, connecting-station route groups, physically connected station names, exits with destinations, platform numbers — purely additive, every pre-existing struct unchanged; <strong>ABI 6–12 modules keep loading</strong></td></tr>
+        <tr><td>14</td><td>Stop status and deferred station openings on <code>JcmStop</code> (the FangSu RouteStopStatus model): each stop record's former <code>_pad0[2]</code> is promoted to <code>stop_status</code> (0 normal / 1 disabled / 2 skipped) and <code>station_deferred</code> — a purely reflective soft dependency; without FangSu the values are always normal / not deferred (byte-identical to the existing answers). C++: <code>stop.stopStatus()</code> / <code>getStopStatus()</code> / <code>isStationDeferred()</code> / <code>isDeferredStop()</code></td></tr>
+        <tr><td>15</td><td>The weather byte: the vehicle / PIDS / lift / eyecandy snapshots each promote one padding byte to <code>weather</code> (0 clear / 1 rain / 2 thunder); <code>JcmPsdSnapshot</code>, the only struct without a spare byte, grows 128 → 136 with <code>weather</code> at byte 128 (ABI 12–14 modules only read offsets &lt; 128 and are unaffected). C++: all five wrappers expose <code>weather()</code> / <code>getWeather()</code>, returning values identical to the JS-side <code>getWeather()</code></td></tr>
+        <tr><td>16</td><td>FangSu express / hidden-route flags (<code>JcmArrival.flags</code> @59, <code>JcmPsdRoute.route_flags</code> @13, <code>JcmVehicleSnapshot.service_flags</code> @166 — bit0 express, bit1 hidden route); the vehicle signal state <code>signal_state</code> @167 (0 unknown / 1 clear / 2 caution / 3 danger, supplied through the <code>NativeSignalState.set(vehicleId, state)</code> public extension point); model record styling (24 → 28 bytes + <code>tint</code> and the EMISSIVE / TRANSLUCENT flags, see Draw records); three new script kinds (<code>MTR_RESOURCE_LEVEL_CROSSING</code>=5 / <code>FARE_MACHINE</code>=6 / <code>ANNOUNCEMENT</code>=7) with <code>JcmLevelCrossingSnapshot</code> (72) / <code>JcmCrossingApproach</code> (64) / <code>JcmFareMachineSnapshot</code> (96) / <code>JcmAnnouncementSnapshot</code> (88) — all purely additive, the four fields being padding that was written as zero and never read in the ABI ≤ 15 layouts</td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -182,7 +185,7 @@
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -96,17 +96,25 @@
 
     <h2 id="sdk">取 SDK</h2>
     <p>每有 Release，SDK 必刊為 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（見 GitHub Releases 之附件）；啟之，即倉庫 <code>native/</code> 目錄之源碼：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2-beta.2/
 ├── include/mtr/          # SDK 諸頭文件盡在（script.hpp 為總門）
 │   ├── mtr_native.h      # C ABI：導出函數、快照、繪製記錄、宿主服務
 │   ├── script.hpp        # 腳本基類＋註冊宏（惟 #include 此一足矣）
-│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp  psd.hpp
+│   ├── levelcrossing.hpp  faremachine.hpp  announcement.hpp   # ABI 16 方塊腳本
 │   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
 │   ├── api.hpp           # mtr::Api（Java API 之全訪）
 │   └── crash_guard.hpp ...
-├── examples/             # 最小示例模塊凡三
+├── template/             # CMake 之腳手架（PIDS / 車輛 / 道口骨架凡三）
+├── docs/js-to-cpp.md     # JS → C++ 遷移對照之表
+├── tools/js2cpp.py       # JS → C++ 半自動之轉換器
+├── examples/             # 最小示例模塊凡四（含 psd_glass.cpp）
 ├── bench/                # 測試與器具
 └── CMakeLists.txt</code></pre>
+    <div class="admonition tip">
+      <span class="admonition-title">CMake 腳手架之範</span>
+      <p>SDK 之 <code>template/</code> 目錄（隨 SDK zip 而刊）內置可編之骨架：<code>cmake -B build -DJCM_SDK=&lt;sdk 目錄&gt;</code> 一鍵而生成，內含 PIDS / 車輛（含 ABI 16 染色模型與號誌之例）/ 道口骨架凡三；模塊庫之目標，自處 Windows 無前綴 / macOS lib 前綴＋<code>dynamic_lookup</code> / Android 16KB 頁對齊之 JCM 載入之約。</p>
+    </div>
 
     <h2 id="project">立模塊工程</h2>
     <p>其至簡之法：解 SDK 於君資源包之工程，徑於其 <code>CMakeLists.txt</code> 之末，附以己之目標——蓋 SDK 已括諸平臺鏈結之細務（Windows 無前綴之 <code>.dll</code>、macOS 之 <code>.dylib</code> 與 <code>-undefined dynamic_lookup</code>、Android 之 16 KB 頁對齊）於 <code>mtr_add_script()</code> 一函之中：</p>
@@ -235,7 +243,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
       </tbody>
     </table>
     <ul>
-      <li><strong>四類腳本，同其規</strong>：<code>mtr_custom_resources.json</code> 之 <code>vehicleScripts</code>、<code>objectScripts</code>、<code>liftScripts</code>，暨 <code>joban_custom_resources.json</code> 之 <code>pids_images</code> 預設（<code>scriptLocations</code>），皆許上述混雜之宣告。</li>
+      <li><strong>五類腳本，同其規</strong>：<code>mtr_custom_resources.json</code> 之 <code>vehicleScripts</code>、<code>objectScripts</code>、<code>liftScripts</code>、<code>levelCrossingScripts</code>、<code>fareMachineScripts</code>、<code>announcementScripts</code>，暨 <code>joban_custom_resources.json</code> 之 <code>pids_images</code> / <code>psdScripts</code> 預設（<code>scriptLocations</code>），皆許上述混雜之宣告——後三鍵者，ABI 16 方塊腳本也（道口 / 售檢票機 / 報站廣播，錨於方速之方塊，見 <a href="script-model.html#kinds">腳本體例</a>）。</li>
       <li><strong>舊格相容</strong>：<code>"language": "cpp"</code> 而加 <code>nativeLibrary</code> / <code>nativeLibraries</code> 者，舊宣告也，依然有效，亦得與 <code>.js</code> 相雜；<code>"language": "javascript"</code> 則強使整條按 JS 解之。</li>
       <li><strong>JS 之欄如常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 諸欄之義不變；C++ 側經 <code>api.input()</code> 而讀 <code>input</code>。</li>
       <li><strong>視界之外，繪之不輟</strong>：PIDS 預設之欄 <code>outOfBound: true</code>（上游 v2.3.0-prerelease.3），屏出相機視界，仍續繪之——投影機之預設，須臾不可停者，賴乎此。</li>
@@ -250,7 +258,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
       <li>安 JCM Yanyang 與 MTR，置資源包於 <code>resourcepacks/</code> 而啟之（或以內建之資源，隨存檔而散之）。</li>
       <li>置所應之方塊（PIDS 之屬），於其配置中擇君之腳本，或使宣告之條生效。</li>
       <li>啟 <code>logs/latest.log</code> 而索 <code>native script</code>——模組方載，必印模塊 census 之概：模塊幾何，腳本何類，傳輸何道，具列焉。得見君之 <code>example:arrivals</code>，則載入成矣。</li>
-      <li>庫文件既改，按 <strong>F3+T</strong> 重載資源包，C++ 腳本隨之而新（或以模組所供「重載全部 MTR 腳本」之快捷鍵），無須重啟遊戲也。</li>
+      <li>庫文件既改，按 <strong>F3+T</strong> 重載資源包，C++ 腳本隨之而新（或以模組所供「重載全部 MTR 腳本」之快捷鍵），無須重啟遊戲也；開發之期，亦可啟<strong>原生熱重載</strong>（<code>scripting.nativeHotReload</code> 配置，預設關）——新庫既拷入，同款重載自發焉，見 <a href="performance.html#hotreload">疾徐與除錯</a>。</li>
     </ol>
     <div class="admonition danger">
       <span class="admonition-title">切記</span>
@@ -258,7 +266,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
     </div>
 
     <hr>
-    <p>繼之：<a href="script-model.html">腳本體例與生命週期</a> —— 四類腳本完備之義；或徑往<a href="data.html">數據快照</a>，閱可讀之數據。</p>
+    <p>繼之：<a href="script-model.html">腳本體例與生命週期</a> —— 八類腳本完備之義；或徑往<a href="data.html">數據快照</a>，閱可讀之數據。</p>
   </article>
 
   <footer class="footer">
@@ -267,7 +275,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可省：行 SD
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

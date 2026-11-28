@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -162,6 +162,14 @@ ctx.draw_model(model_handle, &amp;m);                   // 裝飾 / 電梯</code
       </tbody>
     </table>
     <p>車輛上下文別具三法：<code>draw_bogie_model(model, car, bogie, matrices)</code> 司轉向架，<code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> 司聲，<code>play_ann_sound(sound, volume, pitch)</code> 司報站之廣播（惟乘者聞之）。</p>
+    <h3>模型之染色 / 發光 / 半透明（ABI 16）</h3>
+    <p>模型記錄之尾，新增 ARGB <code>tint</code>（<code>JcmDrawModel</code> 24 → 28 位元組），暨新誌二枚：曰 <code>MTR_RECORD_FLAG_EMISSIVE</code>（全亮而繪——夜之車頭燈、發光之誌，同裝飾 fullBrightness），曰 <code>MTR_RECORD_FLAG_TRANSLUCENT</code>（半透明材質之通道——車窗之璃；alpha &lt; 0xFF 者自啟）。車輛之側，經 <code>ModelStyle</code> 鏈式而傳：</p>
+    <pre><code class="lang-cpp">ctx.draw_car_model(model, car, mats,
+                   mtr::VehicleContext::ModelStyle()
+                       .tint(0x80FF8000)   // 半透明橙色之染
+                       .emissive()          // 全亮（車頭燈之璃）
+                       .translucent());     // 半透明之通道</code></pre>
+    <p>裝飾 / 道口 / 售檢票機上下文帶參之變體：<code>ctx.draw_model(model, matrices, tint_argb, emissive, translucent)</code>（道口警示之燈 emissive、燈罩之璃 translucent＋alpha 染色；售檢票機屏之發光 emissive、璃罩 translucent）。<code>draw_bogie_model</code> 亦有同款帶 <code>ModelStyle</code> 之重載。宿主按材質級之副本緩存染色之變體（式樣既換，惟一建耳，原模不受其擾）；<strong>ABI ≤ 15 模塊之 24 位元組記錄，仍如其舊而繪</strong>（宿主按 <code>record_size</code> 之步而歷，<code>tint</code> 惟於 ≥ 28 乃讀之）。</p>
     <p>模型之柄，出自宿主之服務：<code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> 以取之，<code>release_model(user, handle)</code> 以縱之；<code>acquire_quad_model(...)</code> 則以模型空間之頂點四＋UV，構宿主所持之貼圖面片（化 <code>GraphicsTexture</code> 為可貼車廂之屏）。其細務見 <a href="abi.html">C ABI 與宿主服務</a>。</p>
 
     <h2 id="texture2d">GraphicsTexture（像素畫布）</h2>
@@ -246,7 +254,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

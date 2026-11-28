@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -73,6 +73,7 @@
         <li><a href="#model">疾徐之模型</a></li>
         <li><a href="#rules">熱路徑守則</a></li>
         <li><a href="#memory">記憶體與延遲回收</a></li>
+        <li><a href="#hotreload">熱重載（改 C++ 而不重啟遊戲）</a></li>
         <li><a href="#observe">觀測與日誌</a></li>
         <li><a href="#flags">JVM 參數</a></li>
         <li><a href="#faq">常見之問</a></li>
@@ -111,6 +112,9 @@
       <li><strong>大塊之釋，行乎 <code>defer_free</code></strong>（ABI 10）：<code>render</code> / <code>dispose</code> 之內既死之兆級緩衝，付諸宿主後臺回收之線程——免 <code>free</code> 之全費累乎當前之幀，且免大 GC 安全點之待。其約曰：塊必既死，必無析構，此後必無線程（宿主回放亦在數焉）復觸之。SDK 像素之區之收縮，已自遵之；君自有之大緩衝，循同規而呼 <code>host-&gt;defer_free</code> 可也；宿主過舊（其槽為 null）者，同步 free 亦可。</li>
     </ul>
 
+    <h2 id="hotreload">熱重載（改 C++ 而不重啟遊戲）</h2>
+    <p>原生腳本熱重載者，<code>scripting.nativeHotReload</code> 配置之所司也（<strong>預設關</strong>；Mod 選單 → Joban Client Mod Config → Scripting）。既啟，低頻守護之線程（二秒）為 <code>resourcepacks/</code> 與開發目錄 <code>resources/</code> 取指紋（名＋mtime＋大小之多重集）；凡有所變（重編之 <code>.so</code> 拷入、<code>.js</code> 之修、整包之易），經一秒去抖，於客戶端線程觸發一遭與 F3+T 全同之腳本重載（關模塊 → <code>mtrCleanup</code> → 重開 → 下幀 <code>mtrInit</code> 復入）。其工之流曰：<strong>重編模塊 → 拷入 <code>resourcepacks/</code> → 自動重載</strong>，無須離乎遊戲。已載 native 模塊與 JS 腳本俱無之時，則空轉而過；預設所以關者，懼編輯器自動存檔攜不虞重載之頓也。</p>
+
     <h2 id="observe">觀測與日誌</h2>
     <table>
       <thead><tr><th>所觀</th><th>所在</th><th>內容</th></tr></thead>
@@ -120,9 +124,10 @@
         <tr><td>崩潰防護</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模塊見禁之確由</td></tr>
         <tr><td>清掃之流</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏之彙錄，實例壽命之行，得以徑觀焉</td></tr>
         <tr><td>上傳位元組之數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>於君之碼中誌之——髒矩形之策效否，一覽而知</td></tr>
+        <tr><td>除錯覆層之疾徐面板（原生之區）</td><td>F3 除錯覆層原生腳本之區（ABI 16 所擴）</td><td>彙總之行：原生 <code>mtrRender</code> 毫秒/秒、渲染呼數/秒、<strong>宿主跨越數/秒</strong>（C++→Java upcall：模型之取、字體之柵、資源之建、像素之上傳）與快照封送位元組/秒；逐模塊平均渲染之時（<code>avg X.XX ms</code>）。計數無鎖而原子累之——腳本作者由是可知頓挫出於腳本自身，抑或宿主之往返也</td></tr>
       </tbody>
     </table>
-    <p>庫既改矣，按 <strong>F3+T</strong>（或模組「重載全部 MTR 腳本」之快捷鍵），即可重載 C++ 腳本——卸載與復尋，皆行乎全程，無須重啟遊戲也。</p>
+    <p>庫既改矣，按 <strong>F3+T</strong>（或模組「重載全部 MTR 腳本」之快捷鍵），即可重載 C++ 腳本——卸載與復尋，皆行乎全程，無須重啟遊戲也；熱重載既啟（見上），並 F3+T 亦無須按焉。</p>
 
     <h2 id="flags">JVM 參數</h2>
     <table>
@@ -141,7 +146,7 @@
       <li>先察所用者，<strong>Release 之 jar 抑 Complete Build 之 jar</strong>——速成 CI 之產物，不含原生橋，日誌必書 <code>native bridge unavailable</code>（非君模塊之咎也）。</li>
       <li>次察平臺之目：當前系統，惟載所應平臺之庫；無副檔名之 stem 宣告，自展為諸平臺之路（見<a href="getting-started.html#package">打包</a>）。</li>
       <li>復察 <code>ID</code> 與宣告條目之 <code>id</code>，逐字相合否。</li>
-      <li>終察 ABI：宿主所受，6 至 11 也；ABI 8+ 之庫，須 2.3.0-beta-2.yanyang.7 及以上之宿主。</li>
+      <li>終察 ABI：宿主所受，6 至 16 也；ABI 8+ 之庫，須 2.3.0-beta-2.yanyang.7 及以上之宿主；ABI 16 之庫，須 2.3.0-1.0.2-beta.2 及以上之宿主。</li>
     </ol>
     <h3>屏現占位之框（tofu），何也？</h3>
     <p>CJK 字形，宿主字體不覆其碼位，則退為占位之框——以資源字體之 id，傳於 <code>Text::font()</code> 與 <code>Gfx2D</code> 之構造（如 <code>jsblock:shanghai</code>），或察所用字體之集，果含此諸字否。</p>
@@ -164,7 +169,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -161,6 +161,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>Timing.delta()</code></td><td><code>api.root("Timing").call("delta").as&lt;double&gt;()</code></td></tr>
         <tr><td><code>array.length</code> / <code>array[i]</code></td><td><code>array.call("length")</code> / <code>array.call("get", {i})</code></td></tr>
         <tr><td><code>include(...)</code></td><td>C++ 編譯期 <code>#include</code></td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code>——腳本資料儲存（見下節）</td></tr>
       </tbody>
     </table>
     <p>AWT 類別用完整限定名稱：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 的公開欄位 <code>graphics</code> / <code>bufferedImage</code> 暴露真實 Java2D 物件。資源路徑解析：<code>Resources.idr</code> 按本模組的宣告路徑解析（多程式庫宣告時各用各的）；<code>Resources.manager()</code> 與 JS 在 MTR 4 上一樣為 null。上游 v2.3.0-prerelease.2 新增的成員——<code>Resources.id(id, suffix)</code> 拼接形式、<code>Resources.mgr()</code> 別名（ANTE 資源包相容）、<code>VanillaText.withFont(String)</code> 等字串參數變體——經同一 JSON-RPC 通道開箱可用。上游文件標註為未實作的能力（車輛連接件的 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>）本模組同樣不虛構行為。</p>
@@ -188,6 +189,18 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
     </ul>
 
     <h2 id="coverage">覆蓋範圍</h2>
+    <h3>腳本資料儲存（C++ 無需新 ABI）</h3>
+    <p><code>ctx.getDataStore()</code> 傳回按<strong>腳本 id</strong> 作用域、跨遊戲重新啟動持久化嘅 JSON 鍵值儲存物件；C++ 側經既有反射橋取得<strong>同一儲存物件</strong>，與 JS 共享同一份資料（無任何新 ABI）：</p>
+    <pre><code class="lang-cpp">mtr::Api api(ctx.input());
+mtr::Api::Object store = api.context().call("getDataStore");
+double counted = store.call("getNumber", {"trains.counted", 0.0}).as&lt;double&gt;();
+store.call("set", {"trains.counted", counted + 1});
+const std::string dest = store.call("getString", {"last.destination", ""}).as&lt;std::string&gt;();
+bool known = store.call("has", {"setup.done"}).as&lt;bool&gt;();
+store.call("delete", {"last.destination"});</code></pre>
+    <p>成員、容量上限與落盤語義詳見 <a href="js-yanyang.html#datastore">晏陽擴展 · 腳本資料儲存</a>；按實例區分嘅狀態用包裝器已暴露嘅實例標識（如 <code>psd.block_pos(i)</code>）作鍵前綴。類快門預設放行 <code>com.lx862.mtrscripting.core.util.*</code>，腳本受限模式下可正常使用。</p>
+    <h3>公共擴展點（供其他 mod 呼叫）</h3>
+    <p><code>com.lx862.jcm.nativeapi.NativeSignalState.set(vehicleId, state)</code>——信號 mod（mtr-nte 橋接等）向 C++ 腳本供給車輛前方信號狀態嘅公共入口：每 tick 推送即可（0 unknown / 1 clear / 2 caution / 3 danger；750ms 無更新自動降級 unknown）。JCM 與信號 mod 互無編譯期依賴——這是宿主側擴展點而非 <code>Api</code> 通道。</p>
     <p>常用 API 面：console、Resources、<code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>、<code>Vector3f</code>、<code>Matrices</code>、<code>GraphicsTexture</code> 與 Java2D、<code>RenderManager / QuadDrawCall</code>、<code>SoundManager / TickableSoundInstance</code>、<code>MinecraftClient</code>、<code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>、<code>Files</code>、<code>Networking</code>、<code>BackgroundWorker</code>、<code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>、<code>DataReader</code>、<code>MTRClientData</code>、TSC 資料類別與 <code>DisplayHelper</code>。PIDS / 裝飾 / 車輛的可呼叫成員清單記錄在儲存庫的 <code>bench/api-coverage.json</code>，電梯以其 Java 包裝器為準。</p>
     <p>編譯後可對照真實 MTR jar 稽核你的呼叫面：</p>
     <pre><code class="lang-bash">python native/bench/api_coverage.py \
@@ -208,7 +221,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 13（2.3.0-1.0.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 16（2.3.0-1.0.2-beta.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

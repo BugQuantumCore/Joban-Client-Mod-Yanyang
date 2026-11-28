@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -83,8 +83,8 @@
     <table>
       <thead><tr><th>導出</th><th>釋義</th></tr></thead>
       <tbody>
-        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>返編譯時之 ABI 版本（今為 13）；宿主拒不相容之版——與 JCM 於 JS 腳本版本失配之重載策同也</td></tr>
-        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code></td></tr>
+        <tr><td><code>uint32_t mtrNativeAbiVersion()</code></td><td>返編譯時之 ABI 版本（今為 16）；宿主拒不相容之版——與 JCM 於 JS 腳本版本失配之重載策同也</td></tr>
+        <tr><td><code>const char* mtrScriptType()</code></td><td><code>"vehicle"</code> / <code>"pids"</code> / <code>"eyecandy"</code> / <code>"lift"</code> / <code>"psd"</code> / <code>"level_crossing"</code> / <code>"fare_machine"</code> / <code>"announcement"</code>（後三類自 ABI 16 而起）</td></tr>
         <tr><td><code>const char* mtrScriptId()</code></td><td>腳本之 id（須與資源包宣告相符）</td></tr>
         <tr><td><code>size_t mtrStateSize()</code></td><td>逐實例狀態塊之大小；宿主為每實例配一塊</td></tr>
         <tr><td><code>void mtrInit(const JcmFrameInput*)</code></td><td>宿主甫配狀態之塊，即此一呼，以 placement-new 構 <code>State</code>（ABI 6 而後所必需；宿主設或漏呼，模塊則惰性構造以兜其底）</td></tr>
@@ -119,13 +119,13 @@
     <p>ABI 9 而後，輸出併給各區之<strong>完備容量</strong>——宿主為每區惟建一 <code>ByteBuffer</code>，每幀改其 limit 而復用之，不復逐幀而配五包裝之物。</p>
 
     <h2 id="records">繪製記錄</h2>
-    <p>每記錄以 <code>JcmRecordHeader{kind, flags, record_size}</code> 為首，變長而順列。<code>flags</code> 載記錄級之開關：今所定者，惟 <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code>（Text / Texture / Rect 之 <code>natural_light()</code>——取世間之光照，不用至亮之渲染光）。斯位元組者，舊 padding 就地升格而為之：舊 SDK 所編之模塊恆書 0，舊宿主置之不問——<strong>雙向二進制相容，不升 ABI 之版</strong>。凡八類：</p>
+    <p>每記錄以 <code>JcmRecordHeader{kind, flags, record_size}</code> 為首，變長而順列。<code>flags</code> 載記錄級之開關：曰 <code>MTR_RECORD_FLAG_NATURAL_LIGHT</code>（Text / Texture / Rect 之 <code>natural_light()</code>——取世間之光照，不用至亮之渲染光），曰 ABI 16 所增之 <code>MTR_RECORD_FLAG_EMISSIVE</code> / <code>MTR_RECORD_FLAG_TRANSLUCENT</code>（模型記錄全亮 / 半透明之通道，見下）。斯位元組者，舊 padding 就地升格而為之：舊 SDK 所編之模塊恆書 0，舊宿主置之不問——<strong>雙向二進制相容，不升 ABI 之版</strong>。凡八類：</p>
     <table>
       <thead><tr><th>kind</th><th>結構</th><th>所用 / 所映之 JS 呼</th></tr></thead>
       <tbody>
         <tr><td><code>JCM_DRAW_TEXT</code></td><td><code>JcmDrawText</code></td><td>PIDS / 通用文字（<code>TextWrapper</code> 欄位逐一相準：對齊、溢出之式、跑馬燈、z 序、層、字體 id）</td></tr>
         <tr><td><code>JCM_DRAW_TEXTURE</code></td><td><code>JcmDrawTexture</code></td><td>貼圖面片（UV、染色、z 序）</td></tr>
-        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>車輛車廂 / 轉向架 / 裝飾模型（宿主模型之柄＋姿態矩陣組）</td></tr>
+        <tr><td><code>JCM_DRAW_MODEL</code></td><td><code>JcmDrawModel</code></td><td>車輛車廂 / 轉向架 / 裝飾模型（宿主模型之柄＋姿態矩陣組）。ABI 16 而後，尾增 ARGB <code>tint</code> 之欄（24 → 28 位元組），以配 <code>MTR_RECORD_FLAG_EMISSIVE</code>（全亮而繪）與 <code>MTR_RECORD_FLAG_TRANSLUCENT</code>（半透明之通道）：宿主按 <code>record_size</code> 之步而歷之；ABI ≤ 15 模塊之 24 位元組記錄，仍如其舊而繪</td></tr>
         <tr><td><code>JCM_DRAW_SOUND</code></td><td><code>JcmDrawSound</code></td><td>定位之音效（車廂局部坐標之偏）</td></tr>
         <tr><td><code>JCM_DRAW_LOCAL_SOUND</code></td><td><code>JcmDrawSound</code></td><td>報站廣播（惟乘者所聞）</td></tr>
         <tr><td><code>JCM_DRAW_TEXTURE_UPLOAD</code></td><td><code>JcmDrawTextureUpload</code></td><td><code>GraphicsTexture</code> 像素上傳（BGRA8＋髒矩形）</td></tr>
@@ -152,7 +152,7 @@
     </table>
 
     <h2 id="history">ABI 版本沿革</h2>
-    <p>宿主所受，<strong>ABI 6–13</strong> 之模塊（各按其時代之布局而餵之，報其自家之 ABI 號）。以今 SDK 編譯，所出即 ABI 13：</p>
+    <p>宿主所受，<strong>ABI 6–16</strong> 之模塊（各按其時代之布局而餵之，報其自家之 ABI 號）。以今 SDK 編譯，所出即 ABI 16：</p>
     <table>
       <thead><tr><th>ABI</th><th>所引入者</th></tr></thead>
       <tbody>
@@ -164,6 +164,9 @@
         <tr><td>11</td><td>車輛快照之 <code>door_direction</code>（開門之向，0..3 —— 舊 <code>_pad0</code> 之位元組升格而為之，布局尺寸皆如其舊，老模塊行如故）</td></tr>
         <tr><td>12</td><td><code>MTR_RESOURCE_PSD</code>（腳之第五類）暨 <code>JcmPsdSnapshot</code> / <code>JcmPsdArrival</code> / <code>JcmPsdRoute</code> / <code>JcmPsdDoor</code> 諸快照——純為增補，舊構一無所改；<strong>ABI 12 之庫，須晏陽 hotfix.2 以上之宿主</strong></td></tr>
         <tr><td>13</td><td><code>JcmPsdSnapshot.station_offset</code>（位元組之偏 124；<code>-1</code> 者無也——此欄於 ABI 12 猶填補之位）暨其後九十六位元組 <code>JcmPsdStation</code> 之記，以承 <code>psd.stop()</code> / <code>mtr::Psd::stop()</code>：站名、其色（ARGB 及十六進位）、價區一至三、泊此站站諸線、鄰站線之分群、實體相通之站名、出口與所往、站台之號——純為增補，舊構一無所改；<strong>ABI 6–12 之模塊，照常載之</strong></td></tr>
+        <tr><td>14</td><td><code>JcmStop</code> 停靠之狀與車站之暫緩開通（方速 RouteStopStatus 之式）：每條泊記之舊 <code>_pad0[2]</code> 升格為 <code>stop_status</code>（0 normal / 1 disabled / 2 skipped）與 <code>station_deferred</code>——純反射軟依：無方速，則恆 normal / 非暫緩（與既有之答，逐位元組相合）。C++：<code>stop.stopStatus()</code> / <code>getStopStatus()</code> / <code>isStationDeferred()</code> / <code>isDeferredStop()</code></td></tr>
+        <tr><td>15</td><td>天氣之位元組：車輛 / PIDS / 電梯 / 裝飾諸快照，各升一填補之位為 <code>weather</code>（0 clear / 1 rain / 2 thunder）；惟一無空位元組者，<code>JcmPsdSnapshot</code> 也——首部 128 → 136，天氣居 128（ABI 12–14 之模塊惟讀偏 &lt; 128，不受其擾）。C++：五類包裝器一律 <code>weather()</code> / <code>getWeather()</code>，與 JS 側 <code>getWeather()</code> 所返全同</td></tr>
+        <tr><td>16</td><td>方速快車 / 隱藏之線之誌（<code>JcmArrival.flags</code> @59、<code>JcmPsdRoute.route_flags</code> @13、<code>JcmVehicleSnapshot.service_flags</code> @166——bit0 快車、bit1 隱藏之線）；車輛號誌之狀 <code>signal_state</code> @167（0 unknown / 1 clear / 2 caution / 3 danger，經 <code>NativeSignalState.set(vehicleId, state)</code> 公共擴展之點而供之）；模型記錄之染色（24 → 28 位元組＋<code>tint</code> 與 EMISSIVE / TRANSLUCENT 二誌，見「繪製記錄」）；三新腳本之類（<code>MTR_RESOURCE_LEVEL_CROSSING</code>=5 / <code>FARE_MACHINE</code>=6 / <code>ANNOUNCEMENT</code>=7）暨 <code>JcmLevelCrossingSnapshot</code>（72）/ <code>JcmCrossingApproach</code>（64）/ <code>JcmFareMachineSnapshot</code>（96）/ <code>JcmAnnouncementSnapshot</code>（88）——皆純增補：此四處，皆 ABI ≤ 15 布局中書零而未嘗一讀之填補也</td></tr>
       </tbody>
     </table>
     <div class="admonition warn">
@@ -184,7 +187,7 @@
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

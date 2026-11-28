@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -160,6 +160,14 @@ ctx.draw_model(model_handle, &amp;m);                   // 装饰 / 电梯</code
       </tbody>
     </table>
     <p>车辆上下文另有 <code>draw_bogie_model(model, car, bogie, matrices)</code>（转向架）、<code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> 与 <code>play_ann_sound(sound, volume, pitch)</code>（仅乘坐玩家可闻的报站广播）。</p>
+    <h3>模型着色 / 发光 / 半透明（ABI 16）</h3>
+    <p>模型记录尾部新增 ARGB <code>tint</code>（<code>JcmDrawModel</code> 24 → 28 字节）与两个新记录标志：<code>MTR_RECORD_FLAG_EMISSIVE</code>（全亮绘制——夜间车头灯、发光标志，同装饰物 fullBrightness）、<code>MTR_RECORD_FLAG_TRANSLUCENT</code>（半透明材质通道——车窗玻璃；alpha &lt; 0xFF 自动启用）。车辆侧经 <code>ModelStyle</code> 链式传参：</p>
+    <pre><code class="lang-cpp">ctx.draw_car_model(model, car, mats,
+                   mtr::VehicleContext::ModelStyle()
+                       .tint(0x80FF8000)   // 半透明橙色染色
+                       .emissive()          // 全亮（车头灯玻璃）
+                       .translucent());     // 半透明通道</code></pre>
+    <p>装饰物 / 道口 / 售检票机上下文的带参变体：<code>ctx.draw_model(model, matrices, tint_argb, emissive, translucent)</code>（道口警示灯 emissive、灯罩玻璃 translucent + alpha 染色；售检票机屏幕发光 emissive、玻璃罩 translucent）。<code>draw_bogie_model</code> 同款带 <code>ModelStyle</code> 的重载。宿主按材质级副本缓存着色变体（样式切换仅重建一次，原模型不受影响）；<strong>ABI ≤ 15 模块的 24 字节记录继续按原样渲染</strong>（宿主按 <code>record_size</code> 步进，<code>tint</code> 仅在 ≥ 28 时读取）。</p>
     <p>模型句柄来自宿主服务：<code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> 获取、<code>release_model(user, handle)</code> 释放；<code>acquire_quad_model(...)</code> 可用 4 个模型空间顶点 + UV 构建宿主持有的贴图面片（把 <code>GraphicsTexture</code> 变成可贴到车厢上的屏幕）。细节见 <a href="abi.html">C ABI 与宿主服务</a>。</p>
 
     <h2 id="texture2d">GraphicsTexture（像素画布）</h2>
@@ -244,7 +252,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-1.0.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 16（2.3.0-1.0.2-beta.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

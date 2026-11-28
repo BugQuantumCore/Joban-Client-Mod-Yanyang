@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -160,6 +160,14 @@ ctx.draw_model(model_handle, &amp;m);                   // Eyecandy / lift</code
       </tbody>
     </table>
     <p>The vehicle context additionally offers <code>draw_bogie_model(model, car, bogie, matrices)</code> (bogies), <code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> and <code>play_ann_sound(sound, volume, pitch)</code> (the in-car announcement, audible only to riding players).</p>
+    <h3>Model tint / emissive / translucent (ABI 16)</h3>
+    <p>Model records gain a trailing ARGB <code>tint</code> (<code>JcmDrawModel</code> 24 → 28 bytes) plus two new record flags: <code>MTR_RECORD_FLAG_EMISSIVE</code> (full-brightness drawing—night headlights, lit signs, same as eyecandy fullBrightness) and <code>MTR_RECORD_FLAG_TRANSLUCENT</code> (the translucent material channel—window glass; alpha &lt; 0xFF enables it automatically). On the vehicle side the parameters are chained through <code>ModelStyle</code>:</p>
+    <pre><code class="lang-cpp">ctx.draw_car_model(model, car, mats,
+                   mtr::VehicleContext::ModelStyle()
+                       .tint(0x80FF8000)   // semi-transparent orange tint
+                       .emissive()          // full brightness (headlight glass)
+                       .translucent());     // translucent channel</code></pre>
+    <p>The parameterised variant for the eyecandy / level-crossing / fare-machine contexts: <code>ctx.draw_model(model, matrices, tint_argb, emissive, translucent)</code> (level-crossing warning lamps emissive, lamp glass translucent + alpha tinting; fare-machine screens emissive, glass covers translucent). <code>draw_bogie_model</code> has the same <code>ModelStyle</code>-taking overload. The host caches tinted variants per material (a style change rebuilds them just once; the original model is untouched); <strong>the 24-byte records of ABI ≤ 15 modules keep rendering byte for byte as before</strong> (the host walks in <code>record_size</code> steps and reads <code>tint</code> only when it is ≥ 28).</p>
     <p>Model handles come from the host services: <code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> acquires one, <code>release_model(user, handle)</code> releases it; <code>acquire_quad_model(...)</code> builds a host-owned textured quad from 4 model-space vertices + UVs (turning a <code>GraphicsTexture</code> into a screen you can stick onto a car). See <a href="abi.html">C ABI and host services</a> for the details.</p>
 
     <h2 id="texture2d">GraphicsTexture (pixel canvas)</h2>
@@ -244,7 +252,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

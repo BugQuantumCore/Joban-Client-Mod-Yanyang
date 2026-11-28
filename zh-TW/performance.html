@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -71,6 +71,7 @@
         <li><a href="#model">效能模型</a></li>
         <li><a href="#rules">熱路徑守則</a></li>
         <li><a href="#memory">記憶體與延遲回收</a></li>
+        <li><a href="#hotreload">熱重載（改 C++ 不重新啟動遊戲）</a></li>
         <li><a href="#observe">觀測與日誌</a></li>
         <li><a href="#flags">JVM 參數</a></li>
         <li><a href="#faq">常見問題</a></li>
@@ -109,6 +110,9 @@
       <li><strong>大塊釋放走 <code>defer_free</code></strong>（ABI 10）：在 <code>render</code> / <code>dispose</code> 裡死亡的上百萬位元組緩衝交給宿主背景回收執行緒，避免把 <code>free</code> 的全部成本計到目前幀、並放大 GC 安全點等待。契約：區塊必須已死、無解構、此後無任何執行緒（含宿主回放）再碰觸。SDK 的像素記憶體區收縮已自動遵守；你自己的大緩衝按同樣規則呼叫 <code>host-&gt;defer_free</code>，宿主過舊（槽位為 null）時同步 free 即可。</li>
     </ul>
 
+    <h2 id="hotreload">熱重載（改 C++ 不重新啟動遊戲）</h2>
+    <p>原生腳本熱重載由 <code>scripting.nativeHotReload</code> 設定開關（<strong>預設關</strong>，Mod 選單 → Joban Client Mod Config → Scripting）。開啟後低頻守護執行緒（2 秒）對 <code>resourcepacks/</code> 與開發目錄 <code>resources/</code> 做指紋（名稱 + mtime + 大小多重集）；任何變更（重新編譯的 <code>.so</code> 拷入、<code>.js</code> 編輯、整包替換）經 1 秒去抖後在用戶端執行緒觸發一次與 F3+T 完全相同的腳本重新載入（關模組 → <code>mtrCleanup</code> → 重開 → 下幀 <code>mtrInit</code> 重入）。工作流程：<strong>重新編譯模組 → 拷進 <code>resourcepacks/</code> → 自動重新載入</strong>，無需離開遊戲。無任何已載入 native 模組與 JS 腳本時空轉跳過；預設關閉是為避免編輯器自動存檔帶來非預期的重新載入卡頓。</p>
+
     <h2 id="observe">觀測與日誌</h2>
     <table>
       <thead><tr><th>看什麼</th><th>在哪裡</th><th>內容</th></tr></thead>
@@ -118,9 +122,10 @@
         <tr><td>崩潰防護</td><td>latest.log</td><td><code>native script faulted: code=… module disabled</code>——模組被停用的精確原因</td></tr>
         <tr><td>清掃流量</td><td>latest.log（每分鐘一行）</td><td>實例銷毀節奏的彙總日誌，可直接觀測實例壽命行為</td></tr>
         <tr><td>上傳位元組數</td><td><code>GraphicsTexture::last_upload_bytes()</code></td><td>在你的程式碼裡打點：髒矩形策略是否奏效一目瞭然</td></tr>
+        <tr><td>除錯覆蓋層效能面板（原生區）</td><td>F3 除錯覆蓋層的原生腳本區（ABI 16 擴充）</td><td>彙總行：原生 <code>mtrRender</code> 毫秒/秒、渲染呼叫數/秒、<strong>宿主跨越次數/秒</strong>（C++→Java upcall：模型取得、字型光柵化、資源建立、像素上傳）與快照封送位元組/秒；逐模組平均渲染耗時（<code>avg X.XX ms</code>）。計數器無鎖原子累計——腳本作者由此可定位卡頓來自腳本本身還是宿主往返</td></tr>
       </tbody>
     </table>
-    <p>改完程式庫按 <strong>F3+T</strong>（或模組的「重新載入全部 MTR 腳本」快速鍵）即可重新載入 C++ 腳本——卸載與重新探索走完整流程，無需重新啟動遊戲。</p>
+    <p>改完程式庫按 <strong>F3+T</strong>（或模組的「重新載入全部 MTR 腳本」快速鍵）即可重新載入 C++ 腳本——卸載與重新探索走完整流程，無需重新啟動遊戲；開著熱重載（見上）時連 F3+T 都不用按。</p>
 
     <h2 id="flags">JVM 參數</h2>
     <table>
@@ -139,7 +144,7 @@
       <li>確認用的是 <strong>Release 或 Complete Build jar</strong>——快速 CI 產物不含原生橋，日誌會寫 <code>native bridge unavailable</code>（這不是你的模組的問題）。</li>
       <li>查平台目錄：目前系統只會載入對應平台的程式庫；無副檔名的 stem 宣告會自動展開為各平台路徑（見<a href="getting-started.html#package">打包</a>）。</li>
       <li>查 <code>ID</code> 與宣告條目的 <code>id</code> 是否逐字一致。</li>
-      <li>查 ABI：宿主接受 6–11；ABI 8+ 程式庫需要 2.3.0-beta-2.yanyang.7 及以上宿主。</li>
+      <li>查 ABI：宿主接受 6–16；ABI 8+ 程式庫需要 2.3.0-beta-2.yanyang.7 及以上宿主，ABI 16 程式庫需要 2.3.0-1.0.2-beta.2 及以上宿主。</li>
     </ol>
     <h3>螢幕出現佔位方框（tofu）？</h3>
     <p>CJK 字形在宿主字型未涵蓋該碼點時退化——給 <code>Text::font()</code> / <code>Gfx2D</code> 建構子傳資源字型 id（如 <code>jsblock:shanghai</code>），或檢查所用字型集是否包含這些字元。</p>
@@ -162,7 +167,7 @@
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">效能與除錯</a>
     </div>
-    JCM Yanyang 腳本文件 · 對應 SDK ABI 13（2.3.0-1.0.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
+    JCM Yanyang 腳本文件 · 對應 SDK ABI 16（2.3.0-1.0.2-beta.2）· 與儲存庫 <code>native/README.md</code> 同步維護  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

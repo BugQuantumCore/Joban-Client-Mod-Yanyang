@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Instantanés de données — Documentation JCM Yanyang Scripting</title>
-<meta name="description" content="Référence complète des accesseurs des enveloppes d’instantané Vehicle / Stop / Arrival / Pids / Lift / EyeCandy.">
+<meta name="description" content="Référence complète des accesseurs des enveloppes d’instantané Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / LevelCrossing / FareMachine / Announcement.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -76,6 +76,8 @@
         <li><a href="#psd">Psd (portes palières)</a></li>
         <li><a href="#lift">Lift (ascenseur)</a></li>
         <li><a href="#eyecandy">EyeCandy (décoration)</a></li>
+        <li><a href="#weather">Météo (ABI 15)</a></li>
+        <li><a href="#blocks">Passage à niveau / automate de billetterie / annonce (ABI 16)</a></li>
         <li><a href="#helpers">Types utilitaires</a></li>
       </ol>
     </div>
@@ -117,6 +119,9 @@
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>nom de la ligne courante / couleur ARGB / état de ligne circulaire (0 aucune, 1 sens horaire, 2 sens antihoraire)</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>voir <a href="#transport">Modes et types de transport</a></td></tr>
         <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>Sens d’ouverture des portes : <code>NOT</code> / <code>"not"</code> (aucun côté), <code>LEFT</code> / <code>"left"</code> (gauche par rapport à la tête), <code>RIGHT</code> / <code>"right"</code> (droite), <code>ALL</code> / <code>"all"</code> (deux côtés). À quai, la valeur est identique quel que soit le stade des portes (pas encore ouvertes, partielles, en fermeture, fermées) ; sur la ligne, elle prédit le prochain arrêt — en positionnant le véhicule à son point d’arrêt et en y appliquant, voiture par voiture, la même analyse de blocs <code>canOpenDoors</code> que MTR. La prédiction privilégie la <strong>mémoire persistante côté serveur, par ligne</strong> (persistée avec la sauvegarde lorsque le serveur exécute ce mod — valable au-delà de la distance de rendu, actualisée incrémentiellement à chaque modification de bloc de quai) ; sans réponse du serveur, elle revient au balayage client limité à la distance de rendu. Une seule voiture ouvrable suffit à marquer tout son côté comme ouvrable ; gauche/droite se rapportent à la tête du véhicule (extrémité bogie-1) — le sens de marche comme la marche arrière ne les inversent jamais. Purement indicative — MTR reste seul maître des portes réellement ouvertes. Identique au JS <code>vehicle.getDirectionOfDoorOpening()</code> (ABI 11)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code></td><td><code>Weather</code> / <code>StrView</code></td><td>météo du monde côté client (ABI 15) : <code>CLEAR</code> / <code>"clear"</code>, <code>RAIN</code> / <code>"rain"</code>, <code>THUNDER</code> / <code>"thunder"</code> — retour rigoureusement identique au JS <code>vehicle.getWeather()</code> ; sans monde, la valeur reste clear. Champ d’instantané <code>weather</code> (décalage 165, ancien <code>_pad1[0]</code>). Voir <a href="#weather">Météo</a></td></tr>
+        <tr><td><code>isExpressService()</code> / <code>isHiddenRoute()</code> / <code>serviceFlags()</code></td><td><code>bool</code> / <code>uint8_t</code></td><td>indicateurs de service FangSu (ABI 16) : prochain arrêt desservi en express (bit0) / ligne courante uniquement présente dans le cache de lignes masquées de FangSu (bit1) ; sans FangSu, la valeur reste 0 — la réponse habituelle, ni express ni masquée. Champ d’instantané <code>service_flags</code> (décalage 166, ancien <code>_pad1[1]</code>). Comparez aux constantes <code>mtr::service_flags::EXPRESS</code> / <code>HIDDEN_ROUTE</code></td></tr>
+        <tr><td><code>signalState()</code> / <code>getSignalState()</code></td><td><code>SignalState</code> / <code>StrView</code></td><td>état du signal devant le véhicule (ABI 16) : <code>UNKNOWN</code> / <code>"unknown"</code>, <code>CLEAR</code> / <code>"clear"</code>, <code>CAUTION</code> / <code>"caution"</code>, <code>DANGER</code> / <code>"danger"</code> — fourni par l’hôte via le point d’extension public <code>NativeSignalState.set(vehicleId, state)</code> (poussé chaque tick par le mod de signalisation ; sans mise à jour pendant 750 ms, retombe automatiquement en unknown) ; sans fournisseur, la valeur reste unknown. Champ d’instantané <code>signal_state</code> (décalage 167, ancien <code>_pad1[2]</code>)</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>nom affiché de la voie de garage (nom / description personnalisés par l’utilisateur)</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>instantané brut (détails ABI dans <a href="abi.html">ABI C</a>)</td></tr>
       </tbody>
@@ -157,6 +162,8 @@
         <tr><td><code>route_circular_state()</code></td><td>état de ligne circulaire de la ligne de rattachement de la station (distingue les changements de sens après changement de ligne)</td></tr>
         <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>informations de correspondance : chacune contient <code>color</code> (ARGB), <code>name</code> (nom de ligne), <code>getTransportMode()</code>, <code>getTransportType()</code></td></tr>
         <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>sorties de la station : chacune contient <code>name</code> (lettre de la sortie, par ex. <code>"A"</code>) et <code>destination(j)</code> (liste de chaînes de points de repère)</td></tr>
+        <tr><td><code>stopStatus()</code> / <code>getStopStatus()</code></td><td>statut d’arrêt (ABI 14, modèle d’ouverture différée de FangSu) : <code>NORMAL</code> / <code>"normal"</code>, <code>DISABLED</code> / <code>"disabled"</code> (gare à l’ouverture différée ou quai barré — le train franchit sans s’arrêter), <code>SKIPPED</code> / <code>"skipped"</code> (le train emprunte la voie de dépassement). Le champ d’instantané est l’ancien <code>_pad0[2]</code> promu sur place ; sans FangSu, la valeur reste normal</td></tr>
+        <tr><td><code>isStationDeferred()</code> / <code>isDeferredStop()</code></td><td>marqueur d’ouverture différée au niveau de la gare / raccourci d’affichage (<code>stopStatus() != NORMAL || isStationDeferred()</code> — le même arbitre que le barré appliqué par FangSu lui-même, « barrer cette station »)</td></tr>
       </tbody>
     </table>
 
@@ -203,6 +210,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>horodatages d’arrivée / de départ et écart (millisecondes epoch, corrigés)</td></tr>
         <tr><td><code>arrived()</code> / <code>departed()</code></td><td>déjà arrivé / déjà parti (comparé à l’instant courant)</td></tr>
         <tr><td><code>realtime()</code> / <code>terminating()</code> / <code>circular_state()</code></td><td>données temps réel / service terminus ici / état de ligne circulaire</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>indicateurs de service FangSu (ABI 16) : ce service est un express (il dépasse les arrêts non express) / cette ligne n’existe que dans le cache de lignes masquées de FangSu — PIDS/PSD peuvent en tirer des mentions « express sans arrêt » / « arrivée ligne masquée ». Sans FangSu, la valeur reste false (<code>JcmArrival.flags</code>, décalage 59, ancien remplissage)</td></tr>
         <tr><td><code>route_id()</code> / <code>platform_id()</code> / <code>route_color()</code> / <code>car_count()</code> / <code>departure_index()</code></td><td>id de ligne / de quai, couleur ARGB de la ligne, nombre de voitures, indice de départ</td></tr>
       </tbody>
     </table>
@@ -249,6 +257,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>Id / nom / numéro / couleur ARGB / état circulaire de la ligne, et id de type de transport canonique</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>indicateurs de service FangSu (ABI 16, <code>route_flags</code> décalage 13) : le service courant de cette ligne est un express / une ligne masquée — la bande de ligne peut se rendre dans le style « express sans arrêt » ; sans FangSu, la valeur reste false</td></tr>
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code> : les arrêts dans l’ordre, avec la même disposition que le <code>Stop</code> véhicule (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — voir <a href="#stop">Stop / correspondances / sorties</a>)</td></tr>
       </tbody>
     </table>
@@ -315,6 +324,93 @@ if (event.call("occurred").as&lt;bool&gt;()) {
 }</code></pre>
     <p>Le contexte de dessin de l’eyecandy, <code>EyeCandyContext</code>, fournit <code>draw_model(model, matrices)</code>, <code>play_sound(sound, volume, pitch)</code>, <code>set_outline_shape(boxes, count)</code> et <code>set_collision_shape(boxes, count)</code> (6 float par boîte ; les boîtes de collision conservent la limite de hauteur de 1,5 bloc appliquée côté Java, tout dépassement est validé et journalisé par l’hôte). L’ascenseur réutilise le même type de contexte (<code>LiftContext = EyeCandyContext</code>).</p>
 
+    <h2 id="weather">Météo (ABI 15)</h2>
+    <p>Les cinq instantanés (véhicule / PIDS / portes palières / ascenseur / eyecandy) portent uniformément l’état de la météo du monde côté client — <strong>JS et C++ retournent exactement la même valeur, les scripts des deux côtés peuvent partager leur logique de mise en page</strong> (mention « sol glissant » sous la pluie, avis de service en cas d’orage…) :</p>
+    <pre><code class="lang-cpp">if (psd.getWeather() == mtr::weather::RAIN) drawWetFloorNotice();
+switch (vehicle.weather()) {
+    case mtr::Weather::RAIN:    drawRainOverlay(); break;
+    case mtr::Weather::THUNDER: drawThunderServiceNotice(); break;
+    default: break;
+}</code></pre>
+    <ul>
+      <li>Valeurs : <code>weather()</code> retourne <code>mtr::Weather</code> (<code>CLEAR / RAIN / THUNDER</code>) ; <code>getWeather()</code> retourne l’id sous forme de chaîne (<code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>, à comparer aux constantes <code>mtr::weather</code> — même convention de nommage que transport_type / door_direction).</li>
+      <li>La décision est celle du composant PIDS météo natif de MTR : <code>isThundering()</code> prime sur <code>isRaining()</code> ; sans monde côté client, la valeur reste clear.</li>
+      <li>Disposition : véhicule <code>weather</code> @165 (ancien <code>_pad1[0]</code>), PIDS @63 (ancien <code>_pad0</code>), ascenseur @127 (ancien <code>_pad0</code>), eyecandy @67 (ancien <code>_pad0</code>) ; <code>JcmPsdSnapshot</code> est le seul instantané sans octet libre — en-tête de 128 → 136, l’octet de météo siégeant en 128 (tous les décalages de pools sont relatifs au blob ; les modules ABI 12–14 ne lisent que les décalages &lt; 128, aucun impact). Les quatre emplacements étaient du remplissage écrit à zéro et jamais lu, les anciens modules ne sont pas affectés.</li>
+      <li>Mêmes méthodes côté JS : <code>pids.getWeather()</code> / <code>vehicle.getWeather()</code> / <code>psd.getWeather()</code> / <code>lift.getWeather()</code> / <code>eyecandy.getWeather()</code> (retour identique, id sous forme de chaîne).</li>
+    </ul>
+
+    <h2 id="blocks">Passage à niveau / automate de billetterie / annonce (ABI 16)</h2>
+    <p>Trois <strong>scripts de bloc</strong> s’ancrent sur les blocs correspondants de FangSu, pilotés par des liaisons locales au client (clic droit sur le bloc avec l’éditeur de script de portes palières pour choisir le script ; les liaisons résident dans <code>config/jcm/native_block_scripts.json</code>, groupées par dimension — les trois types sont de purs habillages visuels/audio, sans modification de l’état du monde). Classes de base et macros d’enregistrement : voir <a href="script-model.html#kinds">Modèle de script</a> ; les clés de déclaration sont <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code>, mêmes règles de déclaration que les autres types. Sans FangSu, les trois tournent à vide.</p>
+
+    <h3>LevelCrossing (passage à niveau)</h3>
+    <p>L’instantané <code>JcmLevelCrossingSnapshot</code> (72 octets) porte un résumé géométrique et le pool des trains en approche ; <strong>l’animation des barrières est pilotée par l’état du script lui-même</strong>, l’hôte ne fournit que l’état cible :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>pos_x() / pos_y() / pos_z()</code></td><td>coordonnées monde du bloc lié</td></tr>
+        <tr><td><code>track_yaw_degrees()</code></td><td>cap yaw de la voie principale (échantillonné par la géométrie FangSu ; <code>-1</code> = inconnu) — pour aligner la barrière</td></tr>
+        <tr><td><code>warningState()</code> / <code>isWarning()</code></td><td>état d’alerte déduit par l’hôte : <code>IDLE</code> / <code>WARNING</code> (au moins un train est entré dans le rayon d’alerte)</td></tr>
+        <tr><td><code>barrierTarget()</code> / <code>barrier_closed()</code></td><td>cible de barrière déduite par l’hôte : <code>OPEN</code> / <code>CLOSED</code> (abaissée pendant l’alerte) — le script fait progresser son animation de barrière vers cette cible</td></tr>
+        <tr><td><code>approaches()</code></td><td><code>CrossingApproachList</code> : le pool des trains en approche (voir ci-dessous)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>game_time_millis()</code></td><td>météo (identique à ABI 15) / le bloc lié est bien un passage à niveau FangSu / horloge</td></tr>
+      </tbody>
+    </table>
+    <p>Chaque <code>CrossingApproach</code> (64 octets) :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle_id()</code> / <code>route_id()</code></td><td>id du véhicule / de la ligne (64 bits)</td></tr>
+        <tr><td><code>distance_blocks()</code> / <code>speed_kmh()</code> / <code>seconds_to_arrival()</code></td><td>distance (blocs) / vitesse / estimation en secondes avant l’arrivée</td></tr>
+        <tr><td><code>car_count()</code> / <code>destination()</code> / <code>arrival_millis()</code> / <code>arrived()</code></td><td>nombre de voitures / terminus / horodatage d’arrivée corrigé (0 = inconnu) / déjà arrivé</td></tr>
+      </tbody>
+    </table>
+    <p>Contexte de dessin <code>LevelCrossingContext</code> (chemin de rejeu partagé avec le gestionnaire de rendu d’eyecandy) : <code>draw_model(model, matrices)</code> et la variante stylée <code>draw_model(model, matrices, tint_argb, emissive, translucent)</code> (feux d’alerte emissive, lanterne en verre translucide — voir <a href="drawing.html#matrices">Dessin et canevas</a>), <code>play_sound(sound, volume, pitch)</code> (son spatialisé, émis à l’emplacement du bloc).</p>
+
+    <h3>FareMachine (automate de billetterie)</h3>
+    <p>L’instantané <code>JcmFareMachineSnapshot</code> (96 octets) — la face données du contenu dynamique des petits écrans (tarif, solde, affluence) :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>machineType()</code></td><td><code>BARRIER</code> (tourniquet, ancré sur le <code>ticket_barrier</code> de FangSu) / <code>TICKET_MACHINE</code> (distributeur de billets, ancré sur <code>ticket_machine</code>)</td></tr>
+        <tr><td><code>open()</code> / <code>door_value()</code></td><td>ouverture du tourniquet (isOpen extraConfig de FangSu) / valeur d’animation des vantaux 0 (ouvert)..1 (fermé) — déduite des fronts d’ouverture selon le cadencement FangSu de 200 ms d’ouverture / 500+200 ms de fermeture ; le distributeur reste à 0</td></tr>
+        <tr><td><code>exit_side()</code> / <code>facing()</code></td><td>côté sortie (tourniquets à tarif zoné) / orientation (Direction MC 0..5)</td></tr>
+        <tr><td><code>fareType()</code> / <code>fare_value()</code></td><td><code>ZONE_BASED</code> / <code>FLAT</code> ; tarif forfaitaire (le tarif zonal se résout via les noms de gares de l’instantané et la table de tarifs côté JS)</td></tr>
+        <tr><td><code>player_balance()</code></td><td>valeur du scoreboard <code>mtr_balance</code> du joueur client (<code>-1</code> = inconnu) — le chiffre affiché par l’écran « solde »</td></tr>
+        <tr><td><code>station_name()</code> / <code>arrivals()</code></td><td>gare de rattachement (vide si non résolue) / pool des arrivées du quai le plus proche (<code>FareArrival</code> reprend tous les accesseurs d’Arrival de Pids, plus <code>isExpress()</code> / <code>isHiddenRoute()</code>)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>voir ci-dessus</td></tr>
+      </tbody>
+    </table>
+    <p>Contexte de dessin <code>FareMachineContext</code> : <code>draw_model(model, matrices[, tint, emissive, translucent])</code> (écran émissif, cloche en verre translucide + teinte alpha), <code>play_sound(...)</code>.</p>
+
+    <h3>Announcement (annonce de station)</h3>
+    <p>L’instantané <code>JcmAnnouncementSnapshot</code> (88 octets) — l’API unifiée d’ordonnancement audio ; la déduplication « déjà annoncé pour ce service » repose sur l’état du script (<code>departure_key()</code>) :</p>
+    <table>
+      <thead><tr><th>Accesseur</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>lead_seconds()</code> / <code>all_stops()</code></td><td>secondes d’avance de l’annonce (déclenchée dès que le temps restant entre dans la fenêtre) / annoncer aussi les services ne marquant pas tous les arrêts</td></tr>
+        <tr><td><code>template_id()</code> / <code>variant()</code></td><td>identifiants de gabarit / de variante (vides si non définis) — change le style d’annonce sans configuration embarquée</td></tr>
+        <tr><td><code>binding_count()</code> / <code>binding_route(i)</code> / <code>binding_platform(i)</code></td><td>paires (ligne, quai) liées (≤ 32 ; dans le modèle FangSu, <code>(0, 0)</code> désigne tous les quais à portée — l’hôte transmet tel quel)</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>AnnouncementArrivalList</code> : pool des arrivées de tous les quais liés (dédupliqué par départ, trié par horodatage d’arrivée) ; chaque entrée fournit <code>arrival_time()</code> / <code>departure_time()</code> / <code>route_id()</code> / <code>destination()</code> / <code>route_name()</code> / <code>seconds_until_arrival()</code> / <code>isExpress()</code> / <code>isHiddenRoute()</code> / <code>realtime()</code> / <code>terminating()</code> / <code>car_count()</code></td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>voir ci-dessus</td></tr>
+      </tbody>
+    </table>
+    <p>L’audio passe par le rejeu des enregistrements de son unifiés (mêmes sémantiques que le ScriptSoundManager des PIDS — volume / hauteur / écrêtage de distance identiques) : <code>ctx.play_sound(id, volume, pitch)</code> (son spatialisé, émis au bloc haut-parleur, audible de tous les joueurs à portée), <code>ctx.play_local_sound(id, volume, pitch)</code> (canal réservé aux joueurs à bord). Exemple (dans le style de <code>examples/</code> du SDK) :</p>
+    <pre><code class="lang-cpp">struct State { std::unordered_set&lt;int64_t&gt; announced; };
+void render(mtr::AnnouncementContext&amp; ctx, State&amp; s, const mtr::Announcement&amp; an) override {
+    auto arrivals = an.arrivals();
+    for (int i = 0; i &lt; arrivals.size(); i++) {
+        const double remain = (arrivals[i].arrival_time() - an.game_time_millis()) / 1000.0;
+        if (remain &gt; 0 &amp;&amp; remain &lt;= an.lead_seconds()
+            &amp;&amp; s.announced.insert(arrivals[i].departure_key()).second) {
+            ctx.play_sound("demo:chime", 1.0f, 1.0f);
+        }
+    }
+}</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">Cadence de pilotage</span>
+      <p>Le pilote des scripts de bloc se raccorde au même point d’injection par frame que les scripts de véhicule (il saute lui aussi l’étape d’ombres des shaders) : le pilotage natif tourne à environ 12 Hz (limitation de la détection par réflexion / du balayage des véhicules / des requêtes d’arrivées), le rejeu du dessin à chaque frame — la même discipline de séparation capture/rejeu que PIDS/PSD, pas de scintillement des modèles. La résolution des ressources passe par le pipeline de déclaration <code>mtr_custom_resources.json</code> existant (les trois clés sont de pures déclarations natives).</p>
+    </div>
+
     <h2 id="helpers">Types utilitaires</h2>
     <p><code>&lt;mtr/util.hpp&gt;</code> fournit des utilitaires de carrousel et de suivi d’état adaptés au chemin chaud (zéro allocation) :</p>
     <pre><code class="lang-cpp">// "A|B|C" alterne un segment toutes les 40 ticks ; le changement de vue se résume à un calcul d'offset
@@ -360,7 +456,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* animation d’arri
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-1.0.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 16 (2.3.0-1.0.2-beta.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

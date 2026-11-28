@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -64,7 +64,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>C++ 原生腳本</h1>
-      <p class="lead">為 Minecraft Transit Railway 4 資源包之作者而設。以 C++ 撰四類之腳本：<strong>曰車輛，曰 PIDS，曰電梯，曰裝飾</strong>——與 JavaScript 腳本同其體、同其命、同其法；熱路徑之中，JVM 未嘗一渡焉。JavaScript 之腳（原版 JCM 之體系）其文備焉，見下方「JavaScript 之腳」一節。</p>
+      <p class="lead">為 Minecraft Transit Railway 4 資源包之作者而設。以 C++ 撰八類之腳本：<strong>曰車輛，曰 PIDS，曰電梯，曰裝飾，曰屏蔽之門，曰道口，曰售檢票機，曰報站廣播</strong>——與 JavaScript 腳本同其體、同其命、同其法；熱路徑之中，JVM 未嘗一渡焉。JavaScript 之腳（原版 JCM 之體系）其文備焉，見下方「JavaScript 之腳」一節。</p>
     </header>
 
     <h2>此何物也</h2>
@@ -93,6 +93,21 @@
         <p>腳本崩潰，惟出事之模塊自禁，日誌留一行，遊戲行程晏如也；模塊之中，C++ 之異常亦為防護所截。</p>
       </div>
     </div>
+
+    <h2>beta.2 之新能（ABI 14–16）</h2>
+    <table>
+      <thead><tr><th>其能</th><th>一言</th></tr></thead>
+      <tbody>
+        <tr><td>天氣之 API（ABI 15，JS ＋ C++）</td><td>五類快照 / 包裝器一律讀客戶端之天氣（<code>getWeather()</code> → <code>"clear" / "rain" / "thunder"</code>），兩側所返全同</td></tr>
+        <tr><td>腳本數據之府（JS ＋ C++）</td><td><code>ctx.getDataStore()</code>：按腳本 id 而域、跨重啟恆存之 JSON 鍵值存儲（防抖落盤＋原子之寫）</td></tr>
+        <tr><td>方速暫緩開通 / 快車 / 隱藏之線（ABI 14/16，軟依）</td><td>停靠之狀劃線、到站快車之誌、隱藏線路之誌——無方速則恆為既有之答，腳本無須知之</td></tr>
+        <tr><td>NTE 號誌之繫（ABI 16）</td><td><code>vehicle.signalState()</code> 車前號誌之狀；宿主側 <code>NativeSignalState.set()</code> 公共擴展之點，號誌之 mod 每 tick 一推</td></tr>
+        <tr><td>道口 / 售檢票機 / 報站廣播之腳（ABI 16）</td><td>三類新方塊腳本錨於方速之方塊，客戶端本地之繫（腳本編輯器右擊）；自繪欄木、小屏與統一音頻調度</td></tr>
+        <tr><td>模型染色 / 發光 / 半透明（ABI 16）</td><td><code>ModelStyle().tint(…).emissive().translucent()</code>——夜之車頭燈、發光之誌、玻璃之通道</td></tr>
+        <tr><td>開發之利凡四</td><td>原生熱重載（改 C++ 不重啟遊戲）、CMake 腳手架之範、疾徐面板原生之區所擴、遊戲內腳本之瀏覽器（Modrinth）</td></tr>
+        <tr><td>JS → C++ 遷移之輔</td><td>SDK 內 <code>docs/js-to-cpp.md</code> 對照之表＋<code>tools/js2cpp.py</code> 半自動轉換器（所出徑可編譯）</td></tr>
+      </tbody>
+    </table>
 
     <h2>一幀之行</h2>
     <div class="arch">
@@ -158,7 +173,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
         <tr><td>Minecraft</td><td>1.17.1 – 1.20.4（Fabric / Forge）</td></tr>
         <tr><td>前置</td><td>Minecraft Transit Railway 4.0.5+（必需）；Fabric 版另需 Fabric API</td></tr>
         <tr><td>Java</td><td>16 及其上；22+ 則自啟全程零 JNI 之 FFM 平面</td></tr>
-        <tr><td>ABI</td><td>宿主所受，ABI 6–13 之模塊；今 SDK 所編出者，ABI 13 也</td></tr>
+        <tr><td>ABI</td><td>宿主所受，ABI 6–16 之模塊；今 SDK 所編出者，ABI 16 也</td></tr>
         <tr><td>工具鏈</td><td>C++17；MSVC / GCC / Clang；CMake ≥ 3.16（薦）</td></tr>
       </tbody>
     </table>
@@ -166,8 +181,8 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
     <h2>文檔之目</h2>
     <div class="toc-cards">
       <a class="toc-card" href="getting-started.html"><b>入門</b><span>取 SDK、立工程、編首模塊、納諸資源包</span></a>
-      <a class="toc-card" href="script-model.html"><b>腳本體例與生命週期</b><span>五類腳本之基類、State 之義、create / render / dispose 之序，暨線程與崩潰隔離</span></a>
-      <a class="toc-card" href="data.html"><b>數據快照</b><span>Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy 諸訪問器之全備覽</span></a>
+      <a class="toc-card" href="script-model.html"><b>腳本體例與生命週期</b><span>八類腳本之基類、State 之義、create / render / dispose 之序，暨線程與崩潰隔離</span></a>
+      <a class="toc-card" href="data.html"><b>數據快照</b><span>Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / 道口 / 售檢票機 / 廣播諸訪問器之全備覽</span></a>
       <a class="toc-card" href="drawing.html"><b>繪事與畫布</b><span>Text / Texture 之流式 API、Matrices、GraphicsTexture、Gfx2D 光柵器與字體之制</span></a>
       <a class="toc-card" href="java-api.html"><b>mtr::Api 與 Java 互通</b><span>JS 所得訪之公開 Java API，C++ 皆得呼之；回呼與 JS ↔ C++ 對照之表</span></a>
       <a class="toc-card" href="abi.html"><b>C ABI 與宿主服務</b><span>導出之函數、幀之出入、繪製記錄、宿主服務、ABI 版本之沿革</span></a>
@@ -185,7 +200,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

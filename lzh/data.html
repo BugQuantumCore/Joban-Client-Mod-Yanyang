@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>數據快照 — JCM Yanyang 腳本開發文檔</title>
-<meta name="description" content="Vehicle / Stop / Arrival / Pids / Lift / EyeCandy 快照包裝器訪問器之全備覽。">
+<meta name="description" content="Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / LevelCrossing / FareMachine / Announcement 快照包裝器訪問器之全備覽。">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -78,6 +78,8 @@
         <li><a href="#psd">Psd（屏蔽之門）</a></li>
         <li><a href="#lift">Lift（電梯）</a></li>
         <li><a href="#eyecandy">EyeCandy（裝飾）</a></li>
+        <li><a href="#weather">天氣（ABI 15）</a></li>
+        <li><a href="#blocks">道口 / 售檢票機 / 廣播（ABI 16）</a></li>
         <li><a href="#helpers">器用之型</a></li>
       </ol>
     </div>
@@ -119,6 +121,9 @@
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>當前線路之名 / 色 ARGB / 環線之狀（0 無、1 順時針、2 逆時針）</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>見<a href="#transport">交通之模式與類型</a></td></tr>
         <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>開門之向：曰 <code>NOT</code>，左右皆弗啟；曰 <code>LEFT</code>，車頭之左啟；曰 <code>RIGHT</code>，右啟；曰 <code>ALL</code>，兩側皆啟焉。停站之際，門縱未啟、半啟、方闔、既闔，所報皆與全啟時同；行於正線，則測下一站——設車於當泊之處，逐廂循 MTR <code>canOpenDoors</code> 察塊之法。測之所先，乃<strong>服端逐線恆記</strong>（服端具此模組，則恆存於存檔，逾視距亦可用，塊若有變，自為增補）；服端未具，乃退用客端視距內之掃焉。一側苟有一門可啟，舉側悉記可啟；左右以車首為準，行向倒行，皆弗易焉。特詢而已，門實啟閉，仍司於 MTR。與 JS 之 <code>vehicle.getDirectionOfDoorOpening()</code> 同（ABI 11）</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code></td><td><code>Weather</code> / <code>StrView</code></td><td>客戶端世界之天氣（ABI 15）：<code>CLEAR</code> / <code>"clear"</code>、<code>RAIN</code> / <code>"rain"</code>、<code>THUNDER</code> / <code>"thunder"</code>——與 JS <code>vehicle.getWeather()</code> 所返全同；無世界，則恆 clear。快照欄 <code>weather</code>（偏 165，原 <code>_pad1[0]</code>）。見<a href="#weather">天氣</a></td></tr>
+        <tr><td><code>isExpressService()</code> / <code>isHiddenRoute()</code> / <code>serviceFlags()</code></td><td><code>bool</code> / <code>uint8_t</code></td><td>方速服務之誌（ABI 16）：下一站為快車之服（bit0）/ 當前線路惟在方速隱藏線路之錄（bit1）；無方速則恆 0，即非快車 / 非隱藏之既有之答。快照欄 <code>service_flags</code>（偏 166，原 <code>_pad1[1]</code>）。與 <code>mtr::service_flags::EXPRESS</code> / <code>HIDDEN_ROUTE</code> 常數相較</td></tr>
+        <tr><td><code>signalState()</code> / <code>getSignalState()</code></td><td><code>SignalState</code> / <code>StrView</code></td><td>車前號誌機之狀（ABI 16）：<code>UNKNOWN</code> / <code>"unknown"</code>、<code>CLEAR</code> / <code>"clear"</code>、<code>CAUTION</code> / <code>"caution"</code>、<code>DANGER</code> / <code>"danger"</code>——宿主經 <code>NativeSignalState.set(vehicleId, state)</code> 公共擴展之點而供之（號誌之 mod 每 tick 一推；750ms 無更新，自降 unknown），無所供者則恆 unknown。快照欄 <code>signal_state</code>（偏 167，原 <code>_pad1[2]</code>）</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>側線顯示之名（用戶自定之名 / 述）</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>原始之快照（ABI 細務，見 <a href="abi.html">C ABI</a>）</td></tr>
       </tbody>
@@ -159,6 +164,8 @@
         <tr><td><code>route_circular_state()</code></td><td>該站所屬線路之環線狀（所以辨跨線後方向之變也）</td></tr>
         <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>轉乘之訊：每條含 <code>color</code>（ARGB）、<code>name</code>（線路名）、<code>getTransportMode()</code>、<code>getTransportType()</code></td></tr>
         <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>車站之出口：每個含 <code>name</code>（出口之字母，如 <code>"A"</code>）與 <code>destination(j)</code>（地標字串之列）</td></tr>
+        <tr><td><code>stopStatus()</code> / <code>getStopStatus()</code></td><td>停靠之狀（ABI 14，方速暫緩開通之式）：<code>NORMAL</code> / <code>"normal"</code>、<code>DISABLED</code> / <code>"disabled"</code>（車站暫緩開通，或站台見劃——列車越行而過）、<code>SKIPPED</code> / <code>"skipped"</code>（列車行走越行之軌）。快照欄由舊 <code>_pad0[2]</code> 升格；無方速，則恆 normal</td></tr>
+        <tr><td><code>isStationDeferred()</code> / <code>isDeferredStop()</code></td><td>車站暫緩開通之記 / 顯示之捷法（<code>stopStatus() != NORMAL || isStationDeferred()</code>——與方速自家劃線之判同一其準，「將此站劃線」是也）</td></tr>
       </tbody>
     </table>
 
@@ -205,6 +212,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>到站 / 離站之刻與其偏（epoch 毫秒，已正）</td></tr>
         <tr><td><code>arrived()</code> / <code>departed()</code></td><td>已到站 / 已離站否（按當前之刻而較）</td></tr>
         <tr><td><code>realtime()</code> / <code>terminating()</code> / <code>circular_state()</code></td><td>即時之據 / 本班之終 / 環線之狀</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>方速服務之誌（ABI 16）：本班為快車（越行非快車之站）/ 本線路惟在方速隱藏線路之錄——PIDS / PSD 得據此而繪「快車通過」「隱藏線路到達」之示。無方速，則恆 false（<code>JcmArrival.flags</code>，偏 59，原填補）</td></tr>
         <tr><td><code>route_id()</code> / <code>platform_id()</code> / <code>route_color()</code> / <code>car_count()</code> / <code>departure_index()</code></td><td>線路 / 站台之 id、線路之色 ARGB、車廂之數、發車之序</td></tr>
       </tbody>
     </table>
@@ -251,6 +259,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
       <tbody>
         <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>線之 id / 名 / 號 / 色（ARGB）/ 環線之態 / 交通類型之正號</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>方速服務之誌（ABI 16，<code>route_flags</code> 偏 13）：該線路當前之班為快車 / 隱藏之線——路線之條得繪「快車弗泊」之式；無方速，則恆 false</td></tr>
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code>：諸站有序，佈局同車輛之 <code>Stop</code>（name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code>，見 <a href="#stop">Stop / 轉乘 / 出口</a>）</td></tr>
       </tbody>
     </table>
@@ -317,6 +326,93 @@ if (event.call("occurred").as&lt;bool&gt;()) {
 }</code></pre>
     <p>裝飾繪製之上下文 <code>EyeCandyContext</code>，所供者四：<code>draw_model(model, matrices)</code>、<code>play_sound(sound, volume, pitch)</code>、<code>set_outline_shape(boxes, count)</code>、<code>set_collision_shape(boxes, count)</code> 是也（每匣 6 float；碰撞匣之高，沿 Java 端 1.5 格之限，踰之者宿主校而誌於日誌）。電梯復用同一上下文之型（<code>LiftContext = EyeCandyContext</code>）。</p>
 
+    <h2 id="weather">天氣（ABI 15）</h2>
+    <p>五類快照（車輛 / PIDS / 屏蔽之門 / 電梯 / 裝飾）一律攜客戶端世界天氣之狀——<strong>JS 與 C++ 所返全同，兩側之腳本得共享布局之邏輯</strong>（雨天「地滑慎行」之示、雷雨服務之告之屬）：</p>
+    <pre><code class="lang-cpp">if (psd.getWeather() == mtr::weather::RAIN) drawWetFloorNotice();
+switch (vehicle.weather()) {
+    case mtr::Weather::RAIN:    drawRainOverlay(); break;
+    case mtr::Weather::THUNDER: drawThunderServiceNotice(); break;
+    default: break;
+}</code></pre>
+    <ul>
+      <li>取之之法：<code>weather()</code> 返 <code>mtr::Weather</code>（<code>CLEAR / RAIN / THUNDER</code>）；<code>getWeather()</code> 返字串之 id（<code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>，與 <code>mtr::weather</code> 常數相較——循 transport_type / door_direction 命名之例）。</li>
+      <li>其判與 MTR 自帶天氣 PIDS 之件無異：<code>isThundering()</code> 先於 <code>isRaining()</code>；無客戶端世界，則恆 clear。</li>
+      <li>布局：車輛 <code>weather</code> @165（原 <code>_pad1[0]</code>）、PIDS @63（原 <code>_pad0</code>）、電梯 @127（原 <code>_pad0</code>）、裝飾 @67（原 <code>_pad0</code>）；<code>JcmPsdSnapshot</code> 者，惟一無空位元組之快照也——首部之長 128 → 136，天氣之位元組居 128（諸池之偏，皆自 blob 而起；ABI 12–14 之模塊惟讀偏 &lt; 128，不受其擾）。四處皆疇昔書零而未嘗一讀之填補，老模塊無恙也。</li>
+      <li>JS 之側，同名之法徑呼：<code>pids.getWeather()</code> / <code>vehicle.getWeather()</code> / <code>psd.getWeather()</code> / <code>lift.getWeather()</code> / <code>eyecandy.getWeather()</code>（所返同一字串之 id）。</li>
+    </ul>
+
+    <h2 id="blocks">道口 / 售檢票機 / 廣播（ABI 16）</h2>
+    <p>三類<strong>方塊腳本</strong>錨於方速（FangSu）相應之方塊，由客戶端本地之繫而驅（持「屏蔽門腳本編輯器」右擊方塊以擇腳本；繫存於 <code>config/jcm/native_block_scripts.json</code>，按維度而群——三類腳本皆純視聽之疊，不改世界之狀）。基類與註冊宏，見 <a href="script-model.html#kinds">腳本體例</a>；宣告之鍵曰 <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code>，與他類同一宣告之規。無方速，則三類皆空轉也。</p>
+
+    <h3>LevelCrossing（道口）</h3>
+    <p>快照 <code>JcmLevelCrossingSnapshot</code>（72 位元組）攜幾何之概與將至車列之池；<strong>欄木之動，腳本之狀自驅之</strong>，宿主惟予其目標之狀而已：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>pos_x() / pos_y() / pos_z()</code></td><td>所繫方塊世界之坐標</td></tr>
+        <tr><td><code>track_yaw_degrees()</code></td><td>主軌之向 yaw 角（方速幾何所採；<code>-1</code> 者未知也）——欄木對齊之用</td></tr>
+        <tr><td><code>warningState()</code> / <code>isWarning()</code></td><td>宿主所推警示之狀：<code>IDLE</code> / <code>WARNING</code>（有一車入警戒之徑矣）</td></tr>
+        <tr><td><code>barrierTarget()</code> / <code>barrier_closed()</code></td><td>宿主所推欄木之的：<code>OPEN</code> / <code>CLOSED</code>（警示之期則下）——腳本以其欄木之動趨此的而進</td></tr>
+        <tr><td><code>approaches()</code></td><td><code>CrossingApproachList</code>：將至車列之池（見下）</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>game_time_millis()</code></td><td>天氣（同 ABI 15）/ 所繫方塊誠方速道口否 / 時鐘</td></tr>
+      </tbody>
+    </table>
+    <p>每 <code>CrossingApproach</code>（64 位元組）：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle_id()</code> / <code>route_id()</code></td><td>車輛 / 線路之 id（64 位）</td></tr>
+        <tr><td><code>distance_blocks()</code> / <code>speed_kmh()</code> / <code>seconds_to_arrival()</code></td><td>距（格）/ 速 / 至站秒數之估</td></tr>
+        <tr><td><code>car_count()</code> / <code>destination()</code> / <code>arrival_millis()</code> / <code>arrived()</code></td><td>車廂之數 / 終點 / 既正到站之刻（0 者未知也）/ 已至否</td></tr>
+      </tbody>
+    </table>
+    <p>繪製上下文 <code>LevelCrossingContext</code>（回放之途，與裝飾同一渲染管理器）：<code>draw_model(model, matrices)</code>，暨帶式之變體 <code>draw_model(model, matrices, tint_argb, emissive, translucent)</code>（警示之燈 emissive、燈罩之璃 translucent——見 <a href="drawing.html#matrices">繪事與畫布</a>）、<code>play_sound(sound, volume, pitch)</code>（定位之音，出於方塊之處）。</p>
+
+    <h3>FareMachine（售檢票機）</h3>
+    <p>快照 <code>JcmFareMachineSnapshot</code>（96 位元組）——小屏動態內容（票價、餘額之示、擁擠之度）之數據面也：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>machineType()</code></td><td><code>BARRIER</code>（閘機，錨方速 <code>ticket_barrier</code>）/ <code>TICKET_MACHINE</code>（售票機，錨 <code>ticket_machine</code>）</td></tr>
+        <tr><td><code>open()</code> / <code>door_value()</code></td><td>閘機之啟闔（方速 isOpen extraConfig）/ 翼門動之值 0（啟）..1（闔）——循方速 200ms 啟 / 500+200ms 闔之時序，由啟闔之沿而推；售票機恆 0</td></tr>
+        <tr><td><code>exit_side()</code> / <code>facing()</code></td><td>出站之側（區域票價之閘）/ 朝向（MC Direction 0..5）</td></tr>
+        <tr><td><code>fareType()</code> / <code>fare_value()</code></td><td><code>ZONE_BASED</code> / <code>FLAT</code>；一口之票價（區域之票，經快照站名與 JS 側票價之表而解）</td></tr>
+        <tr><td><code>player_balance()</code></td><td>客戶端玩家 <code>mtr_balance</code> 計分板之值（<code>-1</code> 者未知也）——「餘額之示」屏所顯之數</td></tr>
+        <tr><td><code>station_name()</code> / <code>arrivals()</code></td><td>所屬車站（未解者空）/ 最近站台到站之池（<code>FareArrival</code> 具 Pids Arrival 諸訪問器之全，加 <code>isExpress()</code> / <code>isHiddenRoute()</code>）</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>同上</td></tr>
+      </tbody>
+    </table>
+    <p>繪製上下文 <code>FareMachineContext</code>：<code>draw_model(model, matrices[, tint, emissive, translucent])</code>（屏之發光 emissive、璃罩 translucent＋alpha 染色）、<code>play_sound(...)</code>。</p>
+
+    <h3>Announcement（報站廣播）</h3>
+    <p>快照 <code>JcmAnnouncementSnapshot</code>（88 位元組）——統一音頻調度之 API 也；「本班既播」之去重，腳本之狀（<code>departure_key()</code>）司之：</p>
+    <table>
+      <thead><tr><th>訪問器</th><th>釋義</th></tr></thead>
+      <tbody>
+        <tr><td><code>lead_seconds()</code> / <code>all_stops()</code></td><td>提前廣播之秒數（所餘既入其窗即發）/ 非站站停之班亦播否</td></tr>
+        <tr><td><code>template_id()</code> / <code>variant()</code></td><td>模板 / 變體之識（未設者空）——不待自攜配置，即可易其播報之風</td></tr>
+        <tr><td><code>binding_count()</code> / <code>binding_route(i)</code> / <code>binding_platform(i)</code></td><td>所繫（線路， 站台）之對（≤ 32；方速之式中，<code>(0, 0)</code> 謂範圍內諸站台——宿主如原本而轉之）</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>AnnouncementArrivalList</code>：諸所繫站台到站之池（按 departure 去重，按到站之刻而序）；每條含 <code>arrival_time()</code> / <code>departure_time()</code> / <code>route_id()</code> / <code>destination()</code> / <code>route_name()</code> / <code>seconds_until_arrival()</code> / <code>isExpress()</code> / <code>isHiddenRoute()</code> / <code>realtime()</code> / <code>terminating()</code> / <code>car_count()</code></td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>同上</td></tr>
+      </tbody>
+    </table>
+    <p>音頻經統一聲音記錄而回放（與 PIDS 之 ScriptSoundManager 同其義——音量 / 音高 / 距離之裁，一皆相同）：<code>ctx.play_sound(id, volume, pitch)</code>（定位之音，出揚聲器方塊之處，範圍內諸玩家皆聞）、<code>ctx.play_local_sound(id, volume, pitch)</code>（乘者專享之途）。例（SDK <code>examples/</code> 之風）：</p>
+    <pre><code class="lang-cpp">struct State { std::unordered_set&lt;int64_t&gt; announced; };
+void render(mtr::AnnouncementContext&amp; ctx, State&amp; s, const mtr::Announcement&amp; an) override {
+    auto arrivals = an.arrivals();
+    for (int i = 0; i &lt; arrivals.size(); i++) {
+        const double remain = (arrivals[i].arrival_time() - an.game_time_millis()) / 1000.0;
+        if (remain &gt; 0 &amp;&amp; remain &lt;= an.lead_seconds()
+            &amp;&amp; s.announced.insert(arrivals[i].departure_key()).second) {
+            ctx.play_sound("demo:chime", 1.0f, 1.0f);
+        }
+    }
+}</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">驅之之節</span>
+      <p>方塊腳本之驅，與車輛腳本同掛逐幀注入之點（亦跳光影陰影之段）：原生之驅約 12 Hz（反射之探 / 車輛之掃 / 到站之詢，皆為之節），繪製之回放則逐幀——捕與回放之分，同 PIDS / PSD 之律，模型不閃。資源之解，循既有 <code>mtr_custom_resources.json</code> 宣告之管道（三鍵皆純 native 之宣告）。</p>
+    </div>
+
     <h2 id="helpers">器用之型</h2>
     <p><code>&lt;mtr/util.hpp&gt;</code> 供輪播與狀態追跡之器具，於熱路徑甚友善（零分配）：</p>
     <pre><code class="lang-cpp">// "A|B|C" 每 40 tick 更迭一段，切視圖惟算偏移
@@ -362,7 +458,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* 演進場之動畫
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

@@ -48,8 +48,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -163,6 +163,7 @@ MTR_REGISTER_PIDS_SCRIPT(Example)</code></pre>
         <tr><td><code>Timing.delta()</code></td><td><code>api.root("Timing").call("delta").as&lt;double&gt;()</code></td></tr>
         <tr><td><code>array.length</code> / <code>array[i]</code></td><td><code>array.call("length")</code> / <code>array.call("get", {i})</code></td></tr>
         <tr><td><code>include(...)</code></td><td>C++ 編譯期 <code>#include</code></td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code>——腳本數據之府（見下節）</td></tr>
       </tbody>
     </table>
     <p>AWT 之類，用全限定之名：<code>java.awt.Color</code>、<code>java.awt.Font</code>、<code>java.awt.BasicStroke</code>、<code>java.awt.geom.AffineTransform</code>。<code>GraphicsTexture</code> 之公開欄 <code>graphics</code> 與 <code>bufferedImage</code>，曝其真實之 Java2D 物件。資源路徑之解：<code>Resources.idr</code> 按本模塊宣告之路而解（多庫宣告，則各用其各）；<code>Resources.manager()</code> 於 MTR 4，與 JS 同為 null。上游 v2.3.0-prerelease.2 所增之成員——<code>Resources.id(id, suffix)</code> 拼接之式、<code>Resources.mgr()</code> 別名（所以相容 ANTE 資源包也）、<code>VanillaText.withFont(String)</code> 之屬字串參之變體——經同一 JSON-RPC 通道，開箱即用。上游文檔所標未實現之能（車輛連接件之 <code>drawConnModel</code> / <code>drawConnStretchTexture</code>），本模組亦不虛構其行。</p>
@@ -190,6 +191,18 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
     </ul>
 
     <h2 id="coverage">所覆之範</h2>
+    <h3>腳本數據之府（C++ 無須新 ABI）</h3>
+    <p><code>ctx.getDataStore()</code> 所返者，按<strong>腳本 id</strong> 而域、跨遊戲重啟恆存之 JSON 鍵值存儲之物也；C++ 之側，經既有反射之橋，取得<strong>同一存儲之物</strong>，與 JS 共此一份之數據（無絲毫新 ABI）：</p>
+    <pre><code class="lang-cpp">mtr::Api api(ctx.input());
+mtr::Api::Object store = api.context().call("getDataStore");
+double counted = store.call("getNumber", {"trains.counted", 0.0}).as&lt;double&gt;();
+store.call("set", {"trains.counted", counted + 1});
+const std::string dest = store.call("getString", {"last.destination", ""}).as&lt;std::string&gt;();
+bool known = store.call("has", {"setup.done"}).as&lt;bool&gt;();
+store.call("delete", {"last.destination"});</code></pre>
+    <p>成員、容量之限與落盤之義，詳見 <a href="js-yanyang.html#datastore">晏陽增補 · 腳本數據之府</a>；按實例而別之狀態，以包裝器既曝之實例之識（如 <code>psd.block_pos(i)</code>）作鍵之前綴。類之快門預設放行 <code>com.lx862.mtrscripting.core.util.*</code>，腳本受限之式下如常可用。</p>
+    <h3>公共擴展之點（供他 mod 之呼）</h3>
+    <p><code>com.lx862.jcm.nativeapi.NativeSignalState.set(vehicleId, state)</code>——號誌之 mod（mtr-nte 橋之屬）向 C++ 腳本供車前號誌之狀，此其公共之門也：每 tick 一推即可（0 unknown / 1 clear / 2 caution / 3 danger；750ms 無更新，自降 unknown）。JCM 與號誌之 mod，兩無編譯期之賴——此宿主側擴展之點，非 <code>Api</code> 之通道也。</p>
     <p>常用 API 之面如次：console、Resources、<code>ModelManager / Model / RawModel / RawMeshBuilder / DynamicModelHolder</code>、<code>Vector3f</code>、<code>Matrices</code>、<code>GraphicsTexture</code> 與 Java2D、<code>RenderManager / QuadDrawCall</code>、<code>SoundManager / TickableSoundInstance</code>、<code>MinecraftClient</code>、<code>PlayerEntity / ItemStack / VanillaText / VoxelShape</code>、<code>Files</code>、<code>Networking</code>、<code>BackgroundWorker</code>、<code>TextUtil / Timing / StateTracker / CycleTracker / RateLimit</code>、<code>DataReader</code>、<code>MTRClientData</code>、TSC 數據類與 <code>DisplayHelper</code>。PIDS、裝飾、車輛可呼成員之清單，錄於倉庫之 <code>bench/api-coverage.json</code>；電梯則以其 Java 包裝器為準。</p>
     <p>既編譯矣，可對照真實之 MTR jar，以稽君所呼之面：</p>
     <pre><code class="lang-bash">python native/bench/api_coverage.py \
@@ -210,7 +223,7 @@ void create(mtr::PidsContext&amp; ctx, State&amp; s, const mtr::Pids&amp;) {
       <a href="getting-started.html">入門</a>
       <a href="performance.html">疾徐與除錯</a>
     </div>
-    JCM Yanyang 腳本文檔 · 對 SDK ABI 13（2.3.0-1.0.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
+    JCM Yanyang 腳本文檔 · 對 SDK ABI 16（2.3.0-1.0.2-beta.2）而作 · 與倉庫 <code>native/README.md</code> 同其修訂  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

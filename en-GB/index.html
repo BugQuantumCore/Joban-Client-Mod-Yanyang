@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -62,7 +62,7 @@
     <header class="page-header hero">
       <span class="eyebrow">Native Scripting</span>
       <h1>Native C++ scripting</h1>
-      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write the five script kinds—<strong>vehicle, PIDS, lift, eyecandy and platform screen doors</strong>—in C++, with the same lifecycle and API surface as JavaScript scripts and zero JVM crossings on the hot path. Full documentation of JavaScript scripting (the upstream JCM scripting system) is in the JavaScript scripting section below.</p>
+      <p class="lead">Gives resource pack authors for Minecraft Transit Railway 4 the ability to write the eight script kinds—<strong>vehicle, PIDS, lift, eyecandy, platform screen doors, level crossings, fare machines and announcements</strong>—in C++, with the same lifecycle and API surface as JavaScript scripts and zero JVM crossings on the hot path. Full documentation of JavaScript scripting (the upstream JCM scripting system) is in the JavaScript scripting section below.</p>
     </header>
 
     <h2>What is this?</h2>
@@ -91,6 +91,21 @@
         <p>A script crash disables only the offending module itself and leaves a single log line behind; the game process is unaffected. C++ exceptions thrown inside a module are caught by the guard in the same way.</p>
       </div>
     </div>
+
+    <h2>beta.2 capabilities (ABI 14–16)</h2>
+    <table>
+      <thead><tr><th>Capability</th><th>In one line</th></tr></thead>
+      <tbody>
+        <tr><td>Weather API (ABI 15, JS + C++)</td><td>All five snapshots / wrappers uniformly read the client weather (<code>getWeather()</code> → <code>"clear" / "rain" / "thunder"</code>); both sides return exactly the same</td></tr>
+        <tr><td>Script data store (JS + C++)</td><td><code>ctx.getDataStore()</code>: a JSON key-value store scoped to the script id, persisted across restarts (debounced flushes + atomic writes)</td></tr>
+        <tr><td>FangSu deferred openings / express / hidden routes (ABI 14/16, soft dependency)</td><td>Struck-through stop statuses, express flags on arrivals, hidden-route flags—without FangSu the answers stay at the existing defaults, scripts never need to notice</td></tr>
+        <tr><td>NTE signal system linkage (ABI 16)</td><td><code>vehicle.signalState()</code> reads the signal ahead; the host-side <code>NativeSignalState.set()</code> public extension point is pushed by signal mods every tick</td></tr>
+        <tr><td>Level crossing / fare machine / announcement scripts (ABI 16)</td><td>Three new block script kinds anchored to FangSu blocks, bound client-locally (right-click with the script editor); self-drawn barriers, small screens and unified audio scheduling</td></tr>
+        <tr><td>Model tint / emissive / translucent (ABI 16)</td><td><code>ModelStyle().tint(…).emissive().translucent()</code>—night headlights, lit signs, glass channels</td></tr>
+        <tr><td>The developer-experience four-piece set</td><td>Native hot reload (rebuild C++ without restarting the game), the CMake scaffold template, the performance panel's native section and the in-game script browser (Modrinth)</td></tr>
+        <tr><td>JS → C++ migration aids</td><td><code>docs/js-to-cpp.md</code> cheat sheet + <code>tools/js2cpp.py</code> semi-automatic converter in the SDK (the output compiles as-is)</td></tr>
+      </tbody>
+    </table>
 
     <h2>The journey of a frame</h2>
     <div class="arch">
@@ -156,7 +171,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
         <tr><td>Minecraft</td><td>1.17.1 – 1.20.4 (Fabric / Forge)</td></tr>
         <tr><td>Prerequisites</td><td>Minecraft Transit Railway 4.0.5+ (required); the Fabric build also needs Fabric API</td></tr>
         <tr><td>Java</td><td>16 or later; 22+ automatically enables the fully zero-JNI FFM plane</td></tr>
-        <tr><td>ABI</td><td>The host accepts ABI 6–13 modules; the current SDK compiles to ABI 13</td></tr>
+        <tr><td>ABI</td><td>The host accepts ABI 6–16 modules; the current SDK compiles to ABI 16</td></tr>
         <tr><td>Toolchain</td><td>C++17; MSVC / GCC / Clang; CMake ≥ 3.16 (recommended)</td></tr>
       </tbody>
     </table>
@@ -164,8 +179,8 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
     <h2>Contents</h2>
     <div class="toc-cards">
       <a class="toc-card" href="getting-started.html"><b>Quick start</b><span>Get the SDK, set up a project, compile your first module and package it into a resource pack</span></a>
-      <a class="toc-card" href="script-model.html"><b>Script model and lifecycle</b><span>The five script base classes, State semantics, the create / render / dispose sequence, threading and crash isolation</span></a>
-      <a class="toc-card" href="data.html"><b>Data snapshots</b><span>Full accessor reference for Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy</span></a>
+      <a class="toc-card" href="script-model.html"><b>Script model and lifecycle</b><span>The eight script base classes, State semantics, the create / render / dispose sequence, threading and crash isolation</span></a>
+      <a class="toc-card" href="data.html"><b>Data snapshots</b><span>Full accessor reference for Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / level crossings / fare machines / announcements</span></a>
       <a class="toc-card" href="drawing.html"><b>Drawing and canvases</b><span>The Text / Texture fluent APIs, Matrices, GraphicsTexture, the Gfx2D rasteriser and the font stack</span></a>
       <a class="toc-card" href="java-api.html"><b>mtr::Api and Java interop</b><span>Call every public Java API JS can reach, callbacks, and the JS ↔ C++ mapping table</span></a>
       <a class="toc-card" href="abi.html"><b>C ABI and host services</b><span>Exported functions, frame input and output, draw records, host services and ABI version history</span></a>
@@ -183,7 +198,7 @@ MTR_REGISTER_PIDS_SCRIPT(ArrivalDisplay)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

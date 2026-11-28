@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -94,17 +94,25 @@
 
     <h2 id="sdk">获取 SDK</h2>
     <p>SDK 随每个 Release 发布为 <code>jcm-native-sdk-&lt;版本&gt;.zip</code>（见 GitHub Releases 附件），内容即仓库 <code>native/</code> 目录源码：</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2-beta.2/
 ├── include/mtr/          # 全部 SDK 头文件（script.hpp 是总入口）
 │   ├── mtr_native.h      # C ABI：导出函数、快照、绘制记录、宿主服务
 │   ├── script.hpp        # 脚本基类 + 注册宏（#include 这一个就够）
-│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp  psd.hpp
+│   ├── levelcrossing.hpp  faremachine.hpp  announcement.hpp   # ABI 16 方块脚本
 │   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
 │   ├── api.hpp           # mtr::Api（完整 Java API 访问）
 │   └── crash_guard.hpp ...
-├── examples/             # 三个最小示例模块
+├── template/             # CMake 脚手架（PIDS / 车辆 / 道口三个骨架）
+├── docs/js-to-cpp.md     # JS → C++ 迁移对照表
+├── tools/js2cpp.py       # JS → C++ 半自动转换器
+├── examples/             # 四个最小示例模块（含 psd_glass.cpp）
 ├── bench/                # 测试与工具
 └── CMakeLists.txt</code></pre>
+    <div class="admonition tip">
+      <span class="admonition-title">CMake 脚手架模板</span>
+      <p>SDK 的 <code>template/</code> 目录（随 SDK zip 发布）内置可编译骨架：<code>cmake -B build -DJCM_SDK=&lt;sdk目录&gt;</code> 一键生成含 PIDS / 车辆（含 ABI 16 着色模型与信号示例）/ 道口三个骨架的工程；模块库目标自动处理 Windows 无前缀 / macOS lib 前缀 + <code>dynamic_lookup</code> / Android 16KB 页对齐的 JCM 加载约定。</p>
+    </div>
 
     <h2 id="project">建立模块工程</h2>
     <p>最省事的方式：把 SDK 解压进你的资源包工程，直接在它的 <code>CMakeLists.txt</code> 末尾追加自己的目标——SDK 已经把各平台的链接细节（Windows 无前缀 <code>.dll</code>、macOS <code>.dylib</code> 与 <code>-undefined dynamic_lookup</code>、Android 16 KB 页对齐）封装成 <code>mtr_add_script()</code> 函数：</p>
@@ -233,7 +241,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
       </tbody>
     </table>
     <ul>
-      <li><strong>四类脚本同规则</strong>：<code>mtr_custom_resources.json</code> 的 <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> 与 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> 预设（<code>scriptLocations</code>）全部支持上述混合声明。</li>
+      <li><strong>五类脚本同规则</strong>：<code>mtr_custom_resources.json</code> 的 <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> / <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code> 与 <code>joban_custom_resources.json</code> 的 <code>pids_images</code> / <code>psdScripts</code> 预设（<code>scriptLocations</code>）全部支持上述混合声明——后三键为 ABI 16 方块脚本（道口 / 售检票机 / 报站广播，锚定方速方块，见 <a href="script-model.html#kinds">脚本模型</a>）。</li>
       <li><strong>老格式兼容</strong>：<code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> 的旧声明继续有效，也可与 <code>.js</code> 混用；<code>"language": "javascript"</code> 可强制整条按 JS 解析。</li>
       <li><strong>JS 字段照常</strong>：<code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code> 等字段含义不变，C++ 侧经 <code>api.input()</code> 读取 <code>input</code>。</li>
       <li><strong>视界外继续渲染</strong>：PIDS 预设字段 <code>outOfBound: true</code>（上游 v2.3.0-prerelease.3）让屏幕移出相机视界时仍继续渲染——须臾不可停的投影仪预设所必需。</li>
@@ -248,7 +256,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
       <li>装好 JCM Yanyang 与 MTR，把资源包放进 <code>resourcepacks/</code> 并启用（或作为内置资源随存档分发）。</li>
       <li>放置对应方块（如 PIDS），在配置里选中你的脚本 / 让声明条目生效。</li>
       <li>打开 <code>logs/latest.log</code>，搜索 <code>native script</code>——模组在加载时会打印模块 census 摘要（模块数、脚本类型、传输通道等）。看到你的 <code>example:arrivals</code> 即为加载成功。</li>
-      <li>改了库文件后，按 <strong>F3+T</strong> 重载资源包即可重载 C++ 脚本（或使用模组提供的「重载全部 MTR 脚本」快捷键），无需重启游戏。</li>
+      <li>改了库文件后，按 <strong>F3+T</strong> 重载资源包即可重载 C++ 脚本（或使用模组提供的「重载全部 MTR 脚本」快捷键），无需重启游戏；开发期也可开启<strong>原生热重载</strong>（<code>scripting.nativeHotReload</code> 配置，默认关）——拷入新库自动触发同款重载，见 <a href="performance.html#hotreload">性能与调试</a>。</li>
     </ol>
     <div class="admonition danger">
       <span class="admonition-title">重要</span>
@@ -256,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
     </div>
 
     <hr>
-    <p>下一步：<a href="script-model.html">脚本模型与生命周期</a> —— 四类脚本的完整语义；或直接跳 <a href="data.html">数据快照</a> 查阅可读数据。</p>
+    <p>下一步：<a href="script-model.html">脚本模型与生命周期</a> —— 八类脚本的完整语义；或直接跳 <a href="data.html">数据快照</a> 查阅可读数据。</p>
   </article>
 
   <footer class="footer">
@@ -265,7 +273,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # 可选：跑 SD
       <a href="getting-started.html">快速上手</a>
       <a href="performance.html">性能与调试</a>
     </div>
-    JCM Yanyang 脚本文档 · 对应 SDK ABI 13（2.3.0-1.0.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
+    JCM Yanyang 脚本文档 · 对应 SDK ABI 16（2.3.0-1.0.2-beta.2）· 与仓库 <code>native/README.md</code> 同步维护  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

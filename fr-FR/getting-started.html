@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -94,17 +94,25 @@
 
     <h2 id="sdk">Récupérer le SDK</h2>
     <p>Le SDK est publié à chaque Release sous la forme <code>jcm-native-sdk-&lt;version&gt;.zip</code> (voir les pièces jointes des GitHub Releases) ; son contenu correspond aux sources du répertoire <code>native/</code> du dépôt :</p>
-    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2/
+    <pre><code class="lang-bash">jcm-native-sdk-2.3.0-1.0.2-beta.2/
 ├── include/mtr/          # tous les en-têtes du SDK (script.hpp est le point d'entrée principal)
 │   ├── mtr_native.h      # ABI C : fonctions exportées, instantanés, enregistrements de dessin, services de l'hôte
 │   ├── script.hpp        # classes de base de script + macros d'enregistrement (un seul #include suffit)
-│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp
+│   ├── vehicle.hpp  pids.hpp  lift.hpp  eyecandy.hpp  psd.hpp
+│   ├── levelcrossing.hpp  faremachine.hpp  announcement.hpp   # scripts de bloc ABI 16
 │   ├── gfx.hpp  gfx2d.hpp  font5x7.hpp  text.hpp  matrices.hpp
 │   ├── api.hpp           # mtr::Api (accès complet aux API Java)
 │   └── crash_guard.hpp ...
-├── examples/             # trois exemples de modules minimaux
+├── template/             # gabarit CMake (trois squelettes : PIDS / véhicule / passage à niveau)
+├── docs/js-to-cpp.md     # table de correspondance JS → C++
+├── tools/js2cpp.py       # convertisseur semi-automatique JS → C++
+├── examples/             # quatre exemples de modules minimaux (dont psd_glass.cpp)
 ├── bench/                # tests et outils
 └── CMakeLists.txt</code></pre>
+    <div class="admonition tip">
+      <span class="admonition-title">Gabarit CMake prêt à l’emploi</span>
+      <p>Le répertoire <code>template/</code> du SDK (livré dans le zip du SDK) contient des squelettes compilables : <code>cmake -B build -DJCM_SDK=&lt;repertoire du sdk&gt;</code> génère en une commande un projet avec les trois squelettes PIDS / véhicule (comprenant les exemples ABI 16 de modèles teintés et de signal) / passage à niveau ; les cibles de bibliothèques de module traitent automatiquement les conventions de chargement JCM — Windows sans préfixe, macOS préfixe lib + <code>dynamic_lookup</code>, alignement de page de 16 Ko sur Android.</p>
+    </div>
 
     <h2 id="project">Créer le projet de module</h2>
     <p>Le plus simple : décompressez le SDK dans votre projet de pack de ressources et ajoutez vos propres cibles à la fin de son <code>CMakeLists.txt</code> — le SDK a déjà encapsulé dans la fonction <code>mtr_add_script()</code> tous les détails de liaison propres à chaque plateforme (Windows <code>.dll</code> sans préfixe, <code>.dylib</code> et <code>-undefined dynamic_lookup</code> sur macOS, alignement de page de 16 Ko sur Android) :</p>
@@ -233,7 +241,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
       </tbody>
     </table>
     <ul>
-      <li><strong>Mêmes règles pour les quatre catégories</strong> : <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> dans <code>mtr_custom_resources.json</code>, ainsi que les préréglages <code>pids_images</code> (via <code>scriptLocations</code>) dans <code>joban_custom_resources.json</code>, prennent tous en charge les déclarations mixtes décrites ci-dessus.</li>
+      <li><strong>Mêmes règles pour les cinq catégories</strong> : <code>vehicleScripts</code> / <code>objectScripts</code> / <code>liftScripts</code> / <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code> dans <code>mtr_custom_resources.json</code>, ainsi que les préréglages <code>pids_images</code> / <code>psdScripts</code> (via <code>scriptLocations</code>) dans <code>joban_custom_resources.json</code>, prennent tous en charge les déclarations mixtes décrites ci-dessus — les trois dernières clés sont les scripts de bloc ABI 16 (passage à niveau / automate de billetterie / annonce de station, ancrés sur les blocs FangSu, voir <a href="script-model.html#kinds">Modèle de script</a>).</li>
       <li><strong>Compatibilité avec l’ancien format</strong> : les anciennes déclarations <code>"language": "cpp"</code> + <code>nativeLibrary</code> / <code>nativeLibraries</code> restent valides et peuvent également être mélangées avec du <code>.js</code> ; <code>"language": "javascript"</code> force l’analyse de l’entrée entière comme JS.</li>
       <li><strong>Champs JS inchangés</strong> : la signification des champs <code>prependExpressions</code> / <code>input</code> / <code>dataFetchMode</code>, etc. ne change pas ; le côté C++ lit <code>input</code> via <code>api.input()</code>.</li>
       <li><strong>Rendre hors champ</strong> : le champ de preset PIDS <code>outOfBound: true</code> (amont v2.3.0-prerelease.3) maintient le rendu du preset lorsque l’écran sort du cadre de la caméra — indispensable aux presets projecteur qui doivent tourner sans interruption.</li>
@@ -248,7 +256,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
       <li>Installez JCM Yanyang et MTR, placez le pack de ressources dans <code>resourcepacks/</code> et activez-le (ou distribuez-le en tant que ressource intégrée avec la sauvegarde).</li>
       <li>Placez le bloc correspondant (par exemple un PIDS), puis sélectionnez votre script dans la configuration / faites en sorte que l’entrée déclarée soit active.</li>
       <li>Ouvrez <code>logs/latest.log</code> et recherchez <code>native script</code> — au chargement, le mod y imprime un résumé census des modules (nombre de modules, types de scripts, canal de transport, etc.). Si votre <code>example:arrivals</code> y figure, le chargement a réussi.</li>
-      <li>Après avoir modifié une bibliothèque, appuyez sur <strong>F3+T</strong> pour recharger le pack de ressources, ce qui recharge également les scripts C++ (ou utilisez le raccourci du mod « Recharger tous les scripts MTR ») — nul besoin de redémarrer le jeu.</li>
+      <li>Après avoir modifié une bibliothèque, appuyez sur <strong>F3+T</strong> pour recharger le pack de ressources, ce qui recharge également les scripts C++ (ou utilisez le raccourci du mod « Recharger tous les scripts MTR ») — nul besoin de redémarrer le jeu ; en phase de développement, vous pouvez aussi activer le <strong>rechargement à chaud natif</strong> (option <code>scripting.nativeHotReload</code>, désactivée par défaut) — copier une nouvelle bibliothèque déclenche automatiquement le même rechargement, voir <a href="performance.html#hotreload">Performance et débogage</a>.</li>
     </ol>
     <div class="admonition danger">
       <span class="admonition-title">Important</span>
@@ -256,7 +264,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
     </div>
 
     <hr>
-    <p>Étape suivante : <a href="script-model.html">Modèle de script et cycle de vie</a> — la sémantique complète des quatre catégories de scripts ; ou passez directement aux <a href="data.html">instantanés de données</a> pour consulter les données accessibles en lecture.</p>
+    <p>Étape suivante : <a href="script-model.html">Modèle de script et cycle de vie</a> — la sémantique complète des huit catégories de scripts ; ou passez directement aux <a href="data.html">instantanés de données</a> pour consulter les données accessibles en lecture.</p>
   </article>
 
   <footer class="footer">
@@ -265,7 +273,7 @@ ctest --test-dir native/build -C Release --output-on-failure   # facultatif : ex
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-1.0.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 16 (2.3.0-1.0.2-beta.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

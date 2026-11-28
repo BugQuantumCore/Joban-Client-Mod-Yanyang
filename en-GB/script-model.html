@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Script model and lifecycle — JCM Yanyang Scripting Documentation</title>
-<meta name="description" content="The five script base classes, State semantics, the create/render/dispose sequence, threading model and crash isolation.">
+<meta name="description" content="The eight script base classes, State semantics, the create/render/dispose sequence, threading model and crash isolation.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -62,13 +62,13 @@
     <header class="page-header">
       <div class="breadcrumb"><a href="index.html">Docs</a> / Script model and lifecycle</div>
       <h1>Script model and lifecycle</h1>
-      <p class="page-lead">The five script base classes, per-instance state, the lifecycle sequence, and the threading and crash-isolation semantics.</p>
+      <p class="page-lead">The eight script base classes, per-instance state, the lifecycle sequence, and the threading and crash-isolation semantics.</p>
     </header>
 
     <div class="page-toc">
       <b>On this page</b>
       <ol>
-        <li><a href="#kinds">The five script kinds</a></li>
+        <li><a href="#kinds">The eight script kinds</a></li>
         <li><a href="#state">State: per-instance state</a></li>
         <li><a href="#lifecycle">Lifecycle sequence</a></li>
         <li><a href="#threading">Threading model</a></li>
@@ -77,7 +77,7 @@
       </ol>
     </div>
 
-    <h2 id="kinds">The five script kinds</h2>
+    <h2 id="kinds">The eight script kinds</h2>
     <p>Include <code>&lt;mtr/script.hpp&gt;</code>, inherit from the matching base class and export it with a registration macro. The base class template parameter is the <strong>per-instance state type</strong>:</p>
     <table>
       <thead><tr><th>Resource</th><th>Base class</th><th>Registration macro</th><th>Data wrapper</th></tr></thead>
@@ -87,10 +87,14 @@
         <tr><td>PSD</td><td><code>mtr::PsdScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_PSD_SCRIPT</code></td><td><code>mtr::Psd</code></td></tr>
         <tr><td>Lift</td><td><code>mtr::LiftScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LIFT_SCRIPT</code></td><td><code>mtr::Lift</code></td></tr>
         <tr><td>Eyecandy</td><td><code>mtr::EyecandyScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_EYECANDY_SCRIPT</code></td><td><code>mtr::EyeCandy</code></td></tr>
+        <tr><td>Level crossing (ABI 16)</td><td><code>mtr::LevelCrossingScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_LEVEL_CROSSING_SCRIPT</code></td><td><code>mtr::LevelCrossing</code></td></tr>
+        <tr><td>Fare machine (ABI 16)</td><td><code>mtr::FareMachineScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_FARE_MACHINE_SCRIPT</code></td><td><code>mtr::FareMachine</code></td></tr>
+        <tr><td>Announcement (ABI 16)</td><td><code>mtr::AnnouncementScript&lt;State&gt;</code></td><td><code>MTR_REGISTER_ANNOUNCEMENT_SCRIPT</code></td><td><code>mtr::Announcement</code></td></tr>
       </tbody>
     </table>
+    <p>The latter three are <strong>block scripts</strong> (resource kinds <code>MTR_RESOURCE_LEVEL_CROSSING</code>=5 / <code>FARE_MACHINE</code>=6 / <code>ANNOUNCEMENT</code>=7), anchored to the matching FangSu blocks: <strong>right-click</strong> a FangSu level crossing / ticket barrier / ticket machine / announcement speaker block with the <strong>PSD script editor</strong> to open the selection screen, which lists the loaded modules of the matching kind plus a "no script" entry. Bindings <strong>live only on this client</strong> (<code>config/jcm/native_block_scripts.json</code>, grouped by dimension)—all three script kinds are purely visual/audio overlays and never modify world state, so they need no server-side storage or syncing like PSD does. For the data plane see <a href="data.html#blocks">Data snapshots · Level crossings / fare machines / announcements</a>; without FangSu all three idle completely.</p>
 
-    <p>A vehicle script skeleton (for the other three kinds, only the base class and parameter types change):</p>
+    <p>A vehicle script skeleton (for the other kinds, only the base class and parameter types change):</p>
     <pre><code class="lang-cpp">#include &lt;mtr/script.hpp&gt;
 
 struct MyVehicleState {
@@ -200,7 +204,7 @@ MTR_REGISTER_VEHICLE_SCRIPT(MyVehicleScript)</code></pre>
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang scripting documentation · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
+    JCM Yanyang scripting documentation · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with the repository's <code>native/README.md</code>  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

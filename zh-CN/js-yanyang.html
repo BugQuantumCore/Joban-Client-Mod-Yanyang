@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -83,6 +83,8 @@
       <tbody>
         <tr><td><a href="#mixed">混合 JS + C++ 条目</a></td><td>声明条目</td><td>一个条目里 JS 与 C++ 模块随意混搭，双引擎同时渲染</td></tr>
         <tr><td><a href="#doordir">开门方向记忆</a></td><td><code>VehicleWrapper.getDirectionOfDoorOpening()</code></td><td>到站开哪侧门——站台期、正线预测、跨视距由服务端记忆</td></tr>
+        <tr><td><a href="#weather">天气 API</a></td><td><code>wrapper.getWeather()</code></td><td>五类包装器统一读客户端天气，与 C++ 返回完全一致（beta.1）</td></tr>
+        <tr><td><a href="#datastore">脚本数据存储</a></td><td><code>ctx.getDataStore()</code></td><td>按脚本 id 作用域、跨重启持久化的 JSON 键值存储（beta.1，C++ 共享同一数据）</td></tr>
         <tr><td><a href="#transporttype">交通类型细分</a></td><td><code>VehicleWrapper.getTransportType()</code> 等</td><td>线路细分类型 id（与 MAGIC MTR 联动）与换乘扩展字段</td></tr>
         <tr><td><a href="#rawupload">直写像素上传</a></td><td><code>GraphicsTexture.uploadRawABGR()</code></td><td>字节行阵直写 + 只上传脏区，高频逐像素更新的省带宽通道</td></tr>
         <tr><td>兼容别名</td><td>声明条目</td><td>接受 NTE 文档示例的 <code>script_input</code> 键名；<code>nativeLibrary</code> / <code>nativeLibraries</code> 与 <code>.js</code> 混用</td></tr>
@@ -148,6 +150,48 @@
 }</code></pre>
     </div>
 
+    <h2 id="weather">天气 API</h2>
+    <p>五类包装器（<code>PIDSWrapper</code> / <code>VehicleWrapper</code> / <code>PSDWrapper</code> / <code>LiftWrapper</code> / <code>EyecandyBlockEntityWrapper</code>）统一新增 <code>getWeather(): String</code>——返回 <code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>：</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    if (pids.getWeather() == "rain")      drawNotice(ctx, state, "小心地滑");
+    if (pids.getWeather() == "thunder")   drawNotice(ctx, state, "恶劣天气 服务或有延误");
+}</code></pre>
+    <ul>
+      <li>判定与 MTR 自带天气 PIDS 组件一致：<code>isThundering()</code> 优先于 <code>isRaining()</code>；无客户端世界时恒为 <code>"clear"</code>。</li>
+      <li><strong>C++ 侧同款</strong>（ABI 15 快照字段直读）：<code>vehicle.weather()</code> / <code>getWeather()</code> 等五类包装器同名方法，返回值逐字一致——两侧脚本可共享布局逻辑。</li>
+    </ul>
+
+    <h2 id="datastore">脚本数据存储</h2>
+    <p><code>ctx.getDataStore()</code> 为每个脚本提供<strong>跨游戏重启</strong>的 JSON 键值存储。作用域为<strong>脚本 id</strong>：同一脚本的全部实例（每个 PIDS 方块、每块绑定的屏蔽门玻璃……）共享同一份存储文件，持久化于 <code>&lt;运行目录&gt;/data/mtrscripting/stores/&lt;脚本 id&gt;.json</code>（与 <code>Files.readData/saveData</code> 同一棵数据树）——同一脚本 id 跨世界 / 跨服务器共享。需要<strong>按实例区分</strong>的状态，用包装器已暴露的实例标识（如 <code>blockPos()</code>、车辆 / 站台 id）作键前缀即可。</p>
+    <pre><code class="lang-js">function render(ctx, state, pids) {
+    let store = ctx.getDataStore();
+    let next = pids.arrivals().get(0);
+    if (next) {
+        let dest = next.destination;
+        if (store.getString("last.destination", "") != dest) {
+            store.set("last.destination", dest);
+            store.set("dest.changed", store.getNumber("dest.changed", 0) + 1);  // 仅变化时写入
+        }
+    }
+}</code></pre>
+    <table>
+      <thead><tr><th>成员</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>get(key)</code></td><td>解码后的 JSON 值（字符串 / 数字 / 布尔 / null / 列表 / 映射；无键为 null）</td></tr>
+        <tr><td><code>getString(key, def)</code> / <code>getNumber(key, def)</code> / <code>getBoolean(key, def)</code></td><td>类型化取值（带默认值）</td></tr>
+        <tr><td><code>set(key, value)</code></td><td>写入（接受字符串 / 数字 / 布尔 / null / JS 对象与数组——经重定位 Rhino 运行时转换）</td></tr>
+        <tr><td><code>has(key)</code> / <code>delete(key)</code></td><td>有无 / 删除（delete 返回该键是否存在）</td></tr>
+        <tr><td><code>size()</code> / <code>keys()</code> / <code>clear()</code></td><td>键数 / 键集合 / 清空</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li><strong>容量上限</strong>：256 键 / 64 KB 序列化 / 128 字符键 / 32 层嵌套（防循环引用）——超限抛给脚本错误路径，失控脚本无法无限生长数据目录。</li>
+      <li><strong>稳健落盘</strong>：防抖（客户端 tick 约 1.6 秒统一刷新，资源重载与 JVM 关停钩子兜底）+ 原子写（临时文件 + move）——崩溃中途写坏时退化为上一份完好文件，损坏文件降级为空存储并告警。</li>
+      <li><strong>线程安全</strong>：全部方法线程同步（同一脚本的多实例可能跑在不同 executor 线程）。</li>
+      <li><strong>C++ 共享</strong>：C++ 侧经 <code>api.context().call("getDataStore")</code> 取得同一存储对象（无新 ABI），见 <a href="java-api.html#coverage">mtr::Api · 脚本数据存储</a>。</li>
+      <li><strong>好实践</strong>：仅在变化时写入（落盘本就有防抖）；计数器、记住的目的地、管理员手改的配置都是典型用途。</li>
+    </ul>
+
     <h2 id="transporttype">交通类型细分</h2>
     <p>MTR 的 <code>TransportMode</code> 只有四种基模式（train / boat / cable_car / airplane），不够显示用。<a href="https://modrinth.com/mod/magic-mtr" rel="noopener">MAGIC MTR</a> 附加模组允许玩家给「列车」再细分显示类型（存于其 <code>route_types.json</code>，按线路 id 键控）。本分支把这些类型贯通到脚本：</p>
     <ul>
@@ -185,6 +229,11 @@
         <tr><td><code>vehicle.getTransportType()</code></td><td><code>mtr::Vehicle::getTransportType()</code></td><td>ABI 9</td></tr>
         <tr><td><code>Stop.routeInterchanges[i].getTransportType()</code> 等</td><td><code>mtr::Stop::interchange(i)</code> 的类型字段</td><td>ABI 9</td></tr>
         <tr><td><code>vehicle.getDirectionOfDoorOpening()</code></td><td><code>mtr::Vehicle::doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td>ABI 11</td></tr>
+        <tr><td><code>pids.getWeather()</code> 等五类包装器</td><td><code>mtr::Pids::weather()</code> / <code>getWeather()</code> 等</td><td>ABI 15</td></tr>
+        <tr><td><code>ctx.getDataStore()</code></td><td><code>api.context().call("getDataStore")</code>（同一对象）</td><td>beta.1（无新 ABI）</td></tr>
+        <tr><td>方速快车 / 隐藏线路（C++ 快照直读）</td><td><code>arrival.isExpress()</code> / <code>isHiddenRoute()</code>、<code>vehicle.isExpressService()</code> 等</td><td>ABI 16</td></tr>
+        <tr><td>方速暂缓开通（C++ 快照直读）</td><td><code>stop.stopStatus()</code> / <code>isDeferredStop()</code></td><td>ABI 14</td></tr>
+        <tr><td>NTE 信号状态（C++ 快照直读）</td><td><code>vehicle.signalState()</code> / <code>getSignalState()</code></td><td>ABI 16</td></tr>
       </tbody>
     </table>
     <p>纯 JS 读者记住一件事即可：<strong>本页的扩展在 C++ 侧同样可用</strong>（快照字段直读，零搬运成本），见 <a href="data.html">数据快照</a>。</p>
@@ -199,7 +248,7 @@
       <a href="js-types.html">JS 脚本类型</a>
       <a href="js-api.html">JS 公共 API</a>
     </div>
-    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-1.0.2 · 晏阳技术组扩展
+    JCM Yanyang 脚本文档 · JavaScript 篇 · 对应 JCM 2.3.0-1.0.2-beta.2 · 晏阳技术组扩展
   </footer>
 </main>
 </div>

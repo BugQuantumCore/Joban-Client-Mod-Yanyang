@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -160,6 +160,14 @@ ctx.draw_model(model_handle, &amp;m);                   // eyecandy / ascenseur<
       </tbody>
     </table>
     <p>Le contexte véhicule propose en outre <code>draw_bogie_model(model, car, bogie, matrices)</code> (bogies), <code>play_car_sound(sound, car, x, y, z, volume, pitch)</code> et <code>play_ann_sound(sound, volume, pitch)</code> (annonces de station audibles uniquement par les joueurs à bord).</p>
+    <h3>Teinte / émission / translucidité des modèles (ABI 16)</h3>
+    <p>Un champ ARGB <code>tint</code> est ajouté en fin d’enregistrement de modèle (<code>JcmDrawModel</code> : 24 → 28 octets), avec deux nouveaux indicateurs d’enregistrement : <code>MTR_RECORD_FLAG_EMISSIVE</code> (rendu à pleine luminosité — phares de nuit, enseignes lumineuses, comme le fullBrightness des eyecandy) et <code>MTR_RECORD_FLAG_TRANSLUCENT</code> (passe de matériau translucide — vitrages ; automatiquement actif quand alpha &lt; 0xFF). Côté véhicule, les paramètres se passent en chaîne via <code>ModelStyle</code> :</p>
+    <pre><code class="lang-cpp">ctx.draw_car_model(model, car, mats,
+                   mtr::VehicleContext::ModelStyle()
+                       .tint(0x80FF8000)   // teinte orange translucide
+                       .emissive()          // pleine luminosité (vitrage des phares)
+                       .translucent());     // passe translucide</code></pre>
+    <p>Variante paramétrée des contextes eyecandy / passage à niveau / automate de billetterie : <code>ctx.draw_model(model, matrices, tint_argb, emissive, translucent)</code> (feux d’alerte du passage à niveau emissive, lanterne en verre translucide + teinte alpha ; écran de l’automate émissif, cloche en verre translucide). <code>draw_bogie_model</code> possède la même surcharge avec <code>ModelStyle</code>. L’hôte met en cache les variantes teintées sous forme de copies par matériau (un changement de style ne reconstruit qu’une fois, le modèle d’origine n’est pas affecté) ; <strong>les enregistrements de 24 octets des modules ABI ≤ 15 continuent d’être rendus à l’identique</strong> (l’hôte avance par pas de <code>record_size</code>, <code>tint</code> n’est lu que si ≥ 28).</p>
     <p>Les handles de modèle proviennent des services de l’hôte : <code>ctx.host()-&gt;acquire_model(user, "namespace:path/model.json")</code> pour l’acquisition, <code>release_model(user, handle)</code> pour la libération ; <code>acquire_quad_model(...)</code> construit une facette texturée détenue par l’hôte à partir de 4 sommets en espace modèle + UV (transformant une <code>GraphicsTexture</code> en écran applicable sur une voiture). Détails dans <a href="abi.html">ABI C et services de l’hôte</a>.</p>
 
     <h2 id="texture2d">GraphicsTexture (canevas de pixels)</h2>
@@ -244,7 +252,7 @@ g.pop_clip();</code></pre>
       <a href="getting-started.html">Démarrage rapide</a>
       <a href="performance.html">Performance et débogage</a>
     </div>
-    Documentation JCM Yanyang Scripting · correspond au SDK ABI 13 (2.3.0-1.0.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
+    Documentation JCM Yanyang Scripting · correspond au SDK ABI 16 (2.3.0-1.0.2-beta.2) · maintenue en synchronisation avec le <code>native/README.md</code> du dépôt  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>

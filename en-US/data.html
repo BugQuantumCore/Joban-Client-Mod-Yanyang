@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Data snapshots — JCM Yanyang Scripting Docs</title>
-<meta name="description" content="The complete accessor reference for the Vehicle / Stop / Arrival / Pids / Lift / EyeCandy snapshot wrappers.">
+<meta name="description" content="The complete accessor reference for the Vehicle / Stop / Arrival / Pids / Psd / Lift / EyeCandy / LevelCrossing / FareMachine / Announcement snapshot wrappers.">
 <meta name="color-scheme" content="light dark">
 <script>(function(){var t;try{t=localStorage.getItem("jcm-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
 <link rel="stylesheet" href="../assets/style.css">
@@ -46,8 +46,8 @@
     </div>
   </div>
   <div class="sidebar-footer">
-    SDK ABI 13<br>
-    JCM 2.3.0-1.0.2<br>
+    SDK ABI 16<br>
+    JCM 2.3.0-1.0.2-beta.2<br>
     MTR 4.0.5+ · MC 1.17.1–1.20.4
   </div>
 </aside>
@@ -76,6 +76,8 @@
         <li><a href="#psd">Psd (platform screen door)</a></li>
         <li><a href="#lift">Lift</a></li>
         <li><a href="#eyecandy">EyeCandy</a></li>
+        <li><a href="#weather">Weather (ABI 15)</a></li>
+        <li><a href="#blocks">Level crossings / fare machines / announcements (ABI 16)</a></li>
         <li><a href="#helpers">Helper types</a></li>
       </ol>
     </div>
@@ -117,6 +119,9 @@
         <tr><td><code>route_name()</code> / <code>route_color()</code> / <code>circular_state()</code> / <code>circular()</code></td><td><code>StrView</code> / <code>uint32_t</code> / <code>uint8_t</code> / <code>bool</code></td><td>Current route name / color ARGB / circular state (0 none, 1 clockwise, 2 counterclockwise)</td></tr>
         <tr><td><code>getTransportMode()</code> / <code>getTransportType()</code></td><td><code>TransportMode</code> / <code>StrView</code></td><td>See <a href="#transport">Transport modes and types</a></td></tr>
         <tr><td><code>doorDirection()</code> / <code>getDirectionOfDoorOpening()</code></td><td><code>DoorDirection</code> / <code>StrView</code></td><td>Door-opening side: <code>NOT</code> / <code>"not"</code> (neither side), <code>LEFT</code> / <code>"left"</code> (head-left), <code>RIGHT</code> / <code>"right"</code> (head-right), <code>ALL</code> / <code>"all"</code> (both sides). While dwelling at a platform the value is reported the same regardless of the current door phase (not-yet-open / partial / closing / closed); while running on the mainline it predicts the next stop — laying the vehicle out at its stopping point and running MTR's own <code>canOpenDoors</code> block scan per car. The prediction prefers the <strong>server-side per-route persistent memory</strong> (persisted with the save when the server runs this mod — valid beyond view distance, incrementally refreshed as platform blocks change); when the server has no answer it falls back to the client's own view-distance scan. If any one car on a side can open, that whole side counts as openable; left/right are relative to the vehicle head (bogie-1 end) — travel direction and reversing never flip them. Purely informational — MTR still owns which doors actually open. Identical to the JS <code>vehicle.getDirectionOfDoorOpening()</code> (ABI 11)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code></td><td><code>Weather</code> / <code>StrView</code></td><td>The client world's weather (ABI 15): <code>CLEAR</code> / <code>"clear"</code>, <code>RAIN</code> / <code>"rain"</code>, <code>THUNDER</code> / <code>"thunder"</code> — identical to the JS <code>vehicle.getWeather()</code>; always clear without a world. Snapshot field <code>weather</code> (offset 165, the former <code>_pad1[0]</code>). See <a href="#weather">Weather</a></td></tr>
+        <tr><td><code>isExpressService()</code> / <code>isHiddenRoute()</code> / <code>serviceFlags()</code></td><td><code>bool</code> / <code>uint8_t</code></td><td>FangSu service flags (ABI 16): the next stop is an express service (bit0) / the current route exists only in FangSu's hidden-route cache (bit1); without FangSu always 0 — the existing not-express / not-hidden answer. Snapshot field <code>service_flags</code> (offset 166, the former <code>_pad1[1]</code>). Compare against the <code>mtr::service_flags::EXPRESS</code> / <code>HIDDEN_ROUTE</code> constants</td></tr>
+        <tr><td><code>signalState()</code> / <code>getSignalState()</code></td><td><code>SignalState</code> / <code>StrView</code></td><td>The state of the signal ahead of the vehicle (ABI 16): <code>UNKNOWN</code> / <code>"unknown"</code>, <code>CLEAR</code> / <code>"clear"</code>, <code>CAUTION</code> / <code>"caution"</code>, <code>DANGER</code> / <code>"danger"</code> — supplied by the host through the <code>NativeSignalState.set(vehicleId, state)</code> public extension point (signal mods push every tick; without an update for 750 ms it decays to unknown automatically); always unknown without a provider. Snapshot field <code>signal_state</code> (offset 167, the former <code>_pad1[2]</code>)</td></tr>
         <tr><td><code>siding_name()</code></td><td><code>StrView</code></td><td>Siding display name (user-defined name / description)</td></tr>
         <tr><td><code>raw()</code></td><td><code>JcmVehicleSnapshot&amp;</code></td><td>Raw snapshot (ABI details in <a href="abi.html">C ABI</a>)</td></tr>
       </tbody>
@@ -157,6 +162,8 @@
         <tr><td><code>route_circular_state()</code></td><td>Circular state of this stop's route (distinguishes direction changes after crossing routes)</td></tr>
         <tr><td><code>interchange_count()</code> / <code>interchange(i)</code></td><td>Interchange info: each has <code>color</code> (ARGB), <code>name</code> (route name), <code>getTransportMode()</code>, <code>getTransportType()</code></td></tr>
         <tr><td><code>exit_count()</code> / <code>exit(i)</code></td><td>Station exits: each has <code>name</code> (the exit letter, e.g. <code>"A"</code>) and <code>destination(j)</code> (a list of landmark strings)</td></tr>
+        <tr><td><code>stopStatus()</code> / <code>getStopStatus()</code></td><td>Stop status (ABI 14, the FangSu deferred-opening model): <code>NORMAL</code> / <code>"normal"</code>, <code>DISABLED</code> / <code>"disabled"</code> (the station's opening is deferred or the platform is struck through — trains pass without stopping), <code>SKIPPED</code> / <code>"skipped"</code> (the train takes the passing loop). The snapshot field is the former <code>_pad0[2]</code> promoted in place; without FangSu it is always normal</td></tr>
+        <tr><td><code>isStationDeferred()</code> / <code>isDeferredStop()</code></td><td>Station-level deferred-opening flag / a display convenience method (<code>stopStatus() != NORMAL || isStationDeferred()</code> — the same verdict FangSu itself uses for its strike-through display, "strike this stop through")</td></tr>
       </tbody>
     </table>
 
@@ -203,6 +210,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
         <tr><td><code>arrival_time()</code> / <code>departure_time()</code> / <code>deviation()</code></td><td>Arrival / departure times and deviation (epoch milliseconds, corrected)</td></tr>
         <tr><td><code>arrived()</code> / <code>departed()</code></td><td>Whether it has arrived / departed (compared against the current time)</td></tr>
         <tr><td><code>realtime()</code> / <code>terminating()</code> / <code>circular_state()</code></td><td>Realtime data / terminating this trip / circular state</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>FangSu service flags (ABI 16): this departure is an express (passing the non-express stops) / this route exists only in FangSu's hidden-route cache — PIDS/PSD can render "express passing" / "hidden-route arrival" notices from them. Always false without FangSu (<code>JcmArrival.flags</code>, offset 59, former padding)</td></tr>
         <tr><td><code>route_id()</code> / <code>platform_id()</code> / <code>route_color()</code> / <code>car_count()</code> / <code>departure_index()</code></td><td>Route / platform ids, route color ARGB, car count, departure index</td></tr>
       </tbody>
     </table>
@@ -249,6 +257,7 @@ for (int i = 0; i &lt; stop.interchange_count(); i++) {
       <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
       <tbody>
         <tr><td><code>id()</code> / <code>name()</code> / <code>route_number()</code> / <code>color()</code> / <code>circular_state()</code> / <code>getTransportType()</code></td><td>Route id / name / number / ARGB color / circular state / canonical transport type id</td></tr>
+        <tr><td><code>isExpress()</code> / <code>isHiddenRoute()</code></td><td>FangSu service flags (ABI 16, <code>route_flags</code> at offset 13): the route's current departure is an express / a hidden route — route strips can render the "express, not stopping" style; always false without FangSu</td></tr>
         <tr><td><code>stops()</code></td><td><code>PsdStopList</code>: the ordered stops, laid out like the vehicle <code>Stop</code> (name / destination_name / custom_destination / dwell_time_millis / route_id / station_id / platform_id / route_circular_state / <code>interchange(i)</code> / <code>exit(i)</code> — see <a href="#stop">Stop / interchanges / exits</a>)</td></tr>
       </tbody>
     </table>
@@ -315,6 +324,93 @@ if (event.call("occurred").as&lt;bool&gt;()) {
 }</code></pre>
     <p>The eyecandy draw context <code>EyeCandyContext</code> provides <code>draw_model(model, matrices)</code>, <code>play_sound(sound, volume, pitch)</code>, <code>set_outline_shape(boxes, count)</code>, and <code>set_collision_shape(boxes, count)</code> (6 floats per box; collision boxes keep the Java side's 1.5-block height cap, with overflow validated and logged by the host). Lifts reuse the same context type (<code>LiftContext = EyeCandyContext</code>).</p>
 
+    <h2 id="weather">Weather (ABI 15)</h2>
+    <p>All five snapshots (vehicle / PIDS / PSD / lift / eyecandy) uniformly carry the client world's weather state — <strong>JS and C++ return exactly the same values, so scripts on both sides can share layout logic</strong> (a "mind the wet floor" notice row on rainy days, thunderstorm service notices, and so on):</p>
+    <pre><code class="lang-cpp">if (psd.getWeather() == mtr::weather::RAIN) drawWetFloorNotice();
+switch (vehicle.weather()) {
+    case mtr::Weather::RAIN:    drawRainOverlay(); break;
+    case mtr::Weather::THUNDER: drawThunderServiceNotice(); break;
+    default: break;
+}</code></pre>
+    <ul>
+      <li>Values: <code>weather()</code> returns <code>mtr::Weather</code> (<code>CLEAR / RAIN / THUNDER</code>); <code>getWeather()</code> returns the string id (<code>"clear"</code> / <code>"rain"</code> / <code>"thunder"</code>, compared against the <code>mtr::weather</code> constants — the same naming convention as transport_type / door_direction).</li>
+      <li>The verdict matches MTR's own weather PIDS component: <code>isThundering()</code> takes precedence over <code>isRaining()</code>; without a client world it is always clear.</li>
+      <li>Layout: vehicle <code>weather</code> @165 (the former <code>_pad1[0]</code>), PIDS @63 (the former <code>_pad0</code>), lift @127 (the former <code>_pad0</code>), eyecandy @67 (the former <code>_pad0</code>); <code>JcmPsdSnapshot</code> is the only snapshot without a spare byte — its header length grows 128 → 136 with the weather byte at 128 (all pool offsets are relative to the blob; ABI 12–14 modules only read offsets &lt; 128 and are unaffected). All four fields were previously padding that was written as zero and never read, so older modules are unaffected.</li>
+      <li>The JS side calls the same-named methods directly: <code>pids.getWeather()</code> / <code>vehicle.getWeather()</code> / <code>psd.getWeather()</code> / <code>lift.getWeather()</code> / <code>eyecandy.getWeather()</code> (returning the same string ids).</li>
+    </ul>
+
+    <h2 id="blocks">Level crossings / fare machines / announcements (ABI 16)</h2>
+    <p>The three <strong>block script</strong> kinds anchor to the matching FangSu blocks and are driven through client-local bindings (right-click the block with the PSD script editor to choose a script; bindings live in <code>config/jcm/native_block_scripts.json</code>, grouped by dimension — all three script kinds are purely visual/audio overlays and never modify world state). Base classes and registration macros are in <a href="script-model.html#kinds">Script model</a>; the declaration keys are <code>levelCrossingScripts</code> / <code>fareMachineScripts</code> / <code>announcementScripts</code>, following the same declaration rules as the other kinds. Without FangSu all three idle completely.</p>
+
+    <h3>LevelCrossing (level crossing)</h3>
+    <p>The <code>JcmLevelCrossingSnapshot</code> snapshot (72 bytes) carries a geometry summary and a pool of approaching trains; <strong>the barrier animation is driven by the script's own state</strong>, the host only provides the target:</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>pos_x() / pos_y() / pos_z()</code></td><td>World coordinates of the bound block</td></tr>
+        <tr><td><code>track_yaw_degrees()</code></td><td>Yaw of the main track's direction (FangSu geometry sampling; <code>-1</code> = unknown) — for aligning the barriers</td></tr>
+        <tr><td><code>warningState()</code> / <code>isWarning()</code></td><td>Host-derived warning state: <code>IDLE</code> / <code>WARNING</code> (at least one train has entered the warning radius)</td></tr>
+        <tr><td><code>barrierTarget()</code> / <code>barrier_closed()</code></td><td>Host-derived barrier target: <code>OPEN</code> / <code>CLOSED</code> (lowered while warning) — the script advances its own barrier animation toward this target</td></tr>
+        <tr><td><code>approaches()</code></td><td><code>CrossingApproachList</code>: the pool of approaching trains (below)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>game_time_millis()</code></td><td>Weather (same as ABI 15) / the bound block really is a FangSu level crossing / clocks</td></tr>
+      </tbody>
+    </table>
+    <p>Each <code>CrossingApproach</code> (64 bytes):</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>vehicle_id()</code> / <code>route_id()</code></td><td>Vehicle / route ids (64-bit)</td></tr>
+        <tr><td><code>distance_blocks()</code> / <code>speed_kmh()</code> / <code>seconds_to_arrival()</code></td><td>Distance (blocks) / speed / estimated seconds to arrival</td></tr>
+        <tr><td><code>car_count()</code> / <code>destination()</code> / <code>arrival_millis()</code> / <code>arrived()</code></td><td>Car count / destination / corrected arrival time (0 = unknown) / whether it has arrived</td></tr>
+      </tbody>
+    </table>
+    <p>The draw context <code>LevelCrossingContext</code> (its replay path uses the same render manager as eyecandy): <code>draw_model(model, matrices)</code> plus the styled variant <code>draw_model(model, matrices, tint_argb, emissive, translucent)</code> (warning lamps emissive, lamp-glass translucent — see <a href="drawing.html#matrices">Drawing and canvases</a>) and <code>play_sound(sound, volume, pitch)</code> (a positioned sound at the block's location).</p>
+
+    <h3>FareMachine (fare machine)</h3>
+    <p>The <code>JcmFareMachineSnapshot</code> snapshot (96 bytes) — the data plane for small-screen dynamic content (fares, balance notices, crowding):</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>machineType()</code></td><td><code>BARRIER</code> (a ticket barrier, anchored to the FangSu <code>ticket_barrier</code>) / <code>TICKET_MACHINE</code> (a ticket machine, anchored to <code>ticket_machine</code>)</td></tr>
+        <tr><td><code>open()</code> / <code>door_value()</code></td><td>Barrier open state (FangSu's isOpen extraConfig) / flap-door animation value 0 (open)..1 (closed) — derived from the open/close edges following FangSu's 200 ms open / 500+200 ms close timing; always 0 for ticket machines</td></tr>
+        <tr><td><code>exit_side()</code> / <code>facing()</code></td><td>Exit side (zone-fare barriers) / facing (MC Direction 0..5)</td></tr>
+        <tr><td><code>fareType()</code> / <code>fare_value()</code></td><td><code>ZONE_BASED</code> / <code>FLAT</code>; the flat fare (zone fares resolve through the snapshot's station names and the JS-side fare table)</td></tr>
+        <tr><td><code>player_balance()</code></td><td>The client player's <code>mtr_balance</code> scoreboard value (<code>-1</code> unknown) — the number shown on "balance notice" screens</td></tr>
+        <tr><td><code>station_name()</code> / <code>arrivals()</code></td><td>The station it belongs to (empty when unresolved) / the nearest platform's arrival pool (<code>FareArrival</code> carries every Pids Arrival accessor + <code>isExpress()</code> / <code>isHiddenRoute()</code>)</td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>Same as above</td></tr>
+      </tbody>
+    </table>
+    <p>The draw context <code>FareMachineContext</code>: <code>draw_model(model, matrices[, tint, emissive, translucent])</code> (emissive screens, translucent glass covers + alpha tinting) and <code>play_sound(...)</code>.</p>
+
+    <h3>Announcement (announcements)</h3>
+    <p>The <code>JcmAnnouncementSnapshot</code> snapshot (88 bytes) — the unified audio scheduling API; "already announced this departure" deduplication is done by the script's state (<code>departure_key()</code>):</p>
+    <table>
+      <thead><tr><th>Accessor</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>lead_seconds()</code> / <code>all_stops()</code></td><td>Seconds to announce in advance (fires once the remaining time enters the window) / whether departures that don't stop at every station are also announced</td></tr>
+        <tr><td><code>template_id()</code> / <code>variant()</code></td><td>Template / variant identifiers (empty when unset) — switch announcement styles without shipping your own configuration</td></tr>
+        <tr><td><code>binding_count()</code> / <code>binding_route(i)</code> / <code>binding_platform(i)</code></td><td>Bound (route, platform) pairs (≤ 32; in the FangSu model <code>(0, 0)</code> means every platform in range — forwarded verbatim by the host)</td></tr>
+        <tr><td><code>arrivals()</code></td><td><code>AnnouncementArrivalList</code>: the arrival pool across every bound platform (deduplicated by departure, sorted by arrival time); each entry has <code>arrival_time()</code> / <code>departure_time()</code> / <code>route_id()</code> / <code>destination()</code> / <code>route_name()</code> / <code>seconds_until_arrival()</code> / <code>isExpress()</code> / <code>isHiddenRoute()</code> / <code>realtime()</code> / <code>terminating()</code> / <code>car_count()</code></td></tr>
+        <tr><td><code>weather()</code> / <code>getWeather()</code> · <code>fangsu_present()</code> · <code>pos_x/y/z()</code> · <code>game_time_millis()</code></td><td>Same as above</td></tr>
+      </tbody>
+    </table>
+    <p>Audio is replayed through the unified sound records (the same semantics as the PIDS ScriptSoundManager — identical volume / pitch / distance culling): <code>ctx.play_sound(id, volume, pitch)</code> (a positioned sound at the speaker block, audible to every player in range) and <code>ctx.play_local_sound(id, volume, pitch)</code> (the riding-players-only channel). An example (in the SDK <code>examples/</code> style):</p>
+    <pre><code class="lang-cpp">struct State { std::unordered_set&lt;int64_t&gt; announced; };
+void render(mtr::AnnouncementContext&amp; ctx, State&amp; s, const mtr::Announcement&amp; an) override {
+    auto arrivals = an.arrivals();
+    for (int i = 0; i &lt; arrivals.size(); i++) {
+        const double remain = (arrivals[i].arrival_time() - an.game_time_millis()) / 1000.0;
+        if (remain &gt; 0 &amp;&amp; remain &lt;= an.lead_seconds()
+            &amp;&amp; s.announced.insert(arrivals[i].departure_key()).second) {
+            ctx.play_sound("demo:chime", 1.0f, 1.0f);
+        }
+    }
+}</code></pre>
+    <div class="admonition note">
+      <span class="admonition-title">Drive cadence</span>
+      <p>The block script driver hooks the same per-frame injection point as vehicle scripts (likewise skipping the shader shadow phase): the native drive runs at about 12 Hz (throttling the reflection probes / vehicle scans / arrival queries) while draw replay happens every frame — the same capture-replay discipline as PIDS/PSD, so models never flicker. Resource resolution goes through the existing <code>mtr_custom_resources.json</code> declaration pipeline (all three keys are pure native declarations).</p>
+    </div>
+
     <h2 id="helpers">Helper types</h2>
     <p><code>&lt;mtr/util.hpp&gt;</code> provides hot-path-friendly cycling and state-tracking helpers (zero allocation):</p>
     <pre><code class="lang-cpp">// "A|B|C" rotates one segment every 40 ticks; switching views is pure offset math
@@ -360,7 +456,7 @@ if (s.phase.changed_from_to(PHASE_IDLE, PHASE_ARRIVING)) { /* play arrival anima
       <a href="getting-started.html">Quick start</a>
       <a href="performance.html">Performance and debugging</a>
     </div>
-    JCM Yanyang Scripting Docs · Matches SDK ABI 13 (2.3.0-1.0.2) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
+    JCM Yanyang Scripting Docs · Matches SDK ABI 16 (2.3.0-1.0.2-beta.2) · Maintained in sync with <code>native/README.md</code> in the repository  </footer>
 </main>
 </div>
 <script src="../assets/app.js"></script>
